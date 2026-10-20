@@ -37,7 +37,6 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	server := control.NewServer(opts.SocketPath, ctrl)
 	if err := server.Start(); err != nil {
 		// The socket is a convenience for operators; never block reporting on it.
-		logging.Warnf("Control socket unavailable: %v", err)
 		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "warn", Name: "Control socket unavailable", Detail: firstLineOf(err.Error())}}))
 	} else {
 		defer server.Close()

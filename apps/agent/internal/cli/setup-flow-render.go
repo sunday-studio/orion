@@ -132,6 +132,7 @@ type chooseView struct {
 	Cursor   int // index among the selectable items, -1 for none
 	Enrolled bool
 	Note     string // a short message under the summary, e.g. why a choice failed
+	Height   int    // terminal rows, 0 when unknown: a long list scrolls to keep the cursor in view
 }
 
 // selectable: monitored items are shown but cannot be picked.
@@ -144,26 +145,44 @@ func chooseScreen(th *ui.Theme, v chooseView) string {
 	}
 	out := []string{setupHeader(th, [3]string{connect, stepNow, stepTodo}, v.Title), ""}
 	sel, picked, monitored := 0, 0, 0
+	type group struct {
+		title  string
+		rows   []string
+		cursor int // row index of the cursor in this group, -1 for none
+	}
+	var groups []group
 	for _, kind := range discover.AllKinds {
-		var rows []string
+		g := group{title: kindTitles[kind], cursor: -1}
 		for _, it := range v.Items {
 			if discover.ConfigKind(discover.Kind(it.Kind)) != kind || it.Dismissed {
 				continue
 			}
 			if !selectable(it) {
 				monitored++
-				rows = append(rows, suggestionRow(th, it, false, false))
+				g.rows = append(g.rows, suggestionRow(th, it, false, false))
 				continue
 			}
-			rows = append(rows, suggestionRow(th, it, v.Ticked[it.ID], sel == v.Cursor))
+			if sel == v.Cursor {
+				g.cursor = len(g.rows)
+			}
+			g.rows = append(g.rows, suggestionRow(th, it, v.Ticked[it.ID], sel == v.Cursor))
 			if v.Ticked[it.ID] {
 				picked++
 			}
 			sel++
 		}
-		if len(rows) > 0 {
-			out = append(out, th.Panel(kindTitles[kind], fmt.Sprint(len(rows)), rows, panelWidth))
+		if len(g.rows) > 0 {
+			groups = append(groups, g)
 		}
+	}
+	hiddenAbove, hiddenBelow := 0, 0
+	if v.Height > 0 && !th.Plain() {
+		groups, hiddenAbove, hiddenBelow = windowGroups(groups, v.Height-10, func(g group) (int, int) { return len(g.rows), g.cursor },
+			func(g group, lo, hi int) group { g.rows = g.rows[lo:hi]; return g })
+	}
+	for _, g := range groups {
+		right := fmt.Sprint(len(g.rows))
+		out = append(out, th.Panel(g.title, right, g.rows, panelWidth))
 	}
 	if th.Plain() {
 		return plainChoose(v, picked, sel, monitored)
@@ -176,6 +195,9 @@ func chooseScreen(th *ui.Theme, v chooseView) string {
 		summary += fmt.Sprintf(" · %d already monitored", monitored)
 	}
 	summary += " · high confidence is pre-ticked"
+	if hiddenAbove+hiddenBelow > 0 {
+		summary += fmt.Sprintf(" · ↑ %d more · ↓ %d more", hiddenAbove, hiddenBelow)
+	}
 	out = append(out, "", " "+th.Muted(summary))
 	if v.Note != "" {
 		out = append(out, " "+th.Tone("degraded", v.Note))
@@ -413,4 +435,66 @@ func setupSummary(th *ui.Theme, steps []setupStep, dry bool) string {
 		foot = "Dry run: nothing was written. Log sources always need a key."
 	}
 	return "\n" + strings.Join(out, "\n") + "\n\n  " + th.Muted(foot) + "\n"
+}
+
+// windowGroups cuts a list of groups down to the rows that fit in budget lines
+// (a panel costs two lines of border), keeping the cursor row in view. It
+// returns the kept groups and how many rows were cut above and below.
+func windowGroups[G any](groups []G, budget int, measure func(G) (rows, cursor int), cut func(g G, lo, hi int) G) ([]G, int, int) {
+	if budget < 4 {
+		budget = 4
+	}
+	type pos struct{ g, r int }
+	var all []pos
+	cursorAt := 0
+	for gi, g := range groups {
+		n, c := measure(g)
+		for r := 0; r < n; r++ {
+			if r == c {
+				cursorAt = len(all)
+			}
+			all = append(all, pos{gi, r})
+		}
+	}
+	lines := func(lo, hi int) int { // rows plus two border lines per distinct group
+		seen, n := map[int]bool{}, 0
+		for _, p := range all[lo:hi] {
+			if !seen[p.g] {
+				seen[p.g] = true
+				n += 2
+			}
+			n++
+		}
+		return n
+	}
+	if lines(0, len(all)) <= budget {
+		return groups, 0, 0
+	}
+	lo := max(0, cursorAt-budget/3)
+	hi := lo
+	for hi < len(all) && lines(lo, hi+1) <= budget {
+		hi++
+	}
+	for hi <= cursorAt && lo < cursorAt { // never leave the cursor below the window
+		lo++
+		for hi < len(all) && lines(lo, hi+1) <= budget {
+			hi++
+		}
+	}
+	var out []G
+	for gi, g := range groups {
+		first, last := -1, -1
+		for i := lo; i < hi; i++ {
+			if all[i].g == gi {
+				if first < 0 {
+					first = all[i].r
+				}
+				last = all[i].r + 1
+			}
+		}
+		if first >= 0 {
+			out = append(out, cut(g, first, last))
+		}
+	}
+	return out, lo, len(all) - hi
 }

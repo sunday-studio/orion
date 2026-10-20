@@ -72,7 +72,11 @@ func doctorPanelRows(th *ui.Theme, results []doctor.Result, running string, fram
 			if r.TookMS > 0 {
 				took = fmt.Sprintf("%d ms", r.TookMS)
 			}
-			rows = append(rows, " "+doctorMark(th, r.Status)+" "+padRight(r.Title, doctorTitleW)+th.Muted(padRight(clip(r.Message, doctorDetailW-1), doctorDetailW))+th.Muted(fmt.Sprintf("%*s", doctorTimeW, took)))
+			detail := r.Message
+			if r.ID == "token" || r.ID == "clock" {
+				detail = "" // the headline already says it ("Credentials accepted", "Clock within 1 s")
+			}
+			rows = append(rows, " "+doctorMark(th, r.Status)+" "+padRight(r.Title, doctorTitleW)+th.Muted(padRight(clip(detail, doctorDetailW-1), doctorDetailW))+th.Muted(fmt.Sprintf("%*s", doctorTimeW, took)))
 		default:
 			rows = append(rows, " "+doctorMark(th, r.Status)+" "+r.Title)
 			for _, ev := range r.Evidence {
@@ -203,7 +207,11 @@ func plainDoctor(results []doctor.Result) string {
 	for _, r := range results {
 		mark := fmt.Sprintf("%-6s", strings.TrimSpace(doctorMark(th, r.Status)))
 		if r.Status == doctor.OK || r.Status == doctor.Skip {
-			b.WriteString("  " + mark + " " + padRight(r.Label, 17) + r.Message + "\n")
+			msg := r.Message
+			if r.TookMS > 0 {
+				msg += fmt.Sprintf(" %d ms", r.TookMS)
+			}
+			b.WriteString("  " + mark + " " + padRight(r.Label, 17) + msg + "\n")
 			continue
 		}
 		b.WriteString("  " + mark + " " + r.Title + "\n")
