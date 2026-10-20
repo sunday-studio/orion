@@ -41,11 +41,11 @@ expect_ok "$REL"
 echo "ok: untampered release installs"
 
 make_release "$REL"; printf 'evil' >> "$REL/$ASSET"
-expect_fail "Checksum mismatch" "$REL"
+expect_fail "checksum does not match" "$REL"
 echo "ok: tampered binary is refused"
 
 make_release "$REL"; printf 'echo pwned\n' >> "$REL/orion-agent-install.sh"
-expect_fail "Checksum mismatch" "$REL"
+expect_fail "checksum does not match" "$REL"
 echo "ok: tampered installer script is refused"
 
 make_release "$REL"; grep -v "$ASSET" "$REL/SHA256SUMS" > "$REL/S" && mv "$REL/S" "$REL/SHA256SUMS"

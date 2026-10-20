@@ -41,11 +41,30 @@ check "dry run never fetches release assets" 0 "Plan"              -- --dry-run 
 check "missing core url is a clear error" 1 "Core URL is required" -- --dry-run --yes --base-url "$BASE"
 
 echo "x" >> "$REL/$ASSET"            # tamper with the binary
-check "tampered binary aborts"            2 "Checksum mismatch"   -- --verify-only --yes --core-url http://core.example.com --base-url "$BASE"
+check "tampered binary aborts"            2 "checksum does not match"   -- --verify-only --yes --core-url http://core.example.com --base-url "$BASE"
 cp "$BIN" "$REL/$ASSET"
 grep -v "$ASSET" "$REL/SHA256SUMS" > "$REL/SUMS.new" && mv "$REL/SUMS.new" "$REL/SHA256SUMS"
 check "unlisted binary aborts"            2 "No checksum for"          -- --verify-only --yes --core-url http://core.example.com --base-url "$BASE"
 check "signature required but cosign absent" 2 "cosign is required"  -- --verify-only --yes --require-signature --core-url http://core.example.com --base-url "$BASE"
+
+# A real per-user install into a temporary HOME shows the steps, then a re-run is a no-op.
+cp "$BIN" "$REL/$ASSET"
+(cd "$REL" && sum "$ASSET" orion-agent-install.sh orion-agent-uninstall.sh orion-agent-systemd.service com.orion.agent.plist > SHA256SUMS)
+H="$(mktemp -d)"
+out="$(HOME="$H" "$BOOT" --user --no-start --yes --core-url http://core.example.com --base-url "$BASE" 2>&1)" || { printf 'FAIL user install\n%s\n' "$out"; fail=1; }
+for want in "Orion Agent installer" "Downloaded" "Verified" "sha256" "Installed" "Service" "installed, not started"; do
+  printf '%s' "$out" | grep -q -- "$want" || { printf 'FAIL install output lacks %q\n%s\n' "$want" "$out"; fail=1; }
+done
+out="$(HOME="$H" "$BOOT" --user --no-start --yes --core-url http://core.example.com --base-url "$BASE" 2>&1)" || { printf 'FAIL rerun\n%s\n' "$out"; fail=1; }
+printf '%s' "$out" | grep -q "nothing to do" && printf 'ok   re-running is a no-op\n' || { printf 'FAIL rerun is not a no-op\n%s\n' "$out"; fail=1; }
+rm -rf "$H"
+
+# A tampered download stops at Verified with the expected and actual hash, the fix and the help link.
+echo "x" >> "$REL/$ASSET"
+out="$("$BOOT" --user --no-start --yes --core-url http://core.example.com --base-url "$BASE" 2>&1)" && { echo "FAIL tampered install succeeded"; fail=1; }
+for want in "Downloaded" "Verified" "checksum does not match" "expected" "got" "Nothing was installed" "Fix" "Help"; do
+  printf '%s' "$out" | grep -q -- "$want" || { printf 'FAIL failure output lacks %q\n%s\n' "$want" "$out"; fail=1; }
+done
 
 [ "$fail" -eq 0 ] && echo "installer tests passed"
 exit "$fail"
