@@ -79,10 +79,16 @@ app_resources:
   top_n: 10
   paths:
     - /srv/api/uploads
+  docker: true            # false: never touch the Docker API
+  docker_socket: ""       # default /var/run/docker.sock
 ```
 
 Passive collection is enabled by default. `top_n` caps emitted process rankings;
-`paths` adds storage paths to measure.
+`paths` adds storage paths to measure (`orion-agent discover` suggests likely ones).
+When the agent user can read the Docker socket, containers get their real names and per-container
+network rates; otherwise they appear by short id and nothing else changes. Docker group membership
+is root-equivalent, so the installer grants it only with `--docker-access`. Containers are
+capped at 50 per sample.
 
 ## Transport
 

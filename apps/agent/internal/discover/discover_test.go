@@ -228,3 +228,9 @@ func TestSelectedStorageBecomesTrackedPathsWithoutDuplicates(t *testing.T) {
 		t.Fatalf("result must validate: %v", err)
 	}
 }
+
+func TestWholeHomeDirectoryIsNotProposed(t *testing.T) {
+	if wanted("/home/alice") || !wanted("/home/alice/app") || wanted("/home/") || wanted("/") || wanted("/usr/lib/x") {
+		t.Fatal("home-directory depth rule broken")
+	}
+}

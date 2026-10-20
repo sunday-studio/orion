@@ -3,14 +3,20 @@ package appres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 )
+
+// errNoDocker means there is no Docker socket on this host; that is normal and silent.
+var errNoDocker = errors.New("no docker socket")
 
 // DefaultDockerSocket is where the Docker Engine API listens on Linux.
 const DefaultDockerSocket = "/var/run/docker.sock"
@@ -37,6 +43,13 @@ type dockerSource func() ([]dockerContainer, error)
 func newDockerSource(sock string) dockerSource {
 	if sock == "" {
 		sock = DefaultDockerSocket
+		if _, err := os.Stat(sock); err != nil { // Docker Desktop on macOS keeps it in the home directory
+			if home, herr := os.UserHomeDir(); herr == nil {
+				if alt := home + "/.docker/run/docker.sock"; fileExists(alt) {
+					sock = alt
+				}
+			}
+		}
 	}
 	client := &http.Client{
 		Timeout: 3 * time.Second,
@@ -54,11 +67,11 @@ func newDockerSource(sock string) dockerSource {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("docker API %s: HTTP %d", path, resp.StatusCode)
 		}
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(out)
 	}
 	return func() ([]dockerContainer, error) {
 		if _, err := os.Stat(sock); err != nil {
-			return nil, fmt.Errorf("docker socket %s not found", sock)
+			return nil, errNoDocker
 		}
 		var list []struct {
 			ID    string   `json:"Id"`
@@ -70,7 +83,9 @@ func newDockerSource(sock string) dockerSource {
 			}
 			return nil, err
 		}
-		if len(list) > maxDockerContainers {
+		truncated := len(list) > maxDockerContainers
+		if truncated { // a stable subset: sort by id so which 50 are kept does not shuffle
+			sort.Slice(list, func(i, j int) bool { return list[i].ID < list[j].ID })
 			list = list[:maxDockerContainers]
 		}
 		out := make([]dockerContainer, len(list))
@@ -94,6 +109,10 @@ func newDockerSource(sock string) dockerSource {
 					} `json:"networks"`
 					Memory struct {
 						Usage uint64 `json:"usage"`
+						Stats struct {
+							InactiveFile      uint64 `json:"inactive_file"`
+							TotalInactiveFile uint64 `json:"total_inactive_file"`
+						} `json:"stats"`
 					} `json:"memory_stats"`
 				}
 				if err := get("/containers/"+id+"/stats?stream=false&one-shot=true", &st); err != nil {
@@ -105,9 +124,20 @@ func newDockerSource(sock string) dockerSource {
 					out[i].HasNet = true
 				}
 				out[i].Memory = st.Memory.Usage
+				if cache := max(st.Memory.Stats.InactiveFile, st.Memory.Stats.TotalInactiveFile); cache < out[i].Memory {
+					out[i].Memory -= cache // page cache is not the app's memory
+				}
 			}(i, c.ID)
 		}
 		wg.Wait()
+		if truncated {
+			return out, fmt.Errorf("%w: more than %d containers; showing the first %d by id", errPartial, maxDockerContainers, maxDockerContainers)
+		}
 		return out, nil
 	}
 }
+
+// errPartial marks a usable but incomplete container list; it becomes a note.
+var errPartial = errors.New("partial container list")
+
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
