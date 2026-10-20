@@ -16,6 +16,7 @@ type Diagnostic struct {
 	Message string // "unknown key" or the validation text
 	Suggest string // closest valid key, if any
 	Source  string // the text of the line, for the excerpt
+	Before  string // the line above it, for context
 	Hint    string // "fix: add `timeout: 5s`"
 }
 
@@ -57,4 +58,12 @@ func keyColumn(line, key string) int {
 		return i + 1
 	}
 	return 0
+}
+
+// lineBefore is the text of the line above, or "" at the top of the file.
+func lineBefore(file string, line int) string {
+	if line < 2 {
+		return ""
+	}
+	return sourceLine(file, line-1)
 }

@@ -31,7 +31,14 @@ func diagnosticOf(err error) *config.Diagnostic {
 	return nil
 }
 
-// renderErrorScreen renders an error like the cli-help-error artboard.
+// docsConfigURL is where the config reference lives.
+const docsConfigURL = "https://orion.thesunday.studio/docs/config"
+
+// commandNames are the root commands, for "did you mean" on a typo.
+var commandNames []string
+
+// renderErrorScreen renders an error like the cli-help-error board: a chip
+// and a headline, the evidence indented under it, then the fix.
 func renderErrorScreen(th *ui.Theme, err error, width int) string {
 	if d := diagnosticOf(err); d != nil {
 		return renderDiagnostic(th, d)
@@ -44,32 +51,69 @@ func renderErrorScreen(th *ui.Theme, err error, width int) string {
 			detail = ce.Cause.Error()
 		}
 	}
+	extra := ""
+	if name, ok := unknownCommandName(summary); ok {
+		summary = fmt.Sprintf("Unknown command %q", name)
+		detail = ""
+		if near := closestWord(name, commandNames); near != "" {
+			extra = "Did you mean " + th.Tone("up", near) + "?  "
+		}
+		extra += th.Muted("Run orion-agent --help for all commands.")
+		fixes = nil
+		if th.Plain() {
+			extra = "Run orion-agent --help for all commands."
+			if near := closestWord(name, commandNames); near != "" {
+				extra = fmt.Sprintf("did you mean %q? ", near) + extra
+			}
+		}
+	}
 	var b strings.Builder
 	b.WriteString("\n" + errorHeader(th, capitalize(summary)) + "\n")
-	pad := "  "
+	pad := "   "
 	if th.Plain() {
 		pad = "       "
 	}
+	if extra != "" {
+		b.WriteString(pad + extra + "\n")
+	}
 	if detail != "" {
-		b.WriteString("\n")
 		for _, l := range ui.Wrap(detail, width-len(pad), 0) {
-			b.WriteString(pad + l + "\n")
+			b.WriteString(pad + th.Muted(l) + "\n")
 		}
 	}
 	if len(fixes) > 0 {
-		b.WriteString("\n")
-		for _, f := range fixes {
-			b.WriteString(pad + th.Muted("Fix:") + " " + strings.TrimPrefix(f, "run: ") + "\n")
-		}
+		b.WriteString(pad + fixLineAlternatives(th, fixes) + "\n")
 	}
 	return b.String()
+}
+
+// unknownCommandName pulls the name out of cobra's "unknown command" message.
+func unknownCommandName(msg string) (string, bool) {
+	rest, ok := strings.CutPrefix(msg, "unknown command \"")
+	if !ok {
+		return "", false
+	}
+	name, _, ok := strings.Cut(rest, "\"")
+	return name, ok
+}
+
+// fixLineAlternatives is "Fix   a   or   b": the first step bold, others dim.
+func fixLineAlternatives(th *ui.Theme, fixes []string) string {
+	if th.Plain() {
+		return "fix: " + strings.Join(fixes, "  or  ")
+	}
+	parts := make([]string, len(fixes))
+	for i, f := range fixes {
+		parts[i] = th.Bold(strings.TrimPrefix(f, "run: "))
+	}
+	return th.Muted("Fix") + "   " + strings.Join(parts, "   "+th.Muted("or")+"   ")
 }
 
 func errorHeader(th *ui.Theme, summary string) string {
 	if th.Plain() {
 		return "[fail] " + summary
 	}
-	return " " + th.Chip("down", " ERROR ") + " " + th.Bold(summary)
+	return th.Chip("down", " ERROR ") + " " + th.Bold(summary)
 }
 
 func capitalize(s string) string {
@@ -101,27 +145,31 @@ func renderDiagnostic(th *ui.Theme, d *config.Diagnostic) string {
 	}
 	var b strings.Builder
 	b.WriteString("\n" + errorHeader(th, "Invalid config") + "\n\n")
-	b.WriteString("  " + th.Accent(where) + "\n")
+	b.WriteString("   " + th.Accent(where) + "\n")
 	num := strconv.Itoa(d.Line)
+	gutter := func(n string) string { return th.Muted(fmt.Sprintf("%*s │", len(num), n)) }
 	if d.Source != "" {
-		b.WriteString("  " + th.Muted(num+" │") + " " + d.Source + "\n")
+		if d.Before != "" {
+			b.WriteString("   " + gutter(strconv.Itoa(d.Line-1)) + " " + d.Before + "\n")
+		}
+		b.WriteString("   " + gutter(num) + " " + d.Source + "\n")
 		if d.Col > 0 {
 			carets := strings.Repeat("^", max(len([]rune(d.Key)), 1))
-			b.WriteString("  " + th.Muted(strings.Repeat(" ", len(num))+" │") + " " + strings.Repeat(" ", d.Col-1) + th.Tone("down", carets+" "+d.Message) + "\n")
+			b.WriteString("   " + gutter("") + " " + strings.Repeat(" ", d.Col-1) + th.Tone("down", carets+" "+d.Message) + "\n")
 		} else {
-			b.WriteString("  " + th.Muted(strings.Repeat(" ", len(num))+" │") + " " + th.Tone("down", d.Message) + "\n")
+			b.WriteString("   " + gutter("") + " " + th.Tone("down", d.Message) + "\n")
 		}
 	} else {
-		b.WriteString("  " + d.Message + "\n")
+		b.WriteString("   " + d.Message + "\n")
 	}
 	if d.Suggest != "" {
-		b.WriteString("\n  Did you mean " + th.Tone("up", d.Suggest) + "?\n")
+		b.WriteString("\n   Did you mean " + th.Tone("up", d.Suggest) + "?\n")
 	}
-	b.WriteString("\n  " + th.Muted("Fix:") + " ")
+	fix := "orion-agent config edit"
 	if d.Hint != "" {
-		b.WriteString(strings.TrimPrefix(d.Hint, "fix: ") + "\n")
-	} else {
-		b.WriteString("orion-agent config edit\n")
+		fix = strings.TrimPrefix(d.Hint, "fix: ")
 	}
+	b.WriteString("\n   " + th.Muted("Fix") + "   " + th.Bold(fix) + "\n")
+	b.WriteString("   " + th.Muted("Docs") + "  " + docsConfigURL + "\n")
 	return b.String()
 }
