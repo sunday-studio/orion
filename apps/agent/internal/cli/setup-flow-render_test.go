@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,6 +123,30 @@ func TestSetupPlainScreensHaveNoBoxes(t *testing.T) {
 	} {
 		if strings.ContainsAny(s, "╭│╰◉◯") || ansi.MatchString(s) {
 			t.Errorf("plain output has decoration:\n%s", s)
+		}
+	}
+}
+
+func TestChooseScrollsALongListAroundTheCursor(t *testing.T) {
+	th := ui.WithMode(false)
+	var items []control.DiscoveryItem
+	for i := 0; i < 30; i++ {
+		items = append(items, control.DiscoveryItem{ID: fmt.Sprintf("port:%d", 9000+i), Kind: "port", Name: fmt.Sprintf(":%d", 9000+i), Confidence: "medium", Status: "suggested"})
+	}
+	for _, cursor := range []int{0, 15, 29} {
+		out := stripANSI(chooseScreen(th, chooseView{Items: items, Ticked: map[string]bool{}, Cursor: cursor, Enrolled: true, Height: 30}))
+		lines := strings.Count(out, "\n")
+		if lines > 30 {
+			t.Fatalf("cursor %d: %d lines do not fit 30 rows:\n%s", cursor, lines, out)
+		}
+		if !strings.Contains(out, fmt.Sprintf(":%d ", 9000+cursor)) {
+			t.Errorf("cursor %d: the selected row is not in view:\n%s", cursor, out)
+		}
+		if !strings.Contains(out, "↓") && cursor == 0 || !strings.Contains(out, "↑") && cursor == 29 {
+			t.Errorf("cursor %d: no hint that more rows exist:\n%s", cursor, out)
+		}
+		if !strings.Contains(out, "Set up this host") && !strings.Contains(out, "Connect") {
+			t.Errorf("the header must stay in view:\n%s", out)
 		}
 	}
 }

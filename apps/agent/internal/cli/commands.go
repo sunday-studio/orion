@@ -354,6 +354,10 @@ func configureLogging(opts *Options) {
 	logging.SetTextColorEnabled(!opts.NoColor && writerSupportsColor(logOut))
 	if opts.Verbose {
 		logging.SetLevel(logging.LevelDebug)
+	} else {
+		// Commands print their own result. The agent's chatter (registered,
+		// reconciled, updated) is for the log file; run sets its own level.
+		logging.SetLevel(logging.LevelError)
 	}
 }
 

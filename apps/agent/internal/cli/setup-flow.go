@@ -33,6 +33,7 @@ type setupFlow struct {
 	opts *Options
 	th   *ui.Theme
 
+	height   int    // terminal rows, from the window size message
 	title    string // "" for setup, "Discover" when discover reuses the flow
 	step     flowStep
 	enrolled bool
@@ -80,6 +81,7 @@ type (
 )
 
 func newSetupFlow(ctx context.Context, opts *Options, th *ui.Theme) *setupFlow {
+	discoverConfigPath = opts.ConfigPath // the scan honours this config's discovery settings and existing monitors
 	f := &setupFlow{ctx: ctx, opts: opts, th: th, ticked: map[string]bool{}, plan: setupPlan{Force: opts.SetupForce}}
 	url := firstNonEmpty(opts.SetupCoreURL, envOrEmpty(config.EnvCoreURL))
 	if url == "" {
@@ -113,6 +115,8 @@ func (f *setupFlow) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flowTick:
 		f.frame++
 		return f, tickCmd()
+	case tea.WindowSizeMsg:
+		f.height = m.Height
 	case connectedMsg:
 		return f.onConnected(m)
 	case scannedMsg:
@@ -194,7 +198,7 @@ func (f *setupFlow) connectState() string {
 }
 
 func (f *setupFlow) chooseView() chooseView {
-	return chooseView{Title: f.title, Items: f.items, Ticked: f.ticked, Cursor: f.cursor, Enrolled: f.enrolled, Note: f.note}
+	return chooseView{Height: f.height, Title: f.title, Items: f.items, Ticked: f.ticked, Cursor: f.cursor, Enrolled: f.enrolled, Note: f.note}
 }
 
 // --- connect ---------------------------------------------------------------
@@ -285,6 +289,9 @@ func (f *setupFlow) onScanned(m scannedMsg) (tea.Model, tea.Cmd) {
 	f.items = f.items[:0]
 	f.ticked = map[string]bool{}
 	for _, c := range m.res.Candidates {
+		if c.Monitor == nil && c.StoragePath == "" && c.LogPath == "" && c.Status != discover.StatusMonitored {
+			continue // seen for resource metrics only: there is nothing to tick
+		}
 		it := control.DiscoveryItem{ID: c.ID, Kind: string(c.Kind), Name: c.Name, Detail: c.Detail, Confidence: string(c.Confidence), Status: c.Status, ManagedIn: c.ManagedIn}
 		f.items = append(f.items, it)
 		f.ticked[it.ID] = preTicked(it)
