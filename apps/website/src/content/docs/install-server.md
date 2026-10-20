@@ -31,7 +31,9 @@ orion-agent status
 orion-agent doctor
 ```
 
-`doctor` checks the config, the connection to Core and the service, and tells you what to fix.
+`doctor` checks the config, the connection to Core, discovery, logs and the service, and prints the exact command that fixes anything wrong.
+
+The installer asks no questions: when it finishes, CPU, memory, disk and network already report. `orion-agent setup` is optional and lets you pick what else to monitor from what it found on the server.
 
 ## Docker monitors on Linux
 
@@ -41,7 +43,7 @@ To watch containers, the `orion` user needs permission to read `/var/run/docker.
 
 ```sh
 orion-agent update
-orion-agent update -version 0.1.1
+orion-agent update --version 0.1.1
 ```
 
 ## Recover a token

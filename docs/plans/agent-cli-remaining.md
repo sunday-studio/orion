@@ -38,9 +38,9 @@ Where the code deliberately differs from a board, the test or this table says wh
 
 | # | What | Why it is left |
 |---|---|---|
-| 1 | Release pipeline: signing, SBOM, publishing the installer asset | needs repository secrets and a release decision |
+| 1 | Cutting a release | the workflow (`.github/workflows/agent-binaries.yml`) already builds, signs with keyless cosign, writes an SBOM and publishes the installer; running it is your decision |
 | 2 | Discovery reporting to Core and the Console "Detected" panel | needs a Core endpoint (see `docs/design/agent-auto-config-flow.md`) |
-| 3 | VHS tapes that script the README and website visuals from the real binary | tooling, no behavior |
+| 3 | VHS tapes that script the README and website visuals from the real binary | cannot be checked without running VHS against a connected demo host |
 | 4 | Glamour for release notes before `update` and `help <topic>` | the board marks it "maybe" |
 | 5 | F2 container image / DaemonSet | deferred to the very end by decision |
 | 6 | Visual acceptance in real terminals (TTY redraws, raw-mode prompts, Linux) | the user owns it; agents cannot drive a real terminal |
