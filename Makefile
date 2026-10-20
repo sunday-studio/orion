@@ -1,4 +1,4 @@
-.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-perf agent-theme agent-theme-check agent-config-reference
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-e2e agent-perf agent-theme agent-theme-check agent-config-reference
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -165,6 +165,9 @@ agent-build-all:
 
 agent-installer-test:
 	deploy/scripts/agent-bootstrap-test.sh
+
+agent-e2e:
+	deploy/scripts/agent-e2e-smoke.sh
 
 agent-perf:
 	cd apps/agent && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../../tmp/orion-agent-perf .
