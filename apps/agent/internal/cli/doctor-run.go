@@ -111,7 +111,7 @@ func runDoctor(ctx context.Context, opts *Options) error {
 	}
 
 	host := hostnameOrEmpty()
-	live := !theme.Plain() && stdoutIsTerminal() // redraw in place only where it can be erased
+	live := !theme.Plain() && stdoutIsTerminal() && terminalWidth() > panelWidth+1 // redraw in place only where lines cannot wrap
 	var (
 		results []doctor.Result
 		running *doctor.Check

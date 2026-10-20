@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -192,5 +193,13 @@ func TestUnreachableDaemonWarnsOnServiceRow(t *testing.T) {
 	r := run(e)["service"]
 	if r.Status != Warn || r.Fix == "" {
 		t.Fatalf("service = %+v", r)
+	}
+}
+
+func TestStatePermissionDeniedIsAWarningNotAFailure(t *testing.T) {
+	e := baseEnv()
+	e.StateOpen = func() error { return &os.PathError{Op: "open", Path: "/var/lib/orion/state.db", Err: os.ErrPermission} }
+	if r := run(e)["state"]; r.Status != Warn || r.Fix == "" {
+		t.Fatalf("state = %+v", r)
 	}
 }
