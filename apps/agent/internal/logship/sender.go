@@ -46,7 +46,7 @@ func (h *HTTPSender) Send(ctx context.Context, source string, entries []Entry) e
 	var body bytes.Buffer
 	for _, e := range entries {
 		out := e
-		out.Source = "" // spool-only field
+		out.Source, out.Shipped = "", nil // spool-only fields
 		b, err := json.Marshal(out)
 		if err != nil {
 			continue

@@ -29,6 +29,9 @@ type Entry struct {
 	// Source names the configured source; kept in the spool to pick the ingest
 	// key, and removed before sending.
 	Source string `json:"_source,omitempty"`
+	// Shipped is set only when entries are read back for viewing: true once
+	// Core has acknowledged the entry. It is removed before sending.
+	Shipped *bool `json:"_shipped,omitempty"`
 }
 
 // entryID is a stable idempotency key: the same bytes at the same position of

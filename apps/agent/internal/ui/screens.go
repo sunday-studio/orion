@@ -214,3 +214,23 @@ func (t *Theme) Badge(status, text string) string {
 	}
 	return t.renderer.NewStyle().Bold(true).Background(lipgloss.Color(tok.BadgeBg)).Foreground(lipgloss.Color(tok.BadgeFg)).Render(" " + text + " ")
 }
+
+// Selected highlights a line: the whole width gets the selection background,
+// including after the colour resets inside it. Plain mode marks it with ">".
+func (t *Theme) Selected(line string, width int) string {
+	if t.Plain() {
+		return ">" + strings.TrimPrefix(line, " ")
+	}
+	tok := statusTokens["unknown"]
+	bg := tok.BadgeBg
+	seq := t.renderer.ColorProfile().Color(bg).Sequence(true)
+	if seq == "" {
+		return line
+	}
+	on := "\x1b[" + seq + "m"
+	pad := ""
+	if w := lipgloss.Width(line); w < width {
+		pad = strings.Repeat(" ", width-w)
+	}
+	return on + strings.ReplaceAll(line, "\x1b[0m", "\x1b[0m"+on) + pad + "\x1b[0m"
+}

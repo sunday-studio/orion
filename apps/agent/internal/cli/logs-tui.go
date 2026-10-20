@@ -37,7 +37,7 @@ func newLogsModel(th *ui.Theme, fetch func() ([]logship.Entry, error), status fu
 	in.Prompt = "/ "
 	in.CharLimit = 80
 	return logsModel{th: th, fetch: fetch, status: status, seen: map[string]bool{}, input: in, width: 100, height: 24,
-		state: logsState{Level: level, Source: source, Following: true}}
+		state: logsState{Level: level, Source: source, Following: true, Interactive: true, Host: hostnameOrEmpty()}}
 }
 
 func (m logsModel) Init() tea.Cmd { return tea.Batch(m.poll(), m.pollStatus(), tick()) }
@@ -105,9 +105,43 @@ func (m logsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		visible := m.state.visible(max(m.height, 3))
+		at := m.state.selectedIndex(visible)
+		move := func(to int) {
+			if len(visible) == 0 {
+				return
+			}
+			to = min(max(to, 0), len(visible)-1)
+			m.state.SelectedID = visible[to].ID
+			if to == 0 {
+				m.state.SelectedID = "" // the newest line: stay with the stream
+			}
+		}
 		switch v.String() {
-		case "q", "ctrl+c", "esc":
+		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "esc":
+			switch {
+			case m.state.Drawer:
+				m.state.Drawer = false
+			case m.state.Search != "":
+				m.state.Search = ""
+			default:
+				return m, tea.Quit
+			}
+		case "up", "k":
+			move(at - 1)
+		case "down", "j":
+			move(at + 1)
+		case "enter":
+			m.state.Drawer = !m.state.Drawer
+		case "f":
+			m.state.SelectedID, m.state.Drawer = "", false
+			if m.state.Paused {
+				m.state.Paused, m.state.Arrived = false, 0
+				m.seen = map[string]bool{}
+				m.state.Entries = nil
+			}
 		case "p":
 			m.state.Paused = !m.state.Paused
 			if !m.state.Paused {
@@ -120,7 +154,7 @@ func (m logsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "l":
 			i := (levelRank(m.state.Level) + 1) % len(levelOrder)
 			m.state.Level = levelOrder[i]
-		case "f":
+		case "s":
 			all := append([]string{""}, m.sources...)
 			next := 0
 			for i, s := range all {
@@ -140,13 +174,17 @@ func (m logsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m logsModel) View() string {
-	rows := max(m.height-6, 3)
+	reserved := 8
+	if m.state.Drawer {
+		reserved += 7
+	}
+	rows := max(m.height-reserved, 3)
 	out := logsScreen(m.th, m.state, m.width, rows)
 	if m.err != nil {
 		out += m.th.Tone("down", "cannot read the log spool: "+m.err.Error()) + "\n"
 	}
 	if m.typing {
-		return out + "\n" + m.input.View()
+		return out + "\n " + m.input.View()
 	}
 	return out + "\n" + logsFooter(m.th)
 }
