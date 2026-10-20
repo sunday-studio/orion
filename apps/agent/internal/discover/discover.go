@@ -140,6 +140,7 @@ const (
 	ScanOK      = "scanned"
 	ScanOff     = "off"     // turned off in discovery.kinds
 	ScanBlocked = "blocked" // looked, but the agent lacks access
+	ScanFailed  = "failed"  // looked, but the scan itself failed (timeout, unexpected output)
 	ScanNone    = "absent"  // the thing is not on this host (no Docker, no pm2): silent
 )
 
@@ -256,6 +257,9 @@ func kindStatus(kind string, err error) KindStatus {
 	}
 	msg := err.Error()
 	st.State = ScanBlocked
+	if !strings.Contains(msg, "permission denied") && !strings.Contains(msg, "docker group") {
+		st.State = ScanFailed
+	}
 	switch {
 	case kind == ConfigContainers && (strings.Contains(msg, "permission denied") || strings.Contains(msg, "docker group")):
 		st.Message = "Could not look at Docker: the agent has no access."
