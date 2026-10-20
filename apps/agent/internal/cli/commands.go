@@ -32,7 +32,7 @@ func newStartCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newStopCommand(ctx context.Context, opts *Options) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "stop",
 		Short: "Stop the agent service",
 		Args:  cobra.NoArgs,
@@ -43,6 +43,8 @@ func newStopCommand(ctx context.Context, opts *Options) *cobra.Command {
 			return runStop(ctx, opts)
 		},
 	}
+	cmd.Flags().BoolVar(&opts.SetupYes, "yes", false, "Do not ask before stopping")
+	return cmd
 }
 
 func newStatusCommand(ctx context.Context, opts *Options) *cobra.Command {
@@ -167,10 +169,24 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Enter maintenance mode (ends automatically after --for, default 24h)",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if maintenanceFor <= 0 || maintenanceFor > maxMaintenanceDuration {
+			if maintenanceFor > maxMaintenanceDuration {
+				return NewCommandError("Maintenance can last at most 720 h", fmt.Errorf("Try --for 720h, or end it early with orion-agent maintenance up"))
+			}
+			if maintenanceFor <= 0 {
 				return NewCommandError("invalid --for duration", fmt.Errorf("must be greater than zero and at most 720h"))
 			}
 			reason := ""
+			if len(args) == 0 && !opts.JSON && !cmd.Flags().Changed("for") && stdinIsTerminal() {
+				r, d, ok, err := askMaintenance(ctx, theme)
+				if err != nil {
+					return NewCommandError("maintenance form failed", err)
+				}
+				if !ok {
+					return NewCommandError("Maintenance cancelled", fmt.Errorf("Nothing was changed."))
+				}
+				reason, maintenanceFor, opts.MaintenanceForm = r, d, true
+				args = nil
+			}
 			if len(args) > 0 {
 				reason = fmt.Sprint(args[0])
 				for _, part := range args[1:] {

@@ -9,43 +9,6 @@ import (
 	"orion/agent/internal/control"
 )
 
-func runStart(_ context.Context, opts *Options) error {
-	PrintHeader("start")
-	preflight := BuildServicePreflight(opts.ConfigPath, opts.StatePath)
-	PrintPreflightReport(preflight)
-	if preflight.HasErrors() {
-		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("start preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent status", "run: orion-agent logs")
-	}
-	PrintStep("resetting service failure state")
-	if err := ResetServiceFailures(); err != nil {
-		PrintSkip(fmt.Sprintf("could not reset service failure state: %v", err))
-	} else {
-		PrintOK("service failure state reset")
-	}
-	PrintStep("starting service")
-	if err := StartService(); err != nil {
-		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("could not start Orion Agent service", err, "run: orion-agent logs", "run: orion-agent status")
-	}
-	PrintOK("agent service started")
-	printServiceStatus()
-	return nil
-}
-
-func runStop(_ context.Context, _ *Options) error {
-	manager := DetectServiceManager()
-	PrintHeader("stop")
-	PrintInfo("service_manager", manager)
-	PrintStep("stopping service")
-	if err := StopService(); err != nil {
-		return NewCommandError("could not stop Orion Agent service", err)
-	}
-	PrintOK("agent service stopped")
-	printServiceStatus()
-	return nil
-}
-
 func runStatus(ctx context.Context, opts *Options) error {
 	if opts.StatusWatch {
 		return runStatusWatch(ctx, opts)
@@ -223,31 +186,6 @@ func doctorJSON(report DoctorReport) doctorJSONPayload {
 	}
 }
 
-func runRestart(_ context.Context, opts *Options) error {
-	PrintHeader("restart")
-	preflight := BuildServicePreflight(opts.ConfigPath, opts.StatePath)
-	PrintPreflightReport(preflight)
-	if preflight.HasErrors() {
-		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("restart preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent status", "run: orion-agent logs")
-	}
-	PrintStep("resetting service failure state")
-	if err := ResetServiceFailures(); err != nil {
-		PrintSkip(fmt.Sprintf("could not reset service failure state: %v", err))
-	} else {
-		PrintOK("service failure state reset")
-	}
-	PrintStep("restarting service")
-	if err := RestartService(); err != nil {
-		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("could not restart Orion Agent service", err, "run: orion-agent logs", "run: orion-agent status")
-	}
-	PrintOK("agent service restarted")
-	PrintServiceDiagnostics(opts.LogLines)
-	printServiceStatus()
-	return nil
-}
-
 func runUpdate(_ context.Context, opts *Options) error {
 	if err := UpdateAgent(UpdateOptions{
 		Repo:           opts.UpdateRepo,
@@ -262,19 +200,6 @@ func runUpdate(_ context.Context, opts *Options) error {
 		return NewCommandError("could not update Orion Agent", err)
 	}
 	return nil
-}
-
-func printServiceStatus() {
-	status := GetServiceStatusResult()
-	PrintInfo("service_state", status.State)
-	if status.Error != nil {
-		PrintError(fmt.Sprintf("could not read service state: %v", status.Error))
-	}
-	if status.Running {
-		PrintOK("service is running")
-	} else {
-		PrintSkip("service is not running")
-	}
 }
 
 func serviceStatusName(s ServiceStatus) string {
