@@ -215,7 +215,7 @@ func kindState(ks []control.KindState, kind string) string {
 
 func hasBlocked(ks []control.KindState) bool {
 	for _, k := range ks {
-		if k.State == discover.ScanBlocked {
+		if k.State == discover.ScanBlocked || k.State == discover.ScanFailed {
 			return true
 		}
 	}
@@ -251,7 +251,11 @@ func scanPanel(th *ui.Theme, ks []control.KindState, width int) string {
 		}
 		flush()
 		blocked++
-		rows = append(rows, " "+th.WarnMark()+" "+padRight(capitalize(kindNames[kind]), 28)+th.Muted("not fully scanned"))
+		status := "not fully scanned"
+		if k.State == discover.ScanFailed {
+			status = "scan failed"
+		}
+		rows = append(rows, " "+th.WarnMark()+" "+padRight(capitalize(kindNames[kind]), 28)+th.Muted(status))
 		bar := " " + strings.Repeat(" ", 5) + th.Faint("│") + " "
 		rows = append(rows, bar+k.Message)
 		if k.Fix != "" {

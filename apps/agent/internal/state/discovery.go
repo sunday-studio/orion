@@ -45,10 +45,12 @@ func (r discoveryRecord) item() DiscoveryItem {
 
 // RecordScan stores a scan: new ids are inserted flagged New, known ids are
 // refreshed, ids no longer present are removed unless the person dismissed
-// them (a dismissal is remembered even while the thing is gone). baseline marks
+// them (a dismissal is remembered even while the thing is gone). canForget says
+// which absent items may be dropped: items of a kind that failed, was blocked or
+// was switched off are kept, so a recovered scan does not call them new. baseline marks
 // the first scan on a host: everything found then is the starting list, not
 // "new on this server". It returns the ids that were new.
-func (s *Store) RecordScan(items []DiscoveryItem, now time.Time, baseline bool) ([]string, error) {
+func (s *Store) RecordScan(items []DiscoveryItem, now time.Time, baseline bool, canForget func(DiscoveryItem) bool) ([]string, error) {
 	var existing []discoveryRecord
 	if err := s.db.Find(&existing).Error; err != nil {
 		return nil, err
@@ -74,7 +76,7 @@ func (s *Store) RecordScan(items []DiscoveryItem, now time.Time, baseline bool) 
 		}
 	}
 	for _, r := range existing {
-		if !seen[r.ID] && !r.Dismissed {
+		if !seen[r.ID] && !r.Dismissed && (canForget == nil || canForget(r.item())) {
 			if err := s.db.Delete(&discoveryRecord{}, "id = ?", r.ID).Error; err != nil {
 				return nil, err
 			}

@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/control"
 	"orion/agent/internal/discover"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 func newDiscoverCommand(ctx context.Context, opts *Options) *cobra.Command {
@@ -42,6 +42,9 @@ func newDiscoverCommand(ctx context.Context, opts *Options) *cobra.Command {
 				return nil
 			}
 			fmt.Fprint(outputWriter, discoverScreen(theme, d, host, terminalWidth()))
+			if !rescan {
+				_ = controlClient(opts).DiscoveryAction("review", "") // a person has now seen the list: it is no longer "new"
+			}
 			if rescan && !hasBlocked(d.Kinds) && d.Enabled {
 				fmt.Fprintln(outputWriter, scanPanel(theme, d.Kinds, min(terminalWidth()-2, 86)))
 			}
@@ -89,6 +92,9 @@ func loadDiscovery(ctx context.Context, opts *Options, rescan bool) (control.Dis
 		} else if d, err = c.Discovery(); err == nil && d.ScannedAt.IsZero() && d.Enabled {
 			d, err = c.Rescan()
 		}
+		if err != nil && strings.Contains(err.Error(), "already running") || err == nil && d.Scanning {
+			d, err = waitForScan(ctx, c) // the daemon is still on its first scan after boot
+		}
 		return d, host, err
 	}
 	cfg, _, err := config.LoadRaw(opts.ConfigPath)
@@ -115,75 +121,50 @@ func viewOf(res discover.Result, cfg *config.UserConfig) control.Discovery {
 	return d
 }
 
-// editConfigFile applies fn to the raw config file and writes it back
-// atomically, then tells a running daemon to reload. It never writes defaults.
-func editConfigFile(opts *Options, fn func(*config.UserConfig) error) error {
-	cfg, _, err := config.LoadRaw(opts.ConfigPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "not found") {
-			cfg = &config.UserConfig{Interval: config.DefaultInterval}
-		} else {
-			return err
-		}
-	}
-	if err := fn(cfg); err != nil {
-		return err
-	}
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	if err := writeConfigAtomic(opts.ConfigPath, data); err != nil {
-		return fmt.Errorf("%w (re-run with sufficient permissions: sudo orion-agent discover ...)", err)
-	}
-	handOverToServiceUser(opts.ConfigPath)
-	_ = controlClient(opts).Reload()
-	return nil
-}
-
 func runDiscoverIgnore(_ context.Context, opts *Options, id string) error {
 	if !strings.Contains(id, ":") {
 		return NewCommandError("that is not a suggestion id", fmt.Errorf("%q must look like kind:name, for example port:5432", id), "orion-agent discover")
 	}
-	err := editConfigFile(opts, func(c *config.UserConfig) error {
-		for _, have := range c.Discovery.Ignore {
-			if have == id {
-				return nil
-			}
-		}
-		c.Discovery.Ignore = append(c.Discovery.Ignore, id)
-		return nil
-	})
-	if err != nil {
-		return NewCommandError("could not save discovery.ignore", err)
+	if _, err := editDiscoveryIgnore(opts.ConfigPath, id, true); err != nil {
+		return NewCommandError("could not save discovery.ignore", err, "re-run with sufficient permissions: sudo orion-agent discover ignore "+id)
 	}
+	_ = controlClient(opts).Reload()
 	return printResult(opts, "Will not suggest "+id+" again", "saved to discovery.ignore", map[string]any{"ignored": id})
 }
 
 func runDiscoverRestore(_ context.Context, opts *Options, id string) error {
 	changed := false
+	var daemonErr error
 	if err := controlClient(opts).DiscoveryAction("restore", id); err == nil {
 		changed = true
+	} else if !errors.Is(err, control.ErrUnavailable) && !errors.Is(err, control.ErrPermission) && !strings.Contains(err.Error(), "not a known suggestion") && !strings.Contains(err.Error(), "is not dismissed") {
+		daemonErr = err
 	}
-	err := editConfigFile(opts, func(c *config.UserConfig) error {
-		var keep []string
-		for _, have := range c.Discovery.Ignore {
-			if have == id {
-				changed = true
-				continue
-			}
-			keep = append(keep, have)
+	// Only touch the config file when the id is actually in discovery.ignore.
+	if cfg, _, err := config.LoadRaw(opts.ConfigPath); err == nil && cfg != nil && containsID(cfg.Discovery.Ignore, id) {
+		ok, err := editDiscoveryIgnore(opts.ConfigPath, id, false)
+		if err != nil {
+			return NewCommandError("could not update discovery.ignore", err, "re-run with sufficient permissions: sudo orion-agent discover restore "+id)
 		}
-		c.Discovery.Ignore = keep
-		return nil
-	})
-	if err != nil && !changed {
-		return NewCommandError("could not restore "+id, err)
+		changed = changed || ok
+		_ = controlClient(opts).Reload()
+	}
+	if daemonErr != nil && !changed {
+		return NewCommandError("could not restore "+id, daemonErr)
 	}
 	if !changed {
 		return NewCommandError(id+" is not dismissed or ignored", errors.New("nothing to restore"), "orion-agent discover --dismissed")
 	}
 	return printResult(opts, id+" is a suggestion again", "", map[string]any{"restored": id})
+}
+
+func containsID(xs []string, id string) bool {
+	for _, x := range xs {
+		if x == id {
+			return true
+		}
+	}
+	return false
 }
 
 func runDiscoverDismiss(_ context.Context, opts *Options, id string) error {
@@ -204,4 +185,21 @@ func printResult(opts *Options, msg, note string, js map[string]any) error {
 	}
 	fmt.Fprintln(outputWriter, line)
 	return nil
+}
+
+// waitForScan polls until the running scan finishes (at most about 15 seconds).
+func waitForScan(ctx context.Context, c *control.Client) (control.Discovery, error) {
+	var d control.Discovery
+	var err error
+	for i := 0; i < 30; i++ {
+		if d, err = c.Discovery(); err == nil && !d.Scanning && !d.ScannedAt.IsZero() {
+			return d, nil
+		}
+		select {
+		case <-ctx.Done():
+			return d, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	return d, errors.New("the first scan is taking long; try again in a moment")
 }

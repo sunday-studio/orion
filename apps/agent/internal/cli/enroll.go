@@ -196,3 +196,19 @@ func chownNoFollow(path string, uid, gid int) {
 	}
 	_ = os.Lchown(path, uid, gid)
 }
+
+// handOverFileToServiceUser gives one new file to the service user (never its directory).
+func handOverFileToServiceUser(path string) {
+	if os.Geteuid() != 0 {
+		return
+	}
+	u, err := user.Lookup("orion")
+	if err != nil {
+		if u, err = user.Lookup("_orion"); err != nil {
+			return
+		}
+	}
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(u.Gid)
+	chownNoFollow(path, uid, gid)
+}

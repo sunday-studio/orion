@@ -90,7 +90,18 @@ func (s *scanner) Rescan(ctx context.Context) (control.Discovery, error) {
 		items = append(items, agentstate.DiscoveryItem{ID: c.ID, Kind: string(c.Kind), Name: c.Name, Detail: c.Detail,
 			Confidence: string(c.Confidence), Monitored: c.Status == discover.StatusMonitored, ManagedIn: c.ManagedIn})
 	}
-	if _, err := s.store.RecordScan(items, now, baseline); err != nil {
+	scanned := map[string]bool{}
+	for _, k := range res.Kinds {
+		scanned[k.Kind] = k.State == discover.ScanOK
+	}
+	ignored := map[string]bool{}
+	for _, id := range cfg.Discovery.Ignore {
+		ignored[id] = true
+	}
+	canForget := func(it agentstate.DiscoveryItem) bool {
+		return scanned[discover.ConfigKind(discover.Kind(it.Kind))] && !ignored[it.ID]
+	}
+	if _, err := s.store.RecordScan(items, now, baseline, canForget); err != nil {
 		return control.Discovery{}, fmt.Errorf("record scan: %w", err)
 	}
 	s.mu.Lock()
@@ -122,14 +133,23 @@ func (s *scanner) View() (control.Discovery, error) {
 		d.Kinds = append(d.Kinds, control.KindState{Kind: k.Kind, State: k.State, Message: k.Message, Fix: k.Fix, Why: k.Why})
 	}
 	present := map[string]bool{}
+	ignored := map[string]bool{}
+	if cfg != nil {
+		for _, id := range cfg.Discovery.Ignore {
+			ignored[id] = true
+		}
+	}
 	for _, c := range last.Candidates {
+		if ignored[c.ID] { // ignoring takes effect at once, not after the next scan
+			continue
+		}
 		present[c.ID] = true
 		st := byID[c.ID]
 		d.Items = append(d.Items, control.DiscoveryItem{ID: c.ID, Kind: string(c.Kind), Name: c.Name, Detail: c.Detail, Confidence: string(c.Confidence),
 			Status: c.Status, ManagedIn: c.ManagedIn, New: st.New, Dismissed: st.Dismissed, FirstSeen: st.FirstSeenAt, DismissedAt: st.DismissedAt})
 	}
 	for _, it := range stored { // dismissed things that are not on the host right now stay listed
-		if it.Dismissed && !present[it.ID] {
+		if it.Dismissed && !present[it.ID] && !ignored[it.ID] {
 			d.Items = append(d.Items, control.DiscoveryItem{ID: it.ID, Kind: it.Kind, Name: it.Name, Detail: it.Detail, Confidence: it.Confidence,
 				Status: discover.StatusSuggested, Dismissed: true, FirstSeen: it.FirstSeenAt, DismissedAt: it.DismissedAt})
 		}
@@ -141,6 +161,17 @@ func (s *scanner) View() (control.Discovery, error) {
 func (s *scanner) Action(a control.DiscoveryAction) error {
 	switch a.Action {
 	case "dismiss", "restore":
+		if a.Action == "restore" {
+			items, err := s.store.ListDiscovery()
+			if err != nil {
+				return err
+			}
+			for _, it := range items {
+				if it.ID == a.ID && !it.Dismissed {
+					return fmt.Errorf("%s is not dismissed", a.ID)
+				}
+			}
+		}
 		ok, err := s.store.SetDismissed(a.ID, a.Action == "dismiss", time.Now())
 		if err != nil {
 			return err
