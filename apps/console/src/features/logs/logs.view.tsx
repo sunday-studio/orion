@@ -40,9 +40,9 @@ import {
 import { useLogStream } from "./use-log-stream";
 
 const SUBTITLE: Record<LogKind, string> = {
-  service: "Everything your apps and agents report",
+  service: "Everything your apps and nodes report",
   status: "What Orion itself saw: checks, incidents, alerts, servers",
-  internal: "Internal logs of the Orion backend: API, worker, scheduler, agent gateway",
+  internal: "Internal logs of the Orion backend: API, worker, scheduler, node gateway",
 };
 const PLACEHOLDER: Record<LogKind, string> = {
   service: "free text, or field:value, like level:error user.id:u_41",

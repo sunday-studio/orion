@@ -35,7 +35,7 @@ const Action = ({ issue }: { issue: ApiHealthIssue }) => {
     );
   }
   const isServer = issue.kind === "server";
-  const id = issue.target_id ?? (isServer ? issue.agent_id : issue.monitor_id) ?? "";
+  const id = issue.target_id ?? (isServer ? issue.node_id : issue.monitor_id) ?? "";
   return (
     <Link to={isServer ? `/servers/${id}` : `/monitors/${id}`}>
       <Button size="sm" variant="secondary">
@@ -90,9 +90,9 @@ export const HealthIssuesPage = () => {
                   columns={COLUMNS}
                 >
                   <b className="font-medium">
-                    {issue.target_name ?? issue.monitor_name ?? issue.agent_name}
+                    {issue.target_name ?? issue.monitor_name ?? issue.node_name}
                   </b>
-                  <span className="text-faint">{issue.agent_name ?? "Core"}</span>
+                  <span className="text-faint">{issue.node_name ?? "Core"}</span>
                   <span className="text-faint">{label(issue.kind)}</span>
                   <span>
                     <StatusBadge status={issue.health}>

@@ -25,7 +25,7 @@ import {
 } from "@/features/monitors/components/core-worker-diagnostics";
 import {
   type GetMonitorsParams,
-  useGetAgents,
+  useGetNodes,
   useGetMonitorSummary,
   useGetMonitors,
 } from "@/orion-sdk";
@@ -69,13 +69,13 @@ export const MonitorList = ({
     status: health === "all" ? undefined : health,
     type: type || undefined,
     owner_kind: server === "core" ? "core" : undefined,
-    agent_id: server && server !== "core" ? server : undefined,
+    node_id: server && server !== "core" ? server : undefined,
     sort: "updated_at",
     order: "desc",
   };
   const monitorsQuery = useGetMonitors(params, { query: { placeholderData: keepPreviousData } });
   const summary = useGetMonitorSummary();
-  const agents = useGetAgents({ limit: 200 });
+  const nodes = useGetNodes({ limit: 200 });
   const monitors = useMemo(
     () => (monitorsQuery.data?.monitors ?? []) as MonitorRow[],
     [monitorsQuery.data],
@@ -92,9 +92,9 @@ export const MonitorList = ({
   }, [monitors, type]);
   const serverOptions = [
     { value: "core", label: "Core" },
-    ...(agents.data?.agents ?? []).map((agent) => ({
-      value: agent.id ?? "",
-      label: agent.name ?? agent.id ?? "Server",
+    ...(nodes.data?.nodes ?? []).map((node) => ({
+      value: node.id ?? "",
+      label: node.name ?? node.id ?? "Server",
     })),
   ];
 

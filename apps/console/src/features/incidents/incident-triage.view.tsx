@@ -28,7 +28,7 @@ const COLUMNS = "minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px
 
 const label = (value?: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "-");
 
-const typeLabel = (type?: string) => (!type ? "Agent" : type === "http" ? "HTTP" : label(type));
+const typeLabel = (type?: string) => (!type ? "Node" : type === "http" ? "HTTP" : label(type));
 
 export const IncidentTriagePage = () => {
   const queryClient = useQueryClient();
@@ -114,11 +114,11 @@ export const IncidentTriagePage = () => {
                 return (
                   <GridRow key={id} flipId={id} columns={COLUMNS}>
                     <b className="font-medium">
-                      {candidate.agent_name && candidate.monitor_type === "agent"
-                        ? `${candidate.agent_name} ${name}`
+                      {candidate.node_name && candidate.monitor_type === "node"
+                        ? `${candidate.node_name} ${name}`
                         : name}
                     </b>
-                    <span className="text-faint">{candidate.agent_name ?? "Core"}</span>
+                    <span className="text-faint">{candidate.node_name ?? "Core"}</span>
                     <span className="text-faint">{typeLabel(candidate.monitor_type)}</span>
                     <span>
                       <StatusBadge status={candidate.health}>{label(candidate.health)}</StatusBadge>

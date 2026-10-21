@@ -6,6 +6,6 @@ export const asNumber = (value: string) => {
 };
 
 export const archiveCount = (result: {
-  agent_reports_archived?: number;
+  node_reports_archived?: number;
   monitor_reports_archived?: number;
-}) => (result.agent_reports_archived ?? 0) + (result.monitor_reports_archived ?? 0);
+}) => (result.node_reports_archived ?? 0) + (result.monitor_reports_archived ?? 0);

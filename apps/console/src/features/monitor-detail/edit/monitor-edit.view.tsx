@@ -96,7 +96,7 @@ export const MonitorEditPage = () => {
           </Link>
         </div>
         <Callout tone="warn">
-          This monitor runs on a server through its agent, so it is configured there and cannot be
+          This monitor runs on a server through its node, so it is configured there and cannot be
           changed from Core.
         </Callout>
       </div>

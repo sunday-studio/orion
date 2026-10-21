@@ -22,7 +22,7 @@ import {
   useCreateStatusPageSection,
   useDeleteStatusPageComponent,
   useDeleteStatusPageComponentMapping,
-  useGetAgents,
+  useGetNodes,
   useGetMonitors,
   usePreviewStatusPage,
   useUpdateStatusPageComponent,
@@ -52,7 +52,7 @@ const ComponentDialog = ({
   const [kind, setKind] = useState("monitor");
   const [resourceId, setResourceId] = useState("");
   const monitors = useGetMonitors({ limit: 200 }, { query: { enabled: open } });
-  const agents = useGetAgents({ limit: 200 }, { query: { enabled: open } });
+  const nodes = useGetNodes({ limit: 200 }, { query: { enabled: open } });
   const done = () => {
     onChanged();
     onOpenChange(false);
@@ -70,7 +70,7 @@ const ComponentDialog = ({
   const options =
     kind === "monitor"
       ? (monitors.data?.monitors ?? []).map((m) => ({ value: m.id ?? "", label: m.name ?? "" }))
-      : (agents.data?.agents ?? []).map((a) => ({ value: a.id ?? "", label: a.name ?? "" }));
+      : (nodes.data?.nodes ?? []).map((a) => ({ value: a.id ?? "", label: a.name ?? "" }));
   const mappings = component?.mappings ?? [];
   const save = () => {
     const data = {
@@ -140,7 +140,7 @@ const ComponentDialog = ({
                 aria-label="Resource type"
                 options={[
                   { value: "monitor", label: "Monitor" },
-                  { value: "agent", label: "Server" },
+                  { value: "node", label: "Server" },
                 ]}
                 value={kind}
                 onValueChange={(next) => {

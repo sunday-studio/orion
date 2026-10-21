@@ -104,7 +104,7 @@ test("confirms archive and prevents duplicate maintenance submissions", async ({
           result: {
             archive_path: "/tmp/orion/archive/raw-reports-2026-05.sqlite",
             cutoff: "2026-05-01T00:00:00Z",
-            agent_reports_archived: 0,
+            node_reports_archived: 0,
             monitor_reports_archived: 0,
             archive_raw_reports: true,
             skipped_because_disabled: false,

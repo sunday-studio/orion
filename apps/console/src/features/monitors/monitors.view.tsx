@@ -17,7 +17,7 @@ import {
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
-  useGetAgentSummary,
+  useGetNodeSummary,
   useGetCoreWorkerDiagnostics,
   useGetMonitorSummary,
 } from "@/orion-sdk";
@@ -40,7 +40,7 @@ export const MonitorsPage = () => {
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
   const queryClient = useQueryClient();
   const summary = useGetMonitorSummary();
-  const servers = useGetAgentSummary();
+  const servers = useGetNodeSummary();
   const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
     query: { refetchInterval: 30_000 },
   });

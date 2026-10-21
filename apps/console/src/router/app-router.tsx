@@ -5,9 +5,9 @@ import { Layout } from "@/components/shared/layout";
 import { NotFound } from "@/components/shared/not-found";
 import { RequireAuth } from "@/components/shared/require-auth";
 
-const AgentDetailPage = lazy(() =>
-  import("@/features/agent-detail/agent-detail.view").then((module) => ({
-    default: module.AgentDetailPage,
+const NodeDetailPage = lazy(() =>
+  import("@/features/node-detail/node-detail.view").then((module) => ({
+    default: module.NodeDetailPage,
   })),
 );
 const MonitorDetailPage = lazy(() =>
@@ -35,9 +35,9 @@ const HealthIssuesPage = lazy(() =>
     default: module.HealthIssuesPage,
   })),
 );
-const AgentMonitorSetupPage = lazy(() =>
-  import("@/features/monitors/agent-setup/agent-monitor-setup.view").then((module) => ({
-    default: module.AgentMonitorSetupPage,
+const NodeMonitorSetupPage = lazy(() =>
+  import("@/features/monitors/node-setup/node-monitor-setup.view").then((module) => ({
+    default: module.NodeMonitorSetupPage,
   })),
 );
 const MonitorEditPage = lazy(() =>
@@ -61,7 +61,7 @@ const IncidentTriagePage = lazy(() =>
   })),
 );
 const AddServerPage = lazy(() =>
-  import("@/features/agents/add-server/add-server.view").then((module) => ({
+  import("@/features/nodes/add-server/add-server.view").then((module) => ({
     default: module.AddServerPage,
   })),
 );
@@ -84,8 +84,8 @@ const AlertsPage = lazy(() =>
 const LogsPage = lazy(() =>
   import("@/features/logs/logs.view").then((module) => ({ default: module.LogsPage })),
 );
-const AgentsPage = lazy(() =>
-  import("@/features/agents/agents.view").then((module) => ({ default: module.AgentsPage })),
+const NodesPage = lazy(() =>
+  import("@/features/nodes/nodes.view").then((module) => ({ default: module.NodesPage })),
 );
 const SettingsPage = lazy(() =>
   import("@/features/settings/settings.view").then((module) => ({ default: module.SettingsPage })),
@@ -104,9 +104,9 @@ const StatusPagesPage = lazy(() =>
   })),
 );
 
-const AgentDetailRedirect = () => {
-  const { agentId = "" } = useParams();
-  return <Navigate to={`/servers/${agentId}`} replace />;
+const NodeDetailRedirect = () => {
+  const { nodeId = "" } = useParams();
+  return <Navigate to={`/servers/${nodeId}`} replace />;
 };
 
 function AppRouter() {
@@ -122,13 +122,13 @@ function AppRouter() {
           <Route path="status-pages" element={<StatusPagesPage />} />
           <Route path="status-pages/:pageId" element={<StatusPageDetailPage />} />
           <Route path="logs" element={<LogsPage />} />
-          <Route path="agents" element={<Navigate to="/servers" replace />} />
-          <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
-          <Route path="servers" element={<AgentsPage />} />
+          <Route path="nodes" element={<Navigate to="/servers" replace />} />
+          <Route path="nodes/:nodeId" element={<NodeDetailRedirect />} />
+          <Route path="servers" element={<NodesPage />} />
           <Route path="servers/new" element={<AddServerPage />} />
-          <Route path="servers/:agentId" element={<AgentDetailPage />} />
+          <Route path="servers/:nodeId" element={<NodeDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
-          <Route path="monitors/new/agent" element={<AgentMonitorSetupPage />} />
+          <Route path="monitors/new/node" element={<NodeMonitorSetupPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
           <Route path="monitors/:monitorId/edit" element={<MonitorEditPage />} />
           <Route path="health-issues" element={<HealthIssuesPage />} />

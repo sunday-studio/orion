@@ -21,7 +21,7 @@ export const groupingOptions = [
 
 export type RouteFormState = {
   cooldownSeconds: string;
-  agentIds: string;
+  nodeIds: string;
   channelIds: string[];
   enabled: boolean;
   eventTypes: string[];
@@ -36,7 +36,7 @@ export type RouteFormState = {
 };
 
 export type DryRunFormState = {
-  agentId: string;
+  nodeId: string;
   eventType: string;
   incidentId: string;
   monitorId: string;
@@ -45,7 +45,7 @@ export type DryRunFormState = {
 };
 
 export const defaultRouteForm = (channels: ApiAlertChannelResponse[]): RouteFormState => ({
-  agentIds: "",
+  nodeIds: "",
   cooldownSeconds: "0",
   channelIds: channels.find((channel) => channel.id)?.id ? [channels[0].id ?? ""] : [],
   enabled: true,
@@ -61,7 +61,7 @@ export const defaultRouteForm = (channels: ApiAlertChannelResponse[]): RouteForm
 });
 
 export const defaultDryRunForm: DryRunFormState = {
-  agentId: "",
+  nodeId: "",
   eventType: "incident_opened",
   incidentId: "",
   monitorId: "",
@@ -81,7 +81,7 @@ export const routeToForm = (
   route: ApiAlertRuleResponse,
   channels: ApiAlertChannelResponse[],
 ): RouteFormState => ({
-  agentIds: joinList(route.agent_ids),
+  nodeIds: joinList(route.node_ids),
   cooldownSeconds: String(route.cooldown_seconds ?? 0),
   channelIds: (route.channel_ids ?? []).filter((id) =>
     channels.some((channel) => channel.id === id),
@@ -101,7 +101,7 @@ export const routeToForm = (
 });
 
 export const routeToRequest = (route: ApiAlertRuleResponse): ApiAlertRuleRequest => ({
-  agent_ids: route.agent_ids ?? [],
+  node_ids: route.node_ids ?? [],
   cooldown_seconds: route.cooldown_seconds ?? 0,
   channel_ids: route.suppress ? [] : (route.channel_ids ?? []),
   enabled: route.enabled ?? true,
@@ -117,7 +117,7 @@ export const routeToRequest = (route: ApiAlertRuleResponse): ApiAlertRuleRequest
 });
 
 export const formToRequest = (form: RouteFormState): ApiAlertRuleRequest => ({
-  agent_ids: splitList(form.agentIds),
+  node_ids: splitList(form.nodeIds),
   cooldown_seconds: Number.parseInt(form.cooldownSeconds, 10) || 0,
   channel_ids: form.suppress ? [] : form.channelIds,
   enabled: form.enabled,

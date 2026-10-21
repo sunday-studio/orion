@@ -7,13 +7,13 @@ import {
   StatusBadge,
 } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
-import type { ApiAgentReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
+import type { ApiNodeReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
 import type { ReactNode } from "react";
 
 type ReportInspectionDrawerProps =
   | {
-      kind: "agent";
-      report?: ApiAgentReportResponse;
+      kind: "node";
+      report?: ApiNodeReportResponse;
       onOpenChange: (open: boolean) => void;
     }
   | {
@@ -130,16 +130,16 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 
 const RawJson = ({ value }: { value: unknown }) => <JsonBlock value={value} maxHeight={320} />;
 
-const AgentReportInspection = ({ report }: { report: ApiAgentReportResponse }) => (
+const NodeReportInspection = ({ report }: { report: ApiNodeReportResponse }) => (
   <>
     <Section title="Summary">
       <DetailGrid
         items={[
           { label: "report", value: report.id },
-          { label: "server", value: report.agent_id },
+          { label: "server", value: report.node_id },
           { label: "reported", value: formatDate(report.timestamp, DATE_TIME_FORMAT) },
           { label: "created", value: formatDate(report.created_at, DATE_TIME_FORMAT) },
-          { label: "version", value: report.agent_version },
+          { label: "version", value: report.node_version },
           { label: "uptime", value: formatValue(report.uptime_seconds) },
         ]}
       />
@@ -270,12 +270,12 @@ export const ReportInspectionDrawer = (props: ReportInspectionDrawerProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="top-0 left-auto right-0 h-dvh max-h-dvh max-w-full translate-x-0 translate-y-0 overflow-y-auto p-5 sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{props.kind === "agent" ? "Server Report" : "Monitor Report"}</DialogTitle>
+          <DialogTitle>{props.kind === "node" ? "Server Report" : "Monitor Report"}</DialogTitle>
         </DialogHeader>
         {report && (
           <div className="space-y-5">
-            {props.kind === "agent" ? (
-              <AgentReportInspection report={report} />
+            {props.kind === "node" ? (
+              <NodeReportInspection report={report} />
             ) : (
               <MonitorReportInspection report={report} />
             )}

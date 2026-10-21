@@ -47,9 +47,9 @@ export const AttentionBox = ({ issues, total }: { issues: ApiHealthIssue[]; tota
                 <b className="font-medium">{issue.monitor_name ?? "Monitor"}</b>
               )}
             </span>
-            <span className="text-faint">{issue.agent_name ?? "Core"}</span>
+            <span className="text-faint">{issue.node_name ?? "Core"}</span>
             <span className="font-mono text-xs text-faint">
-              {issue.monitor_type ? issue.monitor_type.toUpperCase() : "Agent"}
+              {issue.monitor_type ? issue.monitor_type.toUpperCase() : "Node"}
             </span>
             <span>
               <StatusBadge status={issue.health}>{issue.health}</StatusBadge>
