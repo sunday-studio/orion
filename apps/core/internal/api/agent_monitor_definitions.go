@@ -12,8 +12,8 @@ import (
 
 type AgentMonitorDefinitionRequest struct {
 	Name string `json:"name" binding:"required"`
-	// CheckType: disk (params path, threshold_percent), memory (threshold_percent), process (process_name), port (port).
-	CheckType       string         `json:"check_type" binding:"required" enums:"disk,memory,process,port"`
+	// CheckType: disk (params path, threshold_percent), memory (threshold_percent), process (process_name), port (port), systemd (unit), docker (container), pm2 (app).
+	CheckType       string         `json:"check_type" binding:"required" enums:"disk,memory,process,port,systemd,docker,pm2"`
 	Params          map[string]any `json:"params,omitempty"`
 	IntervalSeconds int            `json:"interval_seconds,omitempty"`
 	FailAfter       int            `json:"fail_after,omitempty"`
@@ -28,14 +28,18 @@ type AgentMonitorDefinitionResponse struct {
 	FailAfter       int            `json:"fail_after"`
 	CreatedAt       time.Time      `json:"created_at"`
 	// State is waiting until the agent has fetched the definition and reported under this name, then reporting.
-	State       string     `json:"state" enums:"waiting,reporting"`
+	State string `json:"state" enums:"waiting,failed,reporting"`
+	// FailureReason is why the agent could not run this check, in its own words (state failed).
+	FailureReason string `json:"failure_reason,omitempty"`
+	// DeliveredAt is when the agent first fetched this definition (Requested becomes Applied).
+	DeliveredAt *time.Time `json:"delivered_at,omitempty"`
 	MonitorID   string     `json:"monitor_id,omitempty"`
 	FirstReport *time.Time `json:"first_report_at,omitempty"`
 }
 
 func definitionResponse(v service.AgentMonitorDefinitionView) AgentMonitorDefinitionResponse {
 	return AgentMonitorDefinitionResponse{ID: v.ID, Name: v.Name, CheckType: v.CheckType, Params: v.ParamsParsed, IntervalSeconds: v.IntervalSeconds, FailAfter: v.FailAfter,
-		CreatedAt: v.CreatedAt, State: v.State, MonitorID: v.MonitorID, FirstReport: v.FirstReport}
+		CreatedAt: v.CreatedAt, State: v.State, FailureReason: v.FailureReason, DeliveredAt: v.DeliveredAt, MonitorID: v.MonitorID, FirstReport: v.FirstReport}
 }
 
 // createAgentMonitorDefinition configures a check for a server's agent to run.
@@ -149,6 +153,7 @@ type AgentPulledDefinition struct {
 // @Failure      401       {object}  utils.APIResponse
 // @Router       /v1/agents/{agent_id}/monitor-definitions/sync [post]
 func (s *Server) pullAgentMonitorDefinitions(c *gin.Context) {
+	s.agentService.MarkDefinitionsDelivered(c.Param("agent_id"))
 	views, err := s.agentService.ListMonitorDefinitions(c.Param("agent_id"))
 	if err != nil {
 		utils.InternalError(c, "Failed to load monitor definitions", err)

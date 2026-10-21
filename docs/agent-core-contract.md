@@ -427,6 +427,18 @@ The same status response feeds `orion-agent status` and is additive JSON (older 
 - The agent sends after each scan (at start and every six hours, and on `discover --rescan`), only when the scan changed or a day has passed since the last send. A failed send is retried after the next scan. A Core that answers 404 or 405 (an older Core) is not asked again for a day.
 - Only names, ids and short details of things found are sent (service and container names, ports, mount points, and the full path of each log file found, which the Console needs to suggest a log source), never their contents. Core stores the items and never writes them to its logs. `discovery.report: false` keeps the scan on the host. Core does not act on it: nothing is monitored until a person accepts a suggestion.
 
+### Console requests and accepting suggestions
+
+Core cannot call the agent, so Console actions on a server's scan are queued in Core and the agent pulls them (about once a minute, like monitor definitions).
+
+- Console: `GET|POST /v1/agents/{id}/discovery/requests`, `DELETE .../requests/{request_id}` (cancel while queued), `POST /v1/agents/{agent_id}/discovery/accept` with `{item_ids}`.
+- Agent: `POST /v1/agents/{agent_id}/discovery/requests/pull`, then `POST .../requests/{request_id}/result` with `{status: applied|failed|unsupported, result}`.
+- Request types: `rescan`, `dismiss`, `restore`, `ignore`, `unignore`, `set_scanning`, `set_kind`, `track_storage`, `create_log_source`.
+- Lifecycle: `queued` -> `delivered` -> `applied | failed(reason) | unsupported`, plus `expired` (24 h, redelivered after 5 min unconfirmed) and `cancelled`. At most 20 open requests per agent. The failure text is the agent's own words and is shown verbatim.
+- Capabilities: the discovery report carries `capabilities` (for example `requests`, `log_key_fetch`). Core queues requests only for agents that advertise `requests`; Console reads the flag instead of comparing versions.
+- Accepting a service, container, pm2 process, port or disk creates a monitor definition (interval 30 s, fail after 2, disk threshold 90%). Definitions gain check types `systemd`, `docker` and `pm2`, and states `waiting`, `failed` (agent could not run it; reported through `POST /v1/agents/{agent_id}/monitor-definitions/results` as `{results:[{definition_id, ok, reason}]}`) and `reporting`. `delivered_at` says when the agent first fetched a definition.
+- Accepting storage queues `track_storage`, which the agent writes into its `app_resources.paths` config. Sizes appear once Core ingests `app_resources`.
+
 ## Security
 
 - Agent token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.

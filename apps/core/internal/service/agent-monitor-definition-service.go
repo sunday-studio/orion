@@ -18,6 +18,8 @@ var (
 	ErrDefinitionNotFound = errors.New("monitor definition not found")
 	ErrDefinitionExists   = errors.New("this server already has a monitor with that name")
 	processNamePattern    = regexp.MustCompile(`^[A-Za-z0-9._@:-]{1,100}$`)
+	containerNamePattern  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
+	pm2NamePattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@:-]{0,99}$`)
 	diskPathPattern       = regexp.MustCompile(`^/[A-Za-z0-9_./ -]{0,200}$`)
 )
 
@@ -34,10 +36,11 @@ type AgentMonitorDefinitionInput struct {
 // AgentMonitorDefinitionView adds the live state: waiting until the agent reports under that name.
 type AgentMonitorDefinitionView struct {
 	db.AgentMonitorDefinition
-	State        string // waiting | reporting
-	MonitorID    string
-	FirstReport  *time.Time
-	ParamsParsed map[string]any
+	State         string // waiting | applied | failed | reporting
+	FailureReason string // why the agent could not run it, in its own words
+	MonitorID     string
+	FirstReport   *time.Time
+	ParamsParsed  map[string]any
 }
 
 func validateDefinition(in AgentMonitorDefinitionInput) (AgentMonitorDefinitionInput, error) {
@@ -101,8 +104,27 @@ func validateDefinition(in AgentMonitorDefinitionInput) (AgentMonitorDefinitionI
 			return in, fmt.Errorf("%w: port must be between 1 and 65535", ErrDefinitionInvalid)
 		}
 		params["port"] = p
+	case "systemd":
+		unit, _ := in.Params["unit"].(string)
+		unit = strings.TrimSuffix(strings.TrimSpace(unit), ".service")
+		if !processNamePattern.MatchString(unit) {
+			return in, fmt.Errorf("%w: unit is required (letters, digits and . _ @ : -)", ErrDefinitionInvalid)
+		}
+		params["unit"] = unit
+	case "docker":
+		name, _ := in.Params["container"].(string)
+		if !containerNamePattern.MatchString(strings.TrimSpace(name)) {
+			return in, fmt.Errorf("%w: container is required (a container name)", ErrDefinitionInvalid)
+		}
+		params["container"] = strings.TrimSpace(name)
+	case "pm2":
+		app, _ := in.Params["app"].(string)
+		if !pm2NamePattern.MatchString(strings.TrimSpace(app)) {
+			return in, fmt.Errorf("%w: app is required (a pm2 app name)", ErrDefinitionInvalid)
+		}
+		params["app"] = strings.TrimSpace(app)
 	default:
-		return in, fmt.Errorf("%w: check_type must be disk, memory, process or port", ErrDefinitionInvalid)
+		return in, fmt.Errorf("%w: check_type must be disk, memory, process, port, systemd, docker or pm2", ErrDefinitionInvalid)
 	}
 	in.Params = params
 	return in, nil
@@ -157,6 +179,9 @@ func (s *AgentService) ListMonitorDefinitions(agentID string) ([]AgentMonitorDef
 	views := make([]AgentMonitorDefinitionView, 0, len(defs))
 	for _, d := range defs {
 		v := AgentMonitorDefinitionView{AgentMonitorDefinition: d, State: "waiting", ParamsParsed: map[string]any{}}
+		if d.FailureReason != "" {
+			v.State, v.FailureReason = "failed", d.FailureReason
+		}
 		_ = json.Unmarshal([]byte(d.Params), &v.ParamsParsed)
 		var m db.Monitor
 		if s.db.Where("agent_id = ? AND name = ? AND lifecycle <> ?", agentID, d.Name, "deleted").Limit(1).Find(&m).RowsAffected > 0 {
@@ -171,4 +196,37 @@ func (s *AgentService) ListMonitorDefinitions(agentID string) ([]AgentMonitorDef
 		views = append(views, v)
 	}
 	return views, nil
+}
+
+// MarkDefinitionsDelivered notes that the agent has fetched its definitions.
+func (s *AgentService) MarkDefinitionsDelivered(agentID string) {
+	now := time.Now().UTC()
+	s.db.Model(&db.AgentMonitorDefinition{}).Where("agent_id = ? AND delivered_at IS NULL", agentID).Update("delivered_at", now)
+}
+
+// DefinitionResult is what the agent says about trying to run one definition.
+type DefinitionResult struct {
+	DefinitionID string `json:"definition_id"`
+	OK           bool   `json:"ok"`
+	Reason       string `json:"reason,omitempty"`
+}
+
+// RecordDefinitionResults stores why a definition could not run, or clears it when it can.
+func (s *AgentService) RecordDefinitionResults(agentID string, results []DefinitionResult) error {
+	if len(results) > maxDefinitionsPerAgent*2 {
+		return fmt.Errorf("%w: too many results", ErrDefinitionInvalid)
+	}
+	for _, r := range results {
+		reason := ""
+		if !r.OK {
+			reason = clipText(r.Reason)
+			if reason == "" {
+				reason = "The agent could not run this check."
+			}
+		}
+		if err := s.db.Model(&db.AgentMonitorDefinition{}).Where("id = ? AND agent_id = ?", r.DefinitionID, agentID).Update("failure_reason", reason).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
