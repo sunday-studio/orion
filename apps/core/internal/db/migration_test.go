@@ -299,7 +299,7 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 			(2, '000002_data_lifecycle_settings.up.sql', CURRENT_TIMESTAMP),
 			(3, '000003_monitor_uptime_rollups.up.sql', CURRENT_TIMESTAMP),
 			(4, '000004_incident_reconciliation_state.up.sql', CURRENT_TIMESTAMP);
-		CREATE TABLE nodes (
+		CREATE TABLE agents (
 			id TEXT PRIMARY KEY,
 			machine_id TEXT NOT NULL,
 			name TEXT NOT NULL,
@@ -311,9 +311,9 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 			created_at DATETIME,
 			last_seen DATETIME
 		);
-		CREATE TABLE node_reports (
+		CREATE TABLE agent_reports (
 			id VARCHAR(255) PRIMARY KEY,
-			node_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
 			created_at DATETIME,
 			uptime_seconds INTEGER,
 			timestamp TEXT,
@@ -324,7 +324,8 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 		);
 		CREATE TABLE monitors (
 			id TEXT PRIMARY KEY,
-			node_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT '',
 			name TEXT NOT NULL,
 			lifecycle TEXT NOT NULL,
 			active_incident_id TEXT NOT NULL DEFAULT '',
@@ -347,6 +348,7 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 			created_at DATETIME,
 			updated_at DATETIME
 		);
+		CREATE TABLE monitor_uptime_rollups (monitor_id TEXT);
 		CREATE TABLE monitor_reports (
 			id VARCHAR(255) PRIMARY KEY,
 			monitor_id TEXT NOT NULL,
@@ -371,7 +373,7 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 			status TEXT NOT NULL,
 			severity TEXT NOT NULL,
 			title TEXT NOT NULL,
-			node_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
 			monitor_id TEXT NOT NULL,
 			opened_at DATETIME NOT NULL,
 			resolved_at DATETIME,
@@ -386,7 +388,7 @@ func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 			status,
 			severity,
 			title,
-			node_id,
+			agent_id,
 			monitor_id,
 			opened_at,
 			last_event_at,

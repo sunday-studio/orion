@@ -91,6 +91,9 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open state database: %w", err)
 	}
+	if err := migrateLegacyNames(database); err != nil {
+		return nil, fmt.Errorf("migrate state database: %w", err)
+	}
 	if err := database.AutoMigrate(&nodeStateRecord{}, &monitorStateRecord{}, &reportSpoolRecord{}, &logOffsetRecord{}, &discoveryRecord{}); err != nil {
 		return nil, fmt.Errorf("migrate state database: %w", err)
 	}
@@ -122,7 +125,9 @@ func InspectReadOnly(path string) (*config.InternalState, error) {
 	defer sqlDB.Close()
 
 	record := nodeStateRecord{ID: 1}
-	if err := database.First(&record).Error; err != nil {
+	if legacy, ok := readLegacyAgentState(database); ok {
+		record = legacy
+	} else if err := database.First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			record = nodeStateRecord{ID: 1}
 		} else {

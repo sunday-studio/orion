@@ -6,7 +6,7 @@ $ curl -fsSL …/orion-node-installer.sh | bash -s -- --core-url … --enrollmen
  ╭ Steps ───────────────────────────────────────────────────────────────────── 5 of 5 ╮
  │ ✓ Downloaded                   24.1 MB                                     3.2 s   │
  │ ✓ Verified                     sha256 and cosign signature                 0.4 s   │
- │ ✓ Installed                    /usr/local/bin/orion-node                          │
+ │ ✓ Installed                    /usr/local/bin/orion-node                           │
  │ ✓ Service                      systemd unit, runs as user orion                    │
  │ ✓ Enrolled                     edge-05 with core.example.com               1.1 s   │
  ╰────────────────────────────────────────────────────────────────────────────────────╯
@@ -15,7 +15,7 @@ $ curl -fsSL …/orion-node-installer.sh | bash -s -- --core-url … --enrollmen
  │ Collecting   CPU · memory · disk · network · load · uptime  (no setup needed)      │
  │ Detected     6 things to monitor                                                   │
  │                                                                                    │
- │ ▸ orion-node setup   or open https://core.example.com/servers/edge-05             │
+ │ ▸ orion-node setup   or open https://core.example.com/servers/edge-05              │
  ╰────────────────────────────────────────────────────────────────────────────────────╯
 
   No questions were asked. Setup is optional; host metrics are already reporting.

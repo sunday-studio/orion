@@ -4,7 +4,7 @@ $ orion-node discover
  │ discovery.enabled is false, so nothing is looked at.                               │
  │ Host metrics, manual config and Create monitor still work.                         │
  │                                                                                    │
- │  orion-node config edit   set discovery.enabled: true                             │
+ │  orion-node config edit   set discovery.enabled: true                              │
  ╰────────────────────────────────────────────────────────────────────────────────────╯
 
 $ orion-node discover

@@ -224,7 +224,7 @@ func renderJSON(w io.Writer, value any) error {
 
 // JSONSchemaVersion is the version of the --json output of commands that do
 // not define their own.
-const JSONSchemaVersion = 2
+const JSONSchemaVersion = 3 // 3: agent_id became node_id in enroll and status
 
 func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
