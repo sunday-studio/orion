@@ -13,8 +13,15 @@ import (
 	"orion/agent/internal/transport"
 )
 
-// agentCapabilities is what this agent tells Core it can do.
-var agentCapabilities = []string{"requests"}
+// agentCapabilities is what this agent tells Core it can do: "requests" (it takes queued Console
+// requests) and "app_resources" (it sends per-app usage with its reports, unless turned off).
+func agentCapabilities(cfg *config.UserConfig) []string {
+	caps := []string{"requests"}
+	if cfg != nil && cfg.AppResources.IsEnabled() {
+		caps = append(caps, "app_resources")
+	}
+	return caps
+}
 
 // discoveryResendEvery re-sends an unchanged scan this often, so Core's copy
 // does not look stale and a Core that lost it gets it back.
@@ -44,8 +51,8 @@ func newDiscoveryReporter(store *agentstate.Store, cfg func() *config.UserConfig
 		}}
 }
 
-func reportOf(d control.Discovery) transport.DiscoveryReport {
-	rep := transport.DiscoveryReport{ScannedAt: d.ScannedAt, Enabled: d.Enabled, Kinds: []transport.DiscoveredKind{}, Items: []transport.DiscoveredItem{}, Capabilities: agentCapabilities}
+func reportOf(d control.Discovery, caps []string) transport.DiscoveryReport {
+	rep := transport.DiscoveryReport{ScannedAt: d.ScannedAt, Enabled: d.Enabled, Kinds: []transport.DiscoveredKind{}, Items: []transport.DiscoveredItem{}, Capabilities: caps}
 	for _, k := range d.Kinds {
 		rep.Kinds = append(rep.Kinds, transport.DiscoveredKind{Kind: k.Kind, State: k.State, Message: k.Message, Fix: k.Fix, Why: k.Why})
 	}
@@ -82,14 +89,15 @@ func (r *discoveryReporter) Report(d control.Discovery) {
 }
 
 func (r *discoveryReporter) sendOne(d control.Discovery) {
-	if cfg := r.cfg(); cfg == nil || !cfg.Discovery.IsReporting() {
+	cfg := r.cfg()
+	if cfg == nil || !cfg.Discovery.IsReporting() {
 		return
 	}
 	st, err := r.store.Get()
 	if err != nil || !st.IsRegistered() || st.AgentID == "" {
 		return
 	}
-	rep := reportOf(d)
+	rep := reportOf(d, agentCapabilities(cfg))
 	hashed := rep
 	hashed.ScannedAt = time.Time{}
 	raw, _ := json.Marshal(hashed)
