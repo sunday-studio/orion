@@ -414,11 +414,18 @@ Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`,
 
 With `transport.compression: gzip` the agent sends request bodies over 1 KiB with `Content-Encoding: gzip`. Default is off because only the log-ingest endpoint decodes gzip request bodies today; Core should add a decoding middleware (with a size limit applied after decompression) before this is enabled in the field.
 
-## Discovery (agent only, for now)
+## Discovery
 
-The agent scans its own host read-only and keeps the result locally (state database) plus the person's choices (dismissed in the state database, ignored in `discovery.ignore`). It does not report discoveries to Core yet; the Console "Detected on this server" panel needs a Core endpoint for them (see `docs/design/agent-auto-config-flow.md`). The local view is served on the control socket (`GET /v1/discovery`, `POST /v1/discovery/rescan`, `POST /v1/discovery/action` with `dismiss`, `restore`, `review`), and `status` on the socket reports `suggestions`, `new_items`, `things_found` and `scanning`.
+The agent scans its own host read-only and keeps the result locally (state database) plus the person's choices (dismissed in the state database, ignored in `discovery.ignore`). The local view is served on the control socket (`GET /v1/discovery`, `POST /v1/discovery/rescan`, `POST /v1/discovery/action` with `dismiss`, `restore`, `review`), and `status` on the socket reports `suggestions`, `new_items`, `things_found` and `scanning`.
 
-The same `status` response feeds `orion-agent status` and is additive JSON (older clients ignore unknown fields): `host` (live CPU, memory, disk and load percentages plus network bytes per second; omitted until the sampler has two samples), `report_millis` (send time of the last 12 system reports, oldest first), `report_interval_seconds`, `missing_log_keys` (log sources with no usable ingest key), and per-monitor `monitor_states` rows with `target`, `since` (when the current health began), `detail` (failure reason) and `value` (a reading such as `91%`). `health` is one of `up`, `slow`, `down`, `degraded`, `unknown`.
+The same status response feeds `orion-agent status` and is additive JSON (older clients ignore unknown fields): `host` (live CPU, memory, disk and load percentages plus network bytes per second; omitted until the sampler has two samples), `report_millis` (send time of the last 12 system reports, oldest first), `report_interval_seconds`, `missing_log_keys` (log sources with no usable ingest key), and per-monitor `monitor_states` rows with `target`, `since` (when the current health began), `detail` (failure reason) and `value` (a reading such as `91%`). `health` is one of `up`, `slow`, `down`, `degraded`, `unknown`.
+
+### Reporting the scan to Core
+
+- `POST /v1/agents/{agent_id}/discovery` (agent token). Body: `scanned_at`, `enabled`, `kinds[]` (`kind`, `state`, `message`, `fix`, `why`: how scanning each kind went, including the exact fix for one the agent could not read) and `items[]` (`id`, `kind`, `name`, `detail`, `confidence` high|medium|low, `status` suggested|monitored, `managed_in`, `new`, `dismissed`). At most 500 items and 20 kinds; the body is limited to 512 KiB; text fields are cut at 300 characters. Core stores only the latest report per agent (it replaces the previous one) and returns 400 for a malformed one.
+- `GET /v1/agents/{id}/discovery` (Console auth) returns the stored scan as `discovery` (null until the agent has reported) with `received_at` and counts: `things`, `suggested`, `monitored`, `new_items` (dismissed items are listed but not counted). The Console's "Detected on this server" panel reads this.
+- The agent sends after each scan (at start and every six hours, and on `discover --rescan`), only when the scan changed or a day has passed since the last send. A failed send is retried after the next scan. A Core that answers 404 or 405 (an older Core) is not asked again for a day.
+- Only names, ids and short details of things found are sent (service and container names, ports, mount points, log file paths), never their contents. `discovery.report: false` keeps the scan on the host. Core does not act on it: nothing is monitored until a person accepts a suggestion.
 
 ## Security
 

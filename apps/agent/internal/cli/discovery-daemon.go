@@ -24,6 +24,8 @@ type scanner struct {
 	store *agentstate.Store
 	cfg   func() *config.UserConfig
 	env   func(*config.UserConfig) discover.Env // replaced in tests
+	// onScan is told about each finished scan (the daemon sends it to Core).
+	onScan func(control.Discovery)
 
 	mu       sync.Mutex
 	scanning bool
@@ -80,7 +82,11 @@ func (s *scanner) Rescan(ctx context.Context) (control.Discovery, error) {
 		s.mu.Lock()
 		s.enabled, s.last, s.at = false, discover.Result{}, time.Now()
 		s.mu.Unlock()
-		return s.View()
+		view, err := s.View()
+		if err == nil && s.onScan != nil {
+			go s.onScan(view) // tell Core scanning is off, so the Console does not show a stale list
+		}
+		return view, err
 	}
 	res := discover.Run(ctx, s.env(cfg))
 	now := time.Now()
@@ -107,7 +113,11 @@ func (s *scanner) Rescan(ctx context.Context) (control.Discovery, error) {
 	s.mu.Lock()
 	s.enabled, s.last, s.at = true, res, now
 	s.mu.Unlock()
-	return s.View()
+	view, err := s.View()
+	if err == nil && s.onScan != nil {
+		go s.onScan(view)
+	}
+	return view, err
 }
 
 // View merges the latest scan with the stored choices (new, dismissed).

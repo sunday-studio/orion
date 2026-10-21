@@ -57,6 +57,15 @@ expect "status --short is one line" "connected" "$out"
 [ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" = "1" ] || fail "status --short must be one line" "$out"
 out="$(A status --json 2>&1)"
 expect "status --json is JSON" '"registered": true' "$out"
+AGENT_ID="$(curl -fsS "http://127.0.0.1:$PORT/v1/agents" | grep -o '"id":"agent-[^"]*"' | head -1 | cut -d'"' -f4)"
+[ -n "$AGENT_ID" ] || fail "Core lists no agent"
+for _ in $(seq 1 60); do
+  curl -fsS "http://127.0.0.1:$PORT/v1/agents/$AGENT_ID/discovery" | grep -q '"items":\[{' && break
+  sleep 0.5
+done
+out="$(curl -fsS "http://127.0.0.1:$PORT/v1/agents/$AGENT_ID/discovery")"
+expect "Core received the discovery scan" '"received_at"' "$out"
+expect "the scan lists what was found" '"items":[{' "$out"
 out="$(A doctor 2>&1 || true)"
 expect "doctor sees the scan" "Last scan" "$out"
 expect "doctor reaches Core" "Core reachable" "$out"
