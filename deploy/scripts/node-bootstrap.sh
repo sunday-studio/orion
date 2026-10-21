@@ -476,7 +476,7 @@ EOF
   fi
   if [ "$START_SERVICE" != "true" ]; then SERVICE_DETAIL="installed, not started (--no-start)"
   elif [ "$INIT" = "systemd" ]; then SERVICE_DETAIL="systemd user unit, runs as you"
-  elif [ "$INIT" = "launchd" ]; then SERVICE_DETAIL="launchd node, runs as you"
+  elif [ "$INIT" = "launchd" ]; then SERVICE_DETAIL="launchd job, runs as you"
   else SERVICE_DETAIL="no init system; run: $BIN_DIR/orion-node run"; fi
   record ok "Service" "$SERVICE_DETAIL"
 else
