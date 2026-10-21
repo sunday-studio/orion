@@ -70,7 +70,10 @@ func countField(m map[string]json.RawMessage, key string) *uint64 {
 	if v == nil {
 		return nil
 	}
-	n := uint64(math.Min(*v, math.MaxInt64)) // SQLite stores signed 64-bit integers
+	n := uint64(math.MaxInt64) // SQLite stores signed 64-bit integers; float64(MaxInt64) rounds up past it
+	if *v < 1<<63 {
+		n = uint64(*v)
+	}
 	return &n
 }
 

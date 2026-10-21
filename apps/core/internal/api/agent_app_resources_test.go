@@ -131,10 +131,24 @@ func TestAMalformedAppResourcesSectionNeverCostsTheHostReport(t *testing.T) {
 			t.Fatalf("%s: report status = %d: %s (an odd section must never turn into a rejected host report)", name, resp.Code, resp.Body.String())
 		}
 	}
+	reportWithAppResources(t, server, agent.Data.AgentID, agent.Data.Token, map[string]any{"series": many}) // after the loop: map order is random
 	var r appResourcesResp
 	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.Data.AgentID+"/app-resources", nil, ""), &r)
 	if v := r.Data.AppResources; v == nil || len(v.Series) != 200 {
-		t.Fatalf("the last report (250 series) keeps the first 200: %+v", v)
+		t.Fatalf("a report of 250 series keeps the first 200: %+v", v)
+	}
+
+	reportWithAppResources(t, server, agent.Data.AgentID, agent.Data.Token, map[string]any{"series": []map[string]any{
+		{"kind": "path", "key": "path:/huge", "name": "/huge", "storage_bytes": 1.8e19},
+		{"kind": "unit", "key": "unit:ok", "name": "ok", "memory_bytes": 1024}}})
+	var huge appResourcesResp
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.Data.AgentID+"/app-resources", nil, ""), &huge)
+	got := map[string]service.AppResourceSeries{}
+	for _, x := range huge.Data.AppResources.Series {
+		got[x.Key] = x
+	}
+	if h := got["path:/huge"]; h.StorageBytes == nil || *h.StorageBytes != 1<<63-1 || got["unit:ok"].MemoryBytes == nil {
+		t.Fatalf("a huge count is clamped and stored, and its neighbours are kept: %+v", got)
 	}
 
 	reportWithAppResources(t, server, agent.Data.AgentID, agent.Data.Token, sections["negative uint"].(map[string]any))
