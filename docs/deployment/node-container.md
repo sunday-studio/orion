@@ -33,7 +33,6 @@ docker run -d --name orion-node --restart unless-stopped \
 
 The token is used once; after the first start the node keeps its own credentials in the `orion-node-data` volume, so the token can be removed from the command afterwards. Recreate the container without `ORION_ENROLLMENT_TOKEN` once it has enrolled: an environment variable stays visible in `docker inspect`. Keep the volume: removing it makes the node enroll again as a new server.
 
-To run a node container beside Core on the same server, see
 The Core compose override carries an experimental `node` profile (see the comment in `deploy/docker-compose.build.yml`). A standalone Compose version of the node is in [deploy/examples/node-container-compose.yaml](../../deploy/examples/node-container-compose.yaml).
 
 ## What it sees
