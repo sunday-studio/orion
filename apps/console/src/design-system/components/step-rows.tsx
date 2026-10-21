@@ -1,7 +1,7 @@
 import type * as React from "react";
 import { cn } from "@/utils/cn";
 
-export type StepRowTone = "done" | "pending" | "idle";
+type StepRowTone = "done" | "pending" | "idle";
 
 export type StepRowData = {
   title: React.ReactNode;

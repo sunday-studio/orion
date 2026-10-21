@@ -1,7 +1,6 @@
 import { parseAsString, useQueryStates } from "nuqs";
 
 export type LogKind = "service" | "status" | "internal";
-export type LogView = "list" | "live" | "patterns";
 
 export const RANGES = [
   { value: "15m", label: "Last 15 minutes" },

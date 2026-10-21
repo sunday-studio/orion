@@ -1,16 +1,13 @@
 import { format, isValid, parseISO } from "date-fns";
 
-export const DATE_FORMAT = "MMM d, yyyy";
+const DATE_FORMAT = "MMM d, yyyy";
 export const TIME_FORMAT = "HH:mm";
 export const DATE_TIME_FORMAT = `${DATE_FORMAT} ${TIME_FORMAT}`;
-export const DATE_TIME_SECONDS_FORMAT = `${DATE_TIME_FORMAT}:ss`;
-export const ISO_DATE_FORMAT = "yyyy-MM-dd";
-export const ISO_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
 
 type DateInput = Date | string | number | null | undefined;
 
 const TIMEZONE_KEY = "orion.timezone";
-export const DEFAULT_TIMEZONE = "UTC";
+const DEFAULT_TIMEZONE = "UTC";
 
 /** The display timezone: "UTC" by default, "local" for the browser zone, or any IANA name. */
 export function getTimezone(): string {

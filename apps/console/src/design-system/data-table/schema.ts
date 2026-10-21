@@ -1,4 +1,4 @@
-export type DataTableFilterOption = { value: string; label: string };
+type DataTableFilterOption = { value: string; label: string };
 
 type DataTableFilterBase = {
   /** URL query key and filter value key. */
@@ -6,9 +6,9 @@ type DataTableFilterBase = {
   placeholder?: string;
 };
 
-export type DataTableSearchField = DataTableFilterBase & { type: "search" };
-export type DataTableInputField = DataTableFilterBase & { type: "input" };
-export type DataTableSelectField = DataTableFilterBase & {
+type DataTableSearchField = DataTableFilterBase & { type: "search" };
+type DataTableInputField = DataTableFilterBase & { type: "input" };
+type DataTableSelectField = DataTableFilterBase & {
   type: "select";
   /** Prefix shown in the trigger, for example "Source". */
   label: string;

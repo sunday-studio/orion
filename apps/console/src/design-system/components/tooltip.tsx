@@ -2,8 +2,6 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import type * as React from "react";
 import { cn } from "@/utils/cn";
 
-export const TooltipProvider = TooltipPrimitive.Provider;
-
 export type TooltipProps = {
   content: React.ReactNode;
   children: React.ReactElement;

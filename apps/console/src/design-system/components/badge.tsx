@@ -104,7 +104,7 @@ const statusTone: Record<string, BadgeTone> = {
   low: "up",
 };
 
-export const toneForStatus = (status?: string | null): BadgeTone =>
+const toneForStatus = (status?: string | null): BadgeTone =>
   statusTone[status?.trim().toLowerCase() ?? ""] ?? "unknown";
 
 export const StatusBadge = ({

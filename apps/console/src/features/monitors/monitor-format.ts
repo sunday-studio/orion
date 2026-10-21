@@ -1,16 +1,10 @@
 import type { ApiMonitorResponse } from "@/orion-sdk";
-import { healthDot } from "@/features/incidents/incident-format";
 
 export type MonitorRow = ApiMonitorResponse;
 
 export const rowHealth = (monitor: MonitorRow) => {
   if (monitor.paused) return "paused";
   return monitor.health ?? monitor.computed_health ?? "unknown";
-};
-
-export const rowDot = (monitor: MonitorRow) => {
-  const health = rowHealth(monitor);
-  return healthDot(health === "stale" ? "unknown" : health);
 };
 
 export const rowEvery = (monitor: MonitorRow) =>

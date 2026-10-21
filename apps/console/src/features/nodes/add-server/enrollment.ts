@@ -11,7 +11,7 @@ export const platformTiles = [
   { value: "macos", title: "macOS", caption: "launchd" },
 ] as const;
 
-export const coreOrigin = () => getApiBase() || window.location.origin;
+const coreOrigin = () => getApiBase() || window.location.origin;
 
 export const coreHost = (coreUrl?: string) => {
   try {

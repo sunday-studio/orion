@@ -16,13 +16,13 @@ export const monitorTypeLabel = (type?: string) => {
     : family.charAt(0).toUpperCase() + family.slice(1);
 };
 
-export const monitorStatusText = (monitor: MonitorWithDetail) => {
+const monitorStatusText = (monitor: MonitorWithDetail) => {
   if (monitor.status_text) return monitor.status_text;
   const health = monitorHealth(monitor);
   return health.charAt(0).toUpperCase() + health.slice(1);
 };
 
-export const monitorDetail = (monitor: MonitorWithDetail) => monitor.status_detail ?? "-";
+const monitorDetail = (monitor: MonitorWithDetail) => monitor.status_detail ?? "-";
 
 export const MONITOR_COLUMNS = "minmax(0,1.6fr) 76px 112px minmax(0,1.2fr)";
 
