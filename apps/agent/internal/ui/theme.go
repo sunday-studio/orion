@@ -56,9 +56,6 @@ func newTheme(r *lipgloss.Renderer, dark, color bool) *Theme {
 	return &Theme{p: p, dark: dark, color: color, renderer: r}
 }
 
-// Dark reports whether the theme was built for a dark background.
-func (t *Theme) Dark() bool { return t.dark }
-
 // ColorEnabled reports whether this theme emits ANSI colour.
 func (t *Theme) ColorEnabled() bool { return t.color }
 

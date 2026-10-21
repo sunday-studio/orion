@@ -28,6 +28,7 @@ var (
 	mdBold  = regexp.MustCompile(`\*\*([^*]+)\*\*`)
 	mdCode  = regexp.MustCompile("`([^`]+)`")
 	mdLink  = regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)\)`)
+	mdHeading = regexp.MustCompile(`^#{1,6}\s`) // "#123 fixed" is text, not a heading
 	mdOrder = regexp.MustCompile(`^(\d+)[.)]\s+(.*)$`)
 )
 
@@ -95,7 +96,7 @@ func renderMarkdown(th *ui.Theme, md string, width int) string {
 			if len(out) > 0 && out[len(out)-1] != "" {
 				out = append(out, "")
 			}
-		case strings.HasPrefix(trimmed, "#"):
+		case mdHeading.MatchString(trimmed):
 			flush()
 			text := strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
 			if strings.HasPrefix(trimmed, "# ") {
