@@ -45,6 +45,7 @@ const (
 
 const (
 	requestLifetime      = 24 * time.Hour
+	requestRetention     = 30 * 24 * time.Hour
 	redeliverAfter       = 5 * time.Minute // a delivered request the agent never finished is offered again
 	maxOpenRequests      = 20
 	maxRequestIDs        = 100
@@ -144,6 +145,8 @@ func (s *AgentService) expireRequests(agentID string, now time.Time) {
 	s.db.Model(&db.AgentDiscoveryRequest{}).
 		Where("agent_id = ? AND status IN ? AND expires_at < ?", agentID, []string{ReqQueued, ReqDelivered}, now).
 		Updates(map[string]any{"status": ReqExpired, "finished_at": now})
+	// Finished requests are history for the Console, not an archive.
+	s.db.Where("agent_id = ? AND finished_at IS NOT NULL AND finished_at < ?", agentID, now.Add(-requestRetention)).Delete(&db.AgentDiscoveryRequest{})
 }
 
 func (s *AgentService) agentCanTakeRequests(agentID string) bool {
@@ -177,18 +180,21 @@ func (s *AgentService) CreateDiscoveryRequest(agentID string, in AgentDiscoveryR
 	}
 	now := time.Now().UTC()
 	s.expireRequests(agentID, now)
-	var open int64
-	s.db.Model(&db.AgentDiscoveryRequest{}).Where("agent_id = ? AND status IN ?", agentID, []string{ReqQueued, ReqDelivered}).Count(&open)
-	if open >= maxOpenRequests {
-		return nil, fmt.Errorf("%w: %d requests are already waiting for this agent", ErrRequestInvalid, maxOpenRequests)
-	}
 	raw, _ := json.Marshal(payload)
 	row := db.AgentDiscoveryRequest{ID: utils.GenerateID("discovery_req"), AgentID: agentID, Type: in.Type, Payload: string(raw), Status: ReqQueued,
 		CreatedBy: actor, CreatedAt: now, ExpiresAt: now.Add(requestLifetime)}
 	if !s.agentCanTakeRequests(agentID) {
 		row.Status, row.Result, row.FinishedAt = ReqUnsupported, unsupportedAgentText, &now
 	}
-	if err := s.db.Create(&row).Error; err != nil {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		var open int64
+		tx.Model(&db.AgentDiscoveryRequest{}).Where("agent_id = ? AND status IN ?", agentID, []string{ReqQueued, ReqDelivered}).Count(&open)
+		if open >= maxOpenRequests {
+			return fmt.Errorf("%w: %d requests are already waiting for this agent", ErrRequestInvalid, maxOpenRequests)
+		}
+		return tx.Create(&row).Error
+	})
+	if err != nil {
 		return nil, err
 	}
 	v := requestView(row)
@@ -244,7 +250,13 @@ func (s *AgentService) PullDiscoveryRequests(agentID string) ([]AgentDiscoveryRe
 	}
 	out := make([]AgentDiscoveryRequestView, 0, len(rows))
 	for _, r := range rows {
-		s.db.Model(&db.AgentDiscoveryRequest{}).Where("id = ?", r.ID).Updates(map[string]any{"status": ReqDelivered, "delivered_at": now})
+		// Conditional claim: a cancel or a concurrent pull that got here first wins.
+		claim := s.db.Model(&db.AgentDiscoveryRequest{}).
+			Where("id = ? AND (status = ? OR (status = ? AND delivered_at < ?))", r.ID, ReqQueued, ReqDelivered, now.Add(-redeliverAfter)).
+			Updates(map[string]any{"status": ReqDelivered, "delivered_at": now})
+		if claim.Error != nil || claim.RowsAffected != 1 {
+			continue
+		}
 		r.Status, r.DeliveredAt = ReqDelivered, &now
 		out = append(out, requestView(r))
 	}

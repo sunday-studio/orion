@@ -102,6 +102,14 @@ func TestQueuedRequestCanBeCancelledAndExpires(t *testing.T) {
 	if len(pulled.Data.Requests) != 0 {
 		t.Fatalf("cancelled and expired requests are never handed to the agent: %+v", pulled.Data.Requests)
 	}
+	// Finished history older than the retention window is pruned on the next sweep.
+	server.db.Model(&db.AgentDiscoveryRequest{}).Where("id = ?", a.Data.Request.ID).Update("finished_at", time.Now().UTC().Add(-31*24*time.Hour))
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, base, nil, ""), &list)
+	for _, r := range list.Data.Requests {
+		if r.ID == a.Data.Request.ID {
+			t.Fatalf("a request finished over 30 days ago should be pruned: %+v", r)
+		}
+	}
 }
 
 func TestRequestPayloadsAreValidated(t *testing.T) {
