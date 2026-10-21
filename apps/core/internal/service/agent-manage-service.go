@@ -126,6 +126,12 @@ func (s *AgentService) DecommissionAgent(agentID string, keepHistory bool, actor
 		if err := tx.Where("agent_id = ?", agent.ID).Delete(&db.AgentDiscoveryRequest{}).Error; err != nil {
 			return err
 		}
+		if err := tx.Where("agent_id = ?", agent.ID).Delete(&db.AgentAppResource{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("agent_id = ?", agent.ID).Delete(&db.AgentAppResourceReport{}).Error; err != nil {
+			return err
+		}
 
 		// Close what is open, so nothing keeps paging for a server that no longer exists.
 		var openIncidents []string

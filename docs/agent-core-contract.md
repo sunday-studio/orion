@@ -390,7 +390,7 @@ Implemented on both sides: Core enforces the token (`apps/core/internal/api/agen
 
 `POST /v1/agents/{id}/report` and `POST /v1/agents/{id}/{monitor_id}/report` bodies carry `report_id` (32 hex chars, generated once per collected report). Spooled replays reuse the same `report_id`. Core stores a report once per `(agent_id, report_id)` and answers `200` for duplicates (backend ORB-019). Verify that system reports, not only monitor reports, are deduplicated. Agents ignore unknown response fields, so Core may adopt this at any time.
 
-## Passive app resources (agent side, pending Core)
+## Passive app resources
 
 `POST /v1/agents/{id}/report` bodies may carry an `app_resources` object (see `docs/architecture/passive-metrics-support-matrix.md`). Apps need no integration; the agent measures from the OS.
 
@@ -409,6 +409,8 @@ Implemented on both sides: Core enforces the token (`apps/core/internal/api/agen
 ```
 
 Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`, `volume`, `docker`; `key` is stable across reports; rate fields are omitted (not zero) when not measurable, and the first report after agent start has no rates; at most 200 series per report; no command lines or environment values are ever sent; `net_*` fields are present only for macOS processes and for Docker containers (when the agent user can read the Docker socket; container `key` is always `container:<short id>`; with Docker access `name` is the real container name, otherwise the short id too); with Docker access, `container` series also carry `storage_bytes` (the writable layer), `volume` series are Docker volumes (`key` `volume:<name>`, `storage_bytes`), and two `docker` series (`docker:images`, `docker:build-cache`) carry the disk Docker holds; Docker computes these sizes by walking disk, so the agent refreshes them at most every five minutes; `notes` explain skipped sources and never mean the report failed. Unknown fields are ignored by agents, and Core ignores sections it does not know, so either side can ship first.
+
+Core stores the **latest** report per agent only (no history): each report replaces the whole set, so a thing that is no longer reported disappears and a field the agent no longer measures becomes absent. Series with an unknown `kind`, no `key` or a repeated `key` are dropped, names are clipped to 300 characters, and negative or non-finite numbers are treated as not measured; a bad series never rejects the report, and a failure to store the section never fails the report. A report without `app_resources` leaves the last measurements alone. The Console reads them with `GET /v1/agents/{id}/app-resources` (`app_resources` is null until the agent has sent some; `reported_at` says how fresh it is). Removing an agent removes its measurements.
 
 ## Request compression (agent side, opt-in)
 

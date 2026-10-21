@@ -4580,6 +4580,21 @@ definitions:
       name:
         type: string
     type: object
+  orion_core_internal_service.AgentAppResourcesView:
+    properties:
+      interval_seconds:
+        type: number
+      notes:
+        items:
+          type: string
+        type: array
+      reported_at:
+        type: string
+      series:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AppResourceSeries'
+        type: array
+    type: object
   orion_core_internal_service.AgentDiscoveryInput:
     properties:
       capabilities:
@@ -4733,6 +4748,11 @@ definitions:
     properties:
       agent_version:
         type: string
+      app_resources:
+        allOf:
+        - $ref: '#/definitions/orion_core_internal_service.AppResourcesInput'
+        description: AppResources is the agent's passive per-app measurements; Core
+          stores the latest.
       config_summary: {}
       cpu:
         $ref: '#/definitions/orion_core_internal_db.CPUStats'
@@ -4853,6 +4873,53 @@ definitions:
         type: string
       severity:
         type: string
+    type: object
+  orion_core_internal_service.AppResourceSeries:
+    properties:
+      cpu_percent:
+        type: number
+      io_read_bytes_per_sec:
+        type: number
+      io_write_bytes_per_sec:
+        type: number
+      key:
+        type: string
+      kind:
+        enum:
+        - process
+        - unit
+        - container
+        - path
+        - volume
+        - docker
+        type: string
+      memory_bytes:
+        type: integer
+      name:
+        type: string
+      net_rx_bytes_per_sec:
+        type: number
+      net_tx_bytes_per_sec:
+        type: number
+      pids:
+        type: integer
+      storage_bytes:
+        type: integer
+      storage_capped:
+        type: boolean
+    type: object
+  orion_core_internal_service.AppResourcesInput:
+    properties:
+      interval_seconds:
+        type: number
+      notes:
+        items:
+          type: string
+        type: array
+      series:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AppResourceSeries'
+        type: array
     type: object
   orion_core_internal_service.ArchiveRunResult:
     properties:
@@ -7159,6 +7226,42 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update server details
+      tags:
+      - agents
+  /v1/agents/{id}/app-resources:
+    get:
+      description: 'The latest passive measurements the agent reported: CPU, memory,
+        disk and network per process group, systemd unit and container, plus storage
+        sizes for tracked paths, Docker volumes, images and build cache. app_resources
+        is null until the agent has reported some. Core keeps only the latest report;
+        fields the agent could not measure are absent.'
+      operationId: getAgentAppResources
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    app_resources:
+                      $ref: '#/definitions/orion_core_internal_service.AgentAppResourcesView'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: What apps cost on a server
       tags:
       - agents
   /v1/agents/{id}/discovery:
