@@ -72,6 +72,7 @@ func UpdateAgent(opts UpdateOptions) error {
 	}
 	env.healthy = func(want string) error { return daemonHealthy(opts, want) }
 	started := time.Now()
+	showReleaseNotes(opts)
 	live := !theme.Plain() && stdoutIsTerminal() && terminalWidth() > panelWidth+1 && !opts.Rollback
 	if !opts.Rollback {
 		env.rep = newUpdateReporter(theme, outputWriter, live, opts.CurrentVersion)
@@ -405,4 +406,17 @@ func failHeadline(cause error, wait time.Duration) string {
 		return fmt.Sprintf("New version is not healthy after %d s", int(wait.Seconds()))
 	}
 	return "New version could not start"
+}
+
+// showReleaseNotes prints what is new before an update starts. Only a person at
+// a terminal sees it, and a missing or slow answer is skipped silently.
+func showReleaseNotes(opts UpdateOptions) {
+	if opts.Rollback || opts.BaseURL != "" || theme.Plain() || !stdoutIsTerminal() {
+		return
+	}
+	n, err := fetchReleaseNotes(firstNonEmpty(strings.TrimSpace(opts.Repo), "sunday-studio/orion"), firstNonEmpty(strings.TrimSpace(opts.Version), "latest"))
+	if err != nil || strings.TrimPrefix(n.Tag, "v") == strings.TrimPrefix(opts.CurrentVersion, "v") {
+		return
+	}
+	fmt.Fprint(outputWriter, releaseNotesView(n, opts.CurrentVersion, terminalWidth()))
 }
