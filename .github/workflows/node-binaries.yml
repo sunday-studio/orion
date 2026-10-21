@@ -106,7 +106,7 @@ jobs:
           upload-release-assets: false
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.7.0
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign checksums (keyless)
         working-directory: dist
