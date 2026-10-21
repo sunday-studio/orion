@@ -30,6 +30,8 @@ type discoveryReporter struct {
 	lastAt      time.Time
 	unsupported time.Time // an older Core: do not ask again before this
 	warned      bool
+	sending     bool
+	pending     *control.Discovery
 }
 
 func newDiscoveryReporter(store *agentstate.Store, cfg func() *config.UserConfig) *discoveryReporter {
@@ -52,8 +54,31 @@ func reportOf(d control.Discovery) transport.DiscoveryReport {
 }
 
 // Report sends d unless reporting is off, the host is not enrolled, the scan
-// is unchanged, or Core is known not to take it.
+// is unchanged, or Core is known not to take it. Only one send runs at a time;
+// scans that finish meanwhile are coalesced into the newest one.
 func (r *discoveryReporter) Report(d control.Discovery) {
+	r.mu.Lock()
+	if r.sending {
+		r.pending = &d
+		r.mu.Unlock()
+		return
+	}
+	r.sending = true
+	r.mu.Unlock()
+	for {
+		r.sendOne(d)
+		r.mu.Lock()
+		if r.pending == nil {
+			r.sending = false
+			r.mu.Unlock()
+			return
+		}
+		d, r.pending = *r.pending, nil
+		r.mu.Unlock()
+	}
+}
+
+func (r *discoveryReporter) sendOne(d control.Discovery) {
 	if cfg := r.cfg(); cfg == nil || !cfg.Discovery.IsReporting() {
 		return
 	}
@@ -68,12 +93,16 @@ func (r *discoveryReporter) Report(d control.Discovery) {
 	hash := string(raw)
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	now := r.now()
-	if now.Before(r.unsupported) || (hash == r.lastHash && now.Sub(r.lastAt) < discoveryResendEvery) {
+	skip := now.Before(r.unsupported) || (hash == r.lastHash && now.Sub(r.lastAt) < discoveryResendEvery)
+	r.mu.Unlock()
+	if skip {
 		return
 	}
-	if err := r.send(st.CoreURL, st.Token, st.AgentID, rep); err != nil {
+	err = r.send(st.CoreURL, st.Token, st.AgentID, rep) // not under the lock: it can take seconds
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil {
 		if errors.Is(err, transport.ErrDiscoveryUnsupported) {
 			r.unsupported = now.Add(discoveryResendEvery)
 		} else if !r.warned {

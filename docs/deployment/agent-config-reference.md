@@ -110,7 +110,7 @@ The scan is read-only. It proposes monitors and log sources; nothing is added un
 hand-written monitor always wins: a matching suggestion shows as "already monitored". With
 `report: true` the agent also sends the latest scan to Core so the Console can show "Detected on
 this server": only the names, ids and short details of what it found (service and container names,
-ports, mount points, log file paths), never their contents. See
+ports, mount points, and the full path of each log file found), never their contents. See
 `orion-agent discover --help`.
 
 ## Transport
