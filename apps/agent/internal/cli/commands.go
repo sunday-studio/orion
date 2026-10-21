@@ -83,6 +83,9 @@ func newUpdateCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Download and install a release binary",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := refuseUpdateInContainer(); err != nil {
+				return err
+			}
 			if err := ensurePrivilegeFor(opts, "update"); err != nil {
 				return NewCommandError("could not elevate privileges", err)
 			}
