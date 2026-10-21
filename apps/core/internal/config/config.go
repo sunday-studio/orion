@@ -14,9 +14,12 @@ import (
 
 // Config holds runtime configuration from environment.
 type Config struct {
-	DataDir                        string
-	DBLogLevel                     string
-	Port                           string
+	DataDir    string
+	DBLogLevel string
+	Port       string
+	// ListenHost is the address the API binds to (ORION_LISTEN_HOST). Empty means every interface,
+	// except that Core without authentication always binds to loopback.
+	ListenHost                     string
 	CORSOrigins                    []string
 	CoreWorkerID                   string
 	CoreWorkerHeartbeatSeconds     int
@@ -88,6 +91,7 @@ func Load() *Config {
 		DataDir:                        getEnv("ORION_DATA_DIR", "data"),
 		DBLogLevel:                     getEnv("ORION_DB_LOG_LEVEL", "warn"),
 		Port:                           getEnv("ORION_PORT", "8999"),
+		ListenHost:                     getEnv("ORION_LISTEN_HOST", ""),
 		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
 		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
 		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
@@ -212,6 +216,15 @@ func (c *Config) ValidateAPIAuth() error {
 		return nil
 	}
 	return &ValidationError{Msg: "admin API authentication is not configured: set ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET, or set ORION_ALLOW_INSECURE_NO_AUTH=true to run without authentication (not recommended)"}
+}
+
+// ListenAddress is where the API binds. Without authentication it is always loopback, whatever
+// ORION_LISTEN_HOST says, because an open admin API must never be reachable from the network.
+func (c *Config) ListenAddress() string {
+	if c.RunsWithoutAuth() {
+		return "127.0.0.1:" + c.Port
+	}
+	return c.ListenHost + ":" + c.Port
 }
 
 // RunsWithoutAuth reports whether the admin API will accept unauthenticated requests.
