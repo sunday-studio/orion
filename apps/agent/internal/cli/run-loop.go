@@ -92,6 +92,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	}
 	go remote.poll(ctx, remoteMonitorPollInterval, func() { _ = requestReloadNoValidate(reloadCh) })
 
+	announced := false
 	for {
 		userConfig = effective(fileConfig, remote.current())
 		if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil {
@@ -111,6 +112,11 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			}
 		}
 		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Registered", Detail: ""}}))
+		if !announced {
+			// A foreground agent is silent from here on; say so, or it looks hung.
+			announced = true
+			fmt.Fprint(outputWriter, "\n   "+theme.Muted("Running and reporting. Ctrl+C stops it. In another terminal: orion-agent status")+"\n")
+		}
 		ctrl.update(userConfig)
 
 		instance, err := agent.NewWithStateStore(userConfig, store)
