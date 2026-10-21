@@ -51,6 +51,9 @@ type serviceOps struct {
 }
 
 func UpdateAgent(opts UpdateOptions) error {
+	if os.Getenv("ORION_CONTAINER") != "" {
+		return NewCommandError("this agent runs in a container", errors.New("the binary is part of the image"), "replace the container with a newer image")
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("resolve current executable: %w", err)

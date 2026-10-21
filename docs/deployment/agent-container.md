@@ -26,7 +26,7 @@ docker run -d --name orion-agent --restart unless-stopped \
   ghcr.io/sunday-studio/orion-agent:latest
 ```
 
-The token is used once; after the first start the agent keeps its own credentials in the `orion-agent-data` volume, so the token can be removed from the command afterwards. Keep the volume: removing it makes the agent enroll again as a new server.
+The token is used once; after the first start the agent keeps its own credentials in the `orion-agent-data` volume, so the token can be removed from the command afterwards. Recreate the container without `ORION_ENROLLMENT_TOKEN` once it has enrolled: an environment variable stays visible in `docker inspect`. Keep the volume: removing it makes the agent enroll again as a new server.
 
 A Compose version is in [deploy/examples/agent-container-compose.yaml](../../deploy/examples/agent-container-compose.yaml).
 
@@ -36,6 +36,7 @@ A Compose version is in [deploy/examples/agent-container-compose.yaml](../../dep
 |---|---|
 | `--hostname` | The name the server gets in the Console. Without it, it is the container id. |
 | `--pid=host` | The agent sees the host's processes, so app CPU and memory (per process group) are the host's. Without it, only the container is visible. |
+| capabilities dropped, non-root | `--pid=host` shows process names and CPU, but per-process disk I/O and details of other users' processes are limited by `/proc` permissions. |
 | `-v /var/run/docker.sock:/var/run/docker.sock:ro --group-add <docker gid>` | Optional. Per-container CPU, memory, storage, Docker volumes, images and build cache reach the Console. The socket is root-equivalent on the host, which is why it is opt-in. |
 
 ## Limits compared with the host install
@@ -44,10 +45,12 @@ The container has no `systemctl`, `launchctl`, `pm2` or `docker` command, so:
 
 - discovery does not suggest services, pm2 apps or containers (ports, disks, logs and storage still work);
 - Console checks of type `systemd`, `docker` and `pm2` will fail on the container because the command they use is not there;
-- `orion-agent service ...` and `orion-agent update` do not apply: replace the container with a newer image instead, and `doctor` skips the service check.
+- `orion-agent service ...` and `orion-agent update` do not apply (`update` says so): replace the container with a newer image instead, and `doctor` skips the service check.
 
 Process, port, disk and memory checks work. If you need service or container checks, use the host install.
 
 ## Kubernetes
 
 A DaemonSet is not provided yet: the image runs in a pod with `hostPID: true`, but a manifest has not been tested on a cluster. See [Kubernetes position](kubernetes-position.md).
+
+The image has a health check (`orion-agent status --short`), so `docker ps` shows `healthy` once the agent is connected to Core.
