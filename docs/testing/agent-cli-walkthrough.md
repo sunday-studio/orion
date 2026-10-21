@@ -20,52 +20,75 @@ ORION_ALLOW_INSECURE_NO_AUTH=true ORION_DATA_DIR=/tmp/orion-play/data ORION_PORT
 ```
 
 ```sh
-# terminals 2 and 3: the agent command, a fresh (not enrolled) host, and the Core address
-oa()  { ORION_LOG_PATH=/tmp/orion-play/agent.log /tmp/orion-play/oa --config /tmp/orion-play/config.yaml --state /tmp/orion-play/state.db --socket /tmp/orion-play/a.sock "$@"; }
-oaf() { ORION_LOG_PATH=/tmp/orion-play/fresh.log /tmp/orion-play/oa --config /tmp/orion-play/fresh.yaml --state /tmp/orion-play/fresh.db --socket /tmp/orion-play/fresh.sock "$@"; }
+# terminals 2 and 3: the agent command, and the Core address
+oa() { ORION_LOG_PATH=/tmp/orion-play/agent.log /tmp/orion-play/oa --config /tmp/orion-play/config.yaml --state /tmp/orion-play/state.db --socket /tmp/orion-play/a.sock "$@"; }
 CORE=http://127.0.0.1:18990
 ```
 
-Reset everything: stop the agent, `rm -rf /tmp/orion-play/{config.yaml,state.db,fresh.*,data}`, restart Core.
+**One host per Core.** Core identifies a host by its machine id, so this machine can enrol only once
+per Core database; a second enrolment fails with a 409. That is why the order below matters: do the
+fresh-host flows (parts 1 and 2) first, then enrol and run the agent for everything after.
 
-## 1. Setup (board: CLI, setup)
+**To start over:** stop the agent (Ctrl+C in terminal 2) and Core (terminal 1), then
+`rm -rf /tmp/orion-play/data /tmp/orion-play/config.yaml /tmp/orion-play/state.db /tmp/orion-play/a.sock`
+and start Core again.
+
+In this sandbox the Core runs with authentication off and accepts any token, `oa doctor` reports
+"Service is not installed" (no service is installed, so it exits 1), and `emit` / `run-job` have no
+ingest key. These are expected here; each affected row says so.
+
+## 1. Setup, before the host is enrolled (board: CLI, setup)
 
 | Screen | Run | Compare |
 |---|---|---|
-| Connect | `oaf setup` | Step 1 of 3, Core address with reachable check, masked one-time token, key hints |
+| Not enrolled | `oa status` first, before anything else | Chip "Not enrolled" and `orion-agent setup` |
+| Connect | `oa setup` (token: any text, for example `play`) | Step 1 of 3, Core address with reachable check, masked one-time token, key hints |
 | Choose | continue the same flow | Grouped panels (Services, Containers, Ports, Disks), `already monitored` rows, confidence column |
 | Scan settings | open it from Choose | Kinds on/off, report toggle |
 | Review | continue | Config diff with tinted lines, one confirm |
 | Applied | confirm | Result card, next step |
-| Non-interactive | `oaf setup --core-url $CORE --accept-discovered --yes --init-state` | Checklist: Scanned, Accepted, Skipped, Config written |
-| Accessible | `ACCESSIBLE=1 oaf setup --dry-run` | Plain line prompts, no animation |
+| Accessible | `ACCESSIBLE=1 oa setup` on a terminal | Plain line prompts, no animation (a flag-driven run such as `--dry-run` never prompts) |
+| Non-interactive | `oa setup --core-url $CORE --accept-discovered --yes --init-state` | Checklist: Scanned, Accepted, Skipped, Config written, State |
 
-## 2. Auto-detect and states (board: CLI, auto-detect and states)
+The interactive flow enrols the host in its Connect step, so after it the host is enrolled and part 2's
+enrol rows show "Already enrolled". To see the enrol screens fresh, start over (see above) and use the
+non-interactive setup, which only writes the config.
 
-First start the agent in terminal 2: `oa setup --core-url $CORE --accept-discovered --yes --init-state && oa enroll --core-url $CORE --token play && oa run`.
-
-| State | Run | Compare |
-|---|---|---|
-| First start, scan running | `oa status` right after `oa run` starts | Host panel always on, "scan running" line |
-| Suggestions | `oa discover` | Grouped suggestions, confidence, `new` marks |
-| Rescan | `oa discover --rescan` | Look again, kinds that could not be scanned with the fix |
-| Dismiss and restore | `oa discover dismiss <id>`, `oa discover --dismissed`, `oa discover restore <id>` | Dismissed list, items return |
-| Ignore | `oa discover ignore port:5432` | Saved to `discovery.ignore` |
-| Scanning off | `oa discover` after setting `discovery.enabled: false` in the config | "Scanning is off" and how to turn it on |
-| A kind off | set `discovery.kinds` to a subset | The off kind is named |
-| Scan blocked (host) | needs Docker not readable by the agent user | Message, exact fix, the trade-off |
-| Offline | stop Core (terminal 1), wait, `oa status` | "agent offline since …, N suggestions kept" |
-| Hand-written config wins | `oa config show` | Known difference: see "Open differences" |
-
-## 3. Enroll and credentials (board: CLI, enroll and credentials)
+## 2. Not enrolled, enrol, waiting, then start the agent
 
 | Screen | Run | Compare |
 |---|---|---|
-| Enroll | `oaf enroll --core-url $CORE --token play` | Reachable, Token accepted, Enrolled as … |
-| Enroll again | run it again | "Already enrolled", nothing happens |
-| Wrong token | `oaf enroll --core-url $CORE --token` with an empty or odd value | Calm error with the fix |
-| token apply | `oa token apply` | Masked input |
-| reconfigure, state init | `oa reconfigure`, `oa state init` | Checklist, one line |
+| Enroll | `oa enroll --core-url $CORE --token play` | Reachable, Token accepted, Enrolled as … |
+| Enroll again | run it again | "Already enrolled", nothing to do |
+| Waiting | `oa status` now, before the daemon runs | "Waiting, first report is due within 30 s" |
+| Start the agent | terminal 2: `oa run` | Checklist, then one dim line "Running and reporting" (not on the board) |
+| Run once | stop it first, then `oa run --once` | Config loaded, State, Registered, One collection cycle complete |
+
+Then leave `oa run` going in terminal 2 for everything below.
+
+## 2b. Auto-detect and states (board: CLI, auto-detect and states)
+
+| State | Run | Compare |
+|---|---|---|
+| First start, scan running | `oa status` as soon as `oa run` starts | Host panel always on, scan line |
+| Suggestions | `oa discover` | Grouped suggestions, confidence, `new` marks |
+| Rescan | `oa discover --rescan` | Look again; kinds that could not be scanned come with the fix |
+| Dismiss and restore | `oa discover dismiss <id>`, `oa discover --dismissed`, `oa discover restore <id>` | Dismissed list, the item returns |
+| Ignore | `oa discover ignore port:5432` | Saved to `discovery.ignore` |
+| Scanning off | set `discovery.enabled: false` in `/tmp/orion-play/config.yaml`, then `oa discover` | "Scanning is off" and how to turn it on |
+| A kind off | set `discovery.kinds` to a subset | The off kind is named |
+| Scan blocked (host) | needs Docker that the agent user cannot read | Message, exact fix, the trade-off |
+| Offline | stop Core (terminal 1), wait, `oa status` | "agent offline since …, N suggestions kept" |
+| Hand-written config wins | `oa config show` | Known difference: see "Open differences" |
+
+## 3. Credentials (board: CLI, enroll and credentials)
+
+| Screen | Run | Compare |
+|---|---|---|
+| Token apply | `oa token apply` on a terminal | Masked input |
+| Reconfigure | `oa reconfigure` without a token | Says a fresh Add server token is required, with the fix |
+| State init | `oa state init` | One line |
+| Rejected token (host) | needs a Core with authentication on | Calm error and the recovery command |
 
 ## 4. Status, doctor, logs, usage (boards: status, doctor, log viewer, discover and usage)
 
@@ -74,15 +97,13 @@ First start the agent in terminal 2: `oa setup --core-url $CORE --accept-discove
 | Status card | `oa status` | Chip, Host, Monitors bar and table, Reporting, next steps |
 | Short | `oa status --short` | One line |
 | Watch | `oa status --watch` | Redraws in place, `q` quits, scrollback intact |
-| Not enrolled | `oaf status` | Chip "Not enrolled" and `orion-agent setup` |
-| Waiting | `oaf enroll ...` then `oaf status` before the daemon runs | "Waiting, first report due within 30 s" |
 | No recent report | stop Core, wait several minutes, `oa status` | "No recent report", queue count, doctor hint |
 | Maintenance | `oa maintenance down "kernel upgrade" --for 2h`, `oa status` | Chip, reason, until, `maintenance up` hint |
 | Not running | stop `oa run`, `oa status` | "Not running" and `service start` |
-| Doctor | `oa doctor` | Groups Agent, Core, Discovery, Logs, System; problems expand with Fix |
+| Doctor | `oa doctor` on a terminal | Groups Agent, Core, Discovery, Logs, System in colour; problems expand with Fix. In the sandbox it exits 1 because no service is installed, and `NO_COLOR` shows a plain list |
 | Doctor failing | `oa --config /tmp/orion-play/bad.yaml doctor` with a wrong `core_url` | Failed checks with fixes, exit code 1 |
-| Logs | `oa logs --lines 20` | Plain lines |
-| Log viewer | `oa logs -f` | Full screen; arrows, enter details, `p` pause, `l` level, `/` search, `q` |
+| Logs | `oa logs --file /tmp/orion-play/agent.log --lines 20` | Plain lines |
+| Log viewer (host) | `orion-agent logs -f` | Needs log shipping (a `logs.sources` entry and its ingest key), so it cannot start in the sandbox. Full screen; arrows, enter details, `p` pause, `l` level, `/` search, `q` |
 | Usage | `oa usage --window 2s --top 5` | Table, storage section |
 | Usage watch | `oa usage --watch` | `s` sorts, `q` quits |
 
@@ -111,18 +132,18 @@ First start the agent in terminal 2: `oa setup --core-url $CORE --accept-discove
 | Validate | `oa config validate` | Pass line, or an error with the code frame |
 | Diff | `oa config diff` | Tinted unified diff |
 | Help | `oa --help` | START HERE, DAY TO DAY, the rest on one line |
-| Help topics | `oa help topics`, `oa help discovery` | Styled pages (not on the boards) |
-| Unknown command | `oa statsu` | "Did you mean status" |
-| Bad flag | `oa status --bogus` | Three-line error |
+| Help topics | `oa help topics`, `oa help discovery`, `oa help exit-codes` | Styled pages (not on the boards) |
+| Unknown command | `oa statsu` | `did you mean "status"?` |
+| Bad flag | `oa status --bogus` | An error header and a `fix:` line |
 | Needs elevation (host) | `orion-agent start` as a normal user | Exit code 3 and "re-run with sudo" |
 
 ## 7. Scripts and output modes (boards: emit and run-job, output modes)
 
 | Screen | Run | Compare |
 |---|---|---|
-| emit | `oa emit --severity error --event backup.failed "nightly backup failed"` | One plain line |
-| run-job ok | `oa run-job --name nightly -- true` | Output unchanged, one summary |
-| run-job fails | `oa run-job --name nightly -- false; echo $?` | Summary, exit code passed through |
+| emit | `oa emit --severity error --event backup.failed "nightly backup failed"` | One plain line. Needs an ingest key from the Console (`--key-file`); in the sandbox it prints "no ingest key" |
+| run-job ok | `oa run-job --name nightly -- true` | Output unchanged, one summary (plus a "not shipped: no ingest key" note in the sandbox) |
+| run-job fails | `oa run-job --name nightly -- false; echo $?` | Summary, and the job's exit code is passed through (works without a key) |
 | Plain | `NO_COLOR=1 oa status`, `oa status \| cat` | Same words, no colour |
 | JSON | `oa status --json`, `oa doctor --json` | One document, `schema_version` |
 | Exit codes | `echo $?` after the failing commands above | 0 ok, 1 failed, 2 usage, 3 elevation |
