@@ -11,6 +11,7 @@ anything that is history or means something else (see SKIP_PREFIXES and PROTECT)
 import os, re, subprocess, sys
 
 DRY = "--dry-run" in sys.argv
+ONLY = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--only=")), "")  # e.g. --only=apps/console/
 ROOT = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 os.chdir(ROOT)
 
@@ -33,6 +34,9 @@ PROTECT = [
 ]
 
 def skipped(path):
+    if ONLY:
+        # Only this area, and its own skips do not apply (the Console is skipped by default).
+        return not path.startswith(ONLY) or path.lower().endswith(BINARY_EXT)
     if path in INCLUDE_EXACT:
         return False
     return path in SKIP_EXACT or path.startswith(SKIP_PREFIXES) or path.lower().endswith(BINARY_EXT)
