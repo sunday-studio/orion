@@ -124,3 +124,36 @@ func TestAnotherAgentCannotReportDiscoveryForThisOne(t *testing.T) {
 		t.Fatalf("a refused report stored %d rows", rows)
 	}
 }
+
+func TestFirstReportWithScanningOffReadsBackAsOff(t *testing.T) {
+	server := setupTestServer(t)
+	agent := registerTestAgent(t, server)
+	path := "/v1/agents/" + agent.Data.AgentID + "/discovery"
+	if resp := performJSONRequest(t, server, http.MethodPost, path, map[string]any{"enabled": false, "kinds": []any{}, "items": []any{}}, agent.Data.Token); resp.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", resp.Code, resp.Body.String())
+	}
+	var got struct {
+		Data struct {
+			Discovery service.AgentDiscoveryView `json:"discovery"`
+		} `json:"data"`
+	}
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, path, nil, ""), &got)
+	if got.Data.Discovery.Enabled {
+		t.Fatal("scanning was reported off, the Console must not show it on")
+	}
+}
+
+func TestRemovingAServerRemovesItsDiscovery(t *testing.T) {
+	server := setupTestServer(t)
+	agent := registerTestAgent(t, server)
+	path := "/v1/agents/" + agent.Data.AgentID + "/discovery"
+	performJSONRequest(t, server, http.MethodPost, path, discoveryBody(map[string]any{"id": "service:x", "kind": "service", "name": "x", "confidence": "high", "status": "suggested"}), agent.Data.Token)
+	if resp := performJSONRequest(t, server, http.MethodDelete, "/v1/agents/"+agent.Data.AgentID+"?keep_history=false", nil, ""); resp.Code != http.StatusOK {
+		t.Fatalf("remove status = %d: %s", resp.Code, resp.Body.String())
+	}
+	var rows int64
+	server.db.Model(&db.AgentDiscovery{}).Where("agent_id = ?", agent.Data.AgentID).Count(&rows)
+	if rows != 0 {
+		t.Fatalf("%d discovery rows left behind", rows)
+	}
+}

@@ -157,7 +157,7 @@ type AgentMonitorDefinition struct {
 type AgentDiscovery struct {
 	AgentID    string `gorm:"primaryKey"`
 	ScannedAt  *time.Time
-	Enabled    bool      `gorm:"not null;default:true"`
+	Enabled    bool      `gorm:"not null"` // no gorm default: a first report of false must store false
 	Kinds      string    `gorm:"type:text;not null;default:'[]'"`
 	Items      string    `gorm:"type:text;not null;default:'[]'"`
 	ReceivedAt time.Time `gorm:"not null"`

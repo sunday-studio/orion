@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -108,5 +109,35 @@ func TestReporterRetriesAfterAFailedSend(t *testing.T) {
 	r.Report(scanOf("nginx"))
 	if calls != 2 {
 		t.Fatalf("a scan that failed to send is sent again next time, calls=%d", calls)
+	}
+}
+
+func TestReporterCoalescesScansThatFinishWhileOneIsSending(t *testing.T) {
+	r, _, _ := reporterFixture(t, true, &config.UserConfig{})
+	started, release := make(chan struct{}), make(chan struct{})
+	var names []string
+	var mu sync.Mutex
+	r.send = func(_, _, _ string, rep transport.DiscoveryReport) error {
+		mu.Lock()
+		names = append(names, rep.Items[0].Name)
+		first := len(names) == 1
+		mu.Unlock()
+		if first {
+			close(started)
+			<-release
+		}
+		return nil
+	}
+	done := make(chan struct{})
+	go func() { r.Report(scanOf("one")); close(done) }()
+	<-started
+	r.Report(scanOf("two"))
+	r.Report(scanOf("three")) // replaces "two": only the newest waits
+	close(release)
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	if len(names) != 2 || names[0] != "one" || names[1] != "three" {
+		t.Fatalf("sent %v, want [one three]", names)
 	}
 }

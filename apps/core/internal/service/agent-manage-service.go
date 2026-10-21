@@ -120,6 +120,9 @@ func (s *AgentService) DecommissionAgent(agentID string, keepHistory bool, actor
 		var monitorIDs []string
 		tx.Model(&db.Monitor{}).Where("agent_id = ? AND lifecycle <> ?", agent.ID, "deleted").Pluck("id", &monitorIDs)
 		result.MonitorsRemoved = len(monitorIDs)
+		if err := tx.Where("agent_id = ?", agent.ID).Delete(&db.AgentDiscovery{}).Error; err != nil { // a removed server keeps no scan of its host
+			return err
+		}
 
 		// Close what is open, so nothing keeps paging for a server that no longer exists.
 		var openIncidents []string
