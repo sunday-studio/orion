@@ -31,6 +31,9 @@ Open `http://localhost:8999` and sign in with `admin` and the password in `.env`
 (the saved value wins). Custom status page domains point a CNAME record at its host; set
 `ORION_STATUS_PAGES_CNAME_TARGET` when the DNS target differs from that host.
 
+Setting up a fresh server and want to build Core from source? See
+[Set up Core on a new server with Docker](deployment/docker-new-server.md).
+
 **2. Connect a server.** Run this on any Linux or macOS host you want to watch, using a Core URL that host
 can reach:
 

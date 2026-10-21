@@ -6,6 +6,7 @@ The supported self-hosted setup is:
 2. install a Server on each monitored machine with the curlable `orion-agent` installer;
 3. point each Server at the Core URL it can reach.
 
+- [Set up Core on a new server with Docker](docker-new-server.md)
 - [First run checklist](first-run-checklist.md)
 - [Core Docker deployment](core-docker.md)
 - [Running the Agent as a container](agent-container.md)
