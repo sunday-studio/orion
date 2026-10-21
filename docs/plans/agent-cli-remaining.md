@@ -39,8 +39,9 @@ Where the code deliberately differs from a board, the test or this table says wh
 | # | What | Why it is left |
 |---|---|---|
 | 1 | Cutting a release | the workflow (`.github/workflows/agent-binaries.yml`) already builds, signs with keyless cosign, writes an SBOM and publishes the installer; running it is your decision |
-| 2 | Console "Detected on this server" panel | the Agent sends the scan and Core serves it (`GET /v1/agents/{id}/discovery`); the panel is frontend work handed to orion:web |
-| 3 | VHS tapes that script the README and website visuals from the real binary | cannot be checked without running VHS against a connected demo host |
-| 4 | Glamour for release notes before `update` and `help <topic>` | the board marks it "maybe"; decided to do it after everything else |
-| 5 | F2 container image / DaemonSet | deferred to the very end by decision |
-| 6 | Visual acceptance in real terminals (TTY redraws, raw-mode prompts, Linux) | the user owns it; agents cannot drive a real terminal |
+| 2 | Detected-panel follow-ups | Console actions for the panel are shipped (Core request queue, agent poller and applier). Left: creating a log source from the Console (needs the agent to fetch the key from Core) and Core ingesting `app_resources` so storage sizes and Docker metrics can show; the latter needs a product decision |
+| 3 | Glamour for release notes before `update` and `help <topic>` | the board marks it "maybe"; decided to do it after everything else |
+| 4 | F2 container image / DaemonSet | deferred to the very end by decision |
+| 5 | Visual acceptance in real terminals (TTY redraws, raw-mode prompts, Linux) | the user owns it; agents cannot drive a real terminal |
+
+Decided not to do: VHS tapes for README and website visuals (2026-10-21). Plain-text output in the docs is enough and cannot go stale.
