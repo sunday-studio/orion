@@ -53,4 +53,4 @@ Process, port, disk and memory checks work. If you need service or container che
 
 A DaemonSet is not provided yet: the image runs in a pod with `hostPID: true`, but a manifest has not been tested on a cluster. See [Kubernetes position](kubernetes-position.md).
 
-The image has a health check (`orion-agent status --short`), so `docker ps` shows `healthy` once the agent is connected to Core.
+The image has a health check (`orion-agent status --short`), so `docker ps` shows `healthy` while the agent process is running and answering on its control socket. Whether it is connected to Core is shown by `docker exec orion-agent orion-agent status`.

@@ -100,3 +100,14 @@ func TestMiniMarkdownStylesWhatWeUseAndLeavesTheRestAlone(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateIsRefusedInsideAContainerBeforeAskingForPrivileges(t *testing.T) {
+	t.Setenv("ORION_CONTAINER", "1")
+	if err := refuseUpdateInContainer(); err == nil || !strings.Contains(err.Error(), "container") {
+		t.Fatalf("err = %v", err)
+	}
+	t.Setenv("ORION_CONTAINER", "")
+	if err := refuseUpdateInContainer(); err != nil {
+		t.Fatalf("outside a container update runs: %v", err)
+	}
+}
