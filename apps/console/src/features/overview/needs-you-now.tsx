@@ -16,10 +16,7 @@ import {
 import { formatSpan, formatWhen } from "./overview-time";
 
 /** Detected, Notified, Acknowledge, Resolved; times come from the overview record. */
-export const lifecycleSteps = (
-  incident: ApiOverviewIncidentResponse,
-  now: number,
-): LifecycleStep[] => {
+const lifecycleSteps = (incident: ApiOverviewIncidentResponse, now: number): LifecycleStep[] => {
   const acknowledged = Boolean(incident.acknowledged_at);
   const resolved = incident.status === "resolved";
   return [

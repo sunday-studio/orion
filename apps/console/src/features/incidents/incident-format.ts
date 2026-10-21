@@ -56,7 +56,3 @@ export const relativeAgo = (iso: string | undefined, now: number) => {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 };
-
-/** Row dot colour for a monitor or server health state. */
-export const healthDot = (health?: string) =>
-  health === "down" ? "#e5484d" : health === "degraded" ? "#f59e0b" : "#a1a1aa";

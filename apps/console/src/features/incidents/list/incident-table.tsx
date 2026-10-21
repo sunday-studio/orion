@@ -11,7 +11,7 @@ import {
 } from "@/design-system";
 import { type NumberedIncident, incidentLabel, relativeAgo, statusLabel } from "../incident-format";
 
-export const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
+const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
 
 export type IncidentTableProps = {
   incidents: NumberedIncident[];

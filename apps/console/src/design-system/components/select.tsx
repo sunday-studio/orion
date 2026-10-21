@@ -14,7 +14,7 @@ export const SelectChevron = () => (
   />
 );
 
-export type SelectOption = { value: string; label: string };
+type SelectOption = { value: string; label: string };
 
 export type SelectProps = {
   options: readonly SelectOption[];

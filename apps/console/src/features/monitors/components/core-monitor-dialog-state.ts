@@ -130,7 +130,7 @@ export const pingMethods = ["tcp", "icmp"] as const;
 export const isCoreMonitorKind = (value: string): value is CoreMonitorKind =>
   coreMonitorKindOptions.some((option) => option.value === value);
 
-export const normalizeKind = (kind?: string): CoreMonitorKind => {
+const normalizeKind = (kind?: string): CoreMonitorKind => {
   if (!kind) return "http";
   if (isCoreMonitorKind(kind)) return kind;
   if (kind === "pop3") return "pop";
@@ -198,7 +198,7 @@ export const toPositiveInt = (value: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-export const requiredTCPPort = (value: string) => {
+const requiredTCPPort = (value: string) => {
   const trimmed = value.trim();
   const parsed = Number(trimmed);
   if (!trimmed || !Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {

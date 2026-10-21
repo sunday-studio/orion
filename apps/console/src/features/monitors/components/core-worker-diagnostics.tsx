@@ -1,7 +1,5 @@
-import { Callout, StatusBadge } from "@/design-system";
-import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { Callout } from "@/design-system";
 import type { GetCoreWorkerDiagnostics200 } from "@/orion-sdk";
-import { Activity } from "lucide-react";
 
 type WorkerStatus = "healthy" | "degraded" | "unknown" | "error" | string;
 
@@ -37,19 +35,6 @@ type CoreWorkerDiagnosticsPayload = GetCoreWorkerDiagnostics200 & {
   worker?: CoreWorkerDiagnostics;
 };
 
-const workerStatusLabel: Record<string, string> = {
-  healthy: "healthy",
-  degraded: "degraded",
-  unknown: "unknown",
-  error: "error",
-};
-
-const statusToBadge = (status?: string) => {
-  if (status === "healthy") return "up";
-  if (status === "error") return "down";
-  return status;
-};
-
 export const coreWorkerDiagnosticsFromPayload = (
   payload?: GetCoreWorkerDiagnostics200,
 ): CoreWorkerDiagnostics | undefined => {
@@ -72,7 +57,7 @@ export const shouldWarnForCoreWorker = (worker?: CoreWorkerDiagnostics) => {
 };
 
 /** A short lead-in and one sentence, shown in the design-system warning banner. */
-export const describeCoreWorkerWarning = (worker?: CoreWorkerDiagnostics) => {
+const describeCoreWorkerWarning = (worker?: CoreWorkerDiagnostics) => {
   const workerCount = worker?.worker_count ?? 0;
   const onlineCount = worker?.online_count ?? 0;
   const staleCount = worker?.stale_count ?? 0;
@@ -114,51 +99,5 @@ export const CoreWorkerWarning = ({ worker, className }: CoreWorkerWarningProps)
     <Callout tone="warn" lead={warning.lead} className={className}>
       {warning.text}
     </Callout>
-  );
-};
-
-type CoreWorkerDiagnosticsPanelProps = {
-  data?: GetCoreWorkerDiagnostics200;
-  isLoading?: boolean;
-  error?: unknown;
-};
-
-export const CoreWorkerDiagnosticsPanel = ({
-  data,
-  isLoading = false,
-  error,
-}: CoreWorkerDiagnosticsPanelProps) => {
-  const worker = coreWorkerDiagnosticsFromPayload(data);
-  const workerStatus = worker?.status ?? (error ? "unknown" : "unknown");
-  const latestWorker = worker?.workers?.[0];
-  const warning = describeCoreWorkerWarning(worker);
-  const onlineCount = worker?.online_count ?? 0;
-  const workerCount = worker?.worker_count ?? 0;
-  const latestHeartbeat = latestWorker?.last_heartbeat_at
-    ? formatDate(latestWorker.last_heartbeat_at, DATE_TIME_FORMAT)
-    : "none";
-  const workerSummary = isLoading
-    ? "Loading worker status..."
-    : error
-      ? "Unable to load worker status."
-      : `${onlineCount}/${workerCount} online, latest heartbeat ${latestHeartbeat}`;
-
-  return (
-    <section
-      aria-label="Core worker diagnostics"
-      className="border border-neutral-200 bg-white px-4 py-3"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Activity className="size-4 shrink-0 text-neutral-500" />
-          <h2 className="text-sm font-medium text-neutral-950">Core monitor worker</h2>
-          <StatusBadge status={statusToBadge(workerStatus)}>
-            {statusToBadge(workerStatus) ?? workerStatusLabel[workerStatus] ?? workerStatus}
-          </StatusBadge>
-        </div>
-        <div className="text-sm text-neutral-600">{workerSummary}</div>
-      </div>
-      {!isLoading && !error && warning && <CoreWorkerWarning worker={worker} className="mt-3" />}
-    </section>
   );
 };

@@ -25,7 +25,7 @@ const flatten = (value: unknown, prefix = "", out: [string, string][] = []) => {
   return out;
 };
 
-export const attributeSummary = (attributes: unknown, limit = 4) =>
+const attributeSummary = (attributes: unknown, limit = 4) =>
   flatten(attributes)
     .slice(0, limit)
     .map(([key, value]) => `${key}=${value}`)

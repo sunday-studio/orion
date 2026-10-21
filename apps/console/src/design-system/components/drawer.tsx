@@ -6,7 +6,6 @@ import { cn } from "@/utils/cn";
 
 export const Drawer = DrawerPrimitive.Root;
 export const DrawerTrigger = DrawerPrimitive.Trigger;
-export const DrawerClose = DrawerPrimitive.Close;
 
 /** Right-side detail panel (460 to 480px), for report and log detail. */
 export const DrawerContent = ({

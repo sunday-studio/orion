@@ -33,12 +33,6 @@ export const groupItems = (items: ServiceNodeDiscoveryItem[]) => {
 export const canAccept = (item: ServiceNodeDiscoveryItem) =>
   item.status !== "monitored" && !item.dismissed && item.kind !== "log";
 
-/** Why a suggestion has no checkbox. */
-export const acceptHint = (item: ServiceNodeDiscoveryItem) =>
-  item.kind === "log"
-    ? "Needs an ingest key, set up with orion-node setup"
-    : "Accept with orion-node setup";
-
 export const managedLabel = (managedIn?: string) =>
   managedIn === "file"
     ? "Managed in file"

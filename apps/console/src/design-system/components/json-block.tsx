@@ -2,7 +2,7 @@ import { CodeBlock } from "@/design-system/components/code-block";
 import { cn } from "@/utils/cn";
 
 /** Pretty-prints JSON (a string that parses, or any value) with two-space indent. */
-export const formatJson = (value: unknown) => {
+const formatJson = (value: unknown) => {
   if (typeof value === "string") {
     try {
       return JSON.stringify(JSON.parse(value), null, 2);

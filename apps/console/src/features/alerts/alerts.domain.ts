@@ -35,15 +35,6 @@ export type RouteFormState = {
   suppress: boolean;
 };
 
-export type DryRunFormState = {
-  nodeId: string;
-  eventType: string;
-  incidentId: string;
-  monitorId: string;
-  monitorType: string;
-  severity: string;
-};
-
 export const defaultRouteForm = (channels: ApiAlertChannelResponse[]): RouteFormState => ({
   nodeIds: "",
   cooldownSeconds: "0",
@@ -59,15 +50,6 @@ export const defaultRouteForm = (channels: ApiAlertChannelResponse[]): RouteForm
   severities: [],
   suppress: false,
 });
-
-export const defaultDryRunForm: DryRunFormState = {
-  nodeId: "",
-  eventType: "incident_opened",
-  incidentId: "",
-  monitorId: "",
-  monitorType: "",
-  severity: "high",
-};
 
 const splitList = (value: string) =>
   value
@@ -100,22 +82,6 @@ export const routeToForm = (
   suppress: route.suppress ?? false,
 });
 
-export const routeToRequest = (route: ApiAlertRuleResponse): ApiAlertRuleRequest => ({
-  node_ids: route.node_ids ?? [],
-  cooldown_seconds: route.cooldown_seconds ?? 0,
-  channel_ids: route.suppress ? [] : (route.channel_ids ?? []),
-  enabled: route.enabled ?? true,
-  event_types: route.event_types ?? alertEventOptions.map((option) => option.value),
-  grouping_delay_seconds: route.grouping_delay_seconds ?? 300,
-  grouping_policy: route.grouping_policy ?? "suppress",
-  monitor_ids: route.monitor_ids ?? [],
-  monitor_types: route.monitor_types ?? [],
-  name: route.name ?? "",
-  priority: route.priority ?? 100,
-  severities: route.severities ?? [],
-  suppress: route.suppress ?? false,
-});
-
 export const formToRequest = (form: RouteFormState): ApiAlertRuleRequest => ({
   node_ids: splitList(form.nodeIds),
   cooldown_seconds: Number.parseInt(form.cooldownSeconds, 10) || 0,
@@ -131,14 +97,6 @@ export const formToRequest = (form: RouteFormState): ApiAlertRuleRequest => ({
   severities: form.severities,
   suppress: form.suppress,
 });
-
-export const channelName = (channels: ApiAlertChannelResponse[], id?: string) =>
-  channels.find((channel) => channel.id === id)?.name ?? id ?? "unknown";
-
-export const formatList = (values?: string[], formatter?: (value: string) => string) => {
-  if (!values?.length) return "Any";
-  return values.map((value) => formatter?.(value) ?? value).join(", ");
-};
 
 export const toggleValue = (values: string[], value: string, checked: boolean) => {
   if (checked) return Array.from(new Set([...values, value]));
