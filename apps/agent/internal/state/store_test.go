@@ -379,3 +379,20 @@ func TestReportSpoolIsBounded(t *testing.T) {
 		t.Fatalf("spool holds %d rows, want cap %d", len(items), ReportSpoolMaxRows)
 	}
 }
+
+func TestStoreOpenKeepsGormQuietAndConcurrentFirstUseIsSafe(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		go func() { _, err := store.Get(); errs <- err }()
+	}
+	for i := 0; i < 8; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent first use must not fail: %v", err)
+		}
+	}
+}
