@@ -57,7 +57,7 @@ func fmtInt(n int) string {
 func TestCgroupUnitsAndContainersWithRates(t *testing.T) {
 	root := fakeCgroup(t, 1_000_000, 5000, 1000, 2000)
 	now := time.Unix(1000, 0)
-	s := NewSampler(Options{CgroupRoot: root, Now: func() time.Time { return now },
+	s := NewSampler(Options{NoDocker: true, CgroupRoot: root, Now: func() time.Time { return now },
 		ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
 
 	first := s.Sample()
@@ -99,7 +99,7 @@ func TestCgroupUnitsAndContainersWithRates(t *testing.T) {
 }
 
 func TestNoCgroupV2AddsNoteNotFailure(t *testing.T) {
-	s := NewSampler(Options{CgroupRoot: t.TempDir(), ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
+	s := NewSampler(Options{NoDocker: true, CgroupRoot: t.TempDir(), ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
 	rep := s.Sample()
 	if len(rep.Notes) == 0 {
 		t.Fatal("expected a note explaining cgroup v2 is missing")
@@ -117,7 +117,7 @@ func TestProcessesGroupedAndTopNCapped(t *testing.T) {
 		out = append(out, ProcSample{Pid: 500, Name: "proc29", CPUSeconds: cpu, RSS: 10}) // second pid of proc29
 		return out
 	}
-	s := NewSampler(Options{CgroupRoot: t.TempDir(), TopN: 3, Now: func() time.Time { return now },
+	s := NewSampler(Options{NoDocker: true, CgroupRoot: t.TempDir(), TopN: 3, Now: func() time.Time { return now },
 		ProcessList: func() ([]ProcSample, error) { return mk(), nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
 	s.Sample()
 	cpu = 10
@@ -144,7 +144,7 @@ func TestMaxSeriesHardCapKeepsPaths(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		many = append(many, ProcSample{Pid: int32(i + 1), Name: "p" + fmtInt(i), RSS: uint64(i + 1)})
 	}
-	s := NewSampler(Options{CgroupRoot: t.TempDir(), TopN: 50, MaxSeries: 5, Paths: []string{filepath.Join(dir, "data")},
+	s := NewSampler(Options{NoDocker: true, CgroupRoot: t.TempDir(), TopN: 50, MaxSeries: 5, Paths: []string{filepath.Join(dir, "data")},
 		ProcessList: func() ([]ProcSample, error) { return many, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
 	rep := s.Sample()
 	if len(rep.Series) != 5 {
@@ -193,7 +193,7 @@ func TestReusedPidIsNotTreatedAsTheSameProcess(t *testing.T) {
 	now := time.Unix(1000, 0)
 	read1, read2 := uint64(0), uint64(50_000_000_000)
 	procs := []ProcSample{{Pid: 7, StartMs: 1, Name: "sh", CPUSeconds: 1, RSS: 10, ReadBytes: &read1, WriteBytes: &read1}}
-	s := NewSampler(Options{CgroupRoot: t.TempDir(), Now: func() time.Time { return now },
+	s := NewSampler(Options{NoDocker: true, CgroupRoot: t.TempDir(), Now: func() time.Time { return now },
 		ProcessList: func() ([]ProcSample, error) { return procs, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
 	s.Sample()
 	now = now.Add(time.Second)
@@ -369,5 +369,74 @@ func TestDockerAPIErrorsAreReported(t *testing.T) {
 	defer srv.Close()
 	if _, err := newDockerSource(sock)(); err == nil || errors.Is(err, errNoDocker) {
 		t.Fatalf("a failing API must be a real error, got %v", err)
+	}
+}
+
+func TestDockerStorageSizesContainersVolumesAndImages(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "dk")
+	defer os.RemoveAll(dir)
+	sock := filepath.Join(dir, "d.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/containers/json", func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Query().Get("size") != "true" {
+			t.Errorf("sizes need size=true, got %q", r.URL.RawQuery)
+		}
+		w.Write([]byte(`[{"Id":"abc123abc123abc123","SizeRw":1048576},{"Id":"def456def456def456","SizeRw":-1}]`))
+	})
+	mux.HandleFunc("/system/df", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"LayersSize":5000,"Volumes":[{"Name":"pgdata","UsageData":{"Size":9000}},{"Name":"unknown","UsageData":{"Size":-1}},{"Name":"small","UsageData":{"Size":10}}],"BuildCache":[{"Size":300},{"Size":200}]}`))
+	})
+	srv := &http.Server{Handler: mux}
+	go srv.Serve(ln)
+	defer srv.Close()
+
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	src := newDockerStorageSource(sock, func() time.Time { return now })
+	st, err := src()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Containers["abc123abc123"] != 1048576 || len(st.Containers) != 1 {
+		t.Errorf("containers = %v (an unknown size must be left out)", st.Containers)
+	}
+	if len(st.Volumes) != 2 || st.Volumes[0].Name != "pgdata" || st.ImageBytes != 5000 || st.CacheBytes != 500 {
+		t.Errorf("volumes/images = %+v", st)
+	}
+	now = now.Add(time.Minute)
+	src()
+	if calls != 1 {
+		t.Errorf("Docker computes sizes by walking disks: asked %d times within five minutes", calls)
+	}
+	now = now.Add(6 * time.Minute)
+	src()
+	if calls != 2 {
+		t.Errorf("after five minutes the sizes are read again, calls = %d", calls)
+	}
+
+	root := fakeCgroup(t, 1, 5000, 1, 1)
+	s := NewSampler(Options{CgroupRoot: root, Now: func() time.Time { return now },
+		Docker:        func() ([]dockerContainer, error) { return nil, errNoDocker },
+		DockerStorage: func() (dockerStorage, error) { return st, nil }})
+	rep := s.Sample()
+	var vol, img bool
+	for _, ser := range rep.Series {
+		if ser.Kind == KindVolume && ser.Name == "pgdata" && *ser.StorageBytes == 9000 {
+			vol = true
+		}
+		if ser.Kind == KindDocker && ser.Name == "docker images" {
+			img = true
+		}
+	}
+	if !vol || !img {
+		t.Errorf("volume=%v images=%v in %+v", vol, img, rep.Series)
+	}
+	if _, err := newDockerStorageSource(filepath.Join(dir, "missing.sock"), time.Now)(); err != errNoDocker {
+		t.Errorf("no socket is silent, got %v", err)
 	}
 }

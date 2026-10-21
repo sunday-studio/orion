@@ -40,7 +40,13 @@ type dockerContainer struct {
 // user can open the socket (group docker, which is root-equivalent).
 type dockerSource func() ([]dockerContainer, error)
 
-func newDockerSource(sock string) dockerSource {
+// dockerAPI is a tiny client for the Docker Engine API over its unix socket.
+type dockerAPI struct {
+	sock string
+	get  func(path string, out any) error
+}
+
+func newDockerAPI(sock string) dockerAPI {
 	if sock == "" {
 		sock = DefaultDockerSocket
 		if _, err := os.Stat(sock); err != nil { // Docker Desktop on macOS keeps it in the home directory
@@ -69,6 +75,12 @@ func newDockerSource(sock string) dockerSource {
 		}
 		return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(out)
 	}
+	return dockerAPI{sock: sock, get: get}
+}
+
+func newDockerSource(sockPath string) dockerSource {
+	api := newDockerAPI(sockPath)
+	sock, get := api.sock, api.get
 	return func() ([]dockerContainer, error) {
 		if _, err := os.Stat(sock); err != nil {
 			return nil, errNoDocker

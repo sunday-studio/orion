@@ -13,6 +13,8 @@ const (
 	KindUnit      Kind = "unit"      // systemd unit (cgroup)
 	KindContainer Kind = "container" // container (cgroup or Docker API)
 	KindPath      Kind = "path"      // configured storage path
+	KindVolume    Kind = "volume"    // Docker volume
+	KindDocker    Kind = "docker"    // Docker images and build cache
 )
 
 // Series is one measured thing in one report. Rates are per second over the
@@ -43,17 +45,19 @@ type Report struct {
 
 // Options controls collection and bounds cardinality.
 type Options struct {
-	TopN        int                               // processes reported per ranking (CPU, memory); default 10
-	MaxSeries   int                               // hard cap on series per report; default 200
-	Paths       []string                          // storage paths to size
-	PathBudget  time.Duration                     // time allowed per path walk; default 2s
-	CgroupRoot  string                            // default /sys/fs/cgroup
-	DockerSock  string                            // Docker socket (default /var/run/docker.sock)
-	NoDocker    bool                              // never use the Docker API
-	Docker      func() ([]dockerContainer, error) // replaced in tests
-	Now         func() time.Time
-	ProcessList func() ([]ProcSample, error)           // replaced in tests
-	NetSource   func() (map[string]NetCounters, error) // per-process network (macOS), replaced in tests
+	TopN       int                               // processes reported per ranking (CPU, memory); default 10
+	MaxSeries  int                               // hard cap on series per report; default 200
+	Paths      []string                          // storage paths to size
+	PathBudget time.Duration                     // time allowed per path walk; default 2s
+	CgroupRoot string                            // default /sys/fs/cgroup
+	DockerSock string                            // Docker socket (default /var/run/docker.sock)
+	NoDocker   bool                              // never use the Docker API
+	Docker     func() ([]dockerContainer, error) // replaced in tests
+	// DockerStorage reads container, volume and image sizes; replaced in tests.
+	DockerStorage func() (dockerStorage, error)
+	Now           func() time.Time
+	ProcessList   func() ([]ProcSample, error)           // replaced in tests
+	NetSource     func() (map[string]NetCounters, error) // per-process network (macOS), replaced in tests
 }
 
 func (o Options) topN() int {

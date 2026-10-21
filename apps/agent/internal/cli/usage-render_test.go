@@ -31,6 +31,8 @@ func TestUsageScreenMatchesBoard(t *testing.T) {
 	board = strings.Replace(board, "\n  s  sort   q  quit\n", "\n", 1)
 	for _, dark := range []bool{false, true} {
 		got := stripANSI(usagePanel(ui.WithMode(dark), boardUsage(), "CPU", true, 10))
+		// The board has no storage panel; a configured path adds one below the apps.
+		got = strings.Replace(got, got[strings.Index(got, " ╭ Storage"):strings.Index(got, " measured from outside")], "", 1)
 		sameAsBoard(t, "usage", board, got)
 	}
 	if p := usagePanel(ui.Plain(), boardUsage(), "CPU", false, 10); strings.ContainsAny(p, "━╸╭│●") || !strings.Contains(p, "postgresql 2.8% 412 MB - -") {

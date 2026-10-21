@@ -45,7 +45,7 @@ func memOf(s appres.Series) float64 {
 func usageRows(rep appres.Report, sortBy string, top int) []appres.Series {
 	var rows []appres.Series
 	for _, s := range rep.Series {
-		if s.Kind != appres.KindPath {
+		if s.Kind != appres.KindPath && s.Kind != appres.KindVolume && s.Kind != appres.KindDocker {
 			rows = append(rows, s)
 		}
 	}
@@ -83,7 +83,7 @@ func usageBar(th *ui.Theme, v, max float64, width int) string {
 func usagePanel(th *ui.Theme, rep appres.Report, sortBy string, live bool, top int) string {
 	rows := usageRows(rep, sortBy, top)
 	if th.Plain() {
-		return plainUsage(rows)
+		return plainUsage(rows, rep, top)
 	}
 	var maxCPU, maxMem float64
 	for _, s := range rows {
@@ -112,9 +112,45 @@ func usagePanel(th *ui.Theme, rep appres.Report, sortBy string, live bool, top i
 			usageBar(th, cpuOf(s), maxCPU, 14)+" "+padRight(cpu, 9)+
 			usageBar(th, memOf(s), maxMem, 8)+" "+padRight(mem, 13)+net)
 	}
-	body := th.Panel("Apps", "by "+sortBy, lines, panelWidth)
+	blocks := []string{th.Panel("Apps", "by "+sortBy, lines, panelWidth)}
+	if disk := storageRows(th, rep, top); len(disk) > 0 {
+		blocks = append(blocks, th.Panel("Storage", "by size", disk, panelWidth))
+	}
+	body := strings.Join(blocks, "\n")
 	foot := " " + th.Muted("measured from outside: processes, systemd units and containers. - means unknown.")
 	return "\n" + header + "\n" + margin(th, []string{body}) + "\n" + foot + "\n"
+}
+
+// storageRows lists what holds disk: configured paths, Docker volumes, images
+// and build cache, and the writable layer of each container.
+func storageRows(th *ui.Theme, rep appres.Report, limit int) []string {
+	var items []appres.Series
+	for _, s := range rep.Series {
+		if s.StorageBytes != nil {
+			items = append(items, s)
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool { return *items[i].StorageBytes > *items[j].StorageBytes })
+	kinds := map[appres.Kind]string{appres.KindPath: "path", appres.KindVolume: "volume", appres.KindDocker: "docker", appres.KindContainer: "container"}
+	var rows []string
+	if len(items) > 0 {
+		rows = append(rows, " "+th.Muted(padRight("NAME", 34)+padRight("WHAT", 12)+"SIZE"))
+	}
+	hidden := 0
+	if limit > 0 && len(items) > limit {
+		hidden, items = len(items)-limit, items[:limit]
+	}
+	for _, s := range items {
+		size := compactBytes(float64(*s.StorageBytes))
+		if s.StorageCapped {
+			size = "≥ " + size
+		}
+		rows = append(rows, " "+padRight(clip(s.Name, 32), 34)+th.Muted(padRight(kinds[s.Kind], 12))+size)
+	}
+	if hidden > 0 {
+		rows = append(rows, " "+th.Muted(fmt.Sprintf("… and %d more (orion-agent usage --top %d, or --json for all)", hidden, limit+hidden)))
+	}
+	return rows
 }
 
 func maxf(a, b float64) float64 {
@@ -124,7 +160,7 @@ func maxf(a, b float64) float64 {
 	return a
 }
 
-func plainUsage(rows []appres.Series) string {
+func plainUsage(rows []appres.Series, rep appres.Report, top int) string {
 	var b strings.Builder
 	b.WriteString("name cpu memory net_rx net_tx\n")
 	for _, s := range rows {
@@ -139,6 +175,12 @@ func plainUsage(rows []appres.Series) string {
 			rx, tx = compactBytes(*s.NetRxBps), compactBytes(*s.NetTxBps)
 		}
 		fmt.Fprintf(&b, "%s %s %s %s %s\n", s.Name, cpu, mem, rx, tx)
+	}
+	if disk := storageRows(ui.Plain(), rep, top); len(disk) > 0 {
+		b.WriteString("storage\n")
+		for _, r := range disk[1:] {
+			b.WriteString(strings.Join(strings.Fields(r), " ") + "\n")
+		}
 	}
 	return b.String()
 }
