@@ -16,8 +16,8 @@ import {
 } from "@/design-system";
 import type { ServerRow } from "@/features/nodes/server-format";
 import {
-  getGetNodesQueryKey,
   getGetIncidentsQueryKey,
+  getGetNodesQueryKey,
   getGetOverviewQueryKey,
   useDecommissionNode,
   useGetNodeMonitors,

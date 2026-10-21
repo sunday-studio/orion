@@ -14,8 +14,8 @@ import {
 } from "@/design-system";
 import { type ServerRow, serverState } from "@/features/nodes/server-format";
 import {
-  type ApiNodeReportResponse,
   type ApiMonitorResponse,
+  type ApiNodeReportResponse,
   useGetNodeMonitors,
   useGetNodeReports,
 } from "@/orion-sdk";

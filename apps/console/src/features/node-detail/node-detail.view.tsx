@@ -15,9 +15,9 @@ import { useNow } from "@/features/overview/overview-time";
 import { incidentLabel } from "@/features/incidents/incident-format";
 import {
   type ApiNodeReportResponse,
+  useGetIncidents,
   useGetNode,
   useGetNodeDiscovery,
-  useGetIncidents,
 } from "@/orion-sdk";
 import { NodeLogsTab } from "./components/node-logs-tab";
 import { AppsTab } from "./components/apps-tab";

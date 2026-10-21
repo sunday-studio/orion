@@ -1,5 +1,5 @@
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-import { useGetNodes, useGetMonitors } from "@/orion-sdk";
+import { useGetMonitors, useGetNodes } from "@/orion-sdk";
 import {
   AddFilterButton,
   CheckFilterPanel,

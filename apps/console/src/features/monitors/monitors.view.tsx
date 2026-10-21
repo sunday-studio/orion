@@ -17,9 +17,9 @@ import {
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
-  useGetNodeSummary,
   useGetCoreWorkerDiagnostics,
   useGetMonitorSummary,
+  useGetNodeSummary,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";

@@ -22,8 +22,8 @@ import {
   useCreateStatusPageSection,
   useDeleteStatusPageComponent,
   useDeleteStatusPageComponentMapping,
-  useGetNodes,
   useGetMonitors,
+  useGetNodes,
   usePreviewStatusPage,
   useUpdateStatusPageComponent,
 } from "@/orion-sdk";

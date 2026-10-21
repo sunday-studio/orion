@@ -25,9 +25,9 @@ import {
 } from "@/features/monitors/components/core-worker-diagnostics";
 import {
   type GetMonitorsParams,
-  useGetNodes,
   useGetMonitorSummary,
   useGetMonitors,
+  useGetNodes,
 } from "@/orion-sdk";
 import {
   type MonitorRow,

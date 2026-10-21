@@ -7,7 +7,7 @@ import {
   StatusBadge,
 } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
-import type { ApiNodeReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
+import type { ApiMonitorReportResponse, ApiNodeReportResponse } from "@/orion-sdk";
 import type { ReactNode } from "react";
 
 type ReportInspectionDrawerProps =
