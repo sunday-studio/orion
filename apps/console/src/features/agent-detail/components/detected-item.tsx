@@ -10,6 +10,9 @@ export const DetectedItem = ({
   checked,
   canAct,
   pending,
+  size,
+  waitingSize,
+  onViewApps,
   onToggle,
   onAction,
 }: {
@@ -20,6 +23,10 @@ export const DetectedItem = ({
   canAct: boolean;
   /** A request for this row is waiting for the agent. */
   pending?: string;
+  /** Measured size of an accepted storage row. */
+  size?: string;
+  waitingSize?: boolean;
+  onViewApps?: () => void;
   onToggle: () => void;
   onAction: (type: "dismiss" | "restore" | "ignore") => void;
 }) => {
@@ -36,7 +43,11 @@ export const DetectedItem = ({
         {item.new && <StatusBadge status="info">New</StatusBadge>}
         {(item.detail || (monitored && item.kind === "storage")) && (
           <span className="min-w-0 truncate text-xs text-faint">
-            {monitored && item.kind === "storage" ? "Tracking" : item.detail}
+            {monitored && item.kind === "storage"
+              ? waitingSize
+                ? "Sizes can take a few minutes"
+                : "Tracking"
+              : item.detail}
           </span>
         )}
       </span>
@@ -44,7 +55,11 @@ export const DetectedItem = ({
         {pending ? (
           <StatusBadge status="degraded">{pending}</StatusBadge>
         ) : monitored ? (
-          <StatusBadge status="up">{managedLabel(item.managed_in)}</StatusBadge>
+          <>
+            {size && <span className="tabular-nums">{size}</span>}
+            {waitingSize && <StatusBadge status="degraded">Waiting for first size</StatusBadge>}
+            <StatusBadge status="up">{managedLabel(item.managed_in)}</StatusBadge>
+          </>
         ) : item.dismissed ? (
           <StatusBadge status="stale">Dismissed</StatusBadge>
         ) : null}
@@ -74,6 +89,14 @@ export const DetectedItem = ({
             )}
           </MenuContent>
         </Menu>
+      ) : size && onViewApps ? (
+        <button
+          type="button"
+          className="text-left text-[13px] text-brand hover:underline"
+          onClick={onViewApps}
+        >
+          View in Apps
+        </button>
       ) : (
         <span />
       )}

@@ -15,10 +15,12 @@ import {
   getGetAgentDiscoveryQueryKey,
   getListAgentMonitorDefinitionsQueryKey,
   useAcceptDiscoveredItems,
+  useGetAgentAppResources,
   useGetAgentDiscovery,
   useListAgentDiscoveryRequests,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
+import { bytes } from "../app-resources-model";
 import { canAccept, groupItems, kindTitle } from "../detected-model";
 import { useDiscoveryRequest } from "./detected-actions";
 import { DetectedAdded } from "./detected-added";
@@ -31,11 +33,23 @@ import { DetectedSettings } from "./detected-settings";
 const OPEN = ["queued", "delivered"];
 
 /** "Detected on this server": what the agent found, accept it, dismiss it or change what is scanned. */
-export const DetectedTab = ({ agentId }: { agentId: string }) => {
+export const DetectedTab = ({
+  agentId,
+  onOpenApps,
+}: {
+  agentId: string;
+  onOpenApps: () => void;
+}) => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const query = useGetAgentDiscovery(agentId);
   const requests = useDiscoveryRequest(agentId);
+  const resources = useGetAgentAppResources(agentId);
+  const sizes = new Map(
+    (resources.data?.app_resources?.series ?? [])
+      .filter((series) => series.kind === "path")
+      .map((series) => [series.name, series]),
+  );
   const requestList = useListAgentDiscoveryRequests(agentId);
   const discovery = query.data?.discovery;
   const items = useMemo(() => discovery?.items ?? [], [discovery]);
@@ -75,6 +89,12 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
   // What is waiting for the agent, so rows and switches show Pending instead of a result.
   const open = (requestList.data?.requests ?? []).filter((r) => OPEN.includes(r.status ?? ""));
   const pendingRow = (id?: string) => {
+    const tracking = open.find(
+      (r) =>
+        r.type === "track_storage" &&
+        (r.payload?.paths as string[] | undefined)?.includes(id?.replace(/^storage:/, "") ?? ""),
+    );
+    if (tracking) return "Waiting for the agent";
     const hit = open.find(
       (r) =>
         (r.type === "dismiss" || r.type === "ignore" || r.type === "restore") &&
@@ -110,6 +130,11 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
       else next.add(id);
       return next;
     });
+  const storageSize = (item: { kind?: string; name?: string; status?: string }) => {
+    if (item.kind !== "storage" || item.status !== "monitored") return undefined;
+    const series = sizes.get(item.name);
+    return series?.storage_bytes === undefined ? undefined : bytes(series.storage_bytes);
+  };
   const act = (id: string | undefined, type: "dismiss" | "restore" | "ignore") =>
     requests.send(type, { ids: [id] });
 
@@ -220,6 +245,11 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
                     checked={selected.has(item.id ?? "")}
                     canAct={canAct}
                     pending={pendingRow(item.id)}
+                    size={storageSize(item)}
+                    waitingSize={
+                      item.kind === "storage" && item.status === "monitored" && !storageSize(item)
+                    }
+                    onViewApps={onOpenApps}
                     onToggle={() => toggle(item.id ?? "")}
                     onAction={(type) => act(item.id, type)}
                   />
