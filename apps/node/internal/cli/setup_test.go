@@ -196,3 +196,18 @@ func TestTermDumbDoesNotHijackFlagDrivenOrPipedSetup(t *testing.T) {
 		t.Error("ACCESSIBLE=1 with no flags asks questions")
 	}
 }
+
+func TestSetupDiffNeverShowsASecretValue(t *testing.T) {
+	got := redactDiff([]string{"+ enrollment_token: orn_enr_abc123", "- ingest_key_file: /keys/app", "  core_url: https://core.example.com", "+   password: hunter2"})
+	joined := strings.Join(got, "\n")
+	for _, secret := range []string{"orn_enr_abc123", "hunter2"} {
+		if strings.Contains(joined, secret) {
+			t.Fatalf("diff still shows %q:\n%s", secret, joined)
+		}
+	}
+	for _, kept := range []string{"/keys/app", "https://core.example.com"} {
+		if !strings.Contains(joined, kept) {
+			t.Fatalf("a file path or URL should stay readable: %q missing in\n%s", kept, joined)
+		}
+	}
+}

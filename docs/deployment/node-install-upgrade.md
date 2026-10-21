@@ -87,7 +87,7 @@ orion-node doctor
   [ok]   Spool            0 pending
   [ok]   Disk space       384 GB free
 
-  13 passed   0 warnings   0 failed   exit 0
+  14 passed   0 warnings   0 failed   exit 0
 ```
 
 `doctor` exits 0 when nothing failed and 1 when something did; each problem comes with the exact fix.
@@ -147,8 +147,10 @@ orion-node setup --accept-discovered --yes
   --dry-run prints the diff and stops. Log sources always need a key.
 ```
 
-`--dry-run` shows the change to the config and stops. The suggestions also appear in the Console
-under the server's **Detected** tab.
+`--dry-run` shows the change to the config and stops; secret values in it are hidden. `setup` rewrites
+the config file in a standard layout, so comments are not kept; to edit by hand and keep your comments,
+use `orion-node config edit`. The suggestions also appear in the Console under the server's **Detected**
+tab.
 
 ## 3. Day to day
 
@@ -271,7 +273,7 @@ is not there yet.
 agent. Use it only where you cannot get root. Add `--user` to the installer and to the uninstall
 command. The service commands (`orion-node start`, `stop`, `restart`, `update`) are written for the
 system install and ask for `sudo`; for a per-user install manage the unit with `systemctl --user` or
-`launchctl`.
+`launchctl`, and to upgrade run the installer again with `--user` (it keeps config and state).
 
 ## Docker monitors on Linux
 

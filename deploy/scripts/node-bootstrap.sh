@@ -324,7 +324,7 @@ else
     want="$(awk -v n="$name" '$2==n||$2=="*"n{print $1; exit}' "$WORK/SHA256SUMS")"
     [ -n "$want" ] || die "No checksum for $name in SHA256SUMS; refusing to install." "this release looks incomplete; try another --version" 2
     got="$(sha256_of "$file")"
-    [ "$got" = "$want" ] || fail_step "Verified" "checksum does not match" "run the command again, or pin a version with --version ${RELEASE_VERSION:-X.Y.Z}" 2 \
+    [ "$got" = "$want" ] || fail_step "Verified" "checksum does not match" "run the command again, or pin a release tag with --version $([ "${RELEASE_VERSION:-latest}" = latest ] && printf vX.Y.Z || printf "v%s" "$RELEASE_VERSION")" 2 \
       "expected $(printf '%s' "$want" | cut -c1-6)…   got $(printf '%s' "$got" | cut -c1-6)…   ($name)" \
       "The download may be corrupted or tampered with. Nothing was installed."
   }

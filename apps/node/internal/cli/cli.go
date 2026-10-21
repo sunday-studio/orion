@@ -317,8 +317,8 @@ func PrintServiceDiagnostics(lines int) {
 		PrintStep("checking service status")
 		printCommandOutput("launchctl", "print", launchdLabel)
 		PrintStep("showing recent service logs")
-		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-node.log")
-		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-node.error.log")
+		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion/node.stdout.log")
+		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion/node.stderr.log")
 	default:
 		PrintSkip("no service diagnostics available without a service manager")
 	}

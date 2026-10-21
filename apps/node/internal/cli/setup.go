@@ -197,7 +197,7 @@ func commitSetup(ctx context.Context, opts *Options, plan setupPlan) (commitResu
 	if err != nil {
 		return res, NewCommandError("could not render config", err)
 	}
-	res.Diff = lineDiff(splitLines(string(before)), splitLines(string(data)))
+	res.Diff = redactDiff(lineDiff(splitLines(string(before)), splitLines(string(data))))
 	res.Monitors = len(next.Monitors)
 	if opts.SetupDryRun {
 		return res, nil
@@ -350,4 +350,18 @@ func writeConfigAtomic(path string, data []byte) error {
 func flagDriven(opts *Options) bool {
 	return opts.SetupYes || opts.JSON || opts.SetupDryRun || opts.SetupAcceptDiscovered ||
 		len(opts.SetupMonitors) > 0 || opts.SetupCoreURL != "" || opts.SetupToken != "" || opts.SetupTokenFile != ""
+}
+
+// redactDiff hides secret values (tokens, keys, passwords) in the lines of a diff, which setup prints and
+// returns as JSON; the file itself is written from the unredacted data. Each line keeps its two-character
+// marker ("+ ", "- " or two spaces).
+func redactDiff(lines []string) []string {
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		if len(l) >= 2 {
+			l = l[:2] + config.RedactLine(l[2:])
+		}
+		out[i] = l
+	}
+	return out
 }
