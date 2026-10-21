@@ -64,3 +64,25 @@ func TestMergeKeepsFileMonitorsAndFingerprintDetectsChange(t *testing.T) {
 		t.Fatal("fingerprint must change when a definition changes")
 	}
 }
+
+func TestConvertMapsServiceContainerAndPM2ChecksAndReportsWhatItCannotRun(t *testing.T) {
+	defs := []transport.PulledDefinition{
+		{ID: "a", Name: "nginx-service", CheckType: "systemd", Params: map[string]any{"unit": "nginx"}},
+		{ID: "b", Name: "db-container", CheckType: "docker", Params: map[string]any{"container": "db"}},
+		{ID: "c", Name: "api-pm2", CheckType: "pm2", Params: map[string]any{"app": "api"}},
+		{ID: "d", Name: "odd", CheckType: "lambda", Params: map[string]any{}},
+	}
+	ms, problems := Convert(defs)
+	if len(ms) != 3 || len(problems) != 1 {
+		t.Fatalf("ms=%d problems=%v", len(ms), problems)
+	}
+	for _, m := range ms {
+		if err := m.Validate(); err != nil {
+			t.Errorf("%s does not validate: %v", m.Name, err)
+		}
+	}
+	res := Results(defs, problems)
+	if len(res) != 4 || res[0].DefinitionID != "a" || !res[0].OK || res[3].OK || !strings.Contains(res[3].Reason, "lambda") {
+		t.Fatalf("results = %+v", res)
+	}
+}

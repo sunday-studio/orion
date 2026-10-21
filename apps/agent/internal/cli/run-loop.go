@@ -62,6 +62,8 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	fn := requestReload
 	ctrl.reload.Store(&fn)
 
+	go newRequestApplier(store, opts.ConfigPath, ctrl.scan, requestReload).run(ctx, consoleRequestPollInterval)
+
 	hup := make(chan os.Signal, 1)
 	signal.Notify(hup, syscall.SIGHUP)
 	defer signal.Stop(hup)

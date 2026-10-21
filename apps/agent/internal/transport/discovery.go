@@ -35,6 +35,9 @@ type DiscoveryReport struct {
 	Enabled   bool             `json:"enabled"`
 	Kinds     []DiscoveredKind `json:"kinds"`
 	Items     []DiscoveredItem `json:"items"`
+	// Capabilities tells Core what this agent can do beyond reporting, e.g. "requests"
+	// (it polls and applies Console requests). Core reads flags, never versions.
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // ErrDiscoveryUnsupported means this Core does not take discovery reports yet.

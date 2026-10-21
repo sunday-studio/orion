@@ -31,6 +31,17 @@ func Convert(defs []transport.PulledDefinition) (monitors []config.UserMonitor, 
 	return monitors, problems
 }
 
+// Results says, per definition, whether this agent can run it, for Core to show
+// next to the check. problems is what Convert returned.
+func Results(defs []transport.PulledDefinition, problems map[string]string) []transport.DefinitionResult {
+	out := make([]transport.DefinitionResult, 0, len(defs))
+	for _, d := range defs {
+		why, bad := problems[d.Name]
+		out = append(out, transport.DefinitionResult{DefinitionID: d.ID, OK: !bad, Reason: why})
+	}
+	return out
+}
+
 func convertOne(d transport.PulledDefinition) (config.UserMonitor, error) {
 	interval := d.IntervalSeconds
 	if interval <= 0 {
@@ -67,6 +78,27 @@ func convertOne(d transport.PulledDefinition) (config.UserMonitor, error) {
 		}
 		m.Type = config.UserMonitorTypeTCP
 		m.TCP = &config.TCPMonitorConfig{Host: "127.0.0.1", Port: port, Timeout: "3s"}
+	case "systemd":
+		unit := stringParam(d.Params, "unit")
+		if unit == "" {
+			return m, fmt.Errorf("systemd check needs params.unit")
+		}
+		m.Type = config.UserMonitorTypeSystemd
+		m.Systemd = &config.SystemdServiceConfig{Name: unit}
+	case "docker":
+		name := stringParam(d.Params, "container")
+		if name == "" {
+			return m, fmt.Errorf("docker check needs params.container")
+		}
+		m.Type = config.UserMonitorTypeDocker
+		m.Docker = &config.DockerContainerConfig{Name: name}
+	case "pm2":
+		app := stringParam(d.Params, "app")
+		if app == "" {
+			return m, fmt.Errorf("pm2 check needs params.app")
+		}
+		m.Type = config.UserMonitorTypePM2
+		m.PM2 = &config.PM2MonitorConfig{AppName: app}
 	default:
 		return m, fmt.Errorf("this agent version does not support check type %q; update the agent", d.CheckType)
 	}

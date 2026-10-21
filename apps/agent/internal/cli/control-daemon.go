@@ -119,6 +119,9 @@ func (d *daemonControl) update(userConfig *config.UserConfig) {
 	d.cfg = userConfig
 	d.cfgMu.Unlock()
 	d.monitors.Store(int64(len(userConfig.Monitors)))
+	if d.scan != nil && d.scan.rescanOnConfig.Swap(false) {
+		d.scan.requestScan()
+	}
 	keep := map[string]bool{}
 	for _, m := range userConfig.Monitors {
 		keep[m.Name] = true
