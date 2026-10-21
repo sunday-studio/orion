@@ -8,7 +8,7 @@ make agent-walkthrough
 
 For each screen it prints the board's text, waits for Enter, runs the real command against a real
 local Core and an enrolled agent, and asks "Same as the board?". Nothing is installed and no root is
-needed; everything lives in `/tmp/orion-walk` and is stopped when you quit.
+needed; everything lives in `/tmp/orion-walk-<your uid>` and is stopped when you quit.
 
 - Core runs on `http://127.0.0.1:8999` with authentication off, so there is no login. For the Console,
   run `make console-dev` in another terminal and open `http://localhost:5173`.

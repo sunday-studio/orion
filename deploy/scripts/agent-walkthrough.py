@@ -15,13 +15,35 @@ Screens that need a real server (service manager, root, a release) are shown and
 import json, os, re, shlex, shutil, signal, subprocess, sys, time, urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-WORK = "/tmp/orion-walk"
+WORK = f"/tmp/orion-walk-{os.getuid()}"  # short path: unix socket paths are limited to ~100 bytes
 PORT = os.environ.get("ORION_WALK_PORT", "8999")
 CORE = f"http://127.0.0.1:{PORT}"
 BOARDS = os.path.join(ROOT, "docs", "testing", "agent-cli-boards.json")
 DIM, BOLD, RESET = "\033[2m", "\033[1m", "\033[0m"
 HOST_CMD = re.compile(r"^orion-agent (start|stop|restart|update|service)\b|curl |\| bash|^… \| bash")
 ENV = dict(os.environ, ORION_LOG_PATH=f"{WORK}/agent.log", EDITOR=os.environ.get("EDITOR", "vi"))
+
+
+def check_work_dir():
+    """The sandbox dir must be ours and not a symlink, so another user cannot plant files in it."""
+    if os.path.lexists(WORK):
+        st = os.lstat(WORK)
+        if os.path.islink(WORK) or st.st_uid != os.getuid():
+            sys.exit(f"{WORK} exists but is not yours (or is a symlink): remove it and run again.")
+    os.makedirs(WORK, mode=0o700, exist_ok=True)
+
+
+class IgnoreInterrupt:
+    """Ctrl+C belongs to the command being run (its child resets SIGINT); the walkthrough carries on."""
+    def __enter__(self):
+        self.old = signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    def __exit__(self, *a):
+        signal.signal(signal.SIGINT, self.old)
+
+
+def child_default_sigint():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 def sh(cmd, **kw):
@@ -38,6 +60,7 @@ class Walk:
 
     # --- sandbox -----------------------------------------------------------------
     def build(self):
+        check_work_dir()
         os.makedirs(f"{WORK}/bin", exist_ok=True)
         print("Building Core and the agent (first time takes a minute)...")
         subprocess.run("CGO_ENABLED=1 go build -o %s/core ./cmd/api" % WORK, shell=True, cwd=f"{ROOT}/apps/core", check=True)
@@ -108,7 +131,7 @@ class Walk:
     def wait_connected(self, seconds=45):
         for _ in range(seconds * 2):
             r = agent(["status", "--short"], capture_output=True, text=True)
-            if "connected" in r.stdout:
+            if "connected" in r.stdout or "maintenance" in r.stdout.lower():
                 return True
             time.sleep(0.5)
         return False
@@ -118,6 +141,8 @@ class Walk:
         self.enroll_quietly()
         if not (self.daemon and self.daemon.poll() is None):
             self.start_daemon()
+        else:
+            agent(["maintenance", "up"], capture_output=True)  # one screen must not leave the next in maintenance
         if not self.wait_connected():
             print("The agent did not connect; see", f"{WORK}/run.log")
 
@@ -139,8 +164,21 @@ class Walk:
             self.stop_daemon()
             print(f"{DIM}(foreground run: Ctrl+C when you have seen enough){RESET}")
         sys.stdout.flush()
-        r = subprocess.run(cmd, shell=True, env=ENV, preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+        with IgnoreInterrupt():
+            r = subprocess.run(cmd, shell=True, env=ENV, preexec_fn=child_default_sigint)
         print(f"{DIM}[exit {r.returncode}]{RESET}")
+
+    def with_real_ids(self, cmds):
+        """The board names ports from its own example host; use two suggestions that exist here, dismissing one first."""
+        r = agent(["discover", "--json"], capture_output=True, text=True)
+        try:
+            ids = [i["id"] for i in json.loads(r.stdout).get("items") or [] if not i.get("dismissed")]
+        except Exception:
+            ids = []
+        if len(ids) < 2:
+            return cmds
+        agent(["discover", "dismiss", ids[1]], capture_output=True)
+        return [c.replace("port:5432", ids[0]).replace("port:8081", ids[1]) for c in cmds]
 
     # --- special screens ---------------------------------------------------------
     def screen_first_start(self):
@@ -167,14 +205,20 @@ class Walk:
         self.run_command("orion-agent maintenance up")
         print(f"\n{DIM}\"Not enrolled\" and \"No recent report\" need a Core with authentication on or an 11 minute wait: host only.{RESET}")
 
-    def screen_with_config(self, extra_yaml_by_cmd):
+    def screen_with_config(self, configs_by_cmd):
+        """Run each command with the daemon started on a small config of its own, then put the real config back."""
         path = f"{WORK}/config.yaml"
         backup = open(path).read()
         try:
-            for cmd, extra in extra_yaml_by_cmd:
-                open(path, "w").write(backup.rstrip("\n") + "\n" + extra)
+            for cmd, extra in configs_by_cmd:
+                self.stop_daemon()
+                open(path, "w").write(f"core_url: {CORE}\n{extra}")
+                self.start_daemon()
+                self.wait_connected()
+                time.sleep(2)  # let the first scan finish
                 self.run_command(cmd)
         finally:
+            self.stop_daemon()
             open(path, "w").write(backup)
 
     # --- one screen --------------------------------------------------------------
@@ -185,8 +229,12 @@ class Walk:
             return "setup-group"
         if board == "CLI, install script":
             return "host"
+        if name.startswith("agent offline"):
+            return "\"offline since\" appears after several minutes without a report, so it is not reproduced here"
         if board == "CLI, log viewer":
             return "needs log shipping with an ingest key from the Console: host only"
+        if name == "config edit" and not sys.stdin.isatty():
+            return "opens your editor, so it needs a terminal"
         if board == "CLI, update and rollback" or (board.startswith("CLI, start, stop") and name != "run"):
             return "host"
         fresh = board == "CLI, setup" or name == "enroll" or board == "CLI, output modes and exit codes" and name == "accessible prompts"
@@ -200,9 +248,6 @@ class Walk:
             self.reset()
             if name == "enroll":
                 print(f"{DIM}Token to type when asked: play{RESET}")
-        elif name.startswith("agent offline"):
-            self.ensure_running()
-            self.stop_core()
         else:
             self.ensure_running()
         if name.startswith("scanning off"):
@@ -216,10 +261,10 @@ class Walk:
             finally:
                 ENV.pop("ORION_CORE_URL", None)
             return None
+        if name.startswith("dismissed"):
+            cmds = self.with_real_ids(cmds)
         for c in cmds:
             self.run_command(c)
-        if name.startswith("agent offline"):
-            self.start_core()
         return None
 
 
@@ -263,7 +308,8 @@ def main():
                     break
                 if ans != "s":
                     walk.reset()
-                    sh("orion-agent setup", preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+                    with IgnoreInterrupt():
+                        sh("orion-agent setup", preexec_fn=child_default_sigint)
             elif skip_reason == "host":
                 print(f"{DIM}Needs a real server (service manager, root or a release): shown above, not run here.{RESET}")
             elif skip_reason and skip_reason != "skipped":
