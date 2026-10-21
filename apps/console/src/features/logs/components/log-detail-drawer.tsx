@@ -96,7 +96,7 @@ const ServiceDetail = ({
           />
           {data.app_name ??
             (data.attributes as { component?: string } | undefined)?.component ??
-            "node"}
+            "Node"}
         </Meta>
         {data.request_id && (
           <Meta

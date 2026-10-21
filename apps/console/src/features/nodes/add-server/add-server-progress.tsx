@@ -12,7 +12,7 @@ export const AddServerProgress = ({ enrollment }: { enrollment: ApiEnrollmentRes
       <RaisedCard>
         <StepRows
           rows={[
-            { tone: "idle", title: "Download and verify the node" },
+            { tone: "idle", title: "Download and verify the Node" },
             { tone: "idle", title: "Register this server with Core" },
             { tone: "idle", title: "Run orion-node doctor" },
             {

@@ -82,7 +82,7 @@ export const NodeList = () => {
       <div className="mt-3 flex min-h-[207px] flex-col items-center justify-center gap-1 rounded-xl border border-hairline bg-card px-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         <b className="text-[15px] font-medium">No servers yet</b>
         <p className="text-[13px] text-mid">
-          Install the node to get CPU, memory, disk and process monitors.
+          Install the Node to get CPU, memory, disk and process monitors.
         </p>
         <Link to="/servers/new" className="mt-3">
           <Button size="sm">Add your first server</Button>

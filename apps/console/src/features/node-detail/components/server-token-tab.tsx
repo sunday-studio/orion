@@ -194,7 +194,7 @@ export const ServerTokenTab = ({ nodeId, name }: { nodeId: string; name: string 
           )}
           {issued?.action === "rotate" && (
             <Callout tone="warn">
-              The old token keeps working for 10 minutes, so you can update the node without a gap.
+              The old token keeps working for 10 minutes, so you can update the Node without a gap.
             </Callout>
           )}
           <label className="flex items-center gap-2 text-[13px]">

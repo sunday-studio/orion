@@ -36,7 +36,7 @@ const status = (definition: {
   if (definition.state === "failed") return { tone: "down" as const, text: "Could not apply" };
   return definition.delivered_at
     ? { tone: "degraded" as const, text: "Waiting for first check" }
-    : { tone: "degraded" as const, text: "Waiting for the node" };
+    : { tone: "degraded" as const, text: "Waiting for the Node" };
 };
 
 /** Monitors added from Detected: requested, applied by the node, then reporting. */

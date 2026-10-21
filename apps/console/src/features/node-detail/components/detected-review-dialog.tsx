@@ -43,7 +43,7 @@ export const DetectedReviewDialog = ({
             ?
           </DialogTitle>
           <DialogDescription>
-            Orion creates the monitors now. The node picks them up in about a minute.
+            Orion creates the monitors now. The Node picks them up in about a minute.
             {storage.length > 0 && " Directories are only tracked for size, with no alerts."}
           </DialogDescription>
         </DialogHeader>

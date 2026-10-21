@@ -186,7 +186,7 @@ export const AddServerPage = () => {
             </div>
           </FieldPanel>
         )}
-        <FieldPanel title="Waiting for the node" aside="Usually under 30 seconds">
+        <FieldPanel title="Waiting for the Node" aside="Usually under 30 seconds">
           <RaisedCard className="flex items-center gap-3 px-4 py-3">
             <span aria-hidden className="size-2 shrink-0 rounded-full bg-faint" />
             <p className="text-[13px] text-mid">

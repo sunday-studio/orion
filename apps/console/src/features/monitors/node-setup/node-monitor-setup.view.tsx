@@ -109,8 +109,8 @@ export const NodeMonitorSetupPage = () => {
   return (
     <div className="w-full pb-8">
       <PageHeader
-        title="New node monitor"
-        description="Runs on your server through the node and reports to Core."
+        title="New Node monitor"
+        description="Runs on your server through the Node and reports to Core."
         actions={
           <Link to="/monitors">
             <Button size="sm" variant="secondary">
@@ -120,7 +120,7 @@ export const NodeMonitorSetupPage = () => {
         }
       />
       <div className="mt-3 flex flex-col gap-3">
-        <FieldPanel title="Server" aside="Only servers with a healthy node">
+        <FieldPanel title="Server" aside="Only servers with a healthy Node">
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             Server
             <Select
@@ -189,7 +189,7 @@ export const NodeMonitorSetupPage = () => {
               </b>
               <span className="text-right text-xs text-faint">
                 {created
-                  ? "The node picks it up when it next syncs its definitions."
+                  ? "The Node picks it up when it next syncs its definitions."
                   : "Appears after you create the monitor."}
               </span>
             </div>

@@ -36,7 +36,7 @@ const describe = (request: ServiceNodeDiscoveryRequestView) => {
       return {
         tone: "down" as const,
         badge: "Failed",
-        words: request.result || "The node could not do this",
+        words: request.result || "The Node could not do this",
       };
     case "expired":
       return { tone: "stale" as const, badge: "Expired", words: "Nothing changed on the server" };
@@ -57,7 +57,7 @@ const describe = (request: ServiceNodeDiscoveryRequestView) => {
           }
         : {
             tone: "degraded" as const,
-            badge: "Waiting for the node",
+            badge: "Waiting for the Node",
             words: `Requested at ${formatDate(request.created_at, "HH:mm")}`,
           };
   }

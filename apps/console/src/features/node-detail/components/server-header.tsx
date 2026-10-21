@@ -52,7 +52,7 @@ export const ServerHeader = ({ node, nodeVersion, now, onEdit, onToken }: Props)
   const state = serverState(node);
   const parts = [
     platformLabel(node),
-    nodeVersion ? `node ${nodeVersion}` : undefined,
+    nodeVersion ? `Node ${nodeVersion}` : undefined,
     state === "up" && node.uptime_seconds
       ? `up ${formatSpan(0, node.uptime_seconds * 1000, false, true).split(" ")[0]}`
       : undefined,

@@ -33,13 +33,7 @@ import { DetectedSettings } from "./detected-settings";
 const OPEN = ["queued", "delivered"];
 
 /** "Detected on this server": what the node found, accept it, dismiss it or change what is scanned. */
-export const DetectedTab = ({
-  nodeId,
-  onOpenApps,
-}: {
-  nodeId: string;
-  onOpenApps: () => void;
-}) => {
+export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps: () => void }) => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const query = useGetNodeDiscovery(nodeId);
@@ -104,7 +98,7 @@ export const DetectedTab = ({
         r.type === "track_storage" &&
         (r.payload?.paths as string[] | undefined)?.includes(id?.replace(/^storage:/, "") ?? ""),
     );
-    if (tracking) return "Waiting for the node";
+    if (tracking) return "Waiting for the Node";
     const hit = open.find(
       (r) =>
         (r.type === "dismiss" || r.type === "ignore" || r.type === "restore") &&
@@ -166,7 +160,7 @@ export const DetectedTab = ({
       <EmptyState
         className="rounded-xl border-solid bg-card"
         title="No scan reported yet"
-        description="The node sends what it finds after its first scan. Older nodes do not send one, update the node or add monitors by hand."
+        description="The Node sends what it finds after its first scan. Older Nodes do not send one, update the Node or add monitors by hand."
         action={
           <Link to="/monitors/new/node">
             <Button variant="secondary">Create monitor</Button>

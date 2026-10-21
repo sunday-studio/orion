@@ -12,7 +12,7 @@ export const AddServerFailed = ({
   <>
     <PageHeader
       title="We have not seen the server yet"
-      description="No node registered in 5 minutes."
+      description="No Node registered in 5 minutes."
       actions={
         <Button size="sm" variant="secondary" onClick={onStartOver}>
           Start over
@@ -44,7 +44,7 @@ export const AddServerFailed = ({
               },
               {
                 tone: "idle",
-                title: "Is the node running?",
+                title: "Is the Node running?",
                 detail: "systemctl status orion-node",
               },
             ]}
