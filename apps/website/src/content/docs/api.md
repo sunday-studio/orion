@@ -12,9 +12,9 @@ Core exposes a JSON API under `/v1`. The complete contract is the OpenAPI docume
 |---|---|
 | Console and admin API | Sign in with the admin account, then use the session token. |
 | Apps sending logs | An ingest key: `Authorization: Bearer orion_ik_...`. Write-only, for one app. |
-| Nodes | A per-node token issued at registration. |
+| Nodes | A per-Node token issued at registration. |
 
-An ingest key cannot read logs or touch monitors, and a node token cannot ingest as an app.
+An ingest key cannot read logs or touch monitors, and a Node token cannot ingest as an app.
 
 ## Common endpoints
 

@@ -58,7 +58,7 @@ orion-node discover restore port:5432
 
 </Cmd>
 
-<Cmd name="orion-node doctor" desc="Check the node, Core, discovery, logs and disk, and print the exact fix for anything wrong.">
+<Cmd name="orion-node doctor" desc="Check the Node, Core, discovery, logs and disk, and print the exact fix for anything wrong.">
 
 Exit code 1 when a check fails. `--json` lists each check with id, group, status, message and fix.
 
@@ -68,7 +68,7 @@ orion-node doctor
 
 </Cmd>
 
-<Cmd name="orion-node logs" desc="Read node logs, or follow the logs shipped to Core in a full-screen viewer." open>
+<Cmd name="orion-node logs" desc="Read Node logs, or follow the logs shipped to Core in a full-screen viewer." open>
 
 | Flag | What it does |
 |---|---|
@@ -108,7 +108,7 @@ orion-node config validate
 orion-node config edit
 ```
 
-`edit` opens your editor on a copy, checks it, shows what changed and asks before saving. The running node reloads the new config.
+`edit` opens your editor on a copy, checks it, shows what changed and asks before saving. The running Node reloads the new config.
 
 </Cmd>
 
@@ -149,7 +149,7 @@ sudo orion-node update --rollback
 
 </Cmd>
 
-<Cmd name="orion-node token apply" desc="Apply a replacement token when the node can no longer authenticate. Identity and monitors are kept.">
+<Cmd name="orion-node token apply" desc="Apply a replacement token when the Node can no longer authenticate. Identity and monitors are kept.">
 
 ```sh
 orion-node token apply --token-file /secure/path/replacement-token
