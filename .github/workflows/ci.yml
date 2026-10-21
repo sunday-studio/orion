@@ -60,7 +60,7 @@ jobs:
               - '.golangci.yml'
               - 'apps/core/**'
               - 'deploy/docker-compose.yml'
-              - 'deploy/examples/core-console-compose.yaml'
+              - 'deploy/docker-compose.yml'
               - 'Makefile'
               - '.github/workflows/ci.yml'
             deploy:
