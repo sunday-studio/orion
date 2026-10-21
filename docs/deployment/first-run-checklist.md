@@ -12,7 +12,7 @@ healthy service, a forced failing service, Console verification, and reset comma
 
 ```sh
 curl -fsSL -o orion-compose.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
 ```
 
 - [ ] Create `.env` next to `orion-compose.yaml` and set real values for:

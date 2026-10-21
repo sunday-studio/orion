@@ -3,7 +3,7 @@
 Run the bundled Core and Console example from this repository:
 
 ```sh
-cd deploy/examples
+cd deploy
 ADMIN_PASSWORD="$(openssl rand -base64 24)"
 JWT_SECRET="$(openssl rand -base64 32)"
 cat > .env <<EOF
@@ -12,7 +12,7 @@ ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=$ADMIN_PASSWORD
 ORION_JWT_SECRET=$JWT_SECRET
 EOF
-docker compose -f ./core-console-compose.yaml up -d
+docker compose -f ./docker-compose.yml up -d
 curl http://localhost:8999/health
 ```
 

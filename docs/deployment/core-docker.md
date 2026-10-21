@@ -36,7 +36,7 @@ Download the sample Compose file:
 
 ```sh
 curl -fsSL -o orion-compose.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
 ```
 
 Pin a release image and set admin credentials in the same directory:
@@ -163,12 +163,13 @@ services:
 An official optional Playwright worker image or sidecar is intentionally deferred until the browser
 sandbox, browser set, and artifact retention policy are versioned as a separate runtime contract.
 
-From this repository, you can run the example after creating `deploy/examples/.env` with the same
-auth variables:
+From this repository, you can run it after creating `deploy/.env` (copy `deploy/.env.example` and set
+the password and JWT secret):
 
 ```sh
-cd deploy/examples
-docker compose -f ./core-console-compose.yaml up -d
+cd deploy
+cp .env.example .env     # then edit .env
+docker compose up -d
 ```
 
 When Core serves the bundled Console, browser API calls stay on the same origin and do not need
@@ -214,7 +215,7 @@ docker run -d \
 
 ## Runtime Example
 
-The copyable sample Compose file lives at `deploy/examples/core-console-compose.yaml`.
+The Compose file lives at `deploy/docker-compose.yml`; every setting is documented in `deploy/.env.example`.
 
 Start or update Core:
 
