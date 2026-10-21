@@ -20,7 +20,14 @@ import {
   useGetAgentDiscovery,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
-import { canAccept, groupItems, kindTitle, monitorDefinition } from "../detected-model";
+import {
+  acceptHint,
+  canAccept,
+  groupItems,
+  kindTitle,
+  managedLabel,
+  monitorDefinition,
+} from "../detected-model";
 
 const confidenceTone = (confidence?: string) =>
   confidence === "high" ? "up" : confidence === "medium" ? "degraded" : "unknown";
@@ -45,13 +52,14 @@ const Item = ({
     <span className="min-w-0">
       <b className="block truncate font-medium">{item.name}</b>
       {item.detail && <small className="block truncate text-xs text-quiet">{item.detail}</small>}
+      {!selectable && item.status !== "monitored" && !item.dismissed && (
+        <small className="block truncate text-xs text-faint">{acceptHint(item)}</small>
+      )}
     </span>
     <span className="flex items-center gap-1.5">
       {item.new && <StatusBadge status="info">New</StatusBadge>}
       {item.status === "monitored" ? (
-        <StatusBadge status="up">
-          {item.managed_in === "file" ? "In config file" : "Monitored"}
-        </StatusBadge>
+        <StatusBadge status="up">{managedLabel(item.managed_in)}</StatusBadge>
       ) : item.dismissed ? (
         <StatusBadge status="stale">Dismissed</StatusBadge>
       ) : (

@@ -1,23 +1,23 @@
 import type { ApiAgentMonitorDefinitionRequest, ServiceAgentDiscoveryItem } from "@/orion-sdk";
 
-/** Group titles in display order; anything the agent reports that is not listed is shown last. */
-export const KIND_GROUPS: { match: RegExp; title: string }[] = [
-  { match: /^(systemd|service)s?$/i, title: "Services" },
-  { match: /^(docker|container)s?$/i, title: "Containers" },
-  { match: /^pm2$/i, title: "Apps (pm2)" },
-  { match: /^(port|listen)s?$/i, title: "Ports" },
-  { match: /^(disk|mount)s?$/i, title: "Disks" },
-  { match: /^(log|logfile)s?$/i, title: "Logs" },
-  { match: /^(process|proc)(es)?$/i, title: "Processes" },
-];
+/** The seven kinds the agent reports, in display order. */
+const KINDS = [
+  { kind: "service", title: "Services" },
+  { kind: "container", title: "Containers" },
+  { kind: "pm2", title: "Apps (pm2)" },
+  { kind: "port", title: "Ports" },
+  { kind: "disk", title: "Disks" },
+  { kind: "log", title: "Logs" },
+  { kind: "storage", title: "Storage" },
+] as const;
 
 export const kindTitle = (kind?: string) =>
-  KIND_GROUPS.find((group) => group.match.test(kind ?? ""))?.title ??
+  KINDS.find((group) => group.kind === kind)?.title ??
   `${(kind ?? "Other").charAt(0).toUpperCase()}${(kind ?? "other").slice(1)}`;
 
 const kindRank = (kind?: string) => {
-  const index = KIND_GROUPS.findIndex((group) => group.match.test(kind ?? ""));
-  return index === -1 ? KIND_GROUPS.length : index;
+  const index = KINDS.findIndex((group) => group.kind === kind);
+  return index === -1 ? KINDS.length : index;
 };
 
 export const groupItems = (items: ServiceAgentDiscoveryItem[]) => {
@@ -30,33 +30,44 @@ export const groupItems = (items: ServiceAgentDiscoveryItem[]) => {
 };
 
 /**
- * Core can turn disk, memory, process and port suggestions into monitor definitions today.
- * Services, containers, pm2 apps and log sources are applied from the agent's config.
+ * Core can turn disk and port suggestions into monitor definitions (memory and process exist
+ * too, but the agent never suggests them). Services, containers and pm2 apps need new definition
+ * types, log sources need an ingest key and storage paths are tracked by the agent.
  */
 export const monitorDefinition = (
   item: ServiceAgentDiscoveryItem,
 ): ApiAgentMonitorDefinitionRequest | undefined => {
   const name = item.name ?? "";
-  const kind = item.kind ?? "";
-  if (/^(disk|mount)s?$/i.test(kind)) {
+  if (item.kind === "disk") {
     return {
       check_type: "disk",
       name: `Disk ${name}`,
       params: { path: name, threshold_percent: 90 },
     };
   }
-  if (/^(port|listen)s?$/i.test(kind)) {
-    const port = Number(/\d{2,5}/.exec(`${name} ${item.detail ?? ""}`)?.[0]);
+  if (item.kind === "port") {
+    const port = Number(/\d{1,5}/.exec(item.id?.replace(/^port:/, "") ?? name)?.[0]);
     return port ? { check_type: "port", name: `Port ${port}`, params: { port } } : undefined;
-  }
-  if (/^(process|proc)(es)?$/i.test(kind)) {
-    return { check_type: "process", name: `Process ${name}`, params: { process_name: name } };
   }
   return undefined;
 };
 
 export const canAccept = (item: ServiceAgentDiscoveryItem) =>
-  item.status !== "monitored" &&
-  !item.dismissed &&
-  !item.managed_in?.includes("file") &&
-  Boolean(monitorDefinition(item));
+  item.status !== "monitored" && !item.dismissed && Boolean(monitorDefinition(item));
+
+/** Why a suggestion has no checkbox. */
+export const acceptHint = (item: ServiceAgentDiscoveryItem) =>
+  item.kind === "log"
+    ? "Needs an ingest key, set up with orion-agent setup"
+    : item.kind === "storage"
+      ? "Tracked by the agent, set up with orion-agent setup"
+      : "Accept with orion-agent setup";
+
+export const managedLabel = (managedIn?: string) =>
+  managedIn === "file"
+    ? "Managed in file"
+    : managedIn === "console"
+      ? "Managed in Console"
+      : managedIn === "scan"
+        ? "Accepted from scan"
+        : "Monitored";
