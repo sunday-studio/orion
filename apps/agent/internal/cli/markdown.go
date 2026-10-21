@@ -15,8 +15,11 @@ func sanitizeMarkdown(s string) string {
 		if r == '\n' || r == '\t' {
 			return r
 		}
-		if r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) {
+		switch {
+		case r < 0x20, r == 0x7f, r >= 0x80 && r < 0xa0:
 			return -1
+		case r == 0x2028, r == 0x2029, r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+			return -1 // line separators and bidi overrides can make text read differently from what it is
 		}
 		return r
 	}, s)
