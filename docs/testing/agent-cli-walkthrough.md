@@ -41,7 +41,7 @@ ingest key. These are expected here; each affected row says so.
 
 | Screen | Run | Compare |
 |---|---|---|
-| Not enrolled | `oa status` first, before anything else | Chip "Not enrolled" and `orion-agent setup` |
+| Not running | `oa status` first, before anything else | Chip "Not running", "the service is not installed", next `orion-agent service install`. The "Not enrolled" chip needs a running daemon with no registration, which this sandbox cannot produce (with authentication off the daemon registers itself); host only |
 | Connect | `oa setup` (token: any text, for example `play`) | Step 1 of 3, Core address with reachable check, masked one-time token, key hints |
 | Choose | continue the same flow | Grouped panels (Services, Containers, Ports, Disks), `already monitored` rows, confidence column |
 | Scan settings | open it from Choose | Kinds on/off, report toggle |
@@ -50,18 +50,17 @@ ingest key. These are expected here; each affected row says so.
 | Accessible | `ACCESSIBLE=1 oa setup` on a terminal | Plain line prompts, no animation (a flag-driven run such as `--dry-run` never prompts) |
 | Non-interactive | `oa setup --core-url $CORE --accept-discovered --yes --init-state` | Checklist: Scanned, Accepted, Skipped, Config written, State |
 
-The interactive flow enrols the host in its Connect step, so after it the host is enrolled and part 2's
-enrol rows show "Already enrolled". To see the enrol screens fresh, start over (see above) and use the
+The interactive flow enrols the host when you confirm Apply (the Connect step only checks Core and the token), so after it part 2's enrol rows show "Already enrolled". To see the enrol screens fresh, start over (see above) and use the
 non-interactive setup, which only writes the config.
 
-## 2. Not enrolled, enrol, waiting, then start the agent
+## 2. Enrol, then start the agent
 
 | Screen | Run | Compare |
 |---|---|---|
 | Enroll | `oa enroll --core-url $CORE --token play` | Reachable, Token accepted, Enrolled as … |
 | Enroll again | run it again | "Already enrolled", nothing to do |
-| Waiting | `oa status` now, before the daemon runs | "Waiting, first report is due within 30 s" |
-| Start the agent | terminal 2: `oa run` | Checklist, then one dim line "Running and reporting" (not on the board) |
+| Waiting | run `oa status` immediately after `oa run` starts | "Waiting, first report is due within 30 s"; the window is only a few seconds, so it is easy to miss. Before the daemon runs, `oa status` says "not running" |
+| Start the agent | terminal 2: `oa run` (enrol first, as above: with authentication off `oa run` also registers on its own, and then `oa enroll` only says "Already enrolled") | Checklist, then one dim line "Running and reporting" (not on the board) |
 | Run once | stop it first, then `oa run --once` | Config loaded, State, Registered, One collection cycle complete |
 
 Then leave `oa run` going in terminal 2 for everything below.
