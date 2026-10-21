@@ -11,7 +11,7 @@ The supported self-hosted setup is:
 - [Core Docker deployment](core-docker.md)
 - [Running the Node as a container](node-container.md)
 - [Kubernetes position](kubernetes-position.md)
-- [Server install and upgrade](node-install-upgrade.md)
+- [Install and manage a Node](node-install-upgrade.md)
 - [Node configuration reference](node-config-reference.md)
 - [Upgrade notes: the agent is now the node](upgrade-notes-node-rename.md)
 - [Release readiness gate](release-readiness.md)

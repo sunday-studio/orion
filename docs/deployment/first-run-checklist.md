@@ -52,14 +52,16 @@ http://192.168.x.y:8999
 http://100.x.y.z:8999
 ```
 
-- [ ] Install with a minimal config:
+- [ ] Install from the Console: **Servers, Add server**, pick the platform and run the command it shows
+  on the Server machine. It carries a one-time token, so nothing else needs to be set:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --core-url http://orion-core.local:8999
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo ORION_ENROLLMENT_TOKEN='orn_enr_...' bash -s -- --core-url http://orion-core.local:8999
 ```
 
-Use the Core URL this Server host can reach.
+Use the Core URL this Server host can reach. The expected output is in
+[Install and manage a Node](node-install-upgrade.md).
 
 - [ ] Or install with the sample config:
 
@@ -67,8 +69,8 @@ Use the Core URL this Server host can reach.
 curl -fsSL -o orion-node-config.yaml \
   https://github.com/sunday-studio/orion/releases/latest/download/orion-node-config.yaml
 
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --config ./orion-node-config.yaml
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo ORION_ENROLLMENT_TOKEN='orn_enr_...' bash -s -- --config ./orion-node-config.yaml
 ```
 
 - [ ] Confirm the Server service is running.

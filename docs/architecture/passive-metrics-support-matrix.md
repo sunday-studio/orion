@@ -1,6 +1,6 @@
 # Passive App Resource Metrics: Support Matrix
 
-Spike D1 for [node-cli-plan.md](../plans/node-cli-plan.md). Status: findings, decisions for D2 at the end. Date: 2026-10-17.
+Spike D1 for [node-cli-plan.md](../plans/agent-cli-plan.md). Status: findings, decisions for D2 at the end. Date: 2026-10-17.
 
 Goal (D-017): measure what an app costs (CPU, memory, disk, network, storage) from the outside, with no app change, no key, and no elevated daemon privilege (D-016, plan principle 5).
 

@@ -1,322 +1,327 @@
-# Server Install And Upgrade
+# Install and manage a Node
 
-Install the Server on every Linux or macOS machine you want Orion to monitor. Core should already
-be running from the Docker image before installing Servers.
+A **Node** is the small program that runs on each machine you want Orion to watch. It reports the
+machine's health to Core, runs the checks you choose, and sends its own logs. Install one on every
+Linux or macOS machine you want to monitor. Core has to be running first; see
+[Set up Core on a new server with Docker](docker-new-server.md).
 
-This guide uses **Server** for the product concept. The installed binary, service names, release
-assets, and several local paths still use `orion-node` or `node` for compatibility with existing
-installs and automation. Do not rename those paths during routine installs or upgrades.
+What you need:
 
-## Paths
+- a Linux machine with systemd, or a macOS machine, on amd64 or arm64 (Windows is not supported);
+- `curl`, and `sudo` rights on the machine;
+- a Core address the machine can reach (the Node only makes outbound connections; open no port on it).
 
-Linux:
+> **Running the Node in a container is not supported yet.** It is deferred (decision D-031). A
+> container image builds and runs, but it has only been tested on a desktop Docker, and it cannot see
+> services, containers or pm2 apps. Install the Node on the host as described here. The state of the
+> container image is written up in [Running the Node as a container](node-container.md).
 
-- binary: `/usr/local/bin/orion-node`;
-- config: `/etc/orion/config.yaml`;
-- state: `/var/lib/orion/state.db`;
-- log: `/var/log/orion/node.log`;
-- service: `/etc/systemd/system/orion-node.service`.
+## 1. Install
 
-macOS:
-
-- binary: `/usr/local/bin/orion-node`;
-- config: `/usr/local/etc/orion/config.yaml`;
-- state: `/usr/local/var/lib/orion/state.db`;
-- log: `/usr/local/var/log/orion/node.log`;
-- service: `/Library/LaunchDaemons/com.orion.node.plist`.
-
-## Install With Minimal Config
-
-Use this when you only want the Server to register and report basic host metrics first:
+In the Console open **Servers**, choose **Add server**, pick Linux or macOS and copy the command it
+shows. It has a one-time token in it and looks like this:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --core-url https://core.your-domain.tld
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo ORION_ENROLLMENT_TOKEN='orn_enr_...' bash -s -- --core-url 'https://orion.example.com'
 ```
 
-The installer uses `sudo` only when it needs to install the service. Use a Core URL the Server host
-can reach.
+On macOS the command has no `sudo`; the installer asks for your password when it needs it. Run the
+command on the machine you want to watch. The token works once and expires after 15 minutes.
 
-Common examples:
+You should see this (Linux; on macOS the Service line says `launchd daemon, runs as user _orion`):
 
-- `http://orion-core.local:8999`;
-- `http://192.168.x.y:8999`;
-- `http://100.x.y.z:8999` on Tailscale;
-- `https://orion.example.com` behind a reverse proxy.
+```text
+ ◆ Orion Node installer                                  0.2.0 · linux/arm64 · systemd
 
-## Install With Sample Config
+   ✓ Downloaded                    14.4 MB
+   ✓ Verified                      sha256, signature not checked
+   ✓ Installed                     /usr/local/bin/orion-node
+   ✓ Service                       systemd unit, runs as user orion
+   ✓ Enrolled                      web-01 with orion.example.com
+ ╭ web-01 is connected ──────────────────────────────────────────────────────────── ● ╮
+ │ Doctor       ✓ 13 passed                                                           │
+ │ Collecting   CPU · memory · disk · network · load · uptime  (no setup needed)      │
+ │ Detected     2 things to monitor                                                   │
+ │                                                                                    │
+ │ ▸ orion-node setup   or open https://orion.example.com/servers                     │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
 
-Download the sample config:
+  No questions were asked. Setup is optional; host metrics are already reporting.
+```
+
+Your numbers, names and version will differ. The installer downloads the Node, checks its checksum,
+installs it as a service, registers the machine with Core and starts it. It asks no questions.
+
+**Check it.** The machine appears under **Servers** in the Console within a minute. On the machine:
 
 ```sh
-curl -fsSL -o orion-node-config.yaml \
-  https://github.com/sunday-studio/orion/releases/latest/download/orion-node-config.yaml
+orion-node status
 ```
 
-Edit:
-
-- `core_url`;
-- `meta.title`;
-- monitor names and thresholds;
-- any host-specific paths, ports, services, or Docker container names.
-
-Then install:
+```text
+web-01 [up] connected to orion.example.com
+last report 22:38:23 (10 s ago), queue 0 pending
+next: orion-node setup (2 suggestions waiting)
+```
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --config ./orion-node-config.yaml
+orion-node doctor
 ```
 
-Use `--overwrite-config` when replacing an already installed config. Use `--no-start` to install
-files without starting the service.
+```text
+  [ok]   Config           /etc/orion/config.yaml
+  [ok]   Service          systemd · pid 229
+  [ok]   State database   /var/lib/orion/state.db
+  [ok]   Version          0.2.0
+  [ok]   DNS              orion.example.com resolves to 203.0.113.10
+  [ok]   TLS              valid until Jan 2, 2027
+  [ok]   Core reachable   orion.example.com 24 ms
+  [ok]   Token            valid, node web-01
+  [ok]   Clock skew       +0.7 s (limit 5 s)
+  [ok]   Last scan        22:33 · found 2 things
+  [skip] Scan access      nothing blocked
+  [ok]   Log access       can read /var/log/orion/node.log
+  [ok]   Log sources      no product log sources configured
+  [skip] Log keys         no log sources
+  [ok]   Spool            0 pending
+  [ok]   Disk space       384 GB free
 
-## What The Installer Does
-
-The bootstrap script:
-
-- detects Linux or macOS and CPU architecture;
-- downloads the matching Server release binary;
-- downloads the platform service files;
-- installs the Server binary, config, initialized state database, structured log file, and service;
-- starts the Server service unless `--no-start` is passed.
-
-Existing config and state files are kept during normal installs so the Server keeps the same local
-identity and monitor mappings. Pass `--overwrite-config` only when you intentionally want to replace
-the installed config.
-
-Re-running the installer on a host that already has Orion installed is treated as a repair or
-upgrade install. If only config or state paths remain from a previous uninstall, the installer
-treats the run as a reinstall. Both paths refresh the binary and service files, preserve config and
-`state.db` when present, normalize log file permissions, and start or restart the service unless
-`--no-start` is passed. A host that was installed and then stopped will come back with the same
-Server identity when the installer starts it again.
-
-By default, the release binary is downloaded from the latest GitHub release:
-
-```txt
-https://github.com/sunday-studio/orion/releases/latest/download/orion-node-<os>-<arch>
+  13 passed   0 warnings   0 failed   exit 0
 ```
 
-The Server binary reports its own baked version to Core. Pass `--version` when you want to pin the
-initial install to a specific release:
+`doctor` exits 0 when nothing failed and 1 when something did; each problem comes with the exact fix.
+You do not need to put `sudo` in front of `orion-node` commands: it asks for privileges itself when a
+command needs them.
 
-```txt
-https://github.com/sunday-studio/orion/releases/download/<version>/orion-node-<os>-<arch>
+### Installing without the Console's command
+
+You need the Core address and a way for the Node to register. Either use a one-time token from
+**Add server**, or the shared secret set as `ORION_ENROLLMENT_TOKEN` on Core (see
+[Enrollment secret](#enrollment-secret)):
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo ORION_ENROLLMENT_TOKEN='<token or shared secret>' bash -s -- --core-url https://orion.example.com
 ```
 
-## Post-Install Verification
+Useful options: `--version vX.Y.Z` pins a release, `--config ./file.yaml` installs your own config
+(start from [`orion-node-config.yaml`](https://github.com/sunday-studio/orion/releases/latest/download/orion-node-config.yaml),
+and see the [configuration reference](node-config-reference.md)), `--no-start` installs without
+starting, `--dry-run` prints what it would do, `--user` installs for the current user only (see
+[Per-user install](#per-user-install)). `orion-node-installer.sh --help` lists them all.
 
-After the service starts:
+## 2. Choose what to monitor
 
-- the service should be active with the Linux or macOS service command below;
-- `state.db` should exist in the platform state path;
-- the Server should appear once in the Console Servers view;
-- configured monitors should appear after their first interval;
-- restarting the Server should reuse the same Server and monitor records.
+A fresh Node already reports CPU, memory, disk, network, load and uptime. To also check services,
+containers, ports and disks, let it look at the machine and suggest what to watch. Nothing is added
+until you say so.
 
-If the service starts but nothing appears in Core, check that `core_url` is reachable from the
-monitored host and that the host clock is correct.
+```sh
+orion-node discover
+```
 
-## Token Recovery
+```text
+Discover: found on web-01, 2 things
+Services (1)
+  [ ] orion-node        Check it is running             medium
+Storage (1)
+  [ ] /var/lib/orion    Track the space it uses         medium
+```
 
-When Core rotates or reissues a Server token, apply the replacement token to the existing state
-database instead of re-registering:
+Pick what to monitor in a guided form, or accept every high-confidence suggestion in one go:
+
+```sh
+orion-node setup
+orion-node setup --accept-discovered --yes
+```
+
+```text
+  ok: Core reachable 2ms   Server token valid
+
+[ok]   Scanned: found 2 things
+[ok]   Accepted: 0 high-confidence
+[ok]   Config written: /etc/orion/config.yaml
+[ok]   Applied: no restart
+
+  --dry-run prints the diff and stops. Log sources always need a key.
+```
+
+`--dry-run` shows the change to the config and stops. The suggestions also appear in the Console
+under the server's **Detected** tab.
+
+## 3. Day to day
+
+| Command | What it does |
+|---|---|
+| `orion-node status` | Whether the Node is running and connected. `--short` is one line; `--watch` redraws live. |
+| `orion-node doctor` | Checks the config, Core, the token and the service, and says how to fix what is wrong. |
+| `orion-node logs` | Recent Node log lines. `--lines 200`, `--level error`, `--since 1h`. |
+| `orion-node usage` | What the machine's apps cost: CPU, memory, storage. |
+| `orion-node config show` | The settings in effect and where each came from. `config validate`, `config diff` and `config edit` too. |
+| `orion-node maintenance down "kernel upgrade" --for 1h` | Mute alerts for planned work; `orion-node maintenance up` ends it early. |
+| `orion-node restart` | Restart the service after editing the config. |
+
+Every command takes `--help`. `status`, `doctor`, `discover` and `config show` take `--json` for
+scripts. The [CLI cheat sheet](server-cli-cheatsheet.md) has the rest, including exit codes.
+
+## 4. Upgrade
+
+```sh
+orion-node update
+```
+
+```text
+   [ok] Downloaded                    14.4 MB
+   [ok] Checksum matches
+   [ok] Service stopped
+   [ok] Swapped binary
+   [ok] Healthy
+
+   [ok] Updated to 0.3.0 in 1 s
+     previous version kept · undo with orion-node update --rollback
+```
+
+It downloads the matching release, verifies its checksum, swaps the binary, restarts the service and
+waits until the Node reports healthy. Config and state are kept, so the machine keeps its identity;
+do not delete `state.db`. `orion-node update --version v0.3.0` installs a specific release.
+
+**Undo it:**
+
+```sh
+orion-node update --rollback
+```
+
+```text
+   [ok] Stopped service
+   [ok] Restored 0.2.0
+   [ok] Started and healthy
+
+   [ok] Rolled back to 0.2.0
+```
+
+**Repair a broken install** by running the installer again. It keeps the config and state, so the
+machine keeps its identity, and a Node that is already current is left alone:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo bash -s -- --core-url https://orion.example.com
+```
+
+**Coming from the old agent?** The Node used to be called the agent. Upgrade Core first, then run the
+installer on each server; see [Upgrade notes: the agent is now the node](upgrade-notes-node-rename.md).
+
+## 5. Uninstall
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo bash -s -- uninstall --yes
+```
+
+It stops the service and removes the binary and service file. Config, state and the service account
+are kept, so installing again later gives the same server identity. To remove everything, add
+`--purge`:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
+  | sudo bash -s -- uninstall --purge --yes
+```
+
+```text
+[03] Binary
+     ok: removed /usr/local/bin/orion-node
+
+[04] Config
+     ok: removed config directory
+
+[05] State
+     ok: removed state directory
+
+[06] Logs and runtime files
+     ok: removed /var/log/orion
+
+[07] Service account
+     ok: removed service user and group
+
+Orion Node uninstalled.
+```
+
+The server stays listed in the Console after an uninstall. Remove it there (open the server, choose
+**Remove server**) to drop it and decide what happens to its history.
+
+## Where things live
+
+| | Linux | macOS |
+|---|---|---|
+| Binary | `/usr/local/bin/orion-node` | `/usr/local/bin/orion-node` |
+| Config | `/etc/orion/config.yaml` | `/usr/local/etc/orion/config.yaml` |
+| State (identity, token) | `/var/lib/orion/state.db` | `/usr/local/var/lib/orion/state.db` |
+| Log | `/var/log/orion/node.log` | `/usr/local/var/log/orion/node.log` |
+| Service | `/etc/systemd/system/orion-node.service` | `/Library/LaunchDaemons/com.orion.node.plist` |
+| Runs as | user `orion` | user `_orion` |
+
+The service logs are JSON lines; `orion-node logs` prints them readably and falls back to
+`journalctl -u orion-node` (Linux) or `launchctl print system/com.orion.node` (macOS) when the log file
+is not there yet.
+
+## Per-user install
+
+`--user` installs without root for the current user: the binary goes to `~/.local/bin`, config to
+`~/.config/orion`, state to `~/.local/state/orion`, and the service is a systemd user unit or a launchd
+agent. Use it only where you cannot get root. Add `--user` to the installer and to the uninstall
+command. The service commands (`orion-node start`, `stop`, `restart`, `update`) are written for the
+system install and ask for `sudo`; for a per-user install manage the unit with `systemctl --user` or
+`launchctl`.
+
+## Docker monitors on Linux
+
+Docker container monitors call the local `docker` command, and the Node runs as the `orion` user, which
+cannot use Docker by default. Docker access is root-equivalent, so it is opt-in. To allow it:
+
+```sh
+sudo usermod -aG docker orion
+orion-node restart
+sudo -u orion docker ps   # should list containers
+```
+
+## Enrollment secret
+
+When Core sets `ORION_ENROLLMENT_TOKEN`, a machine can also register with that shared secret instead of
+a one-time token. Pass it exactly as in the install command above (`ORION_ENROLLMENT_TOKEN='...'`), so
+it never appears in a process list. The installer writes it into a newly generated config with
+mode `0600`. A Node that is already registered does not need it again, and the secret stops working for
+new machines if an administrator replaces it in the Console's settings.
+
+A Node keeps a `machine-identity.json` next to its state database. If that directory is copied to
+another host (a cloned VM or image) the machine id no longer matches and the copy registers as a new,
+distinct server instead of impersonating the original.
+
+## Token recovery
+
+If Core rotates or reissues a server's token, apply the replacement to the existing state instead of
+registering again:
 
 ```sh
 orion-node token apply --token-file /secure/path/replacement-token
 orion-node restart
 ```
 
-`token apply` preserves `node_id`, `core_url`, maintenance state, monitor mappings, and queued
-reports. Use it when an administrator gives you a replacement token for the same Server identity.
-Prefer `--token-file` so the replacement token does not land in shell history. The command does
-not print the replacement token.
-
-If Core rejects the stored token, the Server treats the authentication failure as terminal, stops
-reporting, exits with a non-zero status, and leaves local state intact for diagnostics.
-
-Use `orion-node reconfigure --token-file /secure/path/add-server-token` when the local Server
-credential was lost but the existing Server identity should be reconnected. The token must be a
-fresh one-time token from Console > Servers > Add server, not a rotated Server token. Reconfigure
-validates that authorization before stopping the service and keeps the previous local identity if
-Core refuses the reconnect. It does not move an enrolled Server between Core instances.
-
-## Service Commands
-
-Linux:
-
-```sh
-orion-node status
-orion-node doctor
-orion-node restart
-orion-node logs
-orion-node logs --lines 200
-orion-node logs --level error
-orion-node logs --since 1h
-```
-
-macOS:
-
-```sh
-orion-node status
-orion-node doctor
-orion-node restart
-orion-node logs
-orion-node logs --lines 200
-orion-node logs --level error
-orion-node logs --since 1h
-```
-
-Installed Server commands prompt for privileges when the operating system requires service,
-state database, or binary access. Read-only commands such as `status`, `logs`, and
-`config validate` avoid privilege prompts where possible. You do not need to prefix
-`orion-node` commands with `sudo`.
-
-Use `orion-node doctor` when the service does not start cleanly or the Server does not appear in
-Core. It checks service installation, config validity, state readability, log directory presence,
-Core reachability, and Docker socket presence. `status`, `doctor`, and `config show` support
-`--json` for automation.
-
-The service writes structured JSON Lines logs to the platform log path above. The
-`orion-node logs` command pretty-prints those entries and falls back to systemd or launchd
-diagnostics when the structured log file is not available yet.
-
-## Docker Monitors On Linux
-
-Docker container monitors call the local `docker` CLI. When the Server is installed as a systemd
-service, it runs as the `orion` user and needs permission to read `/var/run/docker.sock`.
-
-On Linux, the installer adds `orion` to the `docker` group when that group exists before the Server
-service starts. To verify Docker monitor access:
-
-```sh
-sudo -u orion docker inspect <container>
-```
-
-If your host uses a custom Docker socket path or rootless Docker, configure the environment and
-permissions so the `orion` user can run `docker inspect <container>` successfully. Without this,
-Docker monitors will report failures even when the containers are healthy.
-
-## Update
-
-Use the installed Server to update itself:
-
-```sh
-orion-node update
-```
-
-Pin a target release when needed:
-
-```sh
-orion-node update -version 0.1.2
-```
-
-The update command:
-
-- downloads the matching release binary for the host OS and CPU architecture;
-- backs up the current binary next to `/usr/local/bin/orion-node`;
-- replaces only the binary;
-- keeps the installed config and `state.db`;
-- resets service failure throttles;
-- starts the Server service;
-- prints service status and recent service logs.
-
-On Linux this includes the equivalent of:
-
-```sh
-sudo systemctl reset-failed orion-node
-sudo systemctl start orion-node
-sudo systemctl status orion-node --no-pager
-sudo journalctl -u orion-node -n 80 --no-pager
-```
-
-The Server identity and monitor mapping live in `state.db`, so updating the binary does not
-re-register the server unless that state file is removed.
-
-After an upgrade, confirm:
-
-- the service is active;
-- the Server still appears as the same Server in Console;
-- monitors were not duplicated;
-- new reports arrive after the configured Server and monitor intervals.
-
-Do not remove `state.db` during a normal upgrade. Removing it intentionally makes the Server
-register as a fresh local identity, although Core can reconcile duplicate monitor names during
-registration.
-
-## Rollback
-
-Use the update command with the previous release version:
-
-```sh
-orion-node update -version 0.1.1
-```
-
-The command restarts the service and prints status/logs after the rollback.
-
-If the installed binary is missing or cannot run, use the bootstrap installer again as a repair
-install. It keeps existing config and state by default:
-
-```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --core-url https://core.your-domain.tld
-```
-
-## Uninstall
-
-Uninstall from the published release:
-
-```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-uninstall.sh | sudo bash
-```
-
-Or run the helper from a local checkout:
-
-```sh
-sudo ./deploy/scripts/node-uninstall.sh
-```
-
-It stops the service and removes the binary and service files. Config, state, and the service
-account are kept by default unless you approve the prompts or pass explicit flags:
-
-```sh
-sudo ./deploy/scripts/node-uninstall.sh --keep-config --keep-state --keep-user
-sudo ./deploy/scripts/node-uninstall.sh --purge
-```
-
-Use the keep flags for a clean reinstall that preserves the Server identity. Use `--purge` only when
-you intentionally want to remove config, state, and the unused service account.
-
-## Tailscale And Local Networks
-
-For a home server deployment, prefer a stable local address for `core_url`:
-
-- Tailscale MagicDNS: `http://orion-core.tailnet-name.ts.net:8999`;
-- Tailscale IP: `http://100.x.y.z:8999`;
-- local DNS: `http://orion-core.local:8999`;
-- LAN IP: `http://192.168.x.y:8999`.
-
-Use HTTPS if Core is exposed outside a trusted local network. Keep Server traffic on Tailscale or a
-private LAN when possible.
-
-## Enrollment secret
-
-When Core sets `ORION_ENROLLMENT_TOKEN`, new nodes must present the same value when they first register. Export it before running the bootstrap or installer so it never appears in a process listing:
-
-```sh
-export ORION_ENROLLMENT_TOKEN='<secret>'
-curl -fsSL <bootstrap-url> | sudo -E bash -s -- --core-url https://core.example.com
-```
-
-The installer writes it as `enrollment_token` into a newly generated config (mode `0600`). A node that is already registered does not need it again. The node also reads `ORION_ENROLLMENT_TOKEN` from its environment, which overrides the config file.
-
-Node identity: the node keeps a `machine-identity.json` next to its state database. If that directory is copied to another host (a cloned VM or image) the hostname or `/etc/machine-id` no longer match and the node registers as a new, distinct node instead of impersonating the original.
+This keeps the server's identity, monitors and queued reports; prefer `--token-file` so the token stays
+out of shell history. If Core rejects the stored token, the Node stops reporting and leaves its state
+intact; `doctor` then says so and how to fix it. If the local credential was lost entirely, use
+`orion-node reconfigure --token-file /secure/path/add-server-token` with a fresh one-time token from
+**Add server**.
 
 ## Release integrity
 
-Every release publishes `SHA256SUMS` plus a keyless [cosign](https://docs.sigstore.dev/) signature (`SHA256SUMS.sig`, `SHA256SUMS.pem`) created by the `Server Binaries` workflow. The bootstrap installer always downloads `SHA256SUMS` and refuses to install if any downloaded asset (installer script, service files, node binary) is missing from it or does not match. If `cosign` is installed it also verifies the signature came from this repository's release workflow; pass `--require-signature` (or `ORION_REQUIRE_SIGNATURE=true`) to make that mandatory.
+Every release publishes `SHA256SUMS` plus a keyless [cosign](https://docs.sigstore.dev/) signature
+(`SHA256SUMS.sig`, `SHA256SUMS.pem`) made by the `Node Binaries` release workflow. The installer always
+downloads `SHA256SUMS` and refuses to install if a downloaded file is missing from it or does not match.
+If `cosign` is installed it also checks that the signature came from this repository's release workflow;
+pass `--require-signature` to make that mandatory.
 
-- Pin a version in production: `--version vX.Y.Z` (the installer warns when installing `latest`).
-- `curl ... | bash` runs the bootstrap script itself before any verification can happen. To close that gap, download `orion-node-installer.sh` and `SHA256SUMS` first, check the hash and signature yourself, then run the script.
-- `--skip-verify` exists only for releases published before checksums; it prints a loud warning.
+- Pin a version in production: `--version vX.Y.Z`.
+- `curl ... | bash` runs the installer before any verification can happen. To close that gap, download
+  `orion-node-installer.sh` and `SHA256SUMS`, check them yourself, then run the script.
+- `--skip-verify` exists only for releases published before checksums and prints a loud warning.
 - Mirrors and air-gapped installs can host the release files and set `ORION_RELEASE_BASE_URL`.
