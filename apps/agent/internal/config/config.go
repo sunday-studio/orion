@@ -169,7 +169,14 @@ type DiscoveryConfig struct {
 	Enabled *bool    `yaml:"enabled,omitempty"` // default true
 	Kinds   []string `yaml:"kinds,omitempty"`   // default: all of services, containers, pm2, ports, disks, logs, storage
 	Ignore  []string `yaml:"ignore,omitempty"`  // suggestion ids never to propose again, e.g. port:5432
+	// Report sends the latest scan (names of services, containers, ports, disks
+	// and log files found here, never their contents) to Core so the Console can
+	// show "Detected on this server". Default true; false keeps the scan local.
+	Report *bool `yaml:"report,omitempty"`
 }
+
+// IsReporting says whether scan results are sent to Core (default yes).
+func (d DiscoveryConfig) IsReporting() bool { return d.Report == nil || *d.Report }
 
 // IsEnabled reports whether scanning is on (default on).
 func (d DiscoveryConfig) IsEnabled() bool { return d.Enabled == nil || *d.Enabled }

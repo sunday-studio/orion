@@ -43,6 +43,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Control socket listening", Detail: server.Path()}}))
 	}
 
+	ctrl.scan.onScan = newDiscoveryReporter(store, ctrl.config).Report
 	go ctrl.scan.loop(ctx)
 	go ctrl.host.Run(ctx, 5*time.Second)
 

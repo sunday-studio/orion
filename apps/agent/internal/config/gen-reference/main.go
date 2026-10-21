@@ -112,11 +112,15 @@ discovery:
   kinds: [services, containers, pm2, ports, disks, logs, storage]   # leave a kind out to stop scanning it
   ignore:
     - port:5432            # never suggest this again (orion-agent discover ignore port:5432)
+  report: true             # false: keep the scan on this host (default sends it to Core for the Console)
 ` + "```" + `
 
 The scan is read-only. It proposes monitors and log sources; nothing is added until you apply it
 (` + "`orion-agent setup`" + `), and anything you dismiss or ignore stays declined across rescans. A
-hand-written monitor always wins: a matching suggestion shows as "already monitored". See
+hand-written monitor always wins: a matching suggestion shows as "already monitored". With
+` + "`report: true`" + ` the agent also sends the latest scan to Core so the Console can show "Detected on
+this server": only the names, ids and short details of what it found (service and container names,
+ports, mount points, log file paths), never their contents. See
 ` + "`orion-agent discover --help`" + `.
 
 ## Transport

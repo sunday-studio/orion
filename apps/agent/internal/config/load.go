@@ -455,6 +455,9 @@ func mergeSections(base, part *UserConfig) {
 	if part.Discovery.Enabled != nil {
 		base.Discovery.Enabled = part.Discovery.Enabled
 	}
+	if part.Discovery.Report != nil {
+		base.Discovery.Report = part.Discovery.Report
+	}
 	if len(part.Discovery.Kinds) > 0 {
 		base.Discovery.Kinds = part.Discovery.Kinds
 	}
