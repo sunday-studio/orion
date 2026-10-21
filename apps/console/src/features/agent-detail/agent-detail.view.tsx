@@ -20,6 +20,7 @@ import {
   useGetIncidents,
 } from "@/orion-sdk";
 import { AgentLogsTab } from "./components/agent-logs-tab";
+import { AppsTab } from "./components/apps-tab";
 import { DetectedTab } from "./components/detected-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { ServerEditDialog } from "./components/server-edit-dialog";
@@ -28,7 +29,7 @@ import { ServerOverviewTab } from "./components/server-overview-tab";
 import { ServerRemoveDialog } from "./components/server-remove-dialog";
 import { ServerTokenTab } from "./components/server-token-tab";
 
-const TABS = ["overview", "reports", "monitors", "detected", "token"] as const;
+const TABS = ["overview", "reports", "monitors", "apps", "detected", "token"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Old links used "logs" and "cpu"; they land on the matching new tab. */
@@ -104,6 +105,7 @@ export const AgentDetailPage = () => {
           <TabsTab value="overview">Overview</TabsTab>
           <TabsTab value="reports">Reports</TabsTab>
           <TabsTab value="monitors">Monitors</TabsTab>
+          <TabsTab value="apps">Apps</TabsTab>
           <TabsTab value="detected">
             Detected
             {(discovery?.suggested ?? 0) > 0 && <TabCount>{discovery?.suggested}</TabCount>}
@@ -123,8 +125,11 @@ export const AgentDetailPage = () => {
         <TabsPanel value="monitors">
           <AgentMonitorsTab agentId={agentId} />
         </TabsPanel>
+        <TabsPanel value="apps">
+          <AppsTab agentId={agentId} onOpenDetected={() => setTab("detected")} />
+        </TabsPanel>
         <TabsPanel value="detected">
-          <DetectedTab agentId={agentId} />
+          <DetectedTab agentId={agentId} onOpenApps={() => setTab("apps")} />
         </TabsPanel>
         <TabsPanel value="token">
           <ServerTokenTab agentId={agentId} name={agent.name ?? agentId} />
