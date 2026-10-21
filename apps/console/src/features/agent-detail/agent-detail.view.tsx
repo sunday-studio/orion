@@ -10,7 +10,7 @@ import {
   TabsPanel,
   TabsTab,
 } from "@/design-system";
-import type { ServerRow } from "@/features/agents/server-format";
+import { type ServerRow, serverState } from "@/features/agents/server-format";
 import { useNow } from "@/features/overview/overview-time";
 import { incidentLabel } from "@/features/incidents/incident-format";
 import {
@@ -126,7 +126,11 @@ export const AgentDetailPage = () => {
           <AgentMonitorsTab agentId={agentId} />
         </TabsPanel>
         <TabsPanel value="apps">
-          <AppsTab agentId={agentId} onOpenDetected={() => setTab("detected")} />
+          <AppsTab
+            agentId={agentId}
+            offline={["stale", "down"].includes(serverState(agent))}
+            onOpenDetected={() => setTab("detected")}
+          />
         </TabsPanel>
         <TabsPanel value="detected">
           <DetectedTab agentId={agentId} onOpenApps={() => setTab("apps")} />

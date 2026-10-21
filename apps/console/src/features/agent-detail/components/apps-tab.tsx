@@ -1,8 +1,13 @@
+import { MoreHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Button,
   EmptyState,
   FieldPanel,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
   RaisedCard,
   Segmented,
   Skeleton,
@@ -44,12 +49,19 @@ const StateRow = ({
 /** Per-app usage from the agent's latest report: top apps, tracked paths and Docker disk. */
 export const AppsTab = ({
   agentId,
+  offline,
   onOpenDetected,
 }: {
   agentId: string;
+  /** The server header already shows the agent as stale or down. */
+  offline: boolean;
   onOpenDetected: () => void;
 }) => {
   const toast = useToast();
+  const copy = (command: string) => {
+    void navigator.clipboard.writeText(command);
+    toast.add({ title: "Command copied" });
+  };
   const query = useGetAgentAppResources(agentId, { query: { refetchInterval: 30_000 } });
   const discovery = useGetAgentDiscovery(agentId).data?.discovery;
   const requests = useDiscoveryRequest(agentId);
@@ -91,16 +103,22 @@ export const AppsTab = ({
               tone="unknown"
               words="Update the agent, or turn it on in its config (app_resources)"
               action={
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    void navigator.clipboard.writeText("orion-agent config edit");
-                    toast.add({ title: "Command copied" });
-                  }}
-                >
-                  Copy command
-                </Button>
+                <Menu>
+                  <MenuTrigger
+                    aria-label="Actions"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-input-border bg-card px-2.5 text-[13px] outline-none hover:bg-sub focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    Actions <MoreHorizontal className="size-3.5 opacity-60" />
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem onClick={() => copy("orion-agent update")}>
+                      Copy update command
+                    </MenuItem>
+                    <MenuItem onClick={() => copy("orion-agent config edit")}>
+                      Copy config command
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
               }
             />
           )}
@@ -119,7 +137,7 @@ export const AppsTab = ({
       <StateRow
         key="stale"
         label="Stale"
-        badge={`Last report ${minutesAgo(data.reported_at)} min ago`}
+        badge={offline ? "Agent offline" : `Last report ${minutesAgo(data.reported_at)} min ago`}
         tone="stale"
         words={`The numbers are from ${formatDate(data.reported_at, "HH:mm")}`}
       />
