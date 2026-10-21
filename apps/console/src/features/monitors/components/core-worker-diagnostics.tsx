@@ -1,8 +1,7 @@
-import { StatusBadge } from "@/design-system";
+import { Callout, StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
-import { cn } from "@/utils/cn";
 import type { GetCoreWorkerDiagnostics200 } from "@/orion-sdk";
-import { Activity, AlertTriangle } from "lucide-react";
+import { Activity } from "lucide-react";
 
 type WorkerStatus = "healthy" | "degraded" | "unknown" | "error" | string;
 
@@ -72,24 +71,34 @@ export const shouldWarnForCoreWorker = (worker?: CoreWorkerDiagnostics) => {
   );
 };
 
+/** A short lead-in and one sentence, shown in the design-system warning banner. */
 export const describeCoreWorkerWarning = (worker?: CoreWorkerDiagnostics) => {
   const workerCount = worker?.worker_count ?? 0;
   const onlineCount = worker?.online_count ?? 0;
   const staleCount = worker?.stale_count ?? 0;
 
   if (!worker || worker.status === "unknown" || workerCount === 0 || onlineCount === 0) {
-    return "No Core monitor worker heartbeat is available. Core-managed monitors will not run until a worker is online.";
+    return {
+      lead: "No Core worker is online.",
+      text: "Core-managed monitors will not run until a worker is online.",
+    };
   }
 
   if (staleCount > 0) {
-    return "Some Core monitor worker heartbeats are stale. Core-managed checks may be delayed or incomplete.";
+    return {
+      lead: "Some Core worker heartbeats are stale.",
+      text: "Core-managed checks may be delayed or incomplete.",
+    };
   }
 
   if (worker.status === "degraded") {
-    return "Core monitor worker health is degraded. Core-managed checks may be delayed.";
+    return {
+      lead: "Core worker health is degraded.",
+      text: "Core-managed checks may be delayed.",
+    };
   }
 
-  return "";
+  return undefined;
 };
 
 type CoreWorkerWarningProps = {
@@ -102,16 +111,9 @@ export const CoreWorkerWarning = ({ worker, className }: CoreWorkerWarningProps)
   if (!warning) return null;
 
   return (
-    <div
-      className={cn(
-        "flex items-start gap-2 border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950",
-        className,
-      )}
-      role="status"
-    >
-      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-      <span>{warning}</span>
-    </div>
+    <Callout tone="warn" lead={warning.lead} className={className}>
+      {warning.text}
+    </Callout>
   );
 };
 
