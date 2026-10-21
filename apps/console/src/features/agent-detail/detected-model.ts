@@ -1,4 +1,4 @@
-import type { ApiAgentMonitorDefinitionRequest, ServiceAgentDiscoveryItem } from "@/orion-sdk";
+import type { ServiceAgentDiscoveryItem } from "@/orion-sdk";
 
 /** The seven kinds the agent reports, in display order. */
 const KINDS = [
@@ -29,39 +29,15 @@ export const groupItems = (items: ServiceAgentDiscoveryItem[]) => {
   return [...groups.entries()].sort(([a], [b]) => kindRank(a) - kindRank(b));
 };
 
-/**
- * Core can turn disk and port suggestions into monitor definitions (memory and process exist
- * too, but the agent never suggests them). Services, containers and pm2 apps need new definition
- * types, log sources need an ingest key and storage paths are tracked by the agent.
- */
-export const monitorDefinition = (
-  item: ServiceAgentDiscoveryItem,
-): ApiAgentMonitorDefinitionRequest | undefined => {
-  const name = item.name ?? "";
-  if (item.kind === "disk") {
-    return {
-      check_type: "disk",
-      name: `Disk ${name}`,
-      params: { path: name, threshold_percent: 90 },
-    };
-  }
-  if (item.kind === "port") {
-    const port = Number(/\d{1,5}/.exec(item.id?.replace(/^port:/, "") ?? name)?.[0]);
-    return port ? { check_type: "port", name: `Port ${port}`, params: { port } } : undefined;
-  }
-  return undefined;
-};
-
+/** Core turns every kind except log files into a monitor (or, for storage, a tracking request). */
 export const canAccept = (item: ServiceAgentDiscoveryItem) =>
-  item.status !== "monitored" && !item.dismissed && Boolean(monitorDefinition(item));
+  item.status !== "monitored" && !item.dismissed && item.kind !== "log";
 
 /** Why a suggestion has no checkbox. */
 export const acceptHint = (item: ServiceAgentDiscoveryItem) =>
   item.kind === "log"
     ? "Needs an ingest key, set up with orion-agent setup"
-    : item.kind === "storage"
-      ? "Tracked by the agent, set up with orion-agent setup"
-      : "Accept with orion-agent setup";
+    : "Accept with orion-agent setup";
 
 export const managedLabel = (managedIn?: string) =>
   managedIn === "file"

@@ -4,87 +4,52 @@ import { Link } from "react-router-dom";
 import {
   Button,
   Callout,
-  Checkbox,
   CodeBlock,
   EmptyState,
   FieldPanel,
   RaisedCard,
   Skeleton,
-  StatusBadge,
   useToast,
 } from "@/design-system";
 import {
-  type ServiceAgentDiscoveryItem,
-  createAgentMonitorDefinition,
   getGetAgentDiscoveryQueryKey,
+  useAcceptDiscoveredItems,
   useGetAgentDiscovery,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
-import {
-  acceptHint,
-  canAccept,
-  groupItems,
-  kindTitle,
-  managedLabel,
-  monitorDefinition,
-} from "../detected-model";
+import { canAccept, groupItems, kindTitle } from "../detected-model";
+import { useDiscoveryRequest } from "./detected-actions";
+import { DetectedItem } from "./detected-item";
+import { DetectedRequests } from "./detected-requests";
+import { DetectedSettings } from "./detected-settings";
 
-const confidenceTone = (confidence?: string) =>
-  confidence === "high" ? "up" : confidence === "medium" ? "degraded" : "unknown";
-
-const Item = ({
-  item,
-  selectable,
-  checked,
-  onToggle,
-}: {
-  item: ServiceAgentDiscoveryItem;
-  selectable: boolean;
-  checked: boolean;
-  onToggle: () => void;
-}) => (
-  <div className="grid min-h-[44px] grid-cols-[20px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-line-soft px-3.5 py-2 text-[13px] first:border-t-0">
-    {selectable ? (
-      <Checkbox aria-label={`Select ${item.name}`} checked={checked} onCheckedChange={onToggle} />
-    ) : (
-      <span />
-    )}
-    <span className="min-w-0">
-      <b className="block truncate font-medium">{item.name}</b>
-      {item.detail && <small className="block truncate text-xs text-quiet">{item.detail}</small>}
-      {!selectable && item.status !== "monitored" && !item.dismissed && (
-        <small className="block truncate text-xs text-faint">{acceptHint(item)}</small>
-      )}
-    </span>
-    <span className="flex items-center gap-1.5">
-      {item.new && <StatusBadge status="info">New</StatusBadge>}
-      {item.status === "monitored" ? (
-        <StatusBadge status="up">{managedLabel(item.managed_in)}</StatusBadge>
-      ) : item.dismissed ? (
-        <StatusBadge status="stale">Dismissed</StatusBadge>
-      ) : (
-        <StatusBadge status="unknown" shape="none">
-          Suggested
-        </StatusBadge>
-      )}
-    </span>
-    <StatusBadge status={confidenceTone(item.confidence)} shape="none">
-      {item.confidence ?? "low"}
-    </StatusBadge>
-  </div>
-);
-
-/** "Detected on this server": what the agent found, with one click to monitor what Core can add. */
+/** "Detected on this server": what the agent found, accept it, dismiss it or change what is scanned. */
 export const DetectedTab = ({ agentId }: { agentId: string }) => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const query = useGetAgentDiscovery(agentId);
+  const requests = useDiscoveryRequest(agentId);
   const discovery = query.data?.discovery;
   const items = useMemo(() => discovery?.items ?? [], [discovery]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [accepting, setAccepting] = useState(false);
+  const canAct = Boolean(discovery?.capabilities?.includes("requests"));
+  const accept = useAcceptDiscoveredItems({
+    mutation: {
+      onSuccess: (result) => {
+        void queryClient.invalidateQueries({ queryKey: getGetAgentDiscoveryQueryKey(agentId) });
+        const created = result.created?.length ?? 0;
+        const skipped = result.skipped?.length ?? 0;
+        toast.add({
+          title: `Added ${created} ${created === 1 ? "monitor" : "monitors"}${
+            skipped > 0 ? `, ${skipped} skipped` : ""
+          }. They apply on the agent's next report.`,
+        });
+      },
+      onError: (failure) => toast.add({ title: (failure as Error).message || "Unable to accept" }),
+    },
+  });
 
-  // High-confidence suggestions that Core can add are ticked by default.
+  // High-confidence suggestions are ticked by default.
   useEffect(() => {
     setSelected(
       new Set(
@@ -97,8 +62,7 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
 
   const active = items.filter((item) => !item.dismissed);
   const dismissed = items.filter((item) => item.dismissed);
-  const acceptable = active.filter(canAccept);
-  const chosen = acceptable.filter((item) => selected.has(item.id ?? ""));
+  const chosen = active.filter((item) => canAccept(item) && selected.has(item.id ?? ""));
   const toggle = (id: string) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -106,30 +70,8 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
       else next.add(id);
       return next;
     });
-
-  const accept = async () => {
-    setAccepting(true);
-    let added = 0;
-    let failed = 0;
-    for (const item of chosen) {
-      const data = monitorDefinition(item);
-      if (!data) continue;
-      try {
-        await createAgentMonitorDefinition(agentId, data);
-        added += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-    setAccepting(false);
-    void queryClient.invalidateQueries({ queryKey: getGetAgentDiscoveryQueryKey(agentId) });
-    toast.add({
-      title:
-        failed > 0
-          ? `Added ${added}, ${failed} failed`
-          : `Added ${added} ${added === 1 ? "monitor" : "monitors"}. They apply on the agent's next report.`,
-    });
-  };
+  const act = (id: string | undefined, type: "dismiss" | "restore" | "ignore") =>
+    requests.send(type, { ids: [id] });
 
   if (query.isPending) return <Skeleton className="h-48 w-full rounded-xl" />;
   if (query.isError)
@@ -157,21 +99,20 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
         }
       />
     );
-  if (discovery.enabled === false)
-    return (
-      <EmptyState
-        className="rounded-xl border-solid bg-card"
-        title="Scanning is off"
-        description="Host metrics keep working. Turn discovery on in the agent config (discovery.enabled), or create monitors by hand."
-        action={
-          <Link to="/monitors/new/agent">
-            <Button variant="secondary">Create monitor</Button>
-          </Link>
-        }
-      />
-    );
 
-  const problems = (discovery.kinds ?? []).filter((kind) => kind.state && kind.state !== "ok");
+  const problems = (discovery.kinds ?? []).filter(
+    (kind) => kind.state && !["ok", "off", "disabled"].includes(kind.state),
+  );
+  const settings = (
+    <DetectedSettings
+      enabled={discovery.enabled !== false}
+      kinds={discovery.kinds ?? []}
+      canAct={canAct}
+      onScanning={(enabled) => requests.send("set_scanning", { enabled })}
+      onKind={(kind, enabled) => requests.send("set_kind", { kind, enabled })}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-quiet">
@@ -180,20 +121,41 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
           {discovery.suggested ?? 0} suggested · {discovery.monitored ?? 0} monitored
           {(discovery.new_items ?? 0) > 0 && ` · ${discovery.new_items} new`}
         </span>
-        <span>Last scan {formatDate(discovery.scanned_at, "MMM d, HH:mm", "unknown")}</span>
+        <span className="flex items-center gap-3">
+          Last scan {formatDate(discovery.scanned_at, "MMM d, HH:mm", "unknown")}
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!canAct || requests.pending || discovery.enabled === false}
+            onClick={() => requests.send("rescan")}
+          >
+            Rescan now
+          </Button>
+        </span>
       </div>
       {problems.map((kind) => (
-        <Callout key={kind.kind} tone="warn" lead={`Could not look at ${kind.kind}.`}>
+        <Callout key={kind.kind} tone="warn" lead={`Could not look at ${kindTitle(kind.kind)}.`}>
           {kind.message}
           {kind.why ? ` ${kind.why}` : ""}
           {kind.fix && <CodeBlock className="mt-2">{kind.fix}</CodeBlock>}
         </Callout>
       ))}
-      {active.length === 0 ? (
+      {discovery.enabled === false ? (
+        <EmptyState
+          className="rounded-xl border-solid bg-card"
+          title="Scanning is off"
+          description="Host metrics keep working. Turn scanning on below, or create monitors by hand."
+          action={
+            <Link to="/monitors/new/agent">
+              <Button variant="secondary">Create monitor</Button>
+            </Link>
+          }
+        />
+      ) : active.length === 0 ? (
         <EmptyState
           className="rounded-xl border-solid bg-card"
           title="Nothing else detected"
-          description="Host metrics are on. Run orion-agent discover --rescan on the server to scan again."
+          description="Host metrics are on. Rescan to look again."
         />
       ) : (
         <>
@@ -201,12 +163,14 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
             <FieldPanel key={kind} title={kindTitle(kind)} aside={`${group.length}`}>
               <RaisedCard>
                 {group.map((item) => (
-                  <Item
+                  <DetectedItem
                     key={item.id}
                     item={item}
                     selectable={canAccept(item)}
                     checked={selected.has(item.id ?? "")}
+                    canAct={canAct}
                     onToggle={() => toggle(item.id ?? "")}
+                    onAction={(type) => act(item.id, type)}
                   />
                 ))}
               </RaisedCard>
@@ -214,11 +178,16 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
           ))}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="max-w-[520px] text-[13px] text-quiet">
-              Applies on the agent&apos;s next report, no restart. Services, containers, pm2 apps
-              and log sources are accepted on the server with <code>orion-agent setup</code>.
+              Applies on the agent&apos;s next report, no restart. Log files need an ingest key, set
+              up with <code>orion-agent setup</code>.
             </p>
-            <Button disabled={chosen.length === 0 || accepting} onClick={() => void accept()}>
-              {accepting ? "Adding..." : `Accept selected (${chosen.length})`}
+            <Button
+              disabled={chosen.length === 0 || accept.isPending}
+              onClick={() =>
+                accept.mutate({ agentId, data: { item_ids: chosen.map((item) => item.id ?? "") } })
+              }
+            >
+              {accept.isPending ? "Adding..." : `Accept selected (${chosen.length})`}
             </Button>
           </div>
         </>
@@ -227,17 +196,21 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
         <FieldPanel title="Dismissed" aside={`${dismissed.length}`}>
           <RaisedCard>
             {dismissed.map((item) => (
-              <Item
+              <DetectedItem
                 key={item.id}
                 item={item}
                 selectable={false}
                 checked={false}
+                canAct={canAct}
                 onToggle={() => undefined}
+                onAction={(type) => act(item.id, type)}
               />
             ))}
           </RaisedCard>
         </FieldPanel>
       )}
+      <DetectedRequests agentId={agentId} onCancel={requests.cancel} />
+      {settings}
     </div>
   );
 };
