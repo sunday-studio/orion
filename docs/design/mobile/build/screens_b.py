@@ -211,7 +211,7 @@ def servers_list(d):
 
 def monitors_list(d):
     rows = (gh("dn", "Down", "1") + _lrow("dn", "api-https", "HTTP &middot; every 30s", (19, 20, 21), (), "99.2%") +
-            gh("dg", "Degraded", "1") + _lrow("dg", "disk-usage", "Agent &middot; db-02", (), (20, 21), "99.8%") +
+            gh("dg", "Degraded", "1") + _lrow("dg", "disk-usage", "Node &middot; db-02", (), (20, 21), "99.8%") +
             gh("up", "Up", "21") + _lrow("up", "web-https", "HTTP &middot; every 30s", (), (), "100%") + _lrow("up", "lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
             _lrow("up", "nightly-backup", "Heartbeat &middot; daily", (), (), "100%") +
             gh("un", "Paused", "1") + _lrow("un", "legacy-tcp", "TCP", (), (), "n/a"))
@@ -225,7 +225,7 @@ def server_detail(d):
             '<p class="prose">edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</p></div>%s'
             '<div class="ut" style="margin:0 16px"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
             '<div>%s%s</div></div>') % (pills, stats([("CPU, last seen", "41%", ""), ("Memory", "62%", ""), ("Disk", "58%", "")]),
-                                        rw("un", "api-https", "HTTP &middot; no data since 14:01", ""), rw("un", "edge-01-disk", "Agent &middot; no data", ""))
+                                        rw("un", "api-https", "HTTP &middot; no data since 14:01", ""), rw("un", "edge-01-disk", "Node &middot; no data", ""))
 
 
 def monitor_body(d):

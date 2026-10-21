@@ -12,7 +12,7 @@ Source of truth for the public site is `apps/website/`. The approved layouts liv
 6. A night in the life: full-width single-axis timeline.
 7. Self-hosting FAQ and the closing call to action.
 
-## Docs (canvas boards: Docs home, article, search, Quickstart, Send logs, Agent CLI)
+## Docs (canvas boards: Docs home, article, search, Quickstart, Send logs, Node CLI)
 
 - Sidebar with groups, centred article column, on-this-page list on the right.
 - Code blocks are dark green with Copy; multi-pane examples use tabs.

@@ -2,7 +2,7 @@
 
 Static exports of every canvas artboard (light and dark), so the web and agent threads can build 1:1 without access to the canvas artifact.
 
-Source of truth is the canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY); these files are a snapshot taken 2026-10-18 and mirror `docs/design/design-language.md`. If they disagree, `design-language.md` wins.
+Source of truth is the canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY); these files are a snapshot taken 2026-10-18 and mirror `docs/design/design-language.md`. If they disagree, `design-language.md` wins. The HTML was updated for the 2026-10-21 rename of agent to Node (D-047); the PNGs were not re-rendered, so images of renamed boards still show the old word.
 
 ## Files
 
@@ -87,7 +87,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [logs-rich](logs-rich.html) ([light](png/logs-rich-light.png), [dark](png/logs-rich-dark.png)) | 1016 | 9.x | /logs | apps/console/src/features/event-log/ |
 | [logs-service](logs-service.html) ([light](png/logs-service-light.png), [dark](png/logs-service-dark.png)) | 567 | 10 | /logs (Internal logs) | apps/console/src/features/event-log/ |
 | [logs-views](logs-views.html) ([light](png/logs-views-light.png), [dark](png/logs-views-dark.png)) | 460 | 9.x | menus | apps/console/src/features/event-log/ |
-| [monitor-agent-setup](monitor-agent-setup.html) ([light](png/monitor-agent-setup-light.png), [dark](png/monitor-agent-setup-dark.png)) | 775 | 13 | dialog | apps/console/src/features/monitors/ |
+| [monitor-node-setup](monitor-node-setup.html) ([light](png/monitor-node-setup-light.png), [dark](png/monitor-node-setup-dark.png)) | 775 | 13 | dialog | apps/console/src/features/monitors/ |
 | [monitor-create](monitor-create.html) ([light](png/monitor-create-light.png), [dark](png/monitor-create-dark.png)) | 640 | 13 | dialog | apps/console/src/features/monitors/ |
 | [monitor-create-tcp](monitor-create-tcp.html) ([light](png/monitor-create-tcp-light.png), [dark](png/monitor-create-tcp-dark.png)) | 640 | 13 | dialog | apps/console/src/features/monitors/ |
 | [monitor-detail](monitor-detail.html) ([light](png/monitor-detail-light.png), [dark](png/monitor-detail-dark.png)) | 804 | 7 | /monitors/:id | apps/console/src/features/monitor-detail/monitor-detail.view.tsx |

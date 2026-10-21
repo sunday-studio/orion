@@ -24,11 +24,11 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | incident-declare | dialog | `features/incidents/` | `POST /v1/incidents` proposed |
 | incident-candidates | `/incidents/triage` | new | `GET /v1/incidents/candidates`; dismiss approved |
 | servers-list, servers-empty | `/servers` | `features/agents/` | existing |
-| server-detail, server-monitors, server-metrics, server-stale, server-token, server-token-new | `/servers/:id` (tabs) | `features/agent-detail/` | existing; filter monitors by agent proposed |
-| server-edit, server-decommission | dialogs | `features/agent-detail/` | `PATCH /v1/agents/{id}` (name, labels, notes) and `keep_history` on delete proposed |
-| add-server, add-server-connected, add-server-failed | `/servers/new` | new | `POST /v1/register`, poll `/v1/agents` |
+| server-detail, server-monitors, server-metrics, server-stale, server-token, server-token-new | `/servers/:id` (tabs) | `features/agent-detail/` | existing; filter monitors by Node proposed |
+| server-edit, server-decommission | dialogs | `features/agent-detail/` | `PATCH /v1/nodes/{id}` (name, labels, notes) and `keep_history` on delete proposed |
+| add-server, add-server-connected, add-server-failed | `/servers/new` | new | `POST /v1/register`, poll `/v1/nodes` |
 | monitors-list, monitors-bulk, monitors-empty | `/monitors` | `features/monitors/` | existing; bulk and clone proposed |
-| monitor-create, monitor-create-tcp, heartbeat-setup, monitor-agent-setup | dialogs and panels | `features/monitors/` | existing |
+| monitor-create, monitor-create-tcp, heartbeat-setup, monitor-node-setup | dialogs and panels | `features/monitors/` | existing |
 | monitor-detail, monitor-paused, monitor-edit, monitor-test, monitor-maintenance, report-drawer, delete-confirm | `/monitors/:id` | `features/monitor-detail/` | existing; run test result approved |
 | alerts-log, delivery-detail | `/alerts` | `features/alerts/` | existing; retry delivery approved |
 | alerts-channels, channel-dialog, channel-webhook, channel-email, channel-test, channel-detail | `/alerts/channels` | `features/alerts/` | channels exist; email type, recipient confirmation, secret regenerate, disable proposed |
@@ -70,7 +70,7 @@ Proposed, grouped by value:
 1. Product logs: follow `docs/plans/product-logs-plan.md` (L0 to L4). Console needs: ingest keys per App, field catalog, facets, FTS search, SSE tail, redaction test endpoint, per-app limits. Events filter by `server_id` and `monitor_id`; Orion service logs by `component`.
 2. Logs at scale: `q` (field:value query), `level`, `source`, `from`, `to`, `cursor` on events; `/v1/events/histogram`; `/v1/events/stream` (SSE); `/v1/events/patterns`; async export. These make the Logs redesign real and are the largest item.
 3. Channels: `type = webhook | email`; email recipients with a confirmation token and resend; public confirmation endpoint; webhook signing secret (HMAC SHA-256, `X-Orion-Signature`) with regenerate; custom headers; disable flag.
-4. Servers: `PATCH` name, labels, notes; list monitors by agent with a status filter; delete with `keep_history`.
+4. Servers: `PATCH` name, labels, notes; list monitors by Node with a status filter; delete with `keep_history`.
 5. Incidents and monitors: declare incident; bulk acknowledge, resolve, cover; bulk pause, maintenance, clone, delete; `runbook_url` on monitors; TLS expiry.
 6. Status pages: custom domain verification, maintenance windows (hold alerts for mapped components).
 7. Settings: general (instance name, public URL, timezone), API tokens, audit log.
@@ -105,10 +105,10 @@ Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 **Sign in** (`login`): `POST /v1/auth/login`. Error callout text is the API message. No sign-up.
 
 **Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`; D-028)
-- Platform tiles: Linux and macOS only (Windows is out of scope, D-014; running the agent as a container is out until the last item before go-live, D-031). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
+- Platform tiles: Linux and macOS only (Windows is out of scope, D-014; running the Node as a container is out until the last item before go-live, D-031). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
 - The waiting screen has a static list labelled "The command will:" (download and verify, create user and directories, install and start the service, register, run doctor). It never ticks, because Core cannot observe those steps.
-- Live states are only three, from polling `GET /v1/enrollments/{id}`: waiting (`waiting`, `claimed`, `registered`), connected (`reporting`, with `agent_name`, `agent_os`, `agent_arch`, `agent_version`, `first_report_at`), not connected (`expired`, or no report 5 minutes after the command was shown).
-- The agent token goes to the agent, not the Console. There is no shown-once token panel on any add-server artboard.
+- Live states are only three, from polling `GET /v1/enrollments/{id}`: waiting (`waiting`, `claimed`, `registered`), connected (`reporting`, with `node_name`, `node_os`, `node_arch`, `node_version`, `first_report_at`), not connected (`expired`, or no report 5 minutes after the command was shown).
+- The Node token goes to the Node, not the Console. There is no shown-once token panel on any add-server artboard.
 
 **Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`): create `POST /v1/apps`; key `POST /v1/apps/{id}/keys` returns the secret once; snippets are client-side; waiting polls the app or the logs list for the first line; "Send a test log" is `POST /v1/apps/{id}/test-log`.
 
@@ -119,11 +119,11 @@ Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 Reconciled with `apps/core/openapi.yaml` on main after backend finished F2 (94a2335). Artboards: `incidents-list`, `incidents-bulk`, `incidents-empty`, `incident-detail`, `incident-resolved`, `incident-actions`, `incident-declare`, `incident-public-update`, `incident-candidates`, `health-issues`, each with a `-dark` version.
 
 **List** (`GET /v1/incidents`, `GET /v1/incidents/export`)
-- Rows: `display_id` (`INC-####`) and `number`, `title`, `severity`, `status` (open, acknowledged, covered, resolved), `monitor_name`, `agent_name`, `notification_status`, `opened_at`. Default filter `open,acknowledged,covered`; the list reports a hidden count (resolved incidents hidden by the filter) shown in the table footer with a Show them link.
-- Filter tokens: Status (`status`), Severity (`severity`), Server (`agent_id`), Monitor (`monitor_id`), Opened (`opened_since`: 24h, 7d, 30d or a date), Notification (`notification_status`), Resolved by (`actor`), Covered (`covered`). Search box is `q`. Quick views: Active, Needs review (`needs_review`), Resolved.
+- Rows: `display_id` (`INC-####`) and `number`, `title`, `severity`, `status` (open, acknowledged, covered, resolved), `monitor_name`, `node_name`, `notification_status`, `opened_at`. Default filter `open,acknowledged,covered`; the list reports a hidden count (resolved incidents hidden by the filter) shown in the table footer with a Show them link.
+- Filter tokens: Status (`status`), Severity (`severity`), Server (`node_id`), Monitor (`monitor_id`), Opened (`opened_since`: 24h, 7d, 30d or a date), Notification (`notification_status`), Resolved by (`actor`), Covered (`covered`). Search box is `q`. Quick views: Active, Needs review (`needs_review`), Resolved.
 - Export CSV uses the same filters (`/v1/incidents/export`, at most 10,000 rows).
 - Bulk (`POST /v1/incidents/bulk`, up to 100 ids, `action` acknowledge, cover or resolve, optional `note`, `covered_by` for cover): each id succeeds or fails alone; the floating bar closes into a result toast ("1 of 2 resolved", failed ids listed with Retry failed).
-- Declare incident (`POST /v1/incidents`): `title` and `severity` required; give `monitor_id` or `agent_id`; optional `summary` and `notify`. A monitor can have only one active incident, so the dialog warns and the API returns an error to show inline.
+- Declare incident (`POST /v1/incidents`): `title` and `severity` required; give `monitor_id` or `node_id`; optional `summary` and `notify`. A monitor can have only one active incident, so the dialog warns and the API returns an error to show inline.
 
 **Detail** (`GET /v1/incidents/{id}`, `/timeline`, `/logs`)
 - Header actions follow `allowed_actions`. Summary paragraph is `summary`; milestones and timings come from the detail summary (`detected_at`, `notified_at`, `acknowledged_at`, `resolved_at`, `time_to_acknowledge_seconds`, `time_to_resolve_seconds`, `failed_checks`, `notified_channels`). Expected and actual cards are `expected` and `actual` (`title`, `detail`, `at`).
@@ -134,6 +134,6 @@ Reconciled with `apps/core/openapi.yaml` on main after backend finished F2 (94a2
 
 **Public update** (`POST /v1/incidents/{id}/public-update`; see also `/public-updates`): `status_page_id`, `status` (investigating, identified, monitoring, resolved), `message`, `notify_subscribers`, and `title`, which is required when the target reports `title_required` (system-opened incidents with no public incident yet). The dialog shows the page's subscriber count.
 
-**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/open`, `POST .../{id}/dismiss`): `monitor_name`, `agent_name`, `monitor_type`, `health`, `severity`, `detail`, `seen_at`, `down_count`. Open incident creates the incident; Dismiss hides the candidate.
+**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/open`, `POST .../{id}/dismiss`): `monitor_name`, `node_name`, `monitor_type`, `health`, `severity`, `detail`, `seen_at`, `down_count`. Open incident creates the incident; Dismiss hides the candidate.
 
-**Health issues** (`GET /v1/health/issues`): `kind` (monitor or server), `target_name`, `agent_name`, `monitor_type`, `health` (down, degraded, stale), `detail`, `since`, `issue_type`, and `incident_id` with `incident_display_id` when an incident already covers it (shown as a link instead of an Open incident button). Server rows appear alongside monitors.
+**Health issues** (`GET /v1/health/issues`): `kind` (monitor or server), `target_name`, `node_name`, `monitor_type`, `health` (down, degraded, stale), `detail`, `since`, `issue_type`, and `incident_id` with `incident_display_id` when an incident already covers it (shown as a link instead of an Open incident button). Server rows appear alongside monitors.
