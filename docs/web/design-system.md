@@ -34,7 +34,7 @@ Every screen imports from `@/design-system`; keep token names descriptive (`bran
 | `Popover*`, `Tooltip`, `Menu*` | Tooltip wraps one focusable child and also shows on focus. |
 | `ToastProvider`, `useToast().add({ title, description })` | mount the provider once; the close button appears when the toast is hovered or focused (Base UI behaviour). |
 | `Card*`, `Field` | `Field` is the pale container for groups of cards. |
-| `Textarea`, `Breadcrumb*`, `DetailCard`, `DetailGroup`, `ListPagination`, `PageHeader`, `DataTableLink` | shared layout and detail pieces moved here from `components/shared`. |
+| `Textarea`, `ListPagination`, `PageHeader` | shared layout pieces moved here from `components/shared`. |
 | `EmptyState`, `Skeleton` | empty and error states end in a button. |
 | `DataTable`, `FilterBar`, `Table*` | see below. |
 
