@@ -1,0 +1,3 @@
+# Renamed: Install a server is now Add a server.
+/docs/install-server /docs/add-server/ 301
+/docs/install-server/ /docs/add-server/ 301

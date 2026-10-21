@@ -4,9 +4,9 @@ description: "The words Orion uses: servers, monitors, incidents, channels, stat
 group: Guides
 order: 5
 ---
-## Server and node
+## Server and Node
 
-A **server** is a machine you watch. The **node** is the program on it that reports to Core. In the Console you work with servers; in the terminal you work with the node.
+A **server** is a machine you watch. The **Node** is the program on it that reports to Core. In the Console you work with servers; in the terminal you work with the Node.
 
 ## Monitors
 
