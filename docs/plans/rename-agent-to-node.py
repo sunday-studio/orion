@@ -31,6 +31,7 @@ BINARY_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".woff",
 PROTECT = [
     "User-Agent", "user-agent", "User agent", "user agent", "user_agent", "UserAgent", "useragent",
     "AI agents", "AI agent", "coding agents", "coding agent", "LLM agent", "agentic", "AGENTS.md", ".agents/",
+    "LaunchAgents",  # the macOS per-user launchd directory
 ]
 
 def skipped(path):
