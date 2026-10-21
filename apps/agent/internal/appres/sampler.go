@@ -13,13 +13,14 @@ import (
 // Sampler turns cumulative counters into rates. Call Sample once per report;
 // the first call returns instantaneous values only (no rates).
 type Sampler struct {
-	opts       Options
-	prevAt     time.Time
-	prevCgroup map[string]cgroupSample
-	prevProc   map[int32]ProcSample
-	prevNet    map[string]NetCounters
-	prevDocker map[string]dockerContainer
-	dockerNote bool // the "docker unavailable" note was already shown once
+	opts              Options
+	prevAt            time.Time
+	prevCgroup        map[string]cgroupSample
+	prevProc          map[int32]ProcSample
+	prevNet           map[string]NetCounters
+	prevDocker        map[string]dockerContainer
+	dockerNote        bool // the "docker unavailable" note was already shown once
+	dockerStorageNote bool
 }
 
 // NewSampler returns a sampler with caps applied.
@@ -33,8 +34,11 @@ func NewSampler(opts Options) *Sampler {
 	if opts.ProcessList == nil {
 		opts.ProcessList = hostProcesses
 	}
-	if opts.Docker == nil && !opts.NoDocker {
+	if opts.Docker == nil && !opts.NoDocker { // a test that supplies its own Docker never reaches the real socket
 		opts.Docker = newDockerSource(opts.DockerSock)
+		if opts.DockerStorage == nil {
+			opts.DockerStorage = newDockerStorageSource(opts.DockerSock, opts.now)
+		}
 	}
 	if opts.NetSource == nil {
 		opts.NetSource = hostNetwork
@@ -83,6 +87,7 @@ func (s *Sampler) Sample() Report {
 
 	// Docker names and per-container network, when the agent may use the API.
 	curDocker := s.applyDocker(&rep, haveRates, elapsed)
+	s.applyDockerStorage(&rep)
 
 	// processes, grouped by executable name
 	procs, err := s.opts.ProcessList()
@@ -186,6 +191,9 @@ func topProcessSeries(groups map[string]*procGroup, nets, prevNets map[string]Ne
 func weight(s Series) float64 {
 	if s.Kind == KindPath {
 		return 1e18
+	}
+	if s.Kind == KindVolume || s.Kind == KindDocker {
+		return 1e17 // after the paths you configured, before anything else
 	}
 	w := 0.0
 	if s.CPUPercent != nil {
