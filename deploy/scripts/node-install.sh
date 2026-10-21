@@ -439,8 +439,52 @@ configure_linux_docker_access() {
   fi
 }
 
+# Before the rename the node was called the agent. An upgraded host would run two daemons, so the
+# old service and binary are stopped and removed. Config, state and the service user are shared and stay.
+soft() {
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ %q' "$1"; shift
+    for arg in "$@"; do printf ' %q' "$arg"; done
+    printf '\n'
+    return 0
+  fi
+  "$@" >/dev/null 2>&1 || true
+}
+
+retire_previous_agent() {
+  local found="false"
+  step "Previous version"
+  case "$1" in
+    linux)
+      if [ -f /etc/systemd/system/orion-agent.service ]; then
+        found="true"
+        soft systemctl disable --now orion-agent
+        run_cmd rm -f /etc/systemd/system/orion-agent.service
+        soft systemctl daemon-reload
+      fi
+      ;;
+    macos)
+      if [ -f /Library/LaunchDaemons/com.orion.agent.plist ]; then
+        found="true"
+        soft launchctl bootout system /Library/LaunchDaemons/com.orion.agent.plist
+        run_cmd rm -f /Library/LaunchDaemons/com.orion.agent.plist
+      fi
+      ;;
+  esac
+  if [ -e "$INSTALL_DIR/orion-agent" ]; then
+    found="true"
+    run_cmd rm -f "$INSTALL_DIR/orion-agent"
+  fi
+  if [ "$found" = "true" ]; then
+    ok "removed the orion-agent service and binary (renamed to orion-node); config and state are kept"
+  else
+    skip "no previous orion-agent install"
+  fi
+}
+
 install_linux() {
   binary="$1"
+  retire_previous_agent linux
   config_dir="/etc/orion"
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/var/lib/orion"
@@ -555,6 +599,7 @@ ensure_macos_account() {
 
 install_macos() {
   binary="$1"
+  retire_previous_agent macos
   config_dir="/usr/local/etc/orion"
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/usr/local/var/lib/orion"

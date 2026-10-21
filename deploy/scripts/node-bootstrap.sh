@@ -418,6 +418,11 @@ fi
 if [ "$USER_MODE" = "true" ]; then
   step "Install (per-user)"
   mkdir -p "$BIN_DIR" "$(dirname "$CFG")" "$STATE_DIR"; chmod 700 "$STATE_DIR"
+  # The node was called the agent before the rename: stop and remove the old per-user service and binary.
+  systemctl --user disable --now orion-agent >/dev/null 2>&1 || true
+  rm -f "$HOME/.config/systemd/user/orion-agent.service"
+  launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.orion.agent.user.plist" >/dev/null 2>&1 || true
+  rm -f "$HOME/Library/LaunchAgents/com.orion.agent.user.plist" "$BIN_DIR/orion-agent"
   install -m 0755 "$WORK/$ASSET" "$BIN_DIR/orion-node"
   record ok "Installed" "$BIN_DIR/orion-node"
   if [ -f "$CFG" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then true
