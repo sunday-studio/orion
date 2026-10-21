@@ -117,9 +117,9 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 		return 0
 	}
 
-	if len(normalizedArgs) == 2 && normalizedArgs[0] == "help" {
-		SetColorEnabled(writerSupportsColor(out))
-		if printHelpTopic(out, normalizedArgs[1], ui.Width(os.Stdout)) {
+	if rest := withoutGlobalFlags(normalizedArgs); len(rest) == 2 && rest[0] == "help" {
+		SetColorEnabled(writerSupportsColor(out) && !hasFlag(normalizedArgs, "--no-color"))
+		if printHelpTopic(out, rest[1], ui.Width(os.Stdout)) {
 			return 0
 		}
 	}
@@ -340,6 +340,24 @@ func isUsageError(err error) bool {
 		}
 	}
 	return false
+}
+
+// withoutGlobalFlags drops the flags every command accepts (with their values), so
+// `orion-agent --config x help topics` is recognised like `orion-agent help topics`.
+func withoutGlobalFlags(args []string) []string {
+	var rest []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--config" || a == "--state" || a == "--socket":
+			i++ // its value
+		case strings.HasPrefix(a, "--config=") || strings.HasPrefix(a, "--state=") || strings.HasPrefix(a, "--socket="),
+			a == "--no-color" || a == "--json" || a == "--verbose":
+		default:
+			rest = append(rest, a)
+		}
+	}
+	return rest
 }
 
 // isRootHelp is true for `--help`, `-h` and `help` with nothing after them, so

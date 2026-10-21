@@ -12,22 +12,28 @@ func closestWord(word string, candidates []string) string {
 	return best
 }
 
+// wordDistance is the edit distance where swapping two neighbouring letters
+// counts as one edit, because that is how most typos happen (statsu, not status).
 func wordDistance(a, b string) int {
-	prev := make([]int, len(b)+1)
-	for j := range prev {
-		prev[j] = j
+	d := make([][]int, len(a)+1)
+	for i := range d {
+		d[i] = make([]int, len(b)+1)
+		d[i][0] = i
+	}
+	for j := 0; j <= len(b); j++ {
+		d[0][j] = j
 	}
 	for i := 1; i <= len(a); i++ {
-		cur := make([]int, len(b)+1)
-		cur[0] = i
 		for j := 1; j <= len(b); j++ {
 			cost := 1
 			if a[i-1] == b[j-1] {
 				cost = 0
 			}
-			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+			d[i][j] = min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+cost)
+			if i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == b[j-1] {
+				d[i][j] = min(d[i][j], d[i-2][j-2]+1)
+			}
 		}
-		prev = cur
 	}
-	return prev[len(b)]
+	return d[len(a)][len(b)]
 }

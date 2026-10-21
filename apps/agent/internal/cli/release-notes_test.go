@@ -111,3 +111,16 @@ func TestUpdateIsRefusedInsideAContainerBeforeAskingForPrivileges(t *testing.T) 
 		t.Fatalf("outside a container update runs: %v", err)
 	}
 }
+
+func TestGlobalFlagsDoNotHideHelpTopicsAndTransposedTyposAreSuggested(t *testing.T) {
+	got := withoutGlobalFlags([]string{"--config", "/x/c.yaml", "--state=/x/s.db", "help", "--no-color", "topics"})
+	if len(got) != 2 || got[0] != "help" || got[1] != "topics" {
+		t.Fatalf("got %v", got)
+	}
+	if w := closestWord("statsu", []string{"state", "status", "start"}); w != "status" {
+		t.Fatalf("statsu -> %q, want status (a swap is one edit)", w)
+	}
+	if w := closestWord("zzzzzz", []string{"state", "status"}); w != "" {
+		t.Fatalf("nothing is close to zzzzzz, got %q", w)
+	}
+}
