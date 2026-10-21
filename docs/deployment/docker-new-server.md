@@ -23,6 +23,7 @@ ORION_ENROLLMENT_TOKEN=$(openssl rand -hex 16)
 # The address your servers and you reach Core on; used in emails and install commands.
 ORION_PUBLIC_URL=https://orion.example.com
 EOF
+chmod 600 .env
 cat .env   # note the password: you sign in with it
 ```
 
@@ -36,10 +37,12 @@ cat .env   # note the password: you sign in with it
 
 Keep `.env` private and out of version control.
 
-**Build and start.**
+**Build and start.** One shell function saves retyping the two compose files; use it for every command
+in this guide (paste it into your shell, or `~/.bashrc` to keep it):
 
 ```sh
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build
+orion_compose() { docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml --env-file .env "$@"; }
+orion_compose up -d --build
 ```
 
 The first run builds the Core image (the Console is inside it), which takes a few minutes. Later runs
@@ -48,7 +51,7 @@ reuse the cache. This starts two services, `orion-core` and `orion-core-worker`.
 **Check it.**
 
 ```sh
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml --env-file .env ps
+orion_compose ps
 ```
 
 Both should say `healthy` within a minute. Open `http://<server address>:8999` and sign in with `admin`
@@ -77,32 +80,36 @@ macOS), registers the machine with Core and starts reporting. It asks no questio
 under **Servers** within a minute. Then run `orion-agent setup` on it to choose what to monitor; see
 [Server install and upgrade](agent-install-upgrade.md) and the [CLI cheat sheet](server-cli-cheatsheet.md).
 
-You can use `ORION_ENROLLMENT_TOKEN` from `.env` in place of a one-time token.
+You can use `ORION_ENROLLMENT_TOKEN` from `.env` in place of a one-time token, until you replace the
+registration secret in the Console's settings; after that, use one-time tokens.
 
 ### The server Core runs on
 
 Install the agent there like any other server. If you would rather keep everything in Docker, start an
-agent container beside Core instead, by adding `--profile agent` to the `up` command above. What the
+agent container beside Core instead. Add `COMPOSE_PROFILES=agent` to `.env` (it applies to every command,
+so `ps`, `logs` and `down` include the agent too), then run `orion_compose up -d --build` again. What the
 container can and cannot see is in [Running the Agent as a container](agent-container.md).
 
 ## Day to day
 
-Run these from the repository root with the same `-f` files and `--env-file .env`.
+Run these from the repository root, with `orion_compose` defined as above.
 
 | To | Run |
 |---|---|
-| See logs | `docker compose ... logs -f orion-core` |
-| Stop | `docker compose ... down` (your data stays in the volume) |
-| Update | `git pull`, then the same `up -d --build` |
+| See logs | `orion_compose logs -f orion-core` |
+| Stop | `orion_compose down` (your data stays in the volume) |
+| Update | `git pull`, then `orion_compose up -d --build` |
 | Back up | see [SQLite backup and restore](../sqlite-backup-restore.md); the database is in the `orion-data` volume |
 
-Core applies database migrations when it starts and copies the database to `backups/` first.
+When an update has database migrations to apply, Core first copies the database to `backups/` inside the
+`orion-data` volume (`/data/backups`), so you can roll back.
 
 ## If something is wrong
 
-- **The Console shows "Can't reach Core".** The browser blocks requests from an address Core does not
-  know. If you open the Console on an address or port other than the one in `ORION_PUBLIC_URL`, add it to
-  `ORION_CORS_ORIGINS` (comma separated) in `.env` and recreate the services.
+- **The Console will not load or sign in.** Check that Core is `healthy` (`orion_compose ps`), that you
+  open it on the address and scheme your proxy serves (not `http` for an `https` site), and that
+  `ORION_PUBLIC_URL` matches. Only a Console hosted separately from Core needs `ORION_CORS_ORIGINS`; see
+  [Core Docker deployment](core-docker.md).
 - **A server never appears.** On that server run `orion-agent doctor`; it names what is wrong. The usual
   causes are a Core address the server cannot reach and a firewall.
 - **`address already in use`.** Something else uses port 8999. Set `ORION_HTTP_PORT` in `.env`.
