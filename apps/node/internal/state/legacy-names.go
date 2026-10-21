@@ -24,6 +24,12 @@ func migrateLegacyNames(database *gorm.DB) error {
 			}
 		}
 	}
+	// Reports queued before the upgrade are sent after it, so their keys must be the ones Core now reads.
+	if m.HasTable("report_spool") {
+		if err := database.Exec(`UPDATE report_spool SET payload_json = REPLACE(REPLACE(payload_json, '"agent_id"', '"node_id"'), '"agent_version"', '"node_version"') WHERE payload_json LIKE '%"agent_%'`).Error; err != nil {
+			return fmt.Errorf("rewrite spooled reports: %w", err)
+		}
+	}
 	return nil
 }
 

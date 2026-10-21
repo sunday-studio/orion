@@ -99,6 +99,9 @@ UPDATE incident_events SET actor_type = 'node' WHERE actor_type = 'agent';
 UPDATE service_log_entries SET source = 'node' WHERE source = 'agent';
 UPDATE status_page_component_mappings SET resource_type = 'node' WHERE resource_type = 'agent';
 
+-- Values: alert groups are matched by an exact key that starts with the kind of thing it is about
+UPDATE alert_groups SET group_key = 'node:' || substr(group_key, 7) WHERE group_key LIKE 'agent:%';
+
 -- Values: JSON kept in text columns
 UPDATE incidents SET impacted_components = REPLACE(REPLACE(REPLACE(impacted_components, '"agent_', '"node_'), '"agent"', '"node"'), '"decommissioned_agents"', '"decommissioned_nodes"') WHERE impacted_components LIKE '%"agent%';
 UPDATE incidents SET summary = REPLACE(REPLACE(REPLACE(summary, '"agent_', '"node_'), '"agent"', '"node"'), '"decommissioned_agents"', '"decommissioned_nodes"') WHERE summary LIKE '%"agent%';

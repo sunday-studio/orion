@@ -484,7 +484,6 @@ retire_previous_agent() {
 
 install_linux() {
   binary="$1"
-  retire_previous_agent linux
   config_dir="/etc/orion"
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/var/lib/orion"
@@ -517,6 +516,8 @@ install_linux() {
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
   prepare_log_file "$log_dir" "$log_path" "$LINUX_USER" "$LINUX_GROUP"
   configure_linux_docker_access
+
+  retire_previous_agent linux
 
   step "Systemd service"
   run_cmd install -m 0644 "deploy/systemd/orion-node.service" "/etc/systemd/system/$SERVICE_NAME.service"
@@ -599,7 +600,6 @@ ensure_macos_account() {
 
 install_macos() {
   binary="$1"
-  retire_previous_agent macos
   config_dir="/usr/local/etc/orion"
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/usr/local/var/lib/orion"
@@ -622,6 +622,8 @@ install_macos() {
   install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
   initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
   prepare_log_file "$log_dir" "$log_path" "$MACOS_USER" "$MACOS_GROUP"
+
+  retire_previous_agent macos
 
   step "Launchd service"
   run_cmd install -m 0644 "deploy/launchd/com.orion.node.plist" "$plist_path"
