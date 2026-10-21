@@ -1,4 +1,4 @@
-import type { ServiceAgentDiscoveryItem } from "@/orion-sdk";
+import type { ServiceAgentDiscoveryItem, ServiceAgentDiscoveryKind } from "@/orion-sdk";
 
 /** The seven kinds the agent reports, in display order. */
 const KINDS = [
@@ -62,3 +62,15 @@ export const acceptWhat = (item: ServiceAgentDiscoveryItem) =>
 
 export const confidenceLabel = (confidence?: string) =>
   confidence ? `${confidence.charAt(0).toUpperCase()}${confidence.slice(1)}` : "Low";
+
+/** Scan states the agent reports for one kind: scanned, off, blocked, failed or absent. */
+export const kindScan = (kind: ServiceAgentDiscoveryKind) =>
+  kind.state === "off"
+    ? "off"
+    : kind.state === "blocked" || kind.state === "failed"
+      ? "problem"
+      : kind.state === "absent"
+        ? "absent"
+        : "scanned";
+
+export const isKindProblem = (kind: ServiceAgentDiscoveryKind) => kindScan(kind) === "problem";
