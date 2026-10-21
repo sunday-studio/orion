@@ -78,17 +78,16 @@ curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion
 The installer downloads the node, verifies it, installs it as a service (systemd on Linux, launchd on
 macOS), registers the machine with Core and starts reporting. It asks no questions. The server appears
 under **Servers** within a minute. Then run `orion-node setup` on it to choose what to monitor; see
-[Server install and upgrade](node-install-upgrade.md) and the [CLI cheat sheet](server-cli-cheatsheet.md).
+[Install and manage a Node](node-install-upgrade.md) and the [CLI cheat sheet](server-cli-cheatsheet.md).
 
 You can use `ORION_ENROLLMENT_TOKEN` from `.env` in place of a one-time token, until you replace the
 registration secret in the Console's settings; after that, use one-time tokens.
 
 ### The server Core runs on
 
-Install the node there like any other server. If you would rather keep everything in Docker, start an
-node container beside Core instead. Add `COMPOSE_PROFILES=node` to `.env` (it applies to every command,
-so `ps`, `logs` and `down` include the node too), then run `orion_compose up -d --build` again. What the
-container can and cannot see is in [Running the Node as a container](node-container.md).
+Install the node there like any other server, with the command from **Servers, Add server**. Running
+the node as a container beside Core is deferred and not supported yet; see
+[Running the Node as a container](node-container.md) for what exists.
 
 ## Day to day
 

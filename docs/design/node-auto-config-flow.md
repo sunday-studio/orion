@@ -1,6 +1,6 @@
 # Node: install, auto-collect, auto-configure (flow for design)
 
-Status: proposal for the design agent, 2026-10-20. Owner of the behavior: agent thread. Related: [agent-cli-plan.md](../plans/agent-cli-plan.md) (D-016, D-017), [passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [agent-core-contract.md](../agent-core-contract.md).
+Status: proposal for the design agent, 2026-10-20. Owner of the behavior: agent thread. Related: [agent-cli-plan.md](../plans/agent-cli-plan.md) (D-016, D-017), [passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [agent-core-contract.md](../node-core-contract.md).
 
 ## The idea in one sentence
 

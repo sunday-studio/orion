@@ -104,7 +104,7 @@ The full map is in [docs/README.md](docs/README.md). The most useful pages:
 | | |
 |---|---|
 | **Start** | [Getting started](docs/getting-started.md) · [How Orion works](docs/how-it-works.md) |
-| **Run it** | [Deployment guide](docs/deployment/README.md) · [Core Docker deployment](docs/deployment/core-docker.md) · [Core security defaults](docs/deployment/core-security-defaults.md) · [Server install and upgrade](docs/deployment/node-install-upgrade.md) · [Server CLI cheat sheet](docs/deployment/server-cli-cheatsheet.md) |
+| **Run it** | [Deployment guide](docs/deployment/README.md) · [Core Docker deployment](docs/deployment/core-docker.md) · [Core security defaults](docs/deployment/core-security-defaults.md) · [Install and manage a Node](docs/deployment/node-install-upgrade.md) · [Server CLI cheat sheet](docs/deployment/server-cli-cheatsheet.md) |
 | **Your data** | [Send logs from your apps](docs/product-logs.md) · [SQLite backup and restore](docs/sqlite-backup-restore.md) |
 | **Build** | [Local development](docs/development/local-development.md) · [Architecture](docs/architecture/system-overview.md) · [System design](docs/system-design.md) |
 

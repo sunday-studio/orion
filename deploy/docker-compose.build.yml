@@ -4,8 +4,8 @@
 #   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build
 #
 # .env needs ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET.
-# Add COMPOSE_PROFILES=node to .env to also run a Node for this same server as a container; other
-# servers use the installer. See docs/deployment/docker-new-server.md.
+# The node profile is experimental and not a supported install path (D-031): install the Node on the host
+# with the installer instead. See docs/deployment/docker-new-server.md.
 services:
   orion-core:
     # The worker runs the same image, so building it once here is enough.
@@ -19,7 +19,7 @@ services:
   orion-core-worker:
     image: orion-core:local
 
-  # Optional: a Node for the server Core runs on, started with `--profile node`.
+  # Experimental, deferred (D-031): a Node for the server Core runs on, started with COMPOSE_PROFILES=node.
   orion-node:
     profiles: ["node"]
     image: orion-node:local

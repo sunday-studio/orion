@@ -59,20 +59,14 @@ The Node should not:
 - Update Core monitor schedule fields such as `next_run_at`, `last_run_at`, `last_checked_at`, and success/failure timestamps.
 - Trigger the same incident reconciliation path after reports are stored.
 - Expose worker health and diagnostics for Core/Console to display.
+- Record worker heartbeat state so Core can expose monitor execution health separately from API health.
+- Shut down and restart without affecting Console/API responsiveness.
 
 The Core monitor worker should not:
 
 - Serve normal Console or public API traffic.
 - Accept direct Console calls for create, edit, pause, resume, delete, or normal test flows.
 - Execute local command monitors from Console configuration in the M1 HTTP monitor scope.
-
-## Core Monitor Worker Responsibilities
-
-- Run as a separate process from the Core API.
-- Execute Core-managed monitor checks, not Node-owned host-local checks.
-- Use the Core SQLite database and shared services for worker diagnostics and future Core monitor reports.
-- Record worker heartbeat state so Core can expose monitor execution health separately from API health.
-- Shut down and restart without affecting Console/API responsiveness.
 
 The Core API should not run polling checks in-process. `/health` reports API and database
 availability only; Core worker state is exposed through `/v1/diagnostics/core-worker`.
@@ -105,6 +99,12 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
   Soft-deletes a monitor. Requires auth.
 - `POST /v1/nodes/:node_id/token-check`
   Succeeds, with an empty body, when the bearer token is this node's. Changes nothing. The Node's `doctor` and `setup` use it to ask whether Core accepts their credentials; they must not call an admin route for that, because a node token is not accepted there once Console authentication is on. An older Core answers 404 or 405 and the Node then falls back to the admin route it used before.
+- `PUT /v1/nodes/:node_id/maintenance`
+  Starts or ends a maintenance window set from the Node (`orion-node maintenance down` and `up`). Requires auth.
+- `POST /v1/nodes/:node_id/monitor-definitions/sync` and `POST /v1/nodes/:node_id/monitor-definitions/results`
+  Pull the checks configured in the Console, and report which ones this Node cannot run. Requires auth. See "Console requests and accepting suggestions" below.
+- `POST /v1/nodes/:node_id/discovery`, `POST /v1/nodes/:node_id/discovery/requests/pull` and `POST /v1/nodes/:node_id/discovery/requests/:request_id/result`
+  Report the latest scan, pull queued Console requests, and answer each one. Requires auth. See "Discovery" below.
 - `POST /v1/nodes/:node_id/report`
   Stores system metrics and updates server `last_seen`. Requires auth.
 - `POST /v1/nodes/:node_id/logs/batch`
@@ -118,7 +118,7 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - `GET /v1/diagnostics/core-worker`
   Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
 
-Planned Node token lifecycle endpoints:
+Node token lifecycle endpoints:
 
 - `POST /v1/nodes/:node_id/token/rotate`
   Replaces the active Node token, preserves Node identity and monitor IDs, and returns the new token once. Frontend/admin auth.

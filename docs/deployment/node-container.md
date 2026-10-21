@@ -1,6 +1,11 @@
 # Running the Node as a container
 
-The node is normally installed as a service on the host (see [Server install and upgrade](node-install-upgrade.md)). It can also run as a container, which suits hosts that run everything in Docker.
+> **Not a supported install path yet.** The container Node is deferred (decision D-031). The image builds
+> and runs, and this page records what was tested, but it has only been tried on a desktop Docker, not
+> on a Linux server or a Kubernetes cluster, and it cannot see services, containers or pm2 apps. Install
+> the Node on the host instead: [Install and manage a Node](node-install-upgrade.md).
+
+The node is normally installed as a service on the host. It can also run as a container, which could suit hosts that run everything in Docker once this is supported.
 
 The image is distroless (no shell, no package manager), runs as an unprivileged user (uid 65532), works with a read-only root filesystem and all capabilities dropped, and is about 17 MB. Configuration is environment variables only.
 
