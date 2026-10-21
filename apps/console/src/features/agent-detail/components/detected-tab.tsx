@@ -3,25 +3,32 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Button,
-  Callout,
-  CodeBlock,
+  ConfirmDialog,
   EmptyState,
   FieldPanel,
   RaisedCard,
   Skeleton,
+  StatusBadge,
   useToast,
 } from "@/design-system";
 import {
   getGetAgentDiscoveryQueryKey,
+  getListAgentMonitorDefinitionsQueryKey,
   useAcceptDiscoveredItems,
   useGetAgentDiscovery,
+  useListAgentDiscoveryRequests,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 import { canAccept, groupItems, kindTitle } from "../detected-model";
 import { useDiscoveryRequest } from "./detected-actions";
+import { DetectedAdded } from "./detected-added";
+import { DetectedBlocked } from "./detected-blocked";
 import { DetectedItem } from "./detected-item";
 import { DetectedRequests } from "./detected-requests";
+import { DetectedReviewDialog } from "./detected-review-dialog";
 import { DetectedSettings } from "./detected-settings";
+
+const OPEN = ["queued", "delivered"];
 
 /** "Detected on this server": what the agent found, accept it, dismiss it or change what is scanned. */
 export const DetectedTab = ({ agentId }: { agentId: string }) => {
@@ -29,20 +36,25 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
   const queryClient = useQueryClient();
   const query = useGetAgentDiscovery(agentId);
   const requests = useDiscoveryRequest(agentId);
+  const requestList = useListAgentDiscoveryRequests(agentId);
   const discovery = query.data?.discovery;
   const items = useMemo(() => discovery?.items ?? [], [discovery]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [reviewing, setReviewing] = useState(false);
+  const [dismissingAll, setDismissingAll] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const canAct = Boolean(discovery?.capabilities?.includes("requests"));
   const accept = useAcceptDiscoveredItems({
     mutation: {
       onSuccess: (result) => {
         void queryClient.invalidateQueries({ queryKey: getGetAgentDiscoveryQueryKey(agentId) });
-        const created = result.created?.length ?? 0;
+        void queryClient.invalidateQueries({
+          queryKey: getListAgentMonitorDefinitionsQueryKey(agentId),
+        });
+        setReviewing(false);
         const skipped = result.skipped?.length ?? 0;
         toast.add({
-          title: `Added ${created} ${created === 1 ? "monitor" : "monitors"}${
-            skipped > 0 ? `, ${skipped} skipped` : ""
-          }. They apply on the agent's next report.`,
+          title: `Requested ${result.created?.length ?? 0} monitors${skipped > 0 ? `, ${skipped} skipped` : ""}`,
         });
       },
       onError: (failure) => toast.add({ title: (failure as Error).message || "Unable to accept" }),
@@ -60,9 +72,37 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
     );
   }, [items]);
 
+  // What is waiting for the agent, so rows and switches show Pending instead of a result.
+  const open = (requestList.data?.requests ?? []).filter((r) => OPEN.includes(r.status ?? ""));
+  const pendingRow = (id?: string) => {
+    const hit = open.find(
+      (r) =>
+        (r.type === "dismiss" || r.type === "ignore" || r.type === "restore") &&
+        (r.payload?.ids as string[] | undefined)?.includes(id ?? ""),
+    );
+    return hit
+      ? hit.type === "ignore"
+        ? "Never suggest pending"
+        : hit.type === "restore"
+          ? "Restore pending"
+          : "Dismiss pending"
+      : undefined;
+  };
+  const pendingSwitches = open.flatMap((r) =>
+    r.type === "set_scanning"
+      ? ["scanning"]
+      : r.type === "set_kind"
+        ? [String(r.payload?.kind ?? "")]
+        : [],
+  );
+
   const active = items.filter((item) => !item.dismissed);
   const dismissed = items.filter((item) => item.dismissed);
+  const suggestions = active.filter((item) => item.status !== "monitored");
   const chosen = active.filter((item) => canAccept(item) && selected.has(item.id ?? ""));
+  const skippedLogs = suggestions.filter(
+    (item) => item.kind === "log" && selected.has(item.id ?? ""),
+  );
   const toggle = (id: string) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -101,50 +141,60 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
     );
 
   const problems = (discovery.kinds ?? []).filter(
-    (kind) => kind.state && !["ok", "off", "disabled"].includes(kind.state),
+    (kind) => kind.state && !["ok", "off", "disabled", "empty", "none"].includes(kind.state),
   );
-  const settings = (
-    <DetectedSettings
-      enabled={discovery.enabled !== false}
-      kinds={discovery.kinds ?? []}
-      canAct={canAct}
-      onScanning={(enabled) => requests.send("set_scanning", { enabled })}
-      onKind={(kind, enabled) => requests.send("set_kind", { kind, enabled })}
-    />
-  );
+  const scanningOff = discovery.enabled === false;
 
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-quiet">
-        <span>
-          <b className="font-medium text-ink">{discovery.things ?? 0} things found</b> ·{" "}
-          {discovery.suggested ?? 0} suggested · {discovery.monitored ?? 0} monitored
+        <span className="flex items-center gap-2">
+          <b className="font-medium text-ink">{discovery.things ?? 0} found</b> ·{" "}
+          {discovery.suggested ?? 0} suggested
           {(discovery.new_items ?? 0) > 0 && ` · ${discovery.new_items} new`}
+          {problems.length > 0 && <StatusBadge status="degraded">Limited scan</StatusBadge>}
         </span>
-        <span className="flex items-center gap-3">
-          Last scan {formatDate(discovery.scanned_at, "MMM d, HH:mm", "unknown")}
+        <span className="flex items-center gap-2">
+          <span className="mr-1">
+            Last scan {formatDate(discovery.scanned_at, "MMM d, HH:mm", "unknown")}
+          </span>
           <Button
             size="sm"
             variant="secondary"
-            disabled={!canAct || requests.pending || discovery.enabled === false}
+            disabled={!canAct || requests.pending || scanningOff}
             onClick={() => requests.send("rescan")}
           >
             Rescan now
           </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowSettings((value) => !value)}>
+            {showSettings ? "Hide scan settings" : "Scan settings"}
+          </Button>
         </span>
       </div>
       {problems.map((kind) => (
-        <Callout key={kind.kind} tone="warn" lead={`Could not look at ${kindTitle(kind.kind)}.`}>
-          {kind.message}
-          {kind.why ? ` ${kind.why}` : ""}
-          {kind.fix && <CodeBlock className="mt-2">{kind.fix}</CodeBlock>}
-        </Callout>
+        <DetectedBlocked
+          key={kind.kind}
+          kind={kind}
+          canAct={canAct}
+          onRescan={() => requests.send("rescan")}
+          onSkip={() => requests.send("set_kind", { kind: kind.kind, enabled: false })}
+        />
       ))}
-      {discovery.enabled === false ? (
+      {showSettings && (
+        <DetectedSettings
+          enabled={!scanningOff}
+          kinds={discovery.kinds ?? []}
+          canAct={canAct}
+          pending={pendingSwitches}
+          onScanning={(enabled) => requests.send("set_scanning", { enabled })}
+          onKind={(kind, enabled) => requests.send("set_kind", { kind, enabled })}
+        />
+      )}
+      {scanningOff ? (
         <EmptyState
           className="rounded-xl border-solid bg-card"
           title="Scanning is off"
-          description="Host metrics keep working. Turn scanning on below, or create monitors by hand."
+          description="Host metrics keep working. Turn scanning on in scan settings, or create monitors by hand."
           action={
             <Link to="/monitors/new/agent">
               <Button variant="secondary">Create monitor</Button>
@@ -169,6 +219,7 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
                     selectable={canAccept(item)}
                     checked={selected.has(item.id ?? "")}
                     canAct={canAct}
+                    pending={pendingRow(item.id)}
                     onToggle={() => toggle(item.id ?? "")}
                     onAction={(type) => act(item.id, type)}
                   />
@@ -177,17 +228,15 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
             </FieldPanel>
           ))}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-[520px] text-[13px] text-quiet">
-              Applies on the agent&apos;s next report, no restart. Log files need an ingest key, set
-              up with <code>orion-agent setup</code>.
-            </p>
             <Button
-              disabled={chosen.length === 0 || accept.isPending}
-              onClick={() =>
-                accept.mutate({ agentId, data: { item_ids: chosen.map((item) => item.id ?? "") } })
-              }
+              variant="secondary"
+              disabled={!canAct || suggestions.length === 0}
+              onClick={() => setDismissingAll(true)}
             >
-              {accept.isPending ? "Adding..." : `Accept selected (${chosen.length})`}
+              Dismiss all
+            </Button>
+            <Button disabled={chosen.length === 0} onClick={() => setReviewing(true)}>
+              Accept selected ({chosen.length})
             </Button>
           </div>
         </>
@@ -202,6 +251,7 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
                 selectable={false}
                 checked={false}
                 canAct={canAct}
+                pending={pendingRow(item.id)}
                 onToggle={() => undefined}
                 onAction={(type) => act(item.id, type)}
               />
@@ -209,8 +259,33 @@ export const DetectedTab = ({ agentId }: { agentId: string }) => {
           </RaisedCard>
         </FieldPanel>
       )}
-      <DetectedRequests agentId={agentId} onCancel={requests.cancel} />
-      {settings}
+      <DetectedAdded agentId={agentId} />
+      <DetectedRequests
+        agentId={agentId}
+        onCancel={requests.cancel}
+        onRetry={(request) =>
+          requests.send(request.type ?? "rescan", request.payload as Record<string, unknown>)
+        }
+      />
+      <DetectedReviewDialog
+        open={reviewing}
+        items={chosen}
+        skippedLogs={skippedLogs}
+        pending={accept.isPending}
+        onOpenChange={setReviewing}
+        onConfirm={() =>
+          accept.mutate({ agentId, data: { item_ids: chosen.map((item) => item.id ?? "") } })
+        }
+      />
+      <ConfirmDialog
+        open={dismissingAll}
+        onOpenChange={setDismissingAll}
+        title={`Dismiss all ${suggestions.length} suggestions?`}
+        description="They move to Dismissed. You can restore each one."
+        confirmLabel="Dismiss all"
+        tone="default"
+        onConfirm={() => requests.send("dismiss", { ids: suggestions.map((item) => item.id) })}
+      />
     </div>
   );
 };

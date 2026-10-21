@@ -47,3 +47,18 @@ export const managedLabel = (managedIn?: string) =>
       : managedIn === "scan"
         ? "Accepted from scan"
         : "Monitored";
+
+/** What accepting a suggestion sets up, in the words of the review dialog. */
+export const acceptWhat = (item: ServiceAgentDiscoveryItem) =>
+  item.kind === "disk"
+    ? { what: "Above 90% full", when: "First breach" }
+    : item.kind === "storage"
+      ? { what: "Size over time", when: "No alerts" }
+      : item.kind === "port"
+        ? { what: "Listening", when: "2 failed checks" }
+        : item.kind === "pm2"
+          ? { what: "Online", when: "2 failed checks" }
+          : { what: "Running", when: "2 failed checks" };
+
+export const confidenceLabel = (confidence?: string) =>
+  confidence ? `${confidence.charAt(0).toUpperCase()}${confidence.slice(1)}` : "Low";

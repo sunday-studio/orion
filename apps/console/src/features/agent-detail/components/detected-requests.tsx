@@ -1,4 +1,13 @@
-import { Button, FieldPanel, RaisedCard, StatusBadge } from "@/design-system";
+import { MoreHorizontal } from "lucide-react";
+import {
+  FieldPanel,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
+  RaisedCard,
+  StatusBadge,
+} from "@/design-system";
 import { type ServiceAgentDiscoveryRequestView, useListAgentDiscoveryRequests } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 
@@ -8,38 +17,61 @@ const TITLES: Record<string, string> = {
   restore: "Restore",
   ignore: "Never suggest",
   unignore: "Suggest again",
-  set_scanning: "Scanning on or off",
-  set_kind: "Kind on or off",
+  set_scanning: "Scanning",
+  set_kind: "What to look at",
   track_storage: "Track storage",
   create_log_source: "Log source",
 };
 
-const tone = (status?: string) =>
-  status === "applied"
-    ? "up"
-    : status === "failed"
-      ? "down"
-      : status === "queued" || status === "delivered"
-        ? "degraded"
-        : "stale";
+const minutesSince = (iso?: string) =>
+  iso ? Math.max(Math.round((Date.now() - new Date(iso).getTime()) / 60000), 0) : 0;
 
-const note = (request: ServiceAgentDiscoveryRequestView) => {
-  if (request.result) return request.result;
-  if (request.status === "queued") return "Waiting for the agent's next check-in";
-  if (request.status === "delivered") return "The agent has it and is working on it";
-  if (request.status === "unsupported")
-    return "This agent cannot take requests from the Console yet";
-  if (request.status === "expired") return "The agent did not pick it up in time";
-  return "";
+/** Badge and words for a request, as in the spec sheet. */
+const describe = (request: ServiceAgentDiscoveryRequestView) => {
+  const waited = minutesSince(request.created_at);
+  switch (request.status) {
+    case "applied":
+      return { tone: "up" as const, badge: "Done", words: request.result || "Done" };
+    case "failed":
+      return {
+        tone: "down" as const,
+        badge: "Failed",
+        words: request.result || "The agent could not do this",
+      };
+    case "expired":
+      return { tone: "stale" as const, badge: "Expired", words: "Nothing changed on the server" };
+    case "unsupported":
+      return {
+        tone: "unknown" as const,
+        badge: "Not supported",
+        words: "This agent cannot take requests from the Console. Update the agent.",
+      };
+    case "cancelled":
+      return { tone: "stale" as const, badge: "Cancelled", words: "" };
+    default:
+      return waited >= 5
+        ? {
+            tone: "degraded" as const,
+            badge: "No answer yet",
+            words: `Requested ${waited} minutes ago`,
+          }
+        : {
+            tone: "degraded" as const,
+            badge: "Waiting for the agent",
+            words: `Requested at ${formatDate(request.created_at, "HH:mm")}`,
+          };
+  }
 };
 
-/** Console actions that are queued for the agent, with their outcome in the agent's own words. */
+/** Waiting actions: Console requests queued for the agent, with their outcome. */
 export const DetectedRequests = ({
   agentId,
   onCancel,
+  onRetry,
 }: {
   agentId: string;
   onCancel: (requestId: string) => void;
+  onRetry: (request: ServiceAgentDiscoveryRequestView) => void;
 }) => {
   const query = useListAgentDiscoveryRequests(agentId, {
     query: {
@@ -54,26 +86,41 @@ export const DetectedRequests = ({
   const requests = (query.data?.requests ?? []).slice(0, 6);
   if (requests.length === 0) return null;
   return (
-    <FieldPanel title="Requests" aside="Applied by the agent at its next check-in">
+    <FieldPanel title="Waiting actions">
       <RaisedCard>
-        {requests.map((request) => (
-          <div
-            key={request.id}
-            className="grid min-h-[42px] grid-cols-[150px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-line-soft px-3.5 py-2 text-[13px] first:border-t-0"
-          >
-            <b className="font-medium">{TITLES[request.type ?? ""] ?? request.type}</b>
-            <span className="truncate text-quiet">{note(request)}</span>
-            <span className="text-xs text-faint">{formatDate(request.created_at, "HH:mm")}</span>
-            <span className="flex items-center gap-2">
-              <StatusBadge status={tone(request.status)}>{request.status}</StatusBadge>
-              {request.status === "queued" && (
-                <Button size="sm" variant="secondary" onClick={() => onCancel(request.id ?? "")}>
-                  Cancel
-                </Button>
-              )}
-            </span>
-          </div>
-        ))}
+        {requests.map((request) => {
+          const info = describe(request);
+          return (
+            <div
+              key={request.id}
+              className="grid min-h-[46px] grid-cols-[150px_190px_minmax(0,1fr)_110px] items-center gap-3 border-t border-line-soft px-3.5 py-1.5 text-[13px] first:border-t-0"
+            >
+              <span className="text-[12.5px] text-quiet">
+                {TITLES[request.type ?? ""] ?? request.type}
+              </span>
+              <span>
+                <StatusBadge status={info.tone}>{info.badge}</StatusBadge>
+              </span>
+              <span className="truncate">{info.words}</span>
+              <span className="flex justify-end">
+                <Menu>
+                  <MenuTrigger
+                    aria-label="Actions"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-input-border bg-card px-2.5 text-[13px] outline-none hover:bg-sub focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    Actions <MoreHorizontal className="size-3.5 opacity-60" />
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem onClick={() => onRetry(request)}>Try again</MenuItem>
+                    {request.status === "queued" && (
+                      <MenuItem onClick={() => onCancel(request.id ?? "")}>Cancel request</MenuItem>
+                    )}
+                  </MenuContent>
+                </Menu>
+              </span>
+            </div>
+          );
+        })}
       </RaisedCard>
     </FieldPanel>
   );

@@ -1,63 +1,109 @@
-import { FieldPanel, RaisedCard, Switch } from "@/design-system";
+import { FieldPanel, RaisedCard, StatusBadge, Switch } from "@/design-system";
 import type { ServiceAgentDiscoveryKind } from "@/orion-sdk";
 import { kindTitle } from "../detected-model";
+
+const DETAIL: Record<string, string> = {
+  service: "systemd units",
+  container: "Docker containers",
+  pm2: "pm2 apps",
+  port: "Listening TCP ports",
+  disk: "Mounts and usage",
+  log: "Common log files",
+  storage: "Data directories",
+};
 
 const isOff = (kind: ServiceAgentDiscoveryKind) =>
   kind.state === "off" || kind.state === "disabled";
 
-/** Discovery settings: scanning on or off and one switch per kind. Changes are queued for the agent. */
+const stateBadge = (kind: ServiceAgentDiscoveryKind) => {
+  if (isOff(kind)) return { tone: "stale" as const, text: "Not scanned" };
+  if (kind.state === "ok" || !kind.state) return { tone: "up" as const, text: "Scanned" };
+  if (kind.state === "empty" || kind.state === "none")
+    return { tone: "unknown" as const, text: "Nothing to scan" };
+  return { tone: "degraded" as const, text: "Limited" };
+};
+
+const Row = ({ children }: { children: React.ReactNode }) => (
+  <div className="grid min-h-[46px] grid-cols-[minmax(0,1fr)_150px_40px] items-center gap-3 border-t border-line-soft px-3.5 py-1.5 text-[13px] first:border-t-0">
+    {children}
+  </div>
+);
+
+/** Scan settings: scanning on or off and what to look at. Changes are queued for the agent. */
 export const DetectedSettings = ({
   enabled,
   kinds,
   canAct,
+  pending,
   onScanning,
   onKind,
 }: {
   enabled: boolean;
   kinds: ServiceAgentDiscoveryKind[];
   canAct: boolean;
+  /** Kinds (or "scanning") with a change waiting for the agent. */
+  pending: string[];
   onScanning: (enabled: boolean) => void;
   onKind: (kind: string, enabled: boolean) => void;
 }) => (
-  <FieldPanel title="Discovery" aside="What the agent looks at on this server">
-    <RaisedCard>
-      <div className="flex min-h-[44px] items-center justify-between gap-3 border-b border-line-soft px-3.5 py-2 text-[13px]">
-        <span>
-          <b className="font-medium">Scanning</b>
-          <small className="block text-xs text-quiet">
-            Host metrics keep working when it is off.
-          </small>
-        </span>
-        <Switch
-          aria-label="Scanning"
-          checked={enabled}
-          disabled={!canAct}
-          onCheckedChange={onScanning}
-        />
-      </div>
-      {kinds.map((kind) => (
-        <div
-          key={kind.kind}
-          className="flex min-h-[40px] items-center justify-between gap-3 border-t border-line-soft px-3.5 py-2 text-[13px] first:border-t-0"
-        >
-          <span>
-            {kindTitle(kind.kind)}
-            {isOff(kind) && <small className="ml-2 text-xs text-faint">Not scanned</small>}
+  <div className="flex flex-col gap-3.5">
+    <FieldPanel title="Scanning">
+      <RaisedCard>
+        <div className="flex min-h-[46px] items-center justify-between gap-3 px-3.5 py-1.5 text-[13px]">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <b className="shrink-0 font-medium">Scan this server</b>
+            <span className="truncate text-xs text-faint">
+              Host metrics keep working when this is off
+            </span>
           </span>
-          <Switch
-            aria-label={kindTitle(kind.kind)}
-            checked={!isOff(kind)}
-            disabled={!canAct || !enabled}
-            onCheckedChange={(next) => onKind(kind.kind ?? "", next)}
-          />
+          <span className="flex items-center gap-2">
+            {pending.includes("scanning") && <StatusBadge status="degraded">Pending</StatusBadge>}
+            <Switch
+              aria-label="Scan this server"
+              checked={enabled}
+              disabled={!canAct}
+              onCheckedChange={onScanning}
+            />
+          </span>
         </div>
-      ))}
-    </RaisedCard>
-    {!canAct && (
-      <p className="mt-2 text-[13px] text-mid">
-        This agent cannot take changes from the Console yet. Update the agent, or change them on the
-        server with orion-agent setup.
-      </p>
-    )}
-  </FieldPanel>
+      </RaisedCard>
+    </FieldPanel>
+    <FieldPanel
+      title="What to look at"
+      aside={`${kinds.filter((kind) => !isOff(kind)).length} of ${kinds.length}`}
+    >
+      <RaisedCard>
+        {kinds.map((kind) => {
+          const badge = stateBadge(kind);
+          return (
+            <Row key={kind.kind}>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <b className="shrink-0 font-medium">{kindTitle(kind.kind)}</b>
+                <span className="truncate text-xs text-faint">
+                  {kind.message || DETAIL[kind.kind ?? ""] || ""}
+                </span>
+              </span>
+              {pending.includes(kind.kind ?? "") ? (
+                <StatusBadge status="degraded">Pending</StatusBadge>
+              ) : (
+                <StatusBadge status={badge.tone}>{badge.text}</StatusBadge>
+              )}
+              <Switch
+                aria-label={kindTitle(kind.kind)}
+                checked={!isOff(kind)}
+                disabled={!canAct || !enabled}
+                onCheckedChange={(next) => onKind(kind.kind ?? "", next)}
+              />
+            </Row>
+          );
+        })}
+      </RaisedCard>
+      {!canAct && (
+        <p className="mt-2 text-[13px] text-mid">
+          This agent cannot take requests from the Console. Update the agent, or on the server run{" "}
+          <code>orion-agent discover --rescan</code>.
+        </p>
+      )}
+    </FieldPanel>
+  </div>
 );
