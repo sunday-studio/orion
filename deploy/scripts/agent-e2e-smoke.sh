@@ -11,6 +11,8 @@ CORE_PID="" AGENT_PID=""
 cleanup() {
   [ -z "$AGENT_PID" ] || kill "$AGENT_PID" 2>/dev/null || true
   [ -z "$CORE_PID" ] || kill "$CORE_PID" 2>/dev/null || true
+  [ -z "$AGENT_PID" ] || wait "$AGENT_PID" 2>/dev/null || true
+  [ -z "$CORE_PID" ] || wait "$CORE_PID" 2>/dev/null || true
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -26,11 +28,13 @@ expect() { # name text output
 
 ORION_ALLOW_INSECURE_NO_AUTH=true ORION_DATA_DIR="$WORK/data" ORION_PORT="$PORT" "$WORK/core" >"$WORK/core.log" 2>&1 &
 CORE_PID=$!
+healthy() { curl -fsS --max-time 1 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; }
 for _ in $(seq 1 50); do
-  python3 -c "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:$PORT/health', timeout=1)" 2>/dev/null && break
+  kill -0 "$CORE_PID" 2>/dev/null || break   # Core exited: the port is probably taken
+  healthy && break
   sleep 0.2
 done
-python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:$PORT/health', timeout=2)" || fail "Core did not start" "$(tail -5 "$WORK/core.log")"
+kill -0 "$CORE_PID" 2>/dev/null && healthy || fail "Core did not start on port $PORT (is it in use? set ORION_E2E_PORT)" "$(tail -5 "$WORK/core.log")"
 
 A() { "$WORK/oa" --config "$WORK/config.yaml" --state "$WORK/state.db" --socket "$WORK/a.sock" --no-color "$@"; }
 export ORION_LOG_PATH="$WORK/agent.log"
@@ -42,7 +46,7 @@ expect "enroll registers the host" "Enrolled as" "$out"
 out="$(A enroll --core-url "http://127.0.0.1:$PORT" --token e2e 2>&1)"
 expect "enrolling again does nothing" "Already enrolled" "$out"
 
-A run >"$WORK/run.log" 2>&1 &
+"$WORK/oa" --config "$WORK/config.yaml" --state "$WORK/state.db" --socket "$WORK/a.sock" --no-color run >"$WORK/run.log" 2>&1 &
 AGENT_PID=$!
 for _ in $(seq 1 60); do A status --short 2>/dev/null | grep -q connected && break; sleep 0.5; done
 
@@ -57,16 +61,21 @@ out="$(A doctor 2>&1 || true)"
 expect "doctor sees the scan" "Last scan" "$out"
 expect "doctor reaches Core" "Core reachable" "$out"
 out="$(A discover --json 2>&1)"
-expect "discover --json lists items" '"items"' "$out"
+expect "discover --json lists items" '"id":' "$out"
 out="$(A maintenance down "e2e" --for 1h 2>&1)"
 expect "maintenance on" "Maintenance on" "$out"
 expect "Core was told" "Core told" "$out"
 out="$(A maintenance up 2>&1)"
 expect "maintenance off" "Maintenance off" "$out"
 out="$(A usage --window 1s --top 3 2>&1)"
-expect "usage lists apps" "cpu" "$out"
+expect "usage lists apps" "name cpu memory" "$out"
+[ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" -ge 2 ] || fail "usage printed no app rows" "$out"
 out="$(A config show 2>&1)"
 expect "config show names the file" "$WORK/config.yaml" "$out"
 out="$(A config validate 2>&1)"
 expect "config validate passes" "Config valid" "$out"
+kill "$AGENT_PID" "$CORE_PID" 2>/dev/null || true
+wait "$AGENT_PID" "$CORE_PID" 2>/dev/null || true
+AGENT_PID="" CORE_PID=""
+if pgrep -f "$WORK" >/dev/null 2>&1; then fail "processes started by the smoke are still running" "$(pgrep -fl "$WORK")"; fi
 printf 'agent e2e smoke passed.\n'
