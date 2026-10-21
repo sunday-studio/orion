@@ -1,4 +1,4 @@
-.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-e2e agent-perf agent-theme agent-theme-check agent-config-reference
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-e2e agent-image agent-perf agent-theme agent-theme-check agent-config-reference
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -89,6 +89,11 @@ release-readiness: agent-test core-test release-core-build console-build reposit
 # Build orion-core Docker image (context: repo root)
 docker-build:
 	docker build -f apps/core/Dockerfile --build-arg VERSION=$(VERSION) -t $(CORE_IMAGE):$(VERSION) .
+
+# Build the Agent container image (context: repo root).
+AGENT_IMAGE ?= ghcr.io/sunday-studio/orion-agent
+agent-image:
+	docker build -f apps/agent/Dockerfile --build-arg VERSION=$(VERSION) -t $(AGENT_IMAGE):$(VERSION) .
 
 # Build Core API for local/package validation.
 core-build:

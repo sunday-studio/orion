@@ -72,6 +72,9 @@ func plural(n int, one, many string) string {
 }
 
 func checkService(_ context.Context, e *Env) Result {
+	if os.Getenv("ORION_CONTAINER") != "" {
+		return skip("running in a container; the container runtime keeps it running")
+	}
 	if e.Service == nil {
 		return skip("no service manager detected")
 	}
