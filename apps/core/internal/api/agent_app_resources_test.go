@@ -107,3 +107,41 @@ func TestAppResourcesForAnUnknownAgentIs404(t *testing.T) {
 		t.Fatalf("status = %d", resp.Code)
 	}
 }
+
+func TestAMalformedAppResourcesSectionNeverCostsTheHostReport(t *testing.T) {
+	server := setupTestServer(t)
+	agent := registerTestAgent(t, server)
+	many := make([]map[string]any, 0, 250)
+	for i := 0; i < 250; i++ {
+		many = append(many, map[string]any{"kind": "process", "key": "process:p" + strings.Repeat("x", i%5) + string(rune('a'+i%26)) + string(rune('a'+i/26)), "name": "p"})
+	}
+	sections := map[string]any{
+		"negative uint":   map[string]any{"series": []map[string]any{{"kind": "unit", "key": "unit:a", "name": "a", "memory_bytes": -5, "cpu_percent": 2.5}}},
+		"string number":   map[string]any{"interval_seconds": "soon", "series": []map[string]any{{"kind": "unit", "key": "unit:a", "name": "a", "cpu_percent": "high", "pids": "many"}}},
+		"huge number":     map[string]any{"series": []map[string]any{{"kind": "path", "key": "path:/x", "name": "/x", "storage_bytes": 1.8e19}}},
+		"series not list": map[string]any{"series": "nope"},
+		"not an object":   []int{1, 2, 3},
+		"over the cap":    map[string]any{"series": many},
+	}
+	for name, section := range sections {
+		body := map[string]any{"uptime_seconds": 120, "timestamp": time.Now().UTC().Format(time.RFC3339),
+			"cpu": map[string]any{"cores": 4, "usage_percent": 12.5}, "memory": map[string]any{"total_bytes": 1024, "used_bytes": 512, "used_percent": 50},
+			"disk": map[string]any{"total_bytes": 2048, "used_bytes": 1024, "used_percent": 50}, "app_resources": section}
+		if resp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+agent.Data.AgentID+"/report", body, agent.Data.Token); resp.Code != http.StatusOK {
+			t.Fatalf("%s: report status = %d: %s (an odd section must never turn into a rejected host report)", name, resp.Code, resp.Body.String())
+		}
+	}
+	var r appResourcesResp
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.Data.AgentID+"/app-resources", nil, ""), &r)
+	if v := r.Data.AppResources; v == nil || len(v.Series) != 200 {
+		t.Fatalf("the last report (250 series) keeps the first 200: %+v", v)
+	}
+
+	reportWithAppResources(t, server, agent.Data.AgentID, agent.Data.Token, sections["negative uint"].(map[string]any))
+	var r2 appResourcesResp
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.Data.AgentID+"/app-resources", nil, ""), &r2)
+	s := r2.Data.AppResources.Series[0]
+	if s.MemoryBytes != nil || s.CPUPercent == nil || *s.CPUPercent != 2.5 {
+		t.Fatalf("a bad field is absent while the good ones are kept: %+v", s)
+	}
+}

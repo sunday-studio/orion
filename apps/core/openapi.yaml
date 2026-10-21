@@ -4749,10 +4749,9 @@ definitions:
       agent_version:
         type: string
       app_resources:
-        allOf:
-        - $ref: '#/definitions/orion_core_internal_service.AppResourcesInput'
         description: AppResources is the agent's passive per-app measurements; Core
           stores the latest.
+        type: object
       config_summary: {}
       cpu:
         $ref: '#/definitions/orion_core_internal_db.CPUStats'
@@ -4907,19 +4906,6 @@ definitions:
         type: integer
       storage_capped:
         type: boolean
-    type: object
-  orion_core_internal_service.AppResourcesInput:
-    properties:
-      interval_seconds:
-        type: number
-      notes:
-        items:
-          type: string
-        type: array
-      series:
-        items:
-          $ref: '#/definitions/orion_core_internal_service.AppResourceSeries'
-        type: array
     type: object
   orion_core_internal_service.ArchiveRunResult:
     properties:

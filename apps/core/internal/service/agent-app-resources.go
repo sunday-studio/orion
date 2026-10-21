@@ -12,8 +12,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var ErrAppResourcesInvalid = errors.New("invalid app resources")
-
 const (
 	maxAppResourceSeries = 200
 	maxAppResourceText   = 300
@@ -54,17 +52,81 @@ type AgentAppResourcesView struct {
 	Notes           []string            `json:"notes"`
 }
 
-func finiteOrNil(v *float64) *float64 {
-	if v == nil || math.IsNaN(*v) || math.IsInf(*v, 0) || *v < 0 {
+// leniently reads one number; anything else (a string, a negative, a huge or non-finite value) is "not measured".
+func numberField(m map[string]json.RawMessage, key string) *float64 {
+	raw, ok := m[key]
+	if !ok {
 		return nil
 	}
+	var v float64
+	if json.Unmarshal(raw, &v) != nil || math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
+		return nil
+	}
+	return &v
+}
+
+func countField(m map[string]json.RawMessage, key string) *uint64 {
+	v := numberField(m, key)
+	if v == nil {
+		return nil
+	}
+	n := uint64(math.Min(*v, math.MaxInt64)) // SQLite stores signed 64-bit integers
+	return &n
+}
+
+func stringField(m map[string]json.RawMessage, key string) string {
+	var v string
+	_ = json.Unmarshal(m[key], &v)
 	return v
 }
 
-func cleanAppResources(in *AppResourcesInput) ([]AppResourceSeries, error) {
-	if len(in.Series) > maxAppResourceSeries {
-		return nil, ErrAppResourcesInvalid
+// parseAppResources reads the section leniently: whatever cannot be read is dropped (a series) or
+// treated as not measured (a field), so an odd section never costs the host report that carries it.
+func parseAppResources(raw json.RawMessage) (*AppResourcesInput, bool) {
+	var env struct {
+		IntervalSeconds json.RawMessage   `json:"interval_seconds"`
+		Series          []json.RawMessage `json:"series"`
+		Notes           []json.RawMessage `json:"notes"`
 	}
+	if len(raw) == 0 || string(raw) == "null" || json.Unmarshal(raw, &env) != nil {
+		return nil, false
+	}
+	in := &AppResourcesInput{}
+	if env.IntervalSeconds != nil {
+		if v := numberField(map[string]json.RawMessage{"v": env.IntervalSeconds}, "v"); v != nil {
+			in.IntervalSeconds = *v
+		}
+	}
+	for _, n := range env.Notes {
+		var note string
+		if json.Unmarshal(n, &note) == nil {
+			in.Notes = append(in.Notes, note)
+		}
+	}
+	for _, rs := range env.Series {
+		if len(in.Series) >= maxAppResourceSeries {
+			break // keep the first ones
+		}
+		var m map[string]json.RawMessage
+		if json.Unmarshal(rs, &m) != nil {
+			continue
+		}
+		s := AppResourceSeries{Kind: stringField(m, "kind"), Key: stringField(m, "key"), Name: stringField(m, "name"),
+			CPUPercent: numberField(m, "cpu_percent"), MemoryBytes: countField(m, "memory_bytes"),
+			IOReadBps: numberField(m, "io_read_bytes_per_sec"), IOWriteBps: numberField(m, "io_write_bytes_per_sec"),
+			NetRxBps: numberField(m, "net_rx_bytes_per_sec"), NetTxBps: numberField(m, "net_tx_bytes_per_sec"),
+			StorageBytes: countField(m, "storage_bytes")}
+		if p := numberField(m, "pids"); p != nil {
+			n := int(math.Min(*p, math.MaxInt32))
+			s.Pids = &n
+		}
+		_ = json.Unmarshal(m["storage_capped"], &s.StorageCapped)
+		in.Series = append(in.Series, s)
+	}
+	return in, true
+}
+
+func cleanAppResources(in *AppResourcesInput) []AppResourceSeries {
 	seen := map[string]bool{}
 	out := make([]AppResourceSeries, 0, len(in.Series))
 	for _, s := range in.Series {
@@ -73,14 +135,9 @@ func cleanAppResources(in *AppResourcesInput) ([]AppResourceSeries, error) {
 		}
 		seen[s.Key] = true
 		s.Name = clipRunes(s.Name, maxAppResourceText)
-		s.CPUPercent, s.IOReadBps, s.IOWriteBps = finiteOrNil(s.CPUPercent), finiteOrNil(s.IOReadBps), finiteOrNil(s.IOWriteBps)
-		s.NetRxBps, s.NetTxBps = finiteOrNil(s.NetRxBps), finiteOrNil(s.NetTxBps)
-		if s.Pids != nil && *s.Pids < 0 {
-			s.Pids = nil
-		}
 		out = append(out, s)
 	}
-	return out, nil
+	return out
 }
 
 func clipRunes(s string, n int) string {
@@ -93,14 +150,12 @@ func clipRunes(s string, n int) string {
 
 // StoreAppResources replaces the agent's latest measurements with this report. A thing that is no
 // longer reported disappears; Core keeps no history.
-func (s *AgentService) StoreAppResources(agentID string, in *AppResourcesInput) error {
-	if in == nil {
+func (s *AgentService) StoreAppResources(agentID string, raw json.RawMessage) error {
+	in, ok := parseAppResources(raw)
+	if !ok {
 		return nil
 	}
-	series, err := cleanAppResources(in)
-	if err != nil {
-		return err
-	}
+	series := cleanAppResources(in)
 	notes := make([]string, 0, len(in.Notes))
 	for _, n := range in.Notes {
 		if len(notes) < maxAppResourceNotes {
