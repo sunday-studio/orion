@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 )
@@ -162,5 +163,17 @@ func TestAnotherAgentCannotPullOrAnswerThisAgentsRequests(t *testing.T) {
 		if resp == http.StatusOK {
 			t.Errorf("%s with another agent's token must be refused, got %d", name, resp)
 		}
+	}
+}
+
+func TestTokenCheckAcceptsTheAgentTokenWhenConsoleAuthIsOn(t *testing.T) {
+	server := setupTestServerWithConfig(t, &config.Config{AdminUsername: "admin", AdminPassword: "pw", JWTSecret: "secret-secret-secret-secret-1234", FrontendAuthOn: true})
+	agent := registerTestAgent(t, server)
+	path := "/v1/agents/" + agent.Data.AgentID + "/token-check"
+	if resp := performJSONRequest(t, server, http.MethodPost, path, nil, agent.Data.Token); resp.Code != http.StatusOK {
+		t.Fatalf("the agent's own token: %d %s", resp.Code, resp.Body.String())
+	}
+	if resp := performJSONRequest(t, server, http.MethodPost, path, nil, "not-the-token"); resp.Code != http.StatusUnauthorized {
+		t.Fatalf("a wrong token: %d", resp.Code)
 	}
 }

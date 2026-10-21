@@ -2279,6 +2279,47 @@
                 }
             }
         },
+        "/v1/agents/{agent_id}/token-check": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Succeeds when the bearer token belongs to this agent. It changes nothing and returns nothing, so an agent (or its doctor and setup) can ask \"does Core accept my token?\" without calling an admin route, which an agent token cannot use once Console authentication is on.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Check an agent token",
+                "operationId": "checkAgentToken",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/token/reissue": {
             "post": {
                 "description": "Create a replacement token for a revoked agent and return it once",

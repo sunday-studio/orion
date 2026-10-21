@@ -309,6 +309,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/discovery/requests/:request_id/result", ValidateAgentToken(s.agentService, s.authService), s.finishAgentDiscoveryRequest)
 			protected.POST("/:agent_id/monitor-definitions/results", ValidateAgentToken(s.agentService, s.authService), s.recordAgentDefinitionResults)
 			protected.POST("/:agent_id/monitor-definitions/sync", ValidateAgentToken(s.agentService, s.authService), s.pullAgentMonitorDefinitions)
+			protected.POST("/:agent_id/token-check", ValidateAgentToken(s.agentService, s.authService), s.checkAgentToken)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
 	}
