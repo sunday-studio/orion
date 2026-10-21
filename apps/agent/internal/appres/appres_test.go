@@ -440,3 +440,36 @@ func TestDockerStorageSizesContainersVolumesAndImages(t *testing.T) {
 		t.Errorf("no socket is silent, got %v", err)
 	}
 }
+
+func TestDockerStorageDoesNotRetryAFailingDockerBeforeTheWindowEnds(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "dk")
+	defer os.RemoveAll(dir)
+	sock := filepath.Join(dir, "d.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/containers/json", func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		http.Error(w, "busy", http.StatusInternalServerError)
+	})
+	srv := &http.Server{Handler: mux}
+	go srv.Serve(ln)
+	defer srv.Close()
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	src := newDockerStorageSource(sock, func() time.Time { return now })
+	if _, err := src(); err == nil {
+		t.Fatal("a failing Docker is an error")
+	}
+	now = now.Add(time.Minute)
+	if _, err := src(); err == nil || calls != 1 {
+		t.Fatalf("asked again within the window: calls=%d err=%v", calls, err)
+	}
+	now = now.Add(6 * time.Minute)
+	src()
+	if calls != 2 {
+		t.Fatalf("after the window it tries again, calls=%d", calls)
+	}
+}
