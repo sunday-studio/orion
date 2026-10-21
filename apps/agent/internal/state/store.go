@@ -14,6 +14,8 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 const (
@@ -85,7 +87,7 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 
-	database, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	database, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	if err != nil {
 		return nil, fmt.Errorf("open state database: %w", err)
 	}
@@ -109,7 +111,7 @@ func InspectReadOnly(path string) (*config.InternalState, error) {
 		return nil, fmt.Errorf("inspect state database: %w", err)
 	}
 
-	database, err := gorm.Open(sqlite.Open(readOnlySQLiteDSN(path)), &gorm.Config{})
+	database, err := gorm.Open(sqlite.Open(readOnlySQLiteDSN(path)), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	if err != nil {
 		return nil, fmt.Errorf("open state database read-only: %w", err)
 	}
@@ -368,8 +370,12 @@ func (s *Store) getOrCreateAgentState() (*agentStateRecord, error) {
 	record = agentStateRecord{
 		ID: 1,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
+	// Two callers can both find nothing and create the row; the loser must not fail or log.
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
 		return nil, fmt.Errorf("create agent state: %w", err)
+	}
+	if err := s.db.Where("id = ?", 1).First(&record).Error; err != nil {
+		return nil, fmt.Errorf("load agent state: %w", err)
 	}
 	return &record, nil
 }
