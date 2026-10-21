@@ -14,9 +14,6 @@ import {
   Select,
 } from "@/design-system";
 
-/** Scheduled maintenance windows need Core support (F4 batch B); "Start now" works today. */
-export const SCHEDULED_MAINTENANCE_API_AVAILABLE = false;
-
 const DURATIONS = [
   [3600, "1 hour"],
   [14400, "4 hours"],
@@ -57,7 +54,7 @@ export const MaintenanceDialog = ({
           onSubmit={(event) => {
             event.preventDefault();
             if (mode === "now") onStart(Number(duration));
-            else if (!SCHEDULED_MAINTENANCE_API_AVAILABLE) setNotice(true);
+            else setNotice(true);
           }}
         >
           <DialogHeader>

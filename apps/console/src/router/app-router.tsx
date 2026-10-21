@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login.view";
 import { Layout } from "@/components/shared/layout";
 import { NotFound } from "@/components/shared/not-found";
@@ -104,11 +104,6 @@ const StatusPagesPage = lazy(() =>
   })),
 );
 
-const NodeDetailRedirect = () => {
-  const { nodeId = "" } = useParams();
-  return <Navigate to={`/servers/${nodeId}`} replace />;
-};
-
 function AppRouter() {
   return (
     <Routes>
@@ -122,8 +117,6 @@ function AppRouter() {
           <Route path="status-pages" element={<StatusPagesPage />} />
           <Route path="status-pages/:pageId" element={<StatusPageDetailPage />} />
           <Route path="logs" element={<LogsPage />} />
-          <Route path="nodes" element={<Navigate to="/servers" replace />} />
-          <Route path="nodes/:nodeId" element={<NodeDetailRedirect />} />
           <Route path="servers" element={<NodesPage />} />
           <Route path="servers/new" element={<AddServerPage />} />
           <Route path="servers/:nodeId" element={<NodeDetailPage />} />
