@@ -115,7 +115,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		if !announced {
 			// A foreground agent is silent from here on; say so, or it looks hung.
 			announced = true
-			fmt.Fprint(outputWriter, "\n   "+theme.Muted("Running and reporting. Ctrl+C stops it. In another terminal: orion-agent status")+"\n")
+			fmt.Fprint(outputWriter, "\n   "+theme.Muted("Running and reporting. Ctrl+C stops it. Check on it with: orion-agent status")+"\n")
 		}
 		ctrl.update(userConfig)
 

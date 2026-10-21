@@ -47,3 +47,5 @@ Where the code deliberately differs from a board, the test or this table says wh
 Done since the last update: Console actions for the Detected panel (Core request queue, agent poller and applier, service, container and pm2 checks), markdown for release notes and `help <topic>` with a small built-in renderer (Glamour added about 10 MB and was dropped), Core ingestion of app resources, and the agent container image.
 
 Decided not to do: VHS tapes for README and website visuals (2026-10-21). Plain-text output in the docs is enough and cannot go stale.
+
+Deviations from the boards (2026-10-21): a continuous foreground `run` prints one muted line after "Registered" (the board prints nothing, which looks hung). `config show` follows the Config board (Sources and Settings panels); the auto-detect board's "hand-written config wins" screen draws separate `discovery` and `monitors` panels with "managed in config file" and "accepted from scan" wording, which the two boards do not reconcile.
