@@ -25,11 +25,11 @@ docker compose -f orion-compose.yaml up -d
 Run the installer on any Linux or macOS machine you want to watch, and point it at your Core.
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
   --core-url http://orion-core.local:8999
 ```
 
-<Callout>Check it from that machine with `orion-agent status`. The server appears in the Console within a minute.</Callout>
+<Callout>Check it from that machine with `orion-node status`. The server appears in the Console within a minute.</Callout>
 
 <Done id="s2">the server shows as Up under Servers</Done>
 

@@ -13,7 +13,7 @@ Orion is self-hosted monitoring for the servers, sites, jobs and apps you run. Y
 - **Alerts** delivered to webhook and email channels, with every delivery recorded.
 - **Status pages** you can publish for your users.
 - **Product logs** from your apps, over a plain JSON endpoint or OpenTelemetry.
-- **A server agent** for Linux and macOS that watches the machine, its services and Docker containers from the inside.
+- **A server node** for Linux and macOS that watches the machine, its services and Docker containers from the inside.
 
 ## How it fits together
 
@@ -21,7 +21,7 @@ Orion is self-hosted monitoring for the servers, sites, jobs and apps you run. Y
 |---|---|
 | **Core** | The API, the Console and the status page. Derives health, opens incidents and stores everything in SQLite. |
 | **Worker** | Runs monitor checks and delivers alerts, in its own process so the API stays responsive. |
-| **Agent** | A small daemon you install on each server you want to watch. It reports to Core. |
+| **Node** | A small daemon you install on each server you want to watch. It reports to Core. |
 | **Apps** | Anything that sends logs to Core with an ingest key. |
 
 ## What it is not

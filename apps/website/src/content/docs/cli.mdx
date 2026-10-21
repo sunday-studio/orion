@@ -1,16 +1,16 @@
 ---
-title: Agent CLI
-description: "Every command for the orion-agent on a Linux or macOS server."
+title: Node CLI
+description: "Every command for the orion-node on a Linux or macOS server."
 group: Reference
 order: 8
 ---
 import Callout from "../../components/docs/callout.astro";
 import Cmd from "../../components/docs/cmd.astro";
 
-Run `orion-agent --help` for the grouped list. Output is plain text when piped, with `--json`, or with
+Run `orion-node --help` for the grouped list. Output is plain text when piped, with `--json`, or with
 `NO_COLOR=1`. Exit codes: 0 ok, 1 failed checks or errors, 2 usage error, 3 needs elevation (run with `sudo`).
 
-<Cmd name="orion-agent status" desc="Show whether this host is reporting, what it is watching, and the next step." open>
+<Cmd name="orion-node status" desc="Show whether this host is reporting, what it is watching, and the next step." open>
 
 | Flag | What it does |
 |---|---|
@@ -19,13 +19,13 @@ Run `orion-agent --help` for the grouped list. Output is plain text when piped, 
 | `--json` | Flat, versioned JSON. |
 
 ```sh
-orion-agent status
-orion-agent status --short
+orion-node status
+orion-node status --short
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent setup" desc="Connect this host and choose what to monitor. Optional: host metrics report without it.">
+<Cmd name="orion-node setup" desc="Connect this host and choose what to monitor. Optional: host metrics report without it.">
 
 | Flag | What it does |
 |---|---|
@@ -37,13 +37,13 @@ orion-agent status --short
 | `--yes` | Never ask a question. |
 
 ```sh
-orion-agent setup
-orion-agent setup --core-url https://core.example.com --token-file /secure/path/token --accept-discovered --yes
+orion-node setup
+orion-node setup --core-url https://core.example.com --token-file /secure/path/token --accept-discovered --yes
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent discover" desc="See what Orion found on this server and could monitor. On a terminal you can pick and add.">
+<Cmd name="orion-node discover" desc="See what Orion found on this server and could monitor. On a terminal you can pick and add.">
 
 | Flag | What it does |
 |---|---|
@@ -51,24 +51,24 @@ orion-agent setup --core-url https://core.example.com --token-file /secure/path/
 | `--dismissed` | List what you dismissed. |
 
 ```sh
-orion-agent discover
-orion-agent discover ignore port:5432
-orion-agent discover restore port:5432
+orion-node discover
+orion-node discover ignore port:5432
+orion-node discover restore port:5432
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent doctor" desc="Check the agent, Core, discovery, logs and disk, and print the exact fix for anything wrong.">
+<Cmd name="orion-node doctor" desc="Check the node, Core, discovery, logs and disk, and print the exact fix for anything wrong.">
 
 Exit code 1 when a check fails. `--json` lists each check with id, group, status, message and fix.
 
 ```sh
-orion-agent doctor
+orion-node doctor
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent logs" desc="Read agent logs, or follow the logs shipped to Core in a full-screen viewer." open>
+<Cmd name="orion-node logs" desc="Read node logs, or follow the logs shipped to Core in a full-screen viewer." open>
 
 | Flag | What it does |
 |---|---|
@@ -80,12 +80,12 @@ orion-agent doctor
 | `--since 1h` | Only entries from the last hour. |
 
 ```sh
-orion-agent logs --follow --level warn
+orion-node logs --follow --level warn
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent usage" desc="What apps on this host cost right now: CPU, memory, disk and network, measured from outside.">
+<Cmd name="orion-node usage" desc="What apps on this host cost right now: CPU, memory, disk and network, measured from outside.">
 
 | Flag | What it does |
 |---|---|
@@ -94,47 +94,47 @@ orion-agent logs --follow --level warn
 | `--top N` | Rows shown. |
 
 ```sh
-orion-agent usage --watch
+orion-node usage --watch
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent config" desc="Show where settings come from, compare, validate and edit.">
+<Cmd name="orion-node config" desc="Show where settings come from, compare, validate and edit.">
 
 ```sh
-orion-agent config show
-orion-agent config diff
-orion-agent config validate
-orion-agent config edit
+orion-node config show
+orion-node config diff
+orion-node config validate
+orion-node config edit
 ```
 
-`edit` opens your editor on a copy, checks it, shows what changed and asks before saving. The running agent reloads the new config.
+`edit` opens your editor on a copy, checks it, shows what changed and asks before saving. The running node reloads the new config.
 
 </Cmd>
 
-<Cmd name="orion-agent start | stop | restart" desc="Control the service. Start and restart check config, state and permissions first.">
+<Cmd name="orion-node start | stop | restart" desc="Control the service. Start and restart check config, state and permissions first.">
 
 ```sh
-sudo orion-agent restart
-sudo orion-agent stop --yes
+sudo orion-node restart
+sudo orion-node stop --yes
 ```
 
 `stop` asks once on a terminal. `--yes` skips the question.
 
 </Cmd>
 
-<Cmd name="orion-agent maintenance" desc="Mute alerts for a planned window. It always ends: 24 hours by default, 720 hours at most.">
+<Cmd name="orion-node maintenance" desc="Mute alerts for a planned window. It always ends: 24 hours by default, 720 hours at most.">
 
 ```sh
-orion-agent maintenance down "kernel upgrade" --for 2h
-orion-agent maintenance up
+orion-node maintenance down "kernel upgrade" --for 2h
+orion-node maintenance up
 ```
 
 With no arguments on a terminal, `down` asks why and for how long.
 
 </Cmd>
 
-<Cmd name="orion-agent update" desc="Update safely: the download is verified, the old binary is kept, and a bad update rolls back by itself.">
+<Cmd name="orion-node update" desc="Update safely: the download is verified, the old binary is kept, and a bad update rolls back by itself.">
 
 | Flag | What it does |
 |---|---|
@@ -143,43 +143,43 @@ With no arguments on a terminal, `down` asks why and for how long.
 | `--force` | Reinstall even when already on the target version. |
 
 ```sh
-sudo orion-agent update
-sudo orion-agent update --rollback
+sudo orion-node update
+sudo orion-node update --rollback
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent token apply" desc="Apply a replacement token when the agent can no longer authenticate. Identity and monitors are kept.">
+<Cmd name="orion-node token apply" desc="Apply a replacement token when the node can no longer authenticate. Identity and monitors are kept.">
 
 ```sh
-orion-agent token apply --token-file /secure/path/replacement-token
-orion-agent service restart
+orion-node token apply --token-file /secure/path/replacement-token
+orion-node service restart
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent emit" desc="Send one log entry from your own script.">
+<Cmd name="orion-node emit" desc="Send one log entry from your own script.">
 
 ```sh
-orion-agent emit --severity error --event backup.failed "nightly backup failed"
+orion-node emit --severity error --event backup.failed "nightly backup failed"
 ```
 
 </Cmd>
 
-<Cmd name="orion-agent run-job" desc="Run a command, ship its output, and ping a heartbeat. The command's own output and exit code pass through.">
+<Cmd name="orion-node run-job" desc="Run a command, ship its output, and ping a heartbeat. The command's own output and exit code pass through.">
 
 ```sh
-orion-agent run-job --name nightly-backup --heartbeat-token $TOKEN -- /usr/local/bin/backup.sh
+orion-node run-job --name nightly-backup --heartbeat-token $TOKEN -- /usr/local/bin/backup.sh
 ```
 
 One summary line on stderr: `✓ nightly-backup  exit 0 · 41 s · 214 lines shipped · heartbeat ok`.
 
 </Cmd>
 
-<Cmd name="orion-agent reconfigure" desc="Create a new local registration. Core will see this machine as a new server.">
+<Cmd name="orion-node reconfigure" desc="Create a new local registration. Core will see this machine as a new server.">
 
 ```sh
-orion-agent reconfigure --token-file /secure/path/add-server-token
+orion-node reconfigure --token-file /secure/path/add-server-token
 ```
 
 </Cmd>
