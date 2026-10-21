@@ -117,6 +117,13 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 		return 0
 	}
 
+	if len(normalizedArgs) == 2 && normalizedArgs[0] == "help" {
+		SetColorEnabled(writerSupportsColor(out))
+		if printHelpTopic(out, normalizedArgs[1], ui.Width(os.Stdout)) {
+			return 0
+		}
+	}
+
 	// fang styles --help from the design tokens; errors keep our own renderer.
 	var runErr error
 	_ = fang.Execute(ctx, cmd,
