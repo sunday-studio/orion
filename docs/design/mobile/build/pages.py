@@ -95,7 +95,7 @@ def ia():
            "<tr><td>Push channel</td><td><code>mobile_push</code> channel type, <code>/v1/devices/{id}/push-token</code></td><td>%s</td></tr>"
            "<tr><td>Incidents, notes, actions, handoff, public update</td><td><code>/v1/incidents*</code></td><td>exists</td></tr>"
            "<tr><td>Needs review</td><td><code>/v1/incidents/candidates*</code></td><td>exists</td></tr>"
-           "<tr><td>Servers, monitors, test, pause, resume</td><td><code>/v1/agents*</code>, <code>/v1/monitors*</code></td><td>exists</td></tr>"
+           "<tr><td>Servers, monitors, test, pause, resume</td><td><code>/v1/nodes*</code>, <code>/v1/monitors*</code></td><td>exists</td></tr>"
            "<tr><td>Logs, live tail</td><td><code>/v1/logs*</code>, <code>/v1/logs/stream</code> (SSE)</td><td>exists</td></tr>"
            "<tr><td>Alert deliveries, retry</td><td><code>/v1/alerts/deliveries*</code></td><td>exists</td></tr>"
            "<tr><td>Search</td><td><code>/v1/search</code></td><td>exists</td></tr></table>") % (N, N, N)

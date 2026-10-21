@@ -1,20 +1,20 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>CLI, help and errors</title><link rel="stylesheet" href="orion.css"></head>
 <body><style>body{margin:0}</style>
-<div class="app light fr" style="width:1280px;height:1098px;flex-direction:column;background:#fff"><div class="tw"><div style="display:flex;flex-direction:column;gap:20px"><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-agent --help</span></div><div class="tcn"><span class="zp">$</span> orion-agent --help
+<div class="app light fr" style="width:1280px;height:1098px;flex-direction:column;background:#fff"><div class="tw"><div style="display:flex;flex-direction:column;gap:20px"><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-node --help</span></div><div class="tcn"><span class="zp">$</span> orion-node --help
 
-<span class="zb">orion-agent</span><span class="zm">  the Orion monitoring agent</span>
+<span class="zb">orion-node</span><span class="zm">    the Orion monitoring Node</span>
 
 <span class="zb">USAGE</span>
-  orion-agent <span class="zm">[command] [flags]</span>
+  orion-node <span class="zm">[command] [flags]</span>
 
 <span class="zb">GET STARTED</span>
   <span class="zc">setup</span>     Connect this host and choose what to monitor
-  <span class="zc">doctor</span>    Check the agent and fix problems
-  <span class="zc">status</span>    Show the agent and its Core connection
+  <span class="zc">doctor</span>    Check the Node and fix problems
+  <span class="zc">status</span>    Show the Node and its Core connection
 
 <span class="zb">DAY TO DAY</span>
-  <span class="zc">logs</span>      View agent and shipped logs
+  <span class="zc">logs</span>      View Node and shipped logs
   <span class="zc">service</span>   install, start, stop, restart, uninstall
   <span class="zc">config</span>    show, diff, validate, edit
   <span class="zc">update</span>    Upgrade safely, with rollback
@@ -22,7 +22,7 @@
 <span class="zb">FLAGS</span>
   --json        Machine-readable output
   --no-color    Plain output
-  -h, --help    Show help</div></div><div class="term"><div class="tb"><i></i><i></i><i></i><span>errors</span></div><div class="tcn"><span class="zp">$</span> orion-agent config validate
+  -h, --help    Show help</div></div><div class="term"><div class="tb"><i></i><i></i><i></i><span>errors</span></div><div class="tcn"><span class="zp">$</span> orion-node config validate
 
  <span class="zchipr"> ERROR </span> <span class="zb">Invalid config</span>
 
@@ -32,10 +32,10 @@
 
   Did you mean <span class="zg">interval</span>?
 
-  <span class="zm">Fix:</span> orion-agent config edit
+  <span class="zm">Fix:</span> orion-node config edit
   <span class="zm">Docs:</span> https://orion.example/docs/config
 
-<span class="zp">$</span> orion-agent config validate --no-color
+<span class="zp">$</span> orion-node config validate --no-color
 
 [fail] /etc/orion/config.yaml:14:3 unknown key "intervall"
        did you mean "interval"?</div></div></div><div class="tnotes"><div class="nb"><h4>Help (fang on cobra)</h4><ul><li>Commands grouped by intent, not alphabetically. Command names in blue-ish accent, descriptions plain.</li><li>Fits 80 columns.</li></ul></div><div class="nb"><h4>Errors</h4><ul><li>Red ERROR badge, one-line summary, the file and line, a caret under the problem, a suggested fix, then the exact command.</li><li>Plain output keeps the same words with <code>[fail]</code>.</li><li>Exit codes: 0 ok, 1 failed checks, 2 usage, 3 needs elevation.</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div></div></div></div>

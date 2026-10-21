@@ -3,7 +3,7 @@
 Inventory of every Console screen: existing (E), partially present (P), and implied but missing (N).
 Sources: `apps/console/src/router/app-router.tsx`, `apps/console/src/features/*`, `apps/core/openapi.yaml`, `docs/architecture/*`.
 
-Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/agents`). Navigation is the top bar: Overview, Incidents, Servers, Monitors, Alerts, Status, Logs, Settings, with a command palette on `⌘K`.
+Terminology: the UI says "Servers" for what Core calls Nodes (`/servers`, `/v1/nodes`). Navigation is the top bar: Overview, Incidents, Servers, Monitors, Alerts, Status, Logs, Settings, with a command palette on `⌘K`.
 
 ## 1. Existing routes
 
@@ -12,8 +12,8 @@ Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/
 | 1 | `/login` | Sign in | E | `POST /v1/auth/login` |
 | 2 | `/incidents` | Incidents list + summary cards | E | `GET /v1/incidents`, `/v1/health/summary` |
 | 3 | `/incidents/:id` | Incident detail (timeline, ack/cover/resolve/reopen dialogs) | E | `/v1/incidents/{id}`, `/timeline`, actions |
-| 4 | `/servers` | Servers (agents) list, summary, filters | E | `GET /v1/agents`, `/v1/agents/summary` |
-| 5 | `/servers/:id` | Server detail, tabs: Server Reports, Service Logs, Monitors, System Metrics; token panel; health summary | E | `/v1/agents/{id}/*` |
+| 4 | `/servers` | Servers (Nodes) list, summary, filters | E | `GET /v1/nodes`, `/v1/nodes/summary` |
+| 5 | `/servers/:id` | Server detail, tabs: Server Reports, Service Logs, Monitors, System Metrics; token panel; health summary | E | `/v1/nodes/{id}/*` |
 | 6 | `/monitors` | Monitors list, summary, core-worker diagnostics, create dialog, heartbeat setup | E | `/v1/monitors`, `/v1/diagnostics/*` |
 | 7 | `/monitors/:id` | Monitor detail: overview, uptime, history, operational data, report inspection drawer | E | `/v1/monitors/{id}/*` |
 | 8 | `/alerts` | Alerts, tabs: Notification Log, Channels, Rules (flow node editor) | E | `/v1/alerts/*` |
@@ -26,7 +26,7 @@ Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/
 
 | # | Overlay | Parent | State |
 |---|---------|--------|-------|
-| 13 | Create / edit monitor dialog (HTTP, TCP, heartbeat, agent monitor types) | Monitors | E |
+| 13 | Create / edit monitor dialog (HTTP, TCP, heartbeat, Node monitor types) | Monitors | E |
 | 14 | Heartbeat setup panel (ping URLs, curl snippet) | Monitors | E |
 | 15 | Core worker diagnostics panel | Monitors | E |
 | 16 | Report inspection drawer (raw report payload) | Monitor / Server detail | E |
@@ -65,7 +65,7 @@ Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/
 | 39 | Health issues drill-down | `GET /v1/health/issues` | N |
 | 40 | Incident candidates review, Open incident and Dismiss actions | `GET /v1/incidents/candidates`; NEW endpoint approved: dismiss candidate (`POST /v1/incidents/candidates/{id}/dismiss`) | N |
 | 41 | Monitor test result (run test now, show result) | `POST /v1/monitors/{id}/test`; approved: may need a richer result payload (DNS, TLS timings) | N (inline only) |
-| 42 | Monitor pause / resume / maintenance window scheduling | `/pause`, `/resume`, `PUT /agents/{id}/maintenance` | P |
+| 42 | Monitor pause / resume / maintenance window scheduling | `/pause`, `/resume`, `PUT /nodes/{id}/maintenance` | P |
 | 43 | Monitor edit (config) full page | `PUT /v1/monitors/{id}/config` | P (dialog) |
 | 44 | Delete confirmation dialogs (monitor, server, status page) | CRUD completeness | N |
 | 45 | Server unregister / decommission flow | token revoke | N |
@@ -91,7 +91,7 @@ Authoritative log: `docs/plans/decision-log.md`. Applied here:
 
 ## 4b. Artboards added after the first pass
 
-Unsubscribe by token (34, `public-unsubscribe`), status badge SVG (35, `status-badge`), agent monitor setup flow (13, `monitor-agent-setup`). Alerts Routes (20, `alerts-routes`) already has its own artboard.
+Unsubscribe by token (34, `public-unsubscribe`), status badge SVG (35, `status-badge`), Node monitor setup flow (13, `monitor-node-setup`). Alerts Routes (20, `alerts-routes`) already has its own artboard.
 
 - Redesign 2026-10-15: shell, tokens and all screens were rebuilt; see `design-language.md` v2. Screen numbers are unchanged. New in the redesign: Overview hero, incident detail two-column layout, response-time chart on monitor detail, channels as cards, public pages polish.
 
@@ -100,7 +100,7 @@ Unsubscribe by token (34, `public-unsubscribe`), status badge SVG (35, `status-b
 Flows 1 to 9 are described below; flows 10 to 20 (webhook channel, email channel, failed delivery, investigate logs, server lifecycle, manual incident, bulk actions, publish a status page, triage candidate, account and session, API tokens) are on the Flows artboard.
 
 1. **First run**: install Core -> login -> onboarding checklist -> add server -> create monitor -> add channel -> create rule -> publish status page.
-2. **Add server**: Servers > Add server -> copy install command -> agent registers (`/v1/register`) -> token shown once -> server appears Up.
+2. **Add server**: Servers > Add server -> copy install command -> Node registers (`/v1/register`) -> token shown once -> server appears Up.
 3. **Create monitor**: Monitors > New -> pick type -> configure -> Test -> Save -> first check -> Up.
 4. **Detect to resolve**: check fails -> monitor Down -> incident opened -> rule matches -> channel delivery (sent/failed) -> operator acknowledges -> optional cover -> check recovers or operator resolves -> timeline closed.
 5. **Public communication**: incident open -> suggestion -> draft public incident -> post updates -> resolve -> subscribers notified.
@@ -131,9 +131,9 @@ Logs are now three sources: status logs (events, filter by server and monitor), 
 
 ## 9. Product logs (D-011, 2026-10-17)
 
-Unified Logs page (logs, logs-rich, logs-plain, logs-detail, logs-detail-plain, logs-no-apps, logs-no-results, logs-error), with logs-live, logs-patterns, logs-views, logs-export. Apps settings (settings-apps, settings-app-new, app-keys, app-key-new, app-retention, app-display, app-redaction, app-send-test). Connect your first app (app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received). Log tabs are named Service logs (apps and agents, the unified page), Status logs (events) and Internal logs (Orion backend). Settings tabs are now Data lifecycle, General, Apps, Security, System, Audit log. Superseded: logs-app, logs-app-detail, logs-app-empty, logs-app-connect, logs-sources (the earlier three-tab design).
+Unified Logs page (logs, logs-rich, logs-plain, logs-detail, logs-detail-plain, logs-no-apps, logs-no-results, logs-error), with logs-live, logs-patterns, logs-views, logs-export. Apps settings (settings-apps, settings-app-new, app-keys, app-key-new, app-retention, app-display, app-redaction, app-send-test). Connect your first app (app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received). Log tabs are named Service logs (apps and Nodes, the unified page), Status logs (events) and Internal logs (Orion backend). Settings tabs are now Data lifecycle, General, Apps, Security, System, Audit log. Superseded: logs-app, logs-app-detail, logs-app-empty, logs-app-connect, logs-sources (the earlier three-tab design).
 
-## 10. CLI and agent (agent-cli-plan.md)
+## 10. CLI and Node (agent-cli-plan.md)
 
 Terminal screens: cli-install, cli-setup, cli-doctor, cli-status, cli-logs, cli-help-error. Console: add-server (command with enrollment token), add-server-waiting (live steps), add-server-connected, add-server-failed. Sign in was restyled (fade into white, dot animation).
 

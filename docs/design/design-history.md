@@ -233,3 +233,7 @@ TWK Lausanne (300 for text, 500 for emphasis) is the Console typeface, replacing
 ## 26. Coverage added (2026-10-17)
 
 New screens: channel type picker, webhook form, email form, channel test results, channel detail, email confirmation page; server monitors tab, no-reports state, edit, remove, new token, connected, not connected, empty list; events explorer, service logs explorer, live tail, patterns, event detail, time range and saved views, export; declare incident, bulk actions, none open, resolved detail, public update; monitor configure, bulk actions, empty, TCP form, paused; status pages list, create, custom domain, schedule maintenance, publish and unpublish; account menu, keyboard shortcuts, Overview all good; settings general, API tokens, new token, audit log. The Flows board now holds twenty journeys.
+
+## 27. "Agent" renamed to "Node" (2026-10-21)
+
+Decision D-047. The software that runs on a machine is now the **Node**; the machine itself stays a **Server** in the Console ("Node not reporting", "Install the Node"). The CLI is `orion-node`. The canvas boards, `docs/design/*` and the exported artboards use the new words; layouts are unchanged. Entries above keep the wording of their day. The artboard PNGs were not re-rendered (the TWK Lausanne trial font is not in the repo, D-010), so the images of the renamed boards still show "agent"; the HTML exports are current.

@@ -3,21 +3,21 @@
 <body><style>body{margin:0}</style>
 <div class="app light fr" style="width:1280px;height:781px;flex-direction:column;background:#fff"><div class="tw"><div class="term"><div class="tb"><i></i><i></i><i></i><span>install.sh</span></div><div class="tcn"><span class="zp">$</span> curl -fsSL https://core.example.com/install.sh | sudo sh -s -- --token orn_enr_7Qx2...
 
-  <span class="zb">orion</span><span class="zm">  agent installer 0.9.2</span>
+  <span class="zb">orion</span><span class="zm">  Node installer 0.9.2</span>
 
   <span class="zb">Plan</span>
   <span class="zg">●</span> system     linux/amd64, systemd, Debian 12
-  <span class="zg">●</span> download   orion-agent 0.9.2, static, 11.4 MB
+  <span class="zg">●</span> download   orion-node 0.9.2, static, 11.4 MB
   <span class="zg">●</span> verify     sha256 and signature
   <span class="zg">●</span> create     user orion, /etc/orion, /var/lib/orion
-  <span class="zg">●</span> install    orion-agentd.service
+  <span class="zg">●</span> install    orion-noded.service
   <span class="zg">●</span> enroll     https://core.example.com
 
   <span class="zg">✓</span> Detected linux/amd64 with systemd
-  <span class="zg">✓</span> Downloaded orion-agent 0.9.2
+  <span class="zg">✓</span> Downloaded orion-node 0.9.2
   <span class="zg">✓</span> Verified sha256 and signature
   <span class="zg">✓</span> Created user orion and directories <span class="zm">(0750)</span>
-  <span class="zg">✓</span> Installed and started orion-agentd
+  <span class="zg">✓</span> Installed and started orion-noded
   <span class="zg">✓</span> Enrolled as <span class="zb">edge-05</span>
   <span class="za">⠋</span> Waiting for the first report...
 
@@ -28,5 +28,5 @@
   <span class="zf">╰──────────────────────────────────────────────────╯</span>
 
   <span class="zb">Done in 41 s.</span> Open <span class="zc">https://core.example.com/servers/edge-05</span>
-  <span class="zm">Add monitors:  orion-agent setup</span></div></div><div class="tnotes"><div class="nb"><h4>What it shows</h4><ul><li>Plan first, then one line per step. <code>--dry-run</code> prints only the plan.</li><li>The one-time enrollment token is in the command, so no config edit is needed.</li><li>Ends with Doctor and a link to the new server in the Console.</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div><div class="nb"><h4>Errors</h4><ul><li>A tampered download stops at Verify with a red <code>✗</code> and the expected and actual hash.</li><li>Re-running is a no-op and says so.</li></ul></div></div></div></div>
+  <span class="zm">Add monitors:  orion-node setup</span></div></div><div class="tnotes"><div class="nb"><h4>What it shows</h4><ul><li>Plan first, then one line per step. <code>--dry-run</code> prints only the plan.</li><li>The one-time enrollment token is in the command, so no config edit is needed.</li><li>Ends with Doctor and a link to the new server in the Console.</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div><div class="nb"><h4>Errors</h4><ul><li>A tampered download stops at Verify with a red <code>✗</code> and the expected and actual hash.</li><li>Re-running is a no-op and says so.</li></ul></div></div></div></div>
 </body></html>

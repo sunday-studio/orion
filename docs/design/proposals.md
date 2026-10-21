@@ -41,7 +41,7 @@ Priority: P0 closes a gap in the main loop (detect, notify, resolve). P1 saves o
 - P1 Inline CPU and memory sparklines in the row.
 - P1 Metric charts with threshold lines on System Metrics.
 - P2 Decommission flow that also removes monitors with a count preview (drawn in delete confirmation).
-- API: agent labels, `GET /v1/agents/{id}/metrics?range=`.
+- API: Node labels, `GET /v1/nodes/{id}/metrics?range=`.
 
 ### Monitors
 - P1 Response-time chart (p50, p95) on detail.
@@ -75,7 +75,7 @@ Priority: P0 closes a gap in the main loop (detect, notify, resolve). P1 saves o
 
 ### Settings
 - P1 Audit log of who changed what.
-- P1 API tokens and agent registration token rotation.
+- P1 API tokens and Node registration token rotation.
 - P2 Version and update check; backup status instead of "not tracked".
 - API: `GET /v1/audit`, API token CRUD.
 
