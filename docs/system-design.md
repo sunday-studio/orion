@@ -67,7 +67,7 @@ The Console is an operations UI, not the configuration source of truth.
 ## Source Of Truth
 
 - API behavior: `apps/core/openapi.yaml`.
-- Server/Core responsibility split: `docs/agent-core-contract.md`.
+- Server/Core responsibility split: `docs/node-core-contract.md`.
 - Backend and Server architecture: `docs/architecture/`.
 - Current deployment docs: `docs/deployment/`.
 - Completed product history: `docs/milestones/`.

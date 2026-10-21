@@ -9,7 +9,7 @@ CORE_PORT="${ORION_EXAMPLE_CORE_PORT:-18999}"
 APP_PORT="${ORION_EXAMPLE_APP_PORT:-18080}"
 CORE_URL="${ORION_EXAMPLE_CORE_URL:-http://127.0.0.1:${CORE_PORT}}"
 APP_URL="${ORION_EXAMPLE_APP_URL:-http://127.0.0.1:${APP_PORT}}"
-AGENT_BIN="${ORION_AGENT_BIN:-${REPO_ROOT}/apps/agent/orion-agent}"
+NODE_BIN="${ORION_NODE_BIN:-${REPO_ROOT}/apps/node/orion-node}"
 STATE_FILE="${ORION_EXAMPLE_STATE:-${REPO_ROOT}/tmp/python-sleep-compose-smoke-state.db}"
 CONFIG_FILE="${ORION_EXAMPLE_CONFIG:-${REPO_ROOT}/tmp/python-sleep-compose-smoke-config.yaml}"
 
@@ -58,14 +58,14 @@ wait_for() {
   return 1
 }
 
-run_agent_once() {
+run_node_once() {
   local label="$1"
   local expected_health="$2"
   local log_file
 
-  log_file="$(mktemp "${TMPDIR:-/tmp}/orion-example-agent.XXXXXX")"
+  log_file="$(mktemp "${TMPDIR:-/tmp}/orion-example-node.XXXXXX")"
   printf 'running server collection: %s\n' "${label}"
-  if ! "${AGENT_BIN}" \
+  if ! "${NODE_BIN}" \
     -config "${CONFIG_FILE}" \
     -state "${STATE_FILE}" \
     run -once -verbose 2>&1 | tee "${log_file}"; then
@@ -97,25 +97,25 @@ sed \
   -e "s#port: 8080#port: ${APP_PORT}#" \
   "${SCRIPT_DIR}/server-config.yaml" >"${CONFIG_FILE}"
 
-if [ ! -x "${AGENT_BIN}" ]; then
-  make -C "${REPO_ROOT}" agent-build VERSION=example-smoke
+if [ ! -x "${NODE_BIN}" ]; then
+  make -C "${REPO_ROOT}" node-build VERSION=example-smoke
 fi
 
 compose up -d --build
 wait_for "python app" "${APP_URL}/health"
 wait_for "orion core" "${CORE_URL}/health"
 
-run_agent_once "healthy" "up"
+run_node_once "healthy" "up"
 
 compose exec -T python-app sh -c 'touch /tmp/orion-example-fail'
 if curl -fsS "${APP_URL}/health" >/dev/null 2>&1; then
   printf 'python app stayed healthy after fail marker\n' >&2
   exit 1
 fi
-run_agent_once "failing" "down"
+run_node_once "failing" "down"
 
 compose exec -T python-app sh -c 'rm -f /tmp/orion-example-fail'
 wait_for "python app recovery" "${APP_URL}/health"
-run_agent_once "recovered" "up"
+run_node_once "recovered" "up"
 
 printf 'first-run Python sleep demo smoke passed\n'

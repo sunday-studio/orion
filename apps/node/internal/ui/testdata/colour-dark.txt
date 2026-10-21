@@ -1,0 +1,16 @@
+[1mOrion Node[0m[38;2;95;107;102m / [0m[38;2;42;159;105mstatus[0m
+  [38;2;139;152;146mservice[0m    [38;2;110;231;183m● up[0m
+  [38;2;139;152;146mcore[0m       https://core.example.com
+  [38;2;139;152;146mreporting[0m  [38;2;195;181;253m‖ maintenance[0m deploying
+
+[1;38;2;139;152;146mCheck[0m   [1;38;2;139;152;146mResult[0m  [1;38;2;139;152;146mDetail[0m                                                          
+config  ok      /etc/orion/config.yaml, 3 monitor(s)                            
+core    FAIL    connection refused: check the network path to Core and the      
+                core_url value                                                  
+
+[38;2;252;211;77m▌ WARNING[0m  the clock differs from Core by 2m
+  [38;2;110;231;183mok  [0m check ok
+  [38;2;252;211;77mwarn[0m check warn
+  [38;2;253;163;175mFAIL[0m check fail
+  [38;2;95;107;102mskip[0m check skip
+  [38;2;42;159;105m..  [0m check running

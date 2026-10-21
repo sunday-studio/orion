@@ -44,11 +44,11 @@ func Search(database *gorm.DB, q string) ([]SearchHit, error) {
 	for _, i := range incidents {
 		hits = append(hits, SearchHit{Type: "incident", ID: i.ID, Name: i.Title, Status: i.Status, Number: i.Number})
 	}
-	var agents []db.Agent
-	if err := database.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?) AND LOWER(name) LIKE ? ESCAPE '\\'", false, time.Time{}, pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {
+	var nodes []db.Node
+	if err := database.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?) AND LOWER(name) LIKE ? ESCAPE '\\'", false, time.Time{}, pattern).Order("name ASC").Limit(searchPerGroup).Find(&nodes).Error; err != nil {
 		return nil, err
 	}
-	for _, a := range agents {
+	for _, a := range nodes {
 		hits = append(hits, SearchHit{Type: "server", ID: a.ID, Name: a.Name})
 	}
 	var apps []db.App

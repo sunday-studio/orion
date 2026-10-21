@@ -46,8 +46,8 @@ func statusPageIncidentSuggestionMatchReason(resourceType string) string {
 	switch resourceType {
 	case "monitor":
 		return "internal incident monitor matched a public component mapping"
-	case "agent":
-		return "internal incident agent matched a public component mapping"
+	case "node":
+		return "internal incident node matched a public component mapping"
 	default:
 		return "internal incident resource matched a public component mapping"
 	}

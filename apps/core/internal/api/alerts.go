@@ -31,7 +31,7 @@ type alertRouteRequest struct {
 	Priority             *int     `json:"priority"`
 	EventTypes           []string `json:"event_types"`
 	Severities           []string `json:"severities"`
-	AgentIDs             []string `json:"agent_ids"`
+	NodeIDs              []string `json:"node_ids"`
 	MonitorIDs           []string `json:"monitor_ids"`
 	MonitorTypes         []string `json:"monitor_types"`
 	ChannelIDs           []string `json:"channel_ids"`
@@ -45,7 +45,7 @@ type alertRuleRequest struct {
 	Priority             *int     `json:"priority"`
 	EventTypes           []string `json:"event_types"`
 	Severities           []string `json:"severities"`
-	AgentIDs             []string `json:"agent_ids"`
+	NodeIDs              []string `json:"node_ids"`
 	MonitorIDs           []string `json:"monitor_ids"`
 	MonitorTypes         []string `json:"monitor_types"`
 	ChannelIDs           []string `json:"channel_ids"`
@@ -59,7 +59,7 @@ type alertRouteDryRunRequest struct {
 	IncidentID  string `json:"incident_id"`
 	EventType   string `json:"event_type"`
 	Severity    string `json:"severity"`
-	AgentID     string `json:"agent_id"`
+	NodeID      string `json:"node_id"`
 	MonitorID   string `json:"monitor_id"`
 	MonitorType string `json:"monitor_type"`
 }
@@ -67,7 +67,7 @@ type alertRuleDryRunRequest struct {
 	IncidentID  string `json:"incident_id"`
 	EventType   string `json:"event_type"`
 	Severity    string `json:"severity"`
-	AgentID     string `json:"agent_id"`
+	NodeID      string `json:"node_id"`
 	MonitorID   string `json:"monitor_id"`
 	MonitorType string `json:"monitor_type"`
 }

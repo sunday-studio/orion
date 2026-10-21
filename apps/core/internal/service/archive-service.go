@@ -16,7 +16,7 @@ import (
 type ArchiveRunResult struct {
 	ArchivePath             string `json:"archive_path"`
 	Cutoff                  string `json:"cutoff"`
-	AgentReportsArchived    int    `json:"agent_reports_archived"`
+	NodeReportsArchived     int    `json:"node_reports_archived"`
 	MonitorReportsArchived  int    `json:"monitor_reports_archived"`
 	ArchiveRawReports       bool   `json:"archive_raw_reports"`
 	SkippedBecauseDisabled  bool   `json:"skipped_because_disabled"`
@@ -78,9 +78,9 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 	defer closeArchiveDatabase(archiveDB)
 
 	cutoff := now.AddDate(0, 0, -settings.RawReportHotDays)
-	agentCount, err := archiveInBatches[db.AgentReport](s.db, archiveDB, cutoff)
+	nodeCount, err := archiveInBatches[db.NodeReport](s.db, archiveDB, cutoff)
 	if err == nil {
-		result.AgentReportsArchived = agentCount
+		result.NodeReportsArchived = nodeCount
 		var monitorCount int
 		monitorCount, err = archiveInBatches[db.MonitorReport](s.db, archiveDB, cutoff)
 		result.MonitorReportsArchived = monitorCount
@@ -90,7 +90,7 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 		s.logger.Error("Failed to archive raw reports", "error", err)
 		return nil, errArchiveMoveFailed
 	}
-	if result.AgentReportsArchived == 0 && result.MonitorReportsArchived == 0 {
+	if result.NodeReportsArchived == 0 && result.MonitorReportsArchived == 0 {
 		result.SkippedBecauseNoReports = true
 	}
 
@@ -186,7 +186,7 @@ func (s *ArchiveService) recordArchiveRun(now time.Time, status string, message 
 const archiveBatchSize = 1000
 
 type archivableReport interface {
-	db.AgentReport | db.MonitorReport
+	db.NodeReport | db.MonitorReport
 }
 
 // archiveInBatches moves rows older than cutoff into the archive database a
@@ -219,7 +219,7 @@ func archiveInBatches[T archivableReport](live *gorm.DB, archive *gorm.DB, cutof
 
 func archiveReportID(report any) string {
 	switch r := report.(type) {
-	case db.AgentReport:
+	case db.NodeReport:
 		return r.ID
 	case db.MonitorReport:
 		return r.ID
@@ -238,7 +238,7 @@ func openArchiveDatabase(path string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := archiveDB.AutoMigrate(&db.AgentReport{}, &db.MonitorReport{}); err != nil {
+	if err := archiveDB.AutoMigrate(&db.NodeReport{}, &db.MonitorReport{}); err != nil {
 		return nil, err
 	}
 	return archiveDB, nil

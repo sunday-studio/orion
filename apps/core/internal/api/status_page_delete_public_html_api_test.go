@@ -12,8 +12,8 @@ import (
 
 func TestStatusPageAdminDeleteRoutesRemoveNestedRecords(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{"slug": "delete-status", "title": "Delete Status"}, "")
 	if createPageResp.Code != http.StatusCreated {
 		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())

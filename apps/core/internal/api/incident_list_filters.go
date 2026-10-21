@@ -16,7 +16,7 @@ var incidentSeverities = map[string]bool{"low": true, "medium": true, "high": tr
 // incidentFiltersFromQuery reads the list/export filters. It is shared by GET /v1/incidents and
 // the CSV export so both always agree.
 func incidentFiltersFromQuery(c *gin.Context) (incidentListFilters, error) {
-	filters := incidentListFilters{statuses: utils.QueryStatuses(c.DefaultQuery("status", "open,acknowledged,covered")), agentID: strings.TrimSpace(c.Query("agent_id")), monitorID: strings.TrimSpace(c.Query("monitor_id")), resolutionKind: strings.TrimSpace(c.Query("resolution_kind")), actor: strings.ToLower(strings.TrimSpace(c.Query("actor"))), covered: utils.QueryOptionalBool(c, "covered"), notificationStatus: strings.TrimSpace(c.Query("notification_status")), needsReview: utils.QueryBool(c, "needs_review", false)}
+	filters := incidentListFilters{statuses: utils.QueryStatuses(c.DefaultQuery("status", "open,acknowledged,covered")), nodeID: strings.TrimSpace(c.Query("node_id")), monitorID: strings.TrimSpace(c.Query("monitor_id")), resolutionKind: strings.TrimSpace(c.Query("resolution_kind")), actor: strings.ToLower(strings.TrimSpace(c.Query("actor"))), covered: utils.QueryOptionalBool(c, "covered"), notificationStatus: strings.TrimSpace(c.Query("notification_status")), needsReview: utils.QueryBool(c, "needs_review", false)}
 	for _, severity := range strings.Split(c.Query("severity"), ",") {
 		severity = strings.ToLower(strings.TrimSpace(severity))
 		if severity == "" {
@@ -86,7 +86,7 @@ func (s *Server) applyIncidentTextAndTimeFilters(query *gorm.DB, filters inciden
 		if n, err := strconv.Atoi(digits); err == nil && n > 0 {
 			number = n
 		}
-		query = query.Where(`LOWER(title) LIKE ? ESCAPE '\' OR number = ? OR monitor_id IN (SELECT id FROM monitors WHERE LOWER(name) LIKE ? ESCAPE '\') OR agent_id IN (SELECT id FROM agents WHERE LOWER(name) LIKE ? ESCAPE '\')`, pattern, number, pattern, pattern)
+		query = query.Where(`LOWER(title) LIKE ? ESCAPE '\' OR number = ? OR monitor_id IN (SELECT id FROM monitors WHERE LOWER(name) LIKE ? ESCAPE '\') OR node_id IN (SELECT id FROM nodes WHERE LOWER(name) LIKE ? ESCAPE '\')`, pattern, number, pattern, pattern)
 	}
 	return query
 }

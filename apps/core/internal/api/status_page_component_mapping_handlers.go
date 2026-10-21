@@ -90,8 +90,8 @@ func (s *Server) applyStatusPageComponentMappingRequest(mapping *db.StatusPageCo
 func (s *Server) ensureStatusPageMappingResourceExists(resourceType string, resourceID string) error {
 	var count int64
 	switch resourceType {
-	case "agent":
-		if err := s.db.Model(&db.Agent{}).Where("id = ?", resourceID).Count(&count).Error; err != nil {
+	case "node":
+		if err := s.db.Model(&db.Node{}).Where("id = ?", resourceID).Count(&count).Error; err != nil {
 			return err
 		}
 	case "monitor":

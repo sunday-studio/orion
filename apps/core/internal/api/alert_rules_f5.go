@@ -56,7 +56,7 @@ func (s *Server) ruleHowItRuns(route db.AlertRoute, names map[string]string) Rul
 	if types := service.DecodeList(route.MonitorTypes); len(types) > 0 {
 		conds = append(conds, "Monitor type is "+strings.Join(types, " or "))
 	}
-	if n := len(service.DecodeList(route.AgentIDs)); n > 0 {
+	if n := len(service.DecodeList(route.NodeIDs)); n > 0 {
 		conds = append(conds, fmt.Sprintf("Server is one of %d selected", n))
 	}
 	if n := len(service.DecodeList(route.MonitorIDs)); n > 0 {

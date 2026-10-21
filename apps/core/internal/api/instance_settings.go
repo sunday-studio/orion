@@ -35,7 +35,7 @@ func (s *Server) applyInstanceSettings() {
 	}
 }
 
-// effectiveRegistrationToken is the secret agents register with: the one rotated in Settings, else ORION_ENROLLMENT_TOKEN.
+// effectiveRegistrationToken is the secret nodes register with: the one rotated in Settings, else ORION_ENROLLMENT_TOKEN.
 func (s *Server) effectiveRegistrationToken() (token string, source string, rotatedAt *time.Time) {
 	if row, err := s.loadInstanceSettings(); err == nil && row.RegistrationToken != "" {
 		return row.RegistrationToken, "settings", row.RegistrationTokenRotatedAt
@@ -157,7 +157,7 @@ type SystemSettings struct {
 		SessionHours int    `json:"session_hours"`
 	} `json:"sign_in"`
 	Registration struct {
-		// Configured is false when agents can register without a token.
+		// Configured is false when nodes can register without a token.
 		Configured bool `json:"configured"`
 		// Token is the secret itself; it is returned to Console sessions only, never to API tokens.
 		Token string `json:"token,omitempty"`

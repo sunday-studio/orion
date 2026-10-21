@@ -56,47 +56,47 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `POST /v1/register` | `registerAgent` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, token lifecycle coverage, monitor flow tests. | deeper service-level token boundaries |
+| `POST /v1/register` | `registerNode` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, token lifecycle coverage, monitor flow tests. | deeper service-level token boundaries |
 | `POST /v1/auth/login` | `login` | Covered | `apps/core/internal/api/integration_test.go` `TestLoginRequiresConfiguredFrontendAuth`, `TestLoginReturnsTokenForValidConfiguredCredentials`; `apps/core/internal/api/status_pages_test.go` auth boundary for admin routes. | |
 | `POST /v1/heartbeats/:token` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`; worker missed heartbeat tests in `apps/core/internal/worker/app_test.go`. | None |
 | `POST /v1/heartbeats/:token/success` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
 | `POST /v1/heartbeats/:token/failure` | `receiveHeartbeatFailure` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
 
-### V1 Frontend Agent And Monitor Routes
+### V1 Frontend Node And Monitor Routes
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `GET /v1/agents` | `listAgents` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, auth middleware coverage via status page admin auth test. | |
-| `GET /v1/agents/summary` | `getAgentSummary` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`. | |
-| `GET /v1/agents/:id` | `getAgentDetail` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, not-found tests. | |
-| `GET /v1/agents/:id/health` | `getAgentHealth` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` agent health split and stale-agent tests. | |
-| `GET /v1/agents/:id/reports` | `getAgentReports` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow. | |
-| `GET /v1/agents/:id/service-logs` | `listAgentServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`. | |
-| `GET /v1/agents/:id/uptime` | `getAgentUptime` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow; service aggregation in `apps/core/internal/service/report-service_test.go`. | |
-| `GET /v1/agents/:id/monitors` | `listMonitors` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` list monitor count, filters, and not-found tests. | |
-| `GET /v1/agents/:id/token/status` | `getAgentTokenStatus` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | |
-| `POST /v1/agents/:agent_id/token/rotate` | `rotateAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | |
-| `POST /v1/agents/:agent_id/token/revoke` | `revokeAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | |
-| `POST /v1/agents/:agent_id/token/reissue` | `reissueAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | |
-| `GET /v1/monitors` | `listAllMonitors` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor summary, owner/source, alias, and computed health filter tests. | |
+| `GET /v1/nodes` | `listNodes` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, auth middleware coverage via status page admin auth test. | |
+| `GET /v1/nodes/summary` | `getNodeSummary` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`. | |
+| `GET /v1/nodes/:id` | `getNodeDetail` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, not-found tests. | |
+| `GET /v1/nodes/:id/health` | `getNodeHealth` | Covered | `apps/core/internal/api/node_monitor_api_test.go` node health split and stale-node tests. | |
+| `GET /v1/nodes/:id/reports` | `getNodeReports` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow. | |
+| `GET /v1/nodes/:id/service-logs` | `listNodeServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeServiceLogBatchFlow`. | |
+| `GET /v1/nodes/:id/uptime` | `getNodeUptime` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow; service aggregation in `apps/core/internal/service/report-service_test.go`. | |
+| `GET /v1/nodes/:id/monitors` | `listMonitors` | Covered | `apps/core/internal/api/node_monitor_api_test.go` list monitor count, filters, and not-found tests. | |
+| `GET /v1/nodes/:id/token/status` | `getNodeTokenStatus` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeTokenLifecycleFlow`. | |
+| `POST /v1/nodes/:node_id/token/rotate` | `rotateNodeToken` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeTokenLifecycleFlow`. | |
+| `POST /v1/nodes/:node_id/token/revoke` | `revokeNodeToken` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeTokenLifecycleFlow`. | |
+| `POST /v1/nodes/:node_id/token/reissue` | `reissueNodeToken` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeTokenLifecycleFlow`. | |
+| `GET /v1/monitors` | `listAllMonitors` | Covered | `apps/core/internal/api/node_monitor_api_test.go` monitor summary, owner/source, alias, and computed health filter tests. | |
 | `POST /v1/monitors` | `createCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` core monitor lifecycle, unsupported kind, invalid config, target policy, catalog config, and heartbeat tests. | |
-| `GET /v1/monitors/summary` | `getMonitorSummary` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` `TestListAllMonitorsAndSummaryUseDerivedStaleState`. | |
+| `GET /v1/monitors/summary` | `getMonitorSummary` | Covered | `apps/core/internal/api/node_monitor_api_test.go` `TestListAllMonitorsAndSummaryUseDerivedStaleState`. | |
 | `PATCH /v1/monitors/:id` | `updateCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | |
 | `DELETE /v1/monitors/:id` | `deleteCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | |
 | `GET /v1/monitors/:id/config` | `getCoreMonitorConfig` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | |
 | `POST /v1/monitors/:id/pause` | `pauseCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | |
 | `POST /v1/monitors/:id/resume` | `resumeCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | |
 | `POST /v1/monitors/:id/test` | `testCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`, target policy tests. | |
-| `GET /v1/monitors/:id` | `getMonitorDetail` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor detail consistency and severity override tests. | |
-| `GET /v1/monitors/:id/uptime` | `getMonitorUptime` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor detail/history flow; `apps/core/internal/service/report-service_test.go`. | |
-| `GET /v1/monitors/:id/history` | `getMonitorHistory` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor history not-found and flow tests. | |
+| `GET /v1/monitors/:id` | `getMonitorDetail` | Covered | `apps/core/internal/api/node_monitor_api_test.go` monitor detail consistency and severity override tests. | |
+| `GET /v1/monitors/:id/uptime` | `getMonitorUptime` | Covered | `apps/core/internal/api/node_monitor_api_test.go` monitor detail/history flow; `apps/core/internal/service/report-service_test.go`. | |
+| `GET /v1/monitors/:id/history` | `getMonitorHistory` | Covered | `apps/core/internal/api/node_monitor_api_test.go` monitor history not-found and flow tests. | |
 
 ### V1 Frontend Health Diagnostics Incident Alert Routes
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `GET /v1/health/summary` | `getSystemHealth` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` `TestSystemHealthSeparatesStaleMonitorCounts`. | None |
-| `GET /v1/health/issues` | `getHealthIssues` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` health issue and stale monitor scenarios. | None |
+| `GET /v1/health/summary` | `getSystemHealth` | Covered | `apps/core/internal/api/node_monitor_api_test.go` `TestSystemHealthSeparatesStaleMonitorCounts`. | None |
+| `GET /v1/health/issues` | `getHealthIssues` | Covered | `apps/core/internal/api/node_monitor_api_test.go` health issue and stale monitor scenarios. | None |
 | `GET /v1/diagnostics/core` | `getCoreDiagnostics` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreDiagnosticsReportsIngestionMetrics`. | direct diagnostics service tests |
 | `GET /v1/diagnostics/core-worker` | `getCoreWorkerDiagnostics` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreWorkerDiagnosticsDoNotAffectAPIHealth`; `apps/core/internal/service/worker-diagnostics-service_test.go`. | None |
 | `GET /v1/incidents` | `listIncidents` | Covered | `apps/core/internal/api/incident_api_test.go` list, detail, timeline, lifecycle, candidates, maintenance, and incident event tests. | |
@@ -148,7 +148,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | `POST /v1/status-pages/:id/components/:component_id/mappings` | `createStatusPageComponentMapping` | Covered | `apps/core/internal/api/status_pages_test.go` admin flow. | None |
 | `PUT /v1/status-pages/:id/components/:component_id/mappings/:mapping_id` | `updateStatusPageComponentMapping` | Covered | `apps/core/internal/api/status_pages_test.go` admin flow. | None |
 | `GET /v1/status-pages/:id/incidents` | `listStatusPageIncidents` | Covered | `apps/core/internal/api/status_pages_test.go` admin detail and empty list assertions. | None |
-| `GET /v1/status-pages/:id/incidents/suggestions` | `suggestStatusPageIncidentComponents` | Covered | `apps/core/internal/api/status_pages_test.go` monitor and agent suggestion privacy tests. | None |
+| `GET /v1/status-pages/:id/incidents/suggestions` | `suggestStatusPageIncidentComponents` | Covered | `apps/core/internal/api/status_pages_test.go` monitor and node suggestion privacy tests. | None |
 | `POST /v1/status-pages/:id/incidents` | `createStatusPageIncident` | Covered | `apps/core/internal/api/status_pages_test.go` admin flow. | None |
 | `PUT /v1/status-pages/:id/incidents/:incident_id` | `updateStatusPageIncident` | Covered | `apps/core/internal/api/status_pages_test.go` admin flow. | None |
 | `POST /v1/status-pages/:id/incidents/:incident_id/updates` | `createStatusPageIncidentUpdate` | Covered | `apps/core/internal/api/status_pages_test.go` admin flow and subscriber fan-out tests. | None |
@@ -158,32 +158,32 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
 | `GET /v1/events` | `listOrionEvents` | Covered | `apps/core/internal/api/integration_test.go` `TestListOrionEvents`. | |
-| `GET /v1/logs/service` | `listServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`; service filters in `apps/core/internal/service/service-log-service_test.go`. | None |
+| `GET /v1/logs/service` | `listServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeServiceLogBatchFlow`; service filters in `apps/core/internal/service/service-log-service_test.go`. | None |
 | `GET /v1/settings/data-lifecycle` | `getDataLifecycleSettings` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleSettingsFlow`; `apps/core/internal/service/settings-service_test.go`. | |
 | `PUT /v1/settings/data-lifecycle` | `updateDataLifecycleSettings` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleSettingsFlow`; service validation tests. | |
 | `POST /v1/settings/data-lifecycle/actions/rollup` | `runDataLifecycleRollup` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/rollup-service_test.go`. | |
 | `POST /v1/settings/data-lifecycle/actions/archive` | `runDataLifecycleArchive` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/archive-service_test.go`. | |
 
-### V1 Agent-Protected Routes
+### V1 Node-Protected Routes
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `POST /v1/agents/:agent_id/register-monitor` | `registerMonitor` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` register monitor ownership and token boundary tests. | |
-| `POST /v1/agents/:agent_id/unregister-monitor` | `unregisterMonitor` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` unregister cleanup and route agent ID tests. | |
-| `POST /v1/agents/:agent_id/report` | `receiveAgentReport` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` report ingestion, diagnostics, stale reconciliation, and auth ownership tests. | |
-| `POST /v1/agents/:agent_id/logs/batch` | `receiveAgentLogBatch` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`; `apps/core/internal/service/service-log-service_test.go`. | None |
-| `POST /v1/agents/:agent_id/:monitor_id/report` | `receiveMonitorReport` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` and `apps/core/internal/api/incident_api_test.go` cover monitor report ownership, history, incident, and diagnostics tests. | |
-| `PUT /v1/agents/:agent_id/maintenance` | `setMaintenanceMode` | Covered | `apps/core/internal/api/incident_api_test.go` maintenance suppression tests. | |
+| `POST /v1/nodes/:node_id/register-monitor` | `registerMonitor` | Covered | `apps/core/internal/api/node_monitor_api_test.go` register monitor ownership and token boundary tests. | |
+| `POST /v1/nodes/:node_id/unregister-monitor` | `unregisterMonitor` | Covered | `apps/core/internal/api/node_monitor_api_test.go` unregister cleanup and route node ID tests. | |
+| `POST /v1/nodes/:node_id/report` | `receiveNodeReport` | Covered | `apps/core/internal/api/node_monitor_api_test.go` report ingestion, diagnostics, stale reconciliation, and auth ownership tests. | |
+| `POST /v1/nodes/:node_id/logs/batch` | `receiveNodeLogBatch` | Covered | `apps/core/internal/api/integration_test.go` `TestNodeServiceLogBatchFlow`; `apps/core/internal/service/service-log-service_test.go`. | None |
+| `POST /v1/nodes/:node_id/:monitor_id/report` | `receiveMonitorReport` | Covered | `apps/core/internal/api/node_monitor_api_test.go` and `apps/core/internal/api/incident_api_test.go` cover monitor report ownership, history, incident, and diagnostics tests. | |
+| `PUT /v1/nodes/:node_id/maintenance` | `setMaintenanceMode` | Covered | `apps/core/internal/api/incident_api_test.go` maintenance suppression tests. | |
 
 ## Service Coverage Map
 
 | Service | Exported methods | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `AgentService` | `RegisterAgent`, `ValidateAgentToken`, `AgentTokenStatus`, `RotateAgentToken`, `ReissueAgentToken`, `RevokeAgentToken`, `UpdateLastSeen`, `SetMaintenanceMode`, `GetAgent`, `ListAgents` | Partial | API integration tests cover the main flows and token lifecycle; no focused `agent-service_test.go` was found. | |
+| `NodeService` | `RegisterNode`, `ValidateNodeToken`, `NodeTokenStatus`, `RotateNodeToken`, `ReissueNodeToken`, `RevokeNodeToken`, `UpdateLastSeen`, `SetMaintenanceMode`, `GetNode`, `ListNodes` | Partial | API integration tests cover the main flows and token lifecycle; no focused `node-service_test.go` was found. | |
 | `AuthService` | `ValidateToken` | Partial | Covered through protected route integration tests; no direct service test was found. | |
 | `MonitorService` | `RegisterMonitor`, `UnregisterMonitor`, `ListMonitors`, `ListAllMonitors`, `GetMonitorSummary`, `GetMonitor`, `GetMonitorCount` | Partial | API integration tests cover monitor flows, ownership, filters, and summaries; no focused `monitor-service_test.go` was found. | |
-| `ReportService` | `SetDiagnostics`, `StoreMonitorReport`, `StoreAgentReport`, `GetAgentReportsById`, `GetAgentReportCountById`, `GetMonitorReports`, `GetMonitorReportCount`, `GetMonitorUptime`, `GetAgentUptime` | Partial | Uptime aggregation is directly covered in `apps/core/internal/service/report-service_test.go`; ingestion and diagnostics hooks are mostly covered through API integration. | |
-| `HealthService` | `ComputeMonitorHealth`, `ComputeAgentHealthSnapshot`, `ComputeAgentHealth`, `DetectStaleMonitors` | Covered | `apps/core/internal/service/health-service_test.go` covers stale, flapping, summary, and split availability behavior. | None |
+| `ReportService` | `SetDiagnostics`, `StoreMonitorReport`, `StoreNodeReport`, `GetNodeReportsById`, `GetNodeReportCountById`, `GetMonitorReports`, `GetMonitorReportCount`, `GetMonitorUptime`, `GetNodeUptime` | Partial | Uptime aggregation is directly covered in `apps/core/internal/service/report-service_test.go`; ingestion and diagnostics hooks are mostly covered through API integration. | |
+| `HealthService` | `ComputeMonitorHealth`, `ComputeNodeHealthSnapshot`, `ComputeNodeHealth`, `DetectStaleMonitors` | Covered | `apps/core/internal/service/health-service_test.go` covers stale, flapping, summary, and split availability behavior. | None |
 | `IncidentService` | `SetDiagnostics`, `ReconcileMonitorReport`, `ReconcileStaleMonitors`, `AcknowledgeIncident`, `ResolveIncident`, `CoverIncident`, `ReopenIncident`, `ResolveMonitorRemoved` | Partial | API integration tests cover incident reconciliation and lifecycle; no focused `incident-service_test.go` was found. | |
 | `CoreMonitorManagementService` | `CreateCoreMonitor`, `UpdateCoreMonitor`, `DeleteCoreMonitor`, `PauseCoreMonitor`, `ResumeCoreMonitor`, `GetCoreMonitorConfig`, `GetHeartbeatMonitorByToken`, `RecordHeartbeatSignal`, `ValidateCoreMonitorConfig` | Covered | `apps/core/internal/service/core-monitor-management-service_test.go` covers validation and target policy; API tests cover lifecycle and heartbeat routes. | remaining high-risk target/privacy paths |
 | `CoreMonitorSchedulerService` | `ClaimDueCoreMonitorConfigs`, `CompleteCoreMonitorCheck` | Covered | `apps/core/internal/service/core-monitor-scheduler-service_test.go` covers due claims, leases, paused/inactive monitors, heartbeat skips, and completion. | None |
@@ -193,7 +193,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | `ArchiveService` | `RunRawReportArchive` | Covered | `apps/core/internal/service/archive-service_test.go` covers archival and disabled mode. | additional migration/data lifecycle high-risk scenarios |
 | `RollupService` | `RunDailyMonitorUptimeRollup`, `RollupMonitorUptimeDay` | Covered | `apps/core/internal/service/rollup-service_test.go` covers daily row creation and idempotency. | None |
 | `AuditService` | `RecordStatusPageEvent` | Covered | `apps/core/internal/service/audit-service_test.go` and status page audit API tests. | None |
-| `ServiceLogService` | `StoreAgentLogBatch`, `ListServiceLogs` | Covered | `apps/core/internal/service/service-log-service_test.go` and API service log flow. | None |
+| `ServiceLogService` | `StoreNodeLogBatch`, `ListServiceLogs` | Covered | `apps/core/internal/service/service-log-service_test.go` and API service log flow. | None |
 | `WorkerDiagnosticsService` | `RecordHeartbeat`, `GetDiagnostics` | Covered | `apps/core/internal/service/worker-diagnostics-service_test.go` and core-worker diagnostics API tests. | None |
 | `RuntimeDiagnosticsService` | `RecordRequest`, `RecordIngestion`, `RecordReportWrite`, `RecordIncidentReconciliation`, `RecordActiveIncidentLookup`, `RecordDatabaseOperation`, `RecordSlowOperation`, `Snapshot` | Partial | API diagnostics test verifies request, ingestion, report write, reconciliation, lookup, and SQLite metrics; no direct runtime diagnostics service test was found for error/slow-operation boundaries. | |
 
@@ -227,11 +227,11 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | Embedded migration execution | Covered | `apps/core/internal/db/migration_test.go` `TestMigrateAppliesEmbeddedMigrations`. | None |
 | Migration version contiguity | Covered | `apps/core/internal/db/migration_test.go` `TestEmbeddedMigrationVersionsAreContiguous`. | None |
 | Migration idempotency | Covered | `apps/core/internal/db/migration_test.go` `TestMigrateIsIdempotent`. | None |
-| Legacy agent report metadata repair | Covered | `apps/core/internal/db/migration_test.go` `TestMigrateRepairsLegacyAgentReportMetadataColumns`. | None |
+| Legacy node report metadata repair | Covered | `apps/core/internal/db/migration_test.go` `TestMigrateRepairsLegacyNodeReportMetadataColumns`. | None |
 | Status page schema and unique indexes | Covered | `apps/core/internal/db/migration_test.go` status page schema and unique index tests; `apps/core/internal/db/status_page_models_test.go`. | None |
 | Migrations `000001` through `000024` as a set | Partial | The suite verifies full application, contiguity, idempotency, selected status page indexes, and one legacy repair; it does not assert every migration's defaults/indexes/compatibility independently. | |
 | Alert channel and removed SMTP/email destination migrations | Covered | `apps/core/internal/db/alert_migration_test.go` covers webhook defaults and removed destination schema cleanup; API/service alert tests cover current webhook behavior. | |
-| Agent token lifecycle migration | Partial | Covered through API token lifecycle flow and full migration application; no migration-specific compatibility test was found. | |
+| Node token lifecycle migration | Partial | Covered through API token lifecycle flow and full migration application; no migration-specific compatibility test was found. | |
 | Core monitor config, worker status, heartbeat, and confirmation migrations | Partial | Covered by Core monitor API, scheduler, worker diagnostics, and full migration application; migration-specific default/index assertions are thin. | |
 | Incident lifecycle and component impact migrations | Partial | Covered by incident lifecycle/status page tests and full migration application; migration-specific compatibility assertions are thin. | |
 
@@ -248,7 +248,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 
 ## Current Highest-Risk Gaps
 
-1. Direct service coverage is thinner than route coverage for `AgentService`, `MonitorService`,
+1. Direct service coverage is thinner than route coverage for `NodeService`, `MonitorService`,
    `IncidentService`, `AuthService`, and `RuntimeDiagnosticsService`.
 2. Migration coverage proves global application and selected compatibility, but not every migration's
    default/index/old-row contract.

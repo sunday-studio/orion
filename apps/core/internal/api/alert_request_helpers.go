@@ -22,8 +22,8 @@ func mergeAlertRouteContext(loaded service.AlertRouteContext, overrides service.
 	if overrides.Severity != "" {
 		loaded.Severity = overrides.Severity
 	}
-	if overrides.AgentID != "" {
-		loaded.AgentID = overrides.AgentID
+	if overrides.NodeID != "" {
+		loaded.NodeID = overrides.NodeID
 	}
 	if overrides.MonitorID != "" {
 		loaded.MonitorID = overrides.MonitorID

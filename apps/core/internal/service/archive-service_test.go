@@ -32,8 +32,8 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 		t.Fatalf("update settings: %v", err)
 	}
 
-	oldAgentID := insertArchiveAgentReport(t, database, "agent_a", now.AddDate(0, 0, -31))
-	newAgentID := insertArchiveAgentReport(t, database, "agent_a", now.AddDate(0, 0, -2))
+	oldNodeID := insertArchiveNodeReport(t, database, "node_a", now.AddDate(0, 0, -31))
+	newNodeID := insertArchiveNodeReport(t, database, "node_a", now.AddDate(0, 0, -2))
 	oldMonitorID := insertArchiveMonitorReport(t, database, "monitor_a", "up", now.AddDate(0, 0, -31))
 	newMonitorID := insertArchiveMonitorReport(t, database, "monitor_a", "down", now.AddDate(0, 0, -2))
 
@@ -42,11 +42,11 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 		t.Fatalf("RunRawReportArchive() error = %v", err)
 	}
 
-	if result.AgentReportsArchived != 1 || result.MonitorReportsArchived != 1 {
-		t.Fatalf("result = %+v, want one agent and one monitor report archived", result)
+	if result.NodeReportsArchived != 1 || result.MonitorReportsArchived != 1 {
+		t.Fatalf("result = %+v, want one node and one monitor report archived", result)
 	}
-	assertArchiveReportMissing(t, database, &db.AgentReport{}, oldAgentID)
-	assertArchiveReportExists(t, database, &db.AgentReport{}, newAgentID)
+	assertArchiveReportMissing(t, database, &db.NodeReport{}, oldNodeID)
+	assertArchiveReportExists(t, database, &db.NodeReport{}, newNodeID)
 	assertArchiveReportMissing(t, database, &db.MonitorReport{}, oldMonitorID)
 	assertArchiveReportExists(t, database, &db.MonitorReport{}, newMonitorID)
 
@@ -54,7 +54,7 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open archive database: %v", err)
 	}
-	assertArchiveReportExists(t, archiveDB, &db.AgentReport{}, oldAgentID)
+	assertArchiveReportExists(t, archiveDB, &db.NodeReport{}, oldNodeID)
 	assertArchiveReportExists(t, archiveDB, &db.MonitorReport{}, oldMonitorID)
 
 	var settings db.DataLifecycleSettings
@@ -148,18 +148,18 @@ func openArchiveTestDatabase(t *testing.T) *gorm.DB {
 	return database
 }
 
-func insertArchiveAgentReport(t *testing.T, database *gorm.DB, agentID string, createdAt time.Time) string {
+func insertArchiveNodeReport(t *testing.T, database *gorm.DB, nodeID string, createdAt time.Time) string {
 	t.Helper()
 
-	report := db.AgentReport{
-		ID:            utils.GenerateID("agent_report"),
-		AgentID:       agentID,
+	report := db.NodeReport{
+		ID:            utils.GenerateID("node_report"),
+		NodeID:        nodeID,
 		ConfigSummary: "{}",
 		Timestamp:     createdAt.Format(time.RFC3339),
 		CreatedAt:     createdAt,
 	}
 	if err := database.Create(&report).Error; err != nil {
-		t.Fatalf("create agent report: %v", err)
+		t.Fatalf("create node report: %v", err)
 	}
 	return report.ID
 }

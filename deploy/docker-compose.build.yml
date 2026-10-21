@@ -4,7 +4,7 @@
 #   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build
 #
 # .env needs ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET.
-# Add COMPOSE_PROFILES=agent to .env to also run an Agent for this same server as a container; other
+# Add COMPOSE_PROFILES=node to .env to also run a Node for this same server as a container; other
 # servers use the installer. See docs/deployment/docker-new-server.md.
 services:
   orion-core:
@@ -19,17 +19,17 @@ services:
   orion-core-worker:
     image: orion-core:local
 
-  # Optional: an Agent for the server Core runs on, started with `--profile agent`.
-  orion-agent:
-    profiles: ["agent"]
-    image: orion-agent:local
+  # Optional: a Node for the server Core runs on, started with `--profile node`.
+  orion-node:
+    profiles: ["node"]
+    image: orion-node:local
     build:
       context: ..
-      dockerfile: apps/agent/Dockerfile
+      dockerfile: apps/node/Dockerfile
       args:
         VERSION: ${ORION_VERSION:-local}
     restart: unless-stopped
-    hostname: ${ORION_AGENT_HOSTNAME:-orion-host}   # the name this server gets in the Console
+    hostname: ${ORION_NODE_HOSTNAME:-orion-host}   # the name this server gets in the Console
     pid: host                                       # see the host's processes, not just this container
     read_only: true
     cap_drop: [ALL]
@@ -41,10 +41,10 @@ services:
       ORION_CORE_URL: http://orion-core:8999
       ORION_ENROLLMENT_TOKEN: ${ORION_ENROLLMENT_TOKEN:-}
     volumes:
-      - orion-agent-data:/var/lib/orion
+      - orion-node-data:/var/lib/orion
       # Optional: per-container metrics and Docker volume sizes. The socket is root-equivalent on the host.
       # - /var/run/docker.sock:/var/run/docker.sock:ro
     # group_add: ["<gid of the docker group>"]   # needed with the socket above
 
 volumes:
-  orion-agent-data:
+  orion-node-data:

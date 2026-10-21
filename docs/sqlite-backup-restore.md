@@ -47,7 +47,7 @@ curl http://localhost:8999/health
 
 ## Retention and disk space
 
-Core prunes the tables that otherwise grow forever, hourly, in 1000-row batches. Windows live in the data lifecycle settings (days): `service_log_retention_days` (default 14), `alert_delivery_retention_days` (90, deliveries and attempts; pending deliveries are never pruned), `incident_event_retention_days` (365, resolved incidents only), `audit_event_retention_days` (365) and `worker_status_retention_days` (7). Raw monitor and agent reports are archived by `raw_report_hot_days` as before, now in batches so a large backlog cannot get stuck.
+Core prunes the tables that otherwise grow forever, hourly, in 1000-row batches. Windows live in the data lifecycle settings (days): `service_log_retention_days` (default 14), `alert_delivery_retention_days` (90, deliveries and attempts; pending deliveries are never pruned), `incident_event_retention_days` (365, resolved incidents only), `audit_event_retention_days` (365) and `worker_status_retention_days` (7). Raw monitor and node reports are archived by `raw_report_hot_days` as before, now in batches so a large backlog cannot get stuck.
 
 Pruning frees pages inside the database file. New databases are created with `auto_vacuum=INCREMENTAL`, so retention also returns space to the OS. An existing database created before this change reports `sqlite.auto_vacuum: "none"` in `GET /v1/diagnostics/core`; convert it once during a maintenance window (stop Core and the Worker first, and keep free disk space equal to the database size):
 

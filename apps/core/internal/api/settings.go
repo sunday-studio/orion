@@ -254,7 +254,7 @@ func dataLifecycleArchiveAuditMetadata(result *service.ArchiveRunResult, status 
 		"result_status": status,
 	}
 	if result != nil {
-		metadata["agent_reports_archived"] = result.AgentReportsArchived
+		metadata["node_reports_archived"] = result.NodeReportsArchived
 		metadata["monitor_reports_archived"] = result.MonitorReportsArchived
 		metadata["archive_raw_reports"] = result.ArchiveRawReports
 		metadata["skipped_because_disabled"] = result.SkippedBecauseDisabled

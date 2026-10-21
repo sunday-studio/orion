@@ -76,8 +76,8 @@ services:
       - /data
       - "-days"
       - "${ORION_SEED_DAYS:-90}"
-      - "-agents"
-      - "${ORION_SEED_AGENTS:-10}"
+      - "-nodes"
+      - "${ORION_SEED_NODES:-10}"
       - "-report-interval"
       - "${ORION_SEED_REPORT_INTERVAL:-1h}"
       - "-reset-seed=${ORION_SEED_RESET:-true}"

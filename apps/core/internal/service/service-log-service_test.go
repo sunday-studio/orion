@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestStoreAgentLogBatchDedupesAndSanitizesFields(t *testing.T) {
+func TestStoreNodeLogBatchDedupesAndSanitizesFields(t *testing.T) {
 	database := openServiceLogTestDatabase(t)
 	service := NewServiceLogService(database, utils.NewLogger())
 
@@ -35,15 +35,15 @@ func TestStoreAgentLogBatchDedupesAndSanitizesFields(t *testing.T) {
 		},
 	}}
 
-	result, err := service.StoreAgentLogBatch("agent-1", payload, time.Date(2026, 5, 27, 20, 1, 0, 0, time.UTC))
+	result, err := service.StoreNodeLogBatch("node-1", payload, time.Date(2026, 5, 27, 20, 1, 0, 0, time.UTC))
 	if err != nil {
-		t.Fatalf("StoreAgentLogBatch() error = %v", err)
+		t.Fatalf("StoreNodeLogBatch() error = %v", err)
 	}
 	if result.Received != 2 || result.Stored != 1 {
 		t.Fatalf("result = %+v, want received 2 stored 1", result)
 	}
 
-	listed, err := service.ListServiceLogs(ServiceLogListFilters{AgentID: "agent-1", Level: "ERROR"})
+	listed, err := service.ListServiceLogs(ServiceLogListFilters{NodeID: "node-1", Level: "ERROR"})
 	if err != nil {
 		t.Fatalf("ListServiceLogs() error = %v", err)
 	}
@@ -62,12 +62,12 @@ func TestStoreAgentLogBatchDedupesAndSanitizesFields(t *testing.T) {
 func TestListServiceLogsFiltersSearch(t *testing.T) {
 	database := openServiceLogTestDatabase(t)
 	service := NewServiceLogService(database, utils.NewLogger())
-	_, err := service.StoreAgentLogBatch("agent-1", ServiceLogBatchPayload{Entries: []ServiceLogEntryPayload{
+	_, err := service.StoreNodeLogBatch("node-1", ServiceLogBatchPayload{Entries: []ServiceLogEntryPayload{
 		{
 			Timestamp:   "2026-05-27T20:00:00Z",
 			Level:       "INFO",
 			Component:   "runtime",
-			Message:     "agent started",
+			Message:     "node started",
 			Fingerprint: "fp-started",
 		},
 		{
@@ -80,7 +80,7 @@ func TestListServiceLogsFiltersSearch(t *testing.T) {
 		},
 	}}, time.Now())
 	if err != nil {
-		t.Fatalf("StoreAgentLogBatch() error = %v", err)
+		t.Fatalf("StoreNodeLogBatch() error = %v", err)
 	}
 
 	listed, err := service.ListServiceLogs(ServiceLogListFilters{Search: "homepage", Level: "WARN"})

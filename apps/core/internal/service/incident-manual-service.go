@@ -14,7 +14,7 @@ import (
 var (
 	ErrIncidentInvalid        = errors.New("invalid incident")
 	ErrIncidentMonitorMissing = errors.New("monitor not found")
-	ErrIncidentAgentMissing   = errors.New("server not found")
+	ErrIncidentNodeMissing    = errors.New("server not found")
 	ErrIncidentAlreadyActive  = errors.New("this monitor already has an active incident")
 )
 
@@ -40,7 +40,7 @@ type DeclareIncidentInput struct {
 	Title     string
 	Severity  string
 	MonitorID string
-	AgentID   string
+	NodeID    string
 	Summary   string
 	Notify    bool
 }
@@ -61,8 +61,8 @@ func (s *IncidentService) DeclareIncident(in DeclareIncidentInput, actor Inciden
 	default:
 		return db.Incident{}, fmt.Errorf("%w: severity must be low, medium, high or critical", ErrIncidentInvalid)
 	}
-	monitorID, agentID := strings.TrimSpace(in.MonitorID), strings.TrimSpace(in.AgentID)
-	if monitorID == "" && agentID == "" {
+	monitorID, nodeID := strings.TrimSpace(in.MonitorID), strings.TrimSpace(in.NodeID)
+	if monitorID == "" && nodeID == "" {
 		return db.Incident{}, fmt.Errorf("%w: choose an affected monitor or server", ErrIncidentInvalid)
 	}
 
@@ -76,15 +76,15 @@ func (s *IncidentService) DeclareIncident(in DeclareIncidentInput, actor Inciden
 				}
 				return err
 			}
-			agentID = monitor.AgentID
+			nodeID = monitor.NodeID
 			var active int64
 			tx.db.Model(&db.Incident{}).Where("monitor_id = ? AND status IN ?", monitorID, activeIncidentStatuses()).Count(&active)
 			if active > 0 {
 				return ErrIncidentAlreadyActive
 			}
-		} else if err := tx.db.Where("id = ?", agentID).First(&db.Agent{}).Error; err != nil {
+		} else if err := tx.db.Where("id = ?", nodeID).First(&db.Node{}).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrIncidentAgentMissing
+				return ErrIncidentNodeMissing
 			}
 			return err
 		}
@@ -95,7 +95,7 @@ func (s *IncidentService) DeclareIncident(in DeclareIncidentInput, actor Inciden
 		}
 		created = db.Incident{
 			ID: utils.GenerateID("incident"), Number: number, Status: "open", Severity: severity, Title: title,
-			AgentID: agentID, MonitorID: monitorID, ImpactedComponents: "[]", Summary: summary, Source: "manual",
+			NodeID: nodeID, MonitorID: monitorID, ImpactedComponents: "[]", Summary: summary, Source: "manual",
 			OpenedAt: now, LastEventAt: now, LatestEvent: firstNonEmpty(summary, "Incident declared by "+actor.ActorID), NotificationStatus: "pending",
 		}
 		if err := tx.db.Create(&created).Error; err != nil {

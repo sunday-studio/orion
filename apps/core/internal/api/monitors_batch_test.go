@@ -15,7 +15,7 @@ import (
 
 func TestMonitorMaintenanceHoldsIncidentsAndBulkActions(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	a := createHTTPMonitor(t, server, "api-https", nil)
 	b := createHTTPMonitor(t, server, "web-https", nil)
 	c := createHTTPMonitor(t, server, "pg-tcp", gin.H{"kind": "tcp", "config": gin.H{"host": "db-02.example.com", "port": 5432}})
@@ -60,7 +60,7 @@ func TestMonitorMaintenanceHoldsIncidentsAndBulkActions(t *testing.T) {
 	// A failing report during maintenance opens no incident; after clearing, it does.
 	var incidents int64
 	failing := func() {
-		server.db.Model(&db.Monitor{}).Where("id = ?", a.Data.Monitor.ID).Update("agent_id", agent.Data.AgentID)
+		server.db.Model(&db.Monitor{}).Where("id = ?", a.Data.Monitor.ID).Update("node_id", node.Data.NodeID)
 		payload := service.MonitorReportPayload{Timestamp: time.Now().UTC().Format(time.RFC3339), Health: "down", Error: "boom"}
 		if _, err := server.reportService.StoreMonitorReport(a.Data.Monitor.ID, payload); err != nil {
 			t.Fatal(err)
@@ -98,10 +98,10 @@ func TestMonitorMaintenanceHoldsIncidentsAndBulkActions(t *testing.T) {
 		t.Fatalf("bulk delete = %+v left=%d", bulk.Data, left)
 	}
 	// Non-Core monitors cannot be paused here.
-	server.db.Create(&db.Monitor{ID: "agent-mon", Type: "disk", Name: "disk", AgentID: agent.Data.AgentID, Lifecycle: "active", Health: "up", ComputedHealth: "up"})
-	decodeResponse(t, performJSONRequest(t, server, http.MethodPost, "/v1/monitors/bulk", gin.H{"ids": []string{"agent-mon"}, "action": "pause"}, ""), &bulk)
+	server.db.Create(&db.Monitor{ID: "node-mon", Type: "disk", Name: "disk", NodeID: node.Data.NodeID, Lifecycle: "active", Health: "up", ComputedHealth: "up"})
+	decodeResponse(t, performJSONRequest(t, server, http.MethodPost, "/v1/monitors/bulk", gin.H{"ids": []string{"node-mon"}, "action": "pause"}, ""), &bulk)
 	if bulk.Data.Failed != 1 || !strings.Contains(bulk.Data.Results[0].Error, "Core-managed") {
-		t.Fatalf("pause agent monitor = %+v", bulk.Data)
+		t.Fatalf("pause node monitor = %+v", bulk.Data)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestTestRunDoesNotRecordAnything(t *testing.T) {
 	}))
 	defer upstream.Close()
 	server := setupTestServerWithConfig(t, &config.Config{CoreMonitorAllowPrivateTargets: true})
-	registerTestAgent(t, server)
+	registerTestNode(t, server)
 
 	run := func(path string, body any) (int, MonitorTestRunResponse) {
 		resp := performJSONRequest(t, server, http.MethodPost, path, body, "")
@@ -159,16 +159,16 @@ func TestTestRunDoesNotRecordAnything(t *testing.T) {
 	}
 }
 
-func TestAgentMonitorDefinitionsAreConfiguredPulledAndReportWaitingThenReporting(t *testing.T) {
+func TestNodeMonitorDefinitionsAreConfiguredPulledAndReportWaitingThenReporting(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	id := agent.Data.AgentID
-	path := "/v1/agents/" + id + "/monitor-definitions"
+	node := registerTestNode(t, server)
+	id := node.Data.NodeID
+	path := "/v1/nodes/" + id + "/monitor-definitions"
 
 	resp := performJSONRequest(t, server, http.MethodPost, path, gin.H{"name": "Disk usage", "check_type": "disk", "params": gin.H{"path": "/var", "threshold_percent": 85}, "interval_seconds": 30, "fail_after": 3}, "")
 	var created struct {
 		Data struct {
-			Definition AgentMonitorDefinitionResponse `json:"definition"`
+			Definition NodeMonitorDefinitionResponse `json:"definition"`
 		} `json:"data"`
 	}
 	decodeResponse(t, resp, &created)
@@ -190,12 +190,12 @@ func TestAgentMonitorDefinitionsAreConfiguredPulledAndReportWaitingThenReporting
 			t.Errorf("%s = %d, want 400", name, r.Code)
 		}
 	}
-	if r := performJSONRequest(t, server, http.MethodPost, "/v1/agents/nope/monitor-definitions", gin.H{"name": "x", "check_type": "memory"}, ""); r.Code != http.StatusNotFound {
-		t.Errorf("unknown agent = %d", r.Code)
+	if r := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/nope/monitor-definitions", gin.H{"name": "x", "check_type": "memory"}, ""); r.Code != http.StatusNotFound {
+		t.Errorf("unknown node = %d", r.Code)
 	}
 
-	// The agent pulls with its own token; another agent's token cannot read it.
-	pulled := performJSONRequest(t, server, http.MethodPost, path+"/sync", nil, agent.Data.Token)
+	// The node pulls with its own token; another node's token cannot read it.
+	pulled := performJSONRequest(t, server, http.MethodPost, path+"/sync", nil, node.Data.Token)
 	if pulled.Code != http.StatusOK || !strings.Contains(pulled.Body.String(), `"check_type":"disk"`) {
 		t.Fatalf("pull = %d %s", pulled.Code, pulled.Body.String())
 	}
@@ -203,11 +203,11 @@ func TestAgentMonitorDefinitionsAreConfiguredPulledAndReportWaitingThenReporting
 		t.Fatalf("pull with a bad token = %d", r.Code)
 	}
 
-	// The agent registers a monitor with that name and reports: state becomes reporting.
-	server.db.Create(&db.Monitor{ID: "mon-disk", Type: "disk", Name: "Disk usage", AgentID: id, Lifecycle: "active", Health: "up", ComputedHealth: "up"})
+	// The node registers a monitor with that name and reports: state becomes reporting.
+	server.db.Create(&db.Monitor{ID: "mon-disk", Type: "disk", Name: "Disk usage", NodeID: id, Lifecycle: "active", Health: "up", ComputedHealth: "up"})
 	var list struct {
 		Data struct {
-			Definitions []AgentMonitorDefinitionResponse `json:"definitions"`
+			Definitions []NodeMonitorDefinitionResponse `json:"definitions"`
 		} `json:"data"`
 	}
 	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, path, nil, ""), &list)

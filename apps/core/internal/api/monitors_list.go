@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// listAllMonitors retrieves a paginated list of monitors across agents.
+// listAllMonitors retrieves a paginated list of monitors across nodes.
 // @Summary      List monitors
 // @Description  Get a paginated list of all monitors with optional filters
 // @Tags         monitors
@@ -17,12 +17,12 @@ import (
 // @ID           getMonitors
 // @Param        limit          query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset         query     int     false  "Number of monitors to skip" default(0)
-// @Param        search         query     string  false  "Search by monitor, agent, or type"
+// @Param        search         query     string  false  "Search by monitor, node, or type"
 // @Param        health         query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        type           query     string  false  "Filter by monitor type"
-// @Param        owner_kind     query     string  false  "Filter by owner kind (agent|core)"
+// @Param        owner_kind     query     string  false  "Filter by owner kind (node|core)"
 // @Param        owner_name     query     string  false  "Filter by owner name, id, or machine id"
-// @Param        source         query     string  false  "Filter by monitor source (agent|core)"
+// @Param        source         query     string  false  "Filter by monitor source (node|core)"
 // @Param        lifecycle      query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        stale_only     query     bool    false  "Only return stale monitors"
 // @Param        has_incidents  query     bool    false  "Only return monitors with active incidents"
@@ -30,7 +30,7 @@ import (
 // @Param        order          query     string  false  "Sort order (asc|desc)" default(desc)
 // @Param        include_system query  bool    false  "Include Core self-monitors such as worker liveness (default false)"
 // @Param        status     query     string  false  "Comma-separated computed statuses to show: up,down,degraded,stale,unknown; total and hidden_count report what the filter hides"
-// @Param        agent_id   query     string  false  "Only monitors owned by this server"
+// @Param        node_id   query     string  false  "Only monitors owned by this server"
 // @Param        q          query     string  false  "Alias of search"
 // @Param        paused     query     bool    false  "Only paused (true) or only running (false) Core monitors"
 // @Success      200            {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,total=int64,hidden_count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
@@ -50,7 +50,7 @@ func (s *Server) listAllMonitors(c *gin.Context) {
 		paused = &v
 	}
 	monitors, count, total, err := s.monitorService.ListAllMonitorsPage(service.ListAllMonitorsOpts{IncludeSystem: c.Query("include_system") == "true",
-		Statuses: parseStatusSet(c.Query("status")), AgentID: strings.TrimSpace(c.Query("agent_id")), Paused: paused,
+		Statuses: parseStatusSet(c.Query("status")), NodeID: strings.TrimSpace(c.Query("node_id")), Paused: paused,
 		Limit:        limit,
 		Offset:       offset,
 		Search:       search,
@@ -71,7 +71,7 @@ func (s *Server) listAllMonitors(c *gin.Context) {
 		return
 	}
 
-	responses := monitorResponsesWithAgents(monitors, s.monitorAgentsByID(monitors), s.coreMonitorIDsByID(monitors))
+	responses := monitorResponsesWithNodes(monitors, s.monitorNodesByID(monitors), s.coreMonitorIDsByID(monitors))
 	s.enrichMonitorRows(responses, monitors)
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
 		"monitors":     responses,

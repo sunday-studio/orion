@@ -77,8 +77,8 @@ func TestStatusPageListRowsReadinessSlugAndBadges(t *testing.T) {
 func TestStatusPageCreateFromMonitorsAndTimezone(t *testing.T) {
 	server := setupTestServer(t)
 	now := time.Now().UTC()
-	server.db.Create(&db.Monitor{ID: "mon-1", Name: "API", Type: "http", AgentID: "core", Lifecycle: "active", CreatedAt: now})
-	server.db.Create(&db.Monitor{ID: "mon-sys", Name: "Core worker", Type: "http", AgentID: "core", System: true, Lifecycle: "active", CreatedAt: now})
+	server.db.Create(&db.Monitor{ID: "mon-1", Name: "API", Type: "http", NodeID: "core", Lifecycle: "active", CreatedAt: now})
+	server.db.Create(&db.Monitor{ID: "mon-sys", Name: "Core worker", Type: "http", NodeID: "core", System: true, Lifecycle: "active", CreatedAt: now})
 	r := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{"title": "Example", "slug": "example", "start_from": "monitors", "theme_settings": gin.H{"timezone": "Europe/London", "accent_color": "#3366ff"}}, "")
 	var created struct {
 		Data struct {

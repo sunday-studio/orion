@@ -21,7 +21,7 @@ const (
 var ErrEnrollmentNotFound = errors.New("enrollment not found")
 
 // EnrollmentView is the wizard's picture of one session. Status is derived on read:
-// waiting (no machine yet) -> registered (agent exists) -> reporting (first report seen),
+// waiting (no machine yet) -> registered (node exists) -> reporting (first report seen),
 // or expired / cancelled.
 type EnrollmentView struct {
 	ID            string
@@ -30,11 +30,11 @@ type EnrollmentView struct {
 	ExpiresAt     time.Time
 	CreatedAt     time.Time
 	ClaimedAt     *time.Time
-	AgentID       string
-	AgentName     string
-	AgentOS       string
-	AgentArch     string
-	AgentVersion  string // from the first report
+	NodeID        string
+	NodeName      string
+	NodeOS        string
+	NodeArch      string
+	NodeVersion   string // from the first report
 	FirstReportAt *time.Time
 }
 
@@ -107,10 +107,10 @@ func (s *EnrollmentService) Authorize(token, machineID string, now time.Time) st
 	return session.ID
 }
 
-// LinkAgent records which agent a session produced.
-func (s *EnrollmentService) LinkAgent(sessionID, agentID string) {
-	if err := s.db.Model(&db.EnrollmentSession{}).Where("id = ?", sessionID).Update("agent_id", agentID).Error; err != nil {
-		s.logger.Error("Failed to link enrollment to agent", "enrollment_id", sessionID, "error", err)
+// LinkNode records which node a session produced.
+func (s *EnrollmentService) LinkNode(sessionID, nodeID string) {
+	if err := s.db.Model(&db.EnrollmentSession{}).Where("id = ?", sessionID).Update("node_id", nodeID).Error; err != nil {
+		s.logger.Error("Failed to link enrollment to node", "enrollment_id", sessionID, "error", err)
 	}
 }
 
@@ -141,18 +141,18 @@ func (s *EnrollmentService) Get(id string, now time.Time) (*EnrollmentView, erro
 }
 
 func (s *EnrollmentService) view(session db.EnrollmentSession, now time.Time) *EnrollmentView {
-	v := &EnrollmentView{ID: session.ID, Platform: session.Platform, ExpiresAt: session.ExpiresAt, CreatedAt: session.CreatedAt, ClaimedAt: session.ClaimedAt, AgentID: session.AgentID, Status: "waiting"}
-	if session.AgentID != "" {
-		var agent db.Agent
-		if err := s.db.Where("id = ?", session.AgentID).First(&agent).Error; err == nil {
-			v.AgentName, v.AgentOS, v.AgentArch = agent.Name, agent.OS, agent.Arch
+	v := &EnrollmentView{ID: session.ID, Platform: session.Platform, ExpiresAt: session.ExpiresAt, CreatedAt: session.CreatedAt, ClaimedAt: session.ClaimedAt, NodeID: session.NodeID, Status: "waiting"}
+	if session.NodeID != "" {
+		var node db.Node
+		if err := s.db.Where("id = ?", session.NodeID).First(&node).Error; err == nil {
+			v.NodeName, v.NodeOS, v.NodeArch = node.Name, node.OS, node.Arch
 		}
 		v.Status = "registered"
-		var first db.AgentReport
-		if err := s.db.Where("agent_id = ?", session.AgentID).Order("created_at ASC").Limit(1).Find(&first).Error; err == nil && first.ID != "" {
+		var first db.NodeReport
+		if err := s.db.Where("node_id = ?", session.NodeID).Order("created_at ASC").Limit(1).Find(&first).Error; err == nil && first.ID != "" {
 			t := first.CreatedAt
 			v.FirstReportAt = &t
-			v.AgentVersion = first.AgentVersion
+			v.NodeVersion = first.NodeVersion
 			v.Status = "reporting"
 		}
 		return v

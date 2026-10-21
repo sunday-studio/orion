@@ -21,13 +21,13 @@ func rawRequest(server *Server, req *http.Request) *httptest.ResponseRecorder {
 // S5: oversized bodies get 413 on report and log endpoints.
 func TestOversizedBodyReturns413(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	big := bytes.Repeat([]byte("a"), 6<<20) // 6 MiB > both caps
 
-	for _, path := range []string{"/v1/agents/" + agent.Data.AgentID + "/report", "/v1/agents/" + agent.Data.AgentID + "/logs/batch", "/v1/register"} {
+	for _, path := range []string{"/v1/nodes/" + node.Data.NodeID + "/report", "/v1/nodes/" + node.Data.NodeID + "/logs/batch", "/v1/register"} {
 		req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(big))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+agent.Data.Token)
+		req.Header.Set("Authorization", "Bearer "+node.Data.Token)
 		if rec := rawRequest(server, req); rec.Code != http.StatusRequestEntityTooLarge {
 			t.Fatalf("%s status = %d, want 413", path, rec.Code)
 		}
@@ -35,7 +35,7 @@ func TestOversizedBodyReturns413(t *testing.T) {
 }
 
 func TestLogBatchAllowsLargerBodyThanDefault(t *testing.T) {
-	if maxBodyBytesFor("/v1/agents/:agent_id/logs/batch", "application/json") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/register", "") != defaultMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/x-ndjson") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/json") != defaultMaxBodyBytes {
+	if maxBodyBytesFor("/v1/nodes/:node_id/logs/batch", "application/json") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/register", "") != defaultMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/x-ndjson") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/json") != defaultMaxBodyBytes {
 		t.Fatal("log batches must get the 5 MiB cap and everything else 1 MiB")
 	}
 }
@@ -131,7 +131,7 @@ func TestSwaggerIsOffByDefaultAndSecurityHeadersPresent(t *testing.T) {
 	if rec.Header().Get("Content-Security-Policy") == "" {
 		t.Fatal("CSP missing on non-API response")
 	}
-	api := rawRequest(server, httptest.NewRequest(http.MethodGet, "/v1/agents", nil))
+	api := rawRequest(server, httptest.NewRequest(http.MethodGet, "/v1/nodes", nil))
 	if api.Header().Get("Content-Security-Policy") != "" {
 		t.Fatal("CSP should not be set on the JSON API")
 	}

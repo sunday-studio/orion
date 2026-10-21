@@ -13,8 +13,8 @@ func TestMetricsRenderQueueDepthOldestPendingAgeAndWorkerHeartbeat(t *testing.T)
 	database := testkit.NewDB(t)
 	now := time.Now().UTC()
 	diagnostics := NewRuntimeDiagnosticsService(database, utils.NewLogger())
-	diagnostics.RecordRequest("/v1/agents/:id/report", 200, 12*time.Millisecond)
-	diagnostics.RecordRequest("/v1/agents/:id/report", 200, 15*time.Millisecond)
+	diagnostics.RecordRequest("/v1/nodes/:id/report", 200, 12*time.Millisecond)
+	diagnostics.RecordRequest("/v1/nodes/:id/report", 200, 15*time.Millisecond)
 	diagnostics.RecordRequest("unmatched", 404, time.Millisecond)
 
 	for id, tc := range map[string]struct {
@@ -24,7 +24,7 @@ func TestMetricsRenderQueueDepthOldestPendingAgeAndWorkerHeartbeat(t *testing.T)
 		database.Create(&db.AlertDelivery{ID: id, IncidentID: "i", EventType: "e", Channel: "c", Type: "webhook", Status: tc.status, MaxAttempts: 3, CreatedAt: now.Add(-tc.age)})
 	}
 	database.Create(&db.CoreWorkerStatus{WorkerID: "w1", ProcessKind: CoreMonitorWorkerProcessKind, Status: "running", StartedAt: now, LastHeartbeatAt: now.Add(-20 * time.Second)})
-	database.Create(&db.Incident{ID: "inc", Status: "open", Severity: "high", Title: "t", AgentID: "a", MonitorID: "m", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
+	database.Create(&db.Incident{ID: "inc", Status: "open", Severity: "high", Title: "t", NodeID: "a", MonitorID: "m", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
 
 	out, err := NewMetricsService(database, utils.NewLogger(), diagnostics, time.Minute).Render(t.Context(), now)
 	if err != nil {
@@ -32,7 +32,7 @@ func TestMetricsRenderQueueDepthOldestPendingAgeAndWorkerHeartbeat(t *testing.T)
 	}
 	for _, want := range []string{
 		"# TYPE orion_http_requests_total counter",
-		`orion_http_requests_total{route="/v1/agents/:id/report",status="200"} 2`,
+		`orion_http_requests_total{route="/v1/nodes/:id/report",status="200"} 2`,
 		`orion_http_requests_total{route="unmatched",status="404"} 1`,
 		`orion_alert_deliveries{status="pending"} 2`,
 		`orion_alert_deliveries{status="failed"} 1`,

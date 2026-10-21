@@ -70,7 +70,7 @@ type Options struct {
 	Config         *config.Config
 	// DispatchInterval controls how often due alert deliveries are sent (default 15s).
 	DispatchInterval time.Duration
-	// SweepInterval controls how often silent agent monitors are checked (default 30s).
+	// SweepInterval controls how often silent node monitors are checked (default 30s).
 	SweepInterval time.Duration
 	// SweepBootGrace delays the first silent-monitor sweep after Worker start so a
 	// Core outage does not make every monitor look silent at once (default 60s, negative disables).

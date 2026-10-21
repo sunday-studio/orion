@@ -12,26 +12,26 @@ import (
 
 func TestRegisterReportListFlow(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	reportBody := map[string]interface{}{"uptime_seconds": 120, "timestamp": time.Now().UTC().Format(time.RFC3339), "agent_version": "dev-test", "config_summary": map[string]interface{}{"monitor_count": 1, "reporting_interval": "60s", "secret": "do-not-return"}, "cpu": map[string]interface{}{"cores": 4, "usage_percent": 12.5, "load_1": 0.1, "load_5": 0.2, "load_15": 0.3}, "memory": map[string]interface{}{"total_bytes": 1024, "used_bytes": 512, "free_bytes": 512, "available_bytes": 512, "used_percent": 50}, "disk": map[string]interface{}{"total_bytes": 2048, "used_bytes": 1024, "free_bytes": 1024, "used_percent": 50}}
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/report"
+	registered := registerTestNode(t, server)
+	reportBody := map[string]interface{}{"uptime_seconds": 120, "timestamp": time.Now().UTC().Format(time.RFC3339), "node_version": "dev-test", "config_summary": map[string]interface{}{"monitor_count": 1, "reporting_interval": "60s", "secret": "do-not-return"}, "cpu": map[string]interface{}{"cores": 4, "usage_percent": 12.5, "load_1": 0.1, "load_5": 0.2, "load_15": 0.3}, "memory": map[string]interface{}{"total_bytes": 1024, "used_bytes": 512, "free_bytes": 512, "available_bytes": 512, "used_percent": 50}, "disk": map[string]interface{}{"total_bytes": 2048, "used_bytes": 1024, "free_bytes": 1024, "used_percent": 50}}
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/report"
 	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, reportBody, registered.Data.Token)
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
 	}
-	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents", nil, "")
+	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/nodes", nil, "")
 	if listResp.Code != http.StatusOK {
 		t.Fatalf("list status = %d, body = %s", listResp.Code, listResp.Body.String())
 	}
-	assertFrontendResponseDoesNotExposeAgentSecrets(t, listResp.Body.String(), registered.Data.Token)
+	assertFrontendResponseDoesNotExposeNodeSecrets(t, listResp.Body.String(), registered.Data.Token)
 	var listed struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Agents []struct {
+			Nodes []struct {
 				ID            string  `json:"id"`
 				Name          string  `json:"name"`
 				UptimeSeconds *uint64 `json:"uptime_seconds"`
-			} `json:"agents"`
+			} `json:"nodes"`
 			Count int64 `json:"count"`
 		} `json:"data"`
 	}
@@ -39,26 +39,26 @@ func TestRegisterReportListFlow(t *testing.T) {
 	if !listed.Success {
 		t.Fatalf("list response was not successful: %+v", listed)
 	}
-	if listed.Data.Count != 1 || len(listed.Data.Agents) != 1 {
-		t.Fatalf("list returned count=%d len=%d, want 1 agent", listed.Data.Count, len(listed.Data.Agents))
+	if listed.Data.Count != 1 || len(listed.Data.Nodes) != 1 {
+		t.Fatalf("list returned count=%d len=%d, want 1 node", listed.Data.Count, len(listed.Data.Nodes))
 	}
-	if listed.Data.Agents[0].ID != registered.Data.AgentID || listed.Data.Agents[0].Name != "test-server" {
-		t.Fatalf("list returned wrong agent: %+v", listed.Data.Agents[0])
+	if listed.Data.Nodes[0].ID != registered.Data.NodeID || listed.Data.Nodes[0].Name != "test-server" {
+		t.Fatalf("list returned wrong node: %+v", listed.Data.Nodes[0])
 	}
-	if listed.Data.Agents[0].UptimeSeconds == nil || *listed.Data.Agents[0].UptimeSeconds != 120 {
-		t.Fatalf("list did not include latest uptime: %+v", listed.Data.Agents[0].UptimeSeconds)
+	if listed.Data.Nodes[0].UptimeSeconds == nil || *listed.Data.Nodes[0].UptimeSeconds != 120 {
+		t.Fatalf("list did not include latest uptime: %+v", listed.Data.Nodes[0].UptimeSeconds)
 	}
-	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID, nil, "")
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/nodes/"+registered.Data.NodeID, nil, "")
 	if detailResp.Code != http.StatusOK {
 		t.Fatalf("detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
 	}
-	assertFrontendResponseDoesNotExposeAgentSecrets(t, detailResp.Body.String(), registered.Data.Token)
+	assertFrontendResponseDoesNotExposeNodeSecrets(t, detailResp.Body.String(), registered.Data.Token)
 	assertNotContains(t, detailResp.Body.String(), "do-not-return")
-	reportsResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID+"/reports", nil, "")
+	reportsResp := performJSONRequest(t, server, http.MethodGet, "/v1/nodes/"+registered.Data.NodeID+"/reports", nil, "")
 	if reportsResp.Code != http.StatusOK {
 		t.Fatalf("reports status = %d, body = %s", reportsResp.Code, reportsResp.Body.String())
 	}
-	assertFrontendResponseDoesNotExposeAgentSecrets(t, reportsResp.Body.String(), registered.Data.Token)
+	assertFrontendResponseDoesNotExposeNodeSecrets(t, reportsResp.Body.String(), registered.Data.Token)
 	assertNotContains(t, reportsResp.Body.String(), "do-not-return")
 	var reports struct {
 		Success bool `json:"success"`
@@ -78,45 +78,45 @@ func TestRegisterReportListFlow(t *testing.T) {
 	if reports.Data.Reports[0].ConfigSummary.MonitorCount != 1 || reports.Data.Reports[0].ConfigSummary.ReportingInterval != "60s" {
 		t.Fatalf("config summary response = %+v, want whitelisted summary", reports.Data.Reports[0].ConfigSummary)
 	}
-	var storedReport db.AgentReport
-	if err := server.db.Where("agent_id = ?", registered.Data.AgentID).First(&storedReport).Error; err != nil {
-		t.Fatalf("find stored agent report: %v", err)
+	var storedReport db.NodeReport
+	if err := server.db.Where("node_id = ?", registered.Data.NodeID).First(&storedReport).Error; err != nil {
+		t.Fatalf("find stored node report: %v", err)
 	}
-	if storedReport.AgentVersion != "dev-test" {
-		t.Fatalf("agent_version = %q, want dev-test", storedReport.AgentVersion)
+	if storedReport.NodeVersion != "dev-test" {
+		t.Fatalf("node_version = %q, want dev-test", storedReport.NodeVersion)
 	}
 	if !strings.Contains(storedReport.ConfigSummary, `"monitor_count":1`) {
 		t.Fatalf("config_summary = %q, want monitor_count", storedReport.ConfigSummary)
 	}
-	var storedAgent db.Agent
-	if err := server.db.Where("id = ?", registered.Data.AgentID).First(&storedAgent).Error; err != nil {
-		t.Fatalf("find stored agent: %v", err)
+	var storedNode db.Node
+	if err := server.db.Where("id = ?", registered.Data.NodeID).First(&storedNode).Error; err != nil {
+		t.Fatalf("find stored node: %v", err)
 	}
-	if storedAgent.ReportingIntervalSeconds != 60 {
-		t.Fatalf("agent reporting interval = %d, want 60", storedAgent.ReportingIntervalSeconds)
+	if storedNode.ReportingIntervalSeconds != 60 {
+		t.Fatalf("node reporting interval = %d, want 60", storedNode.ReportingIntervalSeconds)
 	}
 }
-func TestAgentTokenLifecycleFlow(t *testing.T) {
+func TestNodeTokenLifecycleFlow(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	var storedAgent db.Agent
-	if err := server.db.Where("id = ?", registered.Data.AgentID).First(&storedAgent).Error; err != nil {
-		t.Fatalf("find stored agent: %v", err)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	var storedNode db.Node
+	if err := server.db.Where("id = ?", registered.Data.NodeID).First(&storedNode).Error; err != nil {
+		t.Fatalf("find stored node: %v", err)
 	}
-	if storedAgent.Token == registered.Data.Token || storedAgent.TokenHash == "" || storedAgent.TokenVersion != 1 {
-		t.Fatalf("stored agent token lifecycle fields = token:%q hash:%q version:%d", storedAgent.Token, storedAgent.TokenHash, storedAgent.TokenVersion)
+	if storedNode.Token == registered.Data.Token || storedNode.TokenHash == "" || storedNode.TokenVersion != 1 {
+		t.Fatalf("stored node token lifecycle fields = token:%q hash:%q version:%d", storedNode.Token, storedNode.TokenHash, storedNode.TokenVersion)
 	}
-	statusResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID+"/token/status", nil, "")
+	statusResp := performJSONRequest(t, server, http.MethodGet, "/v1/nodes/"+registered.Data.NodeID+"/token/status", nil, "")
 	if statusResp.Code != http.StatusOK {
 		t.Fatalf("token status = %d, body = %s", statusResp.Code, statusResp.Body.String())
 	}
 	assertNotContains(t, statusResp.Body.String(), registered.Data.Token)
-	reissueActiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/reissue", nil, "")
-	if reissueActiveResp.Code != http.StatusConflict || !strings.Contains(reissueActiveResp.Body.String(), "agent_token_not_revoked") {
+	reissueActiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/token/reissue", nil, "")
+	if reissueActiveResp.Code != http.StatusConflict || !strings.Contains(reissueActiveResp.Body.String(), "node_token_not_revoked") {
 		t.Fatalf("active reissue status = %d, body = %s", reissueActiveResp.Code, reissueActiveResp.Body.String())
 	}
-	rotateResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/rotate", nil, "")
+	rotateResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/token/rotate", nil, "")
 	if rotateResp.Code != http.StatusOK {
 		t.Fatalf("rotate status = %d, body = %s", rotateResp.Code, rotateResp.Body.String())
 	}
@@ -135,23 +135,23 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, rotateResp, &rotated)
-	if !rotated.Success || rotated.Data.Token == "" || rotated.Data.Token == registered.Data.Token || rotated.Data.Status.State != service.AgentTokenStateActive || rotated.Data.Status.TokenVersion != 2 || !rotated.Data.Status.TokenExists {
+	if !rotated.Success || rotated.Data.Token == "" || rotated.Data.Token == registered.Data.Token || rotated.Data.Status.State != service.NodeTokenStateActive || rotated.Data.Status.TokenVersion != 2 || !rotated.Data.Status.TokenExists {
 		t.Fatalf("rotate response = %+v", rotated)
 	}
-	oldTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token)
+	oldTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token)
 	// A rotated-away token keeps working for the 10 minute grace window, then stops.
 	if oldTokenResp.Code != http.StatusOK {
 		t.Fatalf("old token report status during grace = %d, body = %s", oldTokenResp.Code, oldTokenResp.Body.String())
 	}
-	server.db.Model(&db.Agent{}).Where("id = ?", registered.Data.AgentID).Update("previous_token_expires_at", time.Now().UTC().Add(-time.Second))
-	if expired := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token); expired.Code != http.StatusUnauthorized {
+	server.db.Model(&db.Node{}).Where("id = ?", registered.Data.NodeID).Update("previous_token_expires_at", time.Now().UTC().Add(-time.Second))
+	if expired := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token); expired.Code != http.StatusUnauthorized {
 		t.Fatalf("old token report status after grace = %d, body = %s", expired.Code, expired.Body.String())
 	}
-	newTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 301, "timestamp": time.Now().UTC().Format(time.RFC3339)}, rotated.Data.Token)
+	newTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 301, "timestamp": time.Now().UTC().Format(time.RFC3339)}, rotated.Data.Token)
 	if newTokenResp.Code != http.StatusOK {
 		t.Fatalf("new token report status = %d, body = %s", newTokenResp.Code, newTokenResp.Body.String())
 	}
-	revokeResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/revoke", map[string]interface{}{"reason": "lost host"}, "")
+	revokeResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/token/revoke", map[string]interface{}{"reason": "lost host"}, "")
 	if revokeResp.Code != http.StatusOK {
 		t.Fatalf("revoke status = %d, body = %s", revokeResp.Code, revokeResp.Body.String())
 	}
@@ -164,19 +164,19 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, revokeResp, &revoked)
-	if !revoked.Success || revoked.Data.State != service.AgentTokenStateRevoked || revoked.Data.TokenVersion != 3 || revoked.Data.TokenExists {
+	if !revoked.Success || revoked.Data.State != service.NodeTokenStateRevoked || revoked.Data.TokenVersion != 3 || revoked.Data.TokenExists {
 		t.Fatalf("revoke response = %+v", revoked)
 	}
-	revokedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 302, "timestamp": time.Now().UTC().Format(time.RFC3339)}, rotated.Data.Token)
-	if revokedTokenResp.Code != http.StatusUnauthorized || !strings.Contains(revokedTokenResp.Body.String(), "agent_token_revoked") {
+	revokedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 302, "timestamp": time.Now().UTC().Format(time.RFC3339)}, rotated.Data.Token)
+	if revokedTokenResp.Code != http.StatusUnauthorized || !strings.Contains(revokedTokenResp.Body.String(), "node_token_revoked") {
 		t.Fatalf("revoked token report status = %d, body = %s", revokedTokenResp.Code, revokedTokenResp.Body.String())
 	}
 	registerAgainResp := performJSONRequest(t, server, http.MethodPost, "/v1/register", map[string]interface{}{"machine_id": "test-machine-" + t.Name(), "name": "test-server", "os": "linux", "arch": "arm64", "reporting_interval_seconds": 60}, "")
-	if registerAgainResp.Code != http.StatusConflict || !strings.Contains(registerAgainResp.Body.String(), "agent_token_revoked") {
+	if registerAgainResp.Code != http.StatusConflict || !strings.Contains(registerAgainResp.Body.String(), "node_token_revoked") {
 		t.Fatalf("revoked register status = %d, body = %s", registerAgainResp.Code, registerAgainResp.Body.String())
 	}
 	assertNotContains(t, registerAgainResp.Body.String(), rotated.Data.Token)
-	reissueResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/reissue", nil, "")
+	reissueResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/token/reissue", nil, "")
 	if reissueResp.Code != http.StatusOK {
 		t.Fatalf("reissue status = %d, body = %s", reissueResp.Code, reissueResp.Body.String())
 	}
@@ -188,7 +188,7 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 		Data    struct {
 			Token  string `json:"token"`
 			Status struct {
-				AgentID      string `json:"agent_id"`
+				NodeID       string `json:"node_id"`
 				State        string `json:"state"`
 				TokenVersion int    `json:"token_version"`
 				TokenExists  bool   `json:"token_exists"`
@@ -196,10 +196,10 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, reissueResp, &reissued)
-	if !reissued.Success || reissued.Data.Token == "" || reissued.Data.Token == rotated.Data.Token || reissued.Data.Status.AgentID != registered.Data.AgentID || reissued.Data.Status.State != service.AgentTokenStateActive || reissued.Data.Status.TokenVersion != 4 || !reissued.Data.Status.TokenExists {
+	if !reissued.Success || reissued.Data.Token == "" || reissued.Data.Token == rotated.Data.Token || reissued.Data.Status.NodeID != registered.Data.NodeID || reissued.Data.Status.State != service.NodeTokenStateActive || reissued.Data.Status.TokenVersion != 4 || !reissued.Data.Status.TokenExists {
 		t.Fatalf("reissue response = %+v", reissued)
 	}
-	reissuedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 303, "timestamp": time.Now().UTC().Format(time.RFC3339)}, reissued.Data.Token)
+	reissuedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 303, "timestamp": time.Now().UTC().Format(time.RFC3339)}, reissued.Data.Token)
 	if reissuedTokenResp.Code != http.StatusOK {
 		t.Fatalf("reissued token report status = %d, body = %s", reissuedTokenResp.Code, reissuedTokenResp.Body.String())
 	}
@@ -207,22 +207,22 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&preservedMonitor).Error; err != nil {
 		t.Fatalf("find preserved monitor: %v", err)
 	}
-	if preservedMonitor.AgentID != registered.Data.AgentID {
-		t.Fatalf("preserved monitor agent id = %q, want %q", preservedMonitor.AgentID, registered.Data.AgentID)
+	if preservedMonitor.NodeID != registered.Data.NodeID {
+		t.Fatalf("preserved monitor node id = %q, want %q", preservedMonitor.NodeID, registered.Data.NodeID)
 	}
 	var auditCount int64
-	if err := server.db.Model(&db.AuditEvent{}).Where("affected_object_type = ? AND affected_object_id = ?", "agent", registered.Data.AgentID).Count(&auditCount).Error; err != nil {
+	if err := server.db.Model(&db.AuditEvent{}).Where("affected_object_type = ? AND affected_object_id = ?", "node", registered.Data.NodeID).Count(&auditCount).Error; err != nil {
 		t.Fatalf("count token audit events: %v", err)
 	}
 	if auditCount != 3 {
 		t.Fatalf("token audit event count = %d, want 3", auditCount)
 	}
 }
-func TestAgentServiceLogBatchFlow(t *testing.T) {
+func TestNodeServiceLogBatchFlow(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	batchPath := "/v1/agents/" + registered.Data.AgentID + "/logs/batch"
-	batchResp := performJSONRequest(t, server, http.MethodPost, batchPath, map[string]interface{}{"entries": []map[string]interface{}{{"timestamp": "2026-05-27T20:00:00Z", "source": "agent", "stream": "jsonl", "level": "error", "component": "registration", "message": "registration failed", "fingerprint": "service-log-fp-1", "fields": map[string]interface{}{"token": "do-not-return", "attempt": 1}}, {"timestamp": "2026-05-27T20:00:00Z", "level": "error", "component": "registration", "message": "registration failed", "fingerprint": "service-log-fp-1"}}}, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	batchPath := "/v1/nodes/" + registered.Data.NodeID + "/logs/batch"
+	batchResp := performJSONRequest(t, server, http.MethodPost, batchPath, map[string]interface{}{"entries": []map[string]interface{}{{"timestamp": "2026-05-27T20:00:00Z", "source": "node", "stream": "jsonl", "level": "error", "component": "registration", "message": "registration failed", "fingerprint": "service-log-fp-1", "fields": map[string]interface{}{"token": "do-not-return", "attempt": 1}}, {"timestamp": "2026-05-27T20:00:00Z", "level": "error", "component": "registration", "message": "registration failed", "fingerprint": "service-log-fp-1"}}}, registered.Data.Token)
 	if batchResp.Code != http.StatusOK {
 		t.Fatalf("service log batch status = %d, body = %s", batchResp.Code, batchResp.Body.String())
 	}
@@ -247,8 +247,8 @@ func TestAgentServiceLogBatchFlow(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Logs []struct {
-				AgentID   string `json:"agent_id"`
-				AgentName string `json:"agent_name"`
+				NodeID    string `json:"node_id"`
+				NodeName  string `json:"node_name"`
 				Level     string `json:"level"`
 				Component string `json:"component"`
 				Message   string `json:"message"`
@@ -262,19 +262,19 @@ func TestAgentServiceLogBatchFlow(t *testing.T) {
 		t.Fatalf("service logs response = %+v, want one entry", listed)
 	}
 	entry := listed.Data.Logs[0]
-	if entry.AgentID != registered.Data.AgentID || entry.AgentName != "test-server" || entry.Level != "ERROR" || entry.Component != "registration" || entry.Message != "registration failed" {
-		t.Fatalf("service log entry = %+v, want registered agent error log", entry)
+	if entry.NodeID != registered.Data.NodeID || entry.NodeName != "test-server" || entry.Level != "ERROR" || entry.Component != "registration" || entry.Message != "registration failed" {
+		t.Fatalf("service log entry = %+v, want registered node error log", entry)
 	}
 	if !strings.Contains(entry.Fields, `"token":"[redacted]"`) {
 		t.Fatalf("fields = %q, want redacted token", entry.Fields)
 	}
-	agentResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID+"/service-logs?component=registration", nil, "")
-	if agentResp.Code != http.StatusOK {
-		t.Fatalf("agent service logs status = %d, body = %s", agentResp.Code, agentResp.Body.String())
+	nodeResp := performJSONRequest(t, server, http.MethodGet, "/v1/nodes/"+registered.Data.NodeID+"/service-logs?component=registration", nil, "")
+	if nodeResp.Code != http.StatusOK {
+		t.Fatalf("node service logs status = %d, body = %s", nodeResp.Code, nodeResp.Body.String())
 	}
-	decodeResponse(t, agentResp, &listed)
+	decodeResponse(t, nodeResp, &listed)
 	if listed.Data.Count != 1 || len(listed.Data.Logs) != 1 {
-		t.Fatalf("agent service logs response = %+v, want one entry", listed)
+		t.Fatalf("node service logs response = %+v, want one entry", listed)
 	}
 }
 func TestHealthCheckResponse(t *testing.T) {

@@ -39,7 +39,7 @@ func (s *Server) listStatusPageIncidents(c *gin.Context) {
 
 // suggestStatusPageIncidentComponents suggests public components affected by an internal incident.
 // @Summary      Suggest status page incident components
-// @Description  Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details
+// @Description  Suggest public status page components mapped to the internal incident monitor or node without exposing internal incident details
 // @Tags         status-pages
 // @Accept       json
 // @Produce      json
@@ -279,9 +279,9 @@ func (s *Server) statusPageIncidentComponentSuggestions(pageID string, incident 
 		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
 		matchArgs = append(matchArgs, "monitor", incident.MonitorID)
 	}
-	if incident.AgentID != "" {
+	if incident.NodeID != "" {
 		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
-		matchArgs = append(matchArgs, "agent", incident.AgentID)
+		matchArgs = append(matchArgs, "node", incident.NodeID)
 	}
 	if len(matchClauses) == 0 {
 		return []StatusPageIncidentComponentSuggestionResponse{}, nil

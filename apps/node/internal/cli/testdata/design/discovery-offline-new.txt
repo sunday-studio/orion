@@ -1,0 +1,15 @@
+$ orion-node status
+
+ ◆ edge-05                                                         ◐ No recent report
+   node offline since 14:21 · 2 suggestions kept
+   they apply when the node reconnects
+
+$ orion-node status
+
+ ◆ edge-05                                                                ● Connected
+ ╭ New on this server ───────────────────────────────────────────────────────── 2 new ╮
+ │ ! docker:cache-warmer          container · started 14:40                           │
+ │ ! port:9090                    prometheus, listening                               │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+   ▸ orion-node setup  review them. Nothing is added silently

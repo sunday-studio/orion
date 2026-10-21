@@ -58,7 +58,7 @@ func (s *Server) activeIncidentFor(monitorID string) (id string, display string)
 }
 
 // enrichHealthIssues adds kind, detail, since and the linked incident to monitor issues and
-// appends server issues (an agent that stopped reporting), worst first.
+// appends server issues (a node that stopped reporting), worst first.
 func (s *Server) enrichHealthIssues(issues []gin.H) []gin.H {
 	for _, issue := range issues {
 		id, _ := issue["monitor_id"].(string)
@@ -79,16 +79,16 @@ func (s *Server) enrichHealthIssues(issues []gin.H) []gin.H {
 		issue["incident_id"] = incidentID
 		issue["incident_display_id"] = display
 	}
-	var agents []db.Agent
-	s.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Find(&agents)
+	var nodes []db.Node
+	s.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Find(&nodes)
 	healthService := service.NewHealthService(s.db, s.logger)
-	for _, agent := range agents {
-		snapshot, err := healthService.ComputeAgentHealthSnapshot(agent.ID, service.DefaultHealthConfig())
-		if err != nil || snapshot.AgentHealth == "up" || snapshot.AgentHealth == "unknown" || agent.InMaintenance(time.Now().UTC()) {
+	for _, node := range nodes {
+		snapshot, err := healthService.ComputeNodeHealthSnapshot(node.ID, service.DefaultHealthConfig())
+		if err != nil || snapshot.NodeHealth == "up" || snapshot.NodeHealth == "unknown" || node.InMaintenance(time.Now().UTC()) {
 			continue
 		}
-		last := agent.LastSeen
-		issues = append(issues, gin.H{"kind": "server", "target_id": agent.ID, "target_name": agent.Name, "health": snapshot.AgentHealth, "agent_id": agent.ID, "agent_name": agent.Name,
+		last := node.LastSeen
+		issues = append(issues, gin.H{"kind": "server", "target_id": node.ID, "target_name": node.Name, "health": snapshot.NodeHealth, "node_id": node.ID, "node_name": node.Name,
 			"detail": firstNonEmptyString(snapshot.Reason, "last report "+last.UTC().Format("15:04 UTC")), "since": &last, "incident_id": "", "incident_display_id": ""})
 	}
 	rank := map[string]int{"down": 0, "degraded": 1, "stale": 2}
@@ -164,9 +164,9 @@ func (s *Server) openIncidentCandidate(c *gin.Context) {
 	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).DeclareIncident(service.DeclareIncidentInput{Title: title, Severity: severity, MonitorID: monitor.ID, Summary: detail, Notify: true}, s.incidentLifecycleActionMetadata(c, ""))
 	switch {
 	case err == nil:
-		var agent db.Agent
-		s.db.Where("id = ?", incident.AgentID).First(&agent)
-		utils.SuccessResponse(c, http.StatusCreated, "Incident opened", gin.H{"incident": incidentResponse(incident, agent, monitor)})
+		var node db.Node
+		s.db.Where("id = ?", incident.NodeID).First(&node)
+		utils.SuccessResponse(c, http.StatusCreated, "Incident opened", gin.H{"incident": incidentResponse(incident, node, monitor)})
 	case errors.Is(err, service.ErrIncidentAlreadyActive):
 		utils.ErrorResponse(c, http.StatusConflict, err.Error(), nil)
 	default:

@@ -10,10 +10,10 @@ import (
 
 func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.AgentID, "incident-detail-component", "Checkout", "agent")
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.NodeID, "incident-detail-component", "Checkout", "node")
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"status_code": 500}}, registered.Data.Token)
 	if downResp.Code != http.StatusOK {
 		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
@@ -22,7 +22,7 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
 		t.Fatalf("find incident: %v", err)
 	}
-	relatedIncident := db.Incident{ID: "incident-related-detail", Status: "resolved", Severity: "medium", Title: "Prior homepage failure", AgentID: registered.Data.AgentID, MonitorID: registeredMonitor.Data.MonitorID, OpenedAt: incident.OpenedAt.Add(-2 * time.Hour), ResolvedAt: &incident.OpenedAt, LastEventAt: incident.OpenedAt, LatestEvent: "Prior incident resolved", NotificationStatus: "suppressed", ResolutionKind: "recovered"}
+	relatedIncident := db.Incident{ID: "incident-related-detail", Status: "resolved", Severity: "medium", Title: "Prior homepage failure", NodeID: registered.Data.NodeID, MonitorID: registeredMonitor.Data.MonitorID, OpenedAt: incident.OpenedAt.Add(-2 * time.Hour), ResolvedAt: &incident.OpenedAt, LastEventAt: incident.OpenedAt, LatestEvent: "Prior incident resolved", NotificationStatus: "suppressed", ResolutionKind: "recovered"}
 	if err := server.db.Create(&relatedIncident).Error; err != nil {
 		t.Fatalf("create related incident: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		Data    struct {
 			Incident struct {
 				ID                 string `json:"id"`
-				AgentName          string `json:"agent_name"`
+				NodeName           string `json:"node_name"`
 				MonitorName        string `json:"monitor_name"`
 				ImpactedComponents []struct {
 					ComponentID   string `json:"component_id"`
@@ -96,8 +96,8 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if !detail.Success || detail.Data.Incident.ID != incident.ID {
 		t.Fatalf("incident detail response = %+v, want incident %s", detail, incident.ID)
 	}
-	if detail.Data.Incident.AgentName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
-		t.Fatalf("incident names = %+v, want agent and monitor names", detail.Data.Incident)
+	if detail.Data.Incident.NodeName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
+		t.Fatalf("incident names = %+v, want node and monitor names", detail.Data.Incident)
 	}
 	if len(detail.Data.Incident.ImpactedComponents) != 1 || detail.Data.Incident.ImpactedComponents[0].ComponentID != "incident-detail-component" || detail.Data.Incident.ImpactedComponents[0].ComponentName != "Checkout" || detail.Data.Incident.ImpactedComponents[0].Status != "degraded" || detail.Data.Incident.ImpactedComponents[0].Impact != "degraded" {
 		t.Fatalf("incident detail component impact = %+v, want Checkout degraded impact", detail.Data.Incident.ImpactedComponents)
@@ -158,15 +158,15 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		t.Fatalf("timeline response = %+v, want incident and alert events", timeline)
 	}
 }
-func createIncidentImpactStatusPageMapping(t *testing.T, server *Server, monitorID string, agentID string, componentID string, componentName string, resourceType string) {
+func createIncidentImpactStatusPageMapping(t *testing.T, server *Server, monitorID string, nodeID string, componentID string, componentName string, resourceType string) {
 	t.Helper()
 	now := time.Now().UTC()
 	page := db.StatusPage{ID: componentID + "-page", Slug: componentID + "-page", Title: componentName + " Status", Visibility: statusPageVisibilityPublic, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft, PublishedAt: &now}
 	section := db.StatusPageSection{ID: componentID + "-section", StatusPageID: page.ID, Name: "Public services"}
 	component := db.StatusPageComponent{ID: componentID, StatusPageID: page.ID, SectionID: section.ID, PublicName: componentName, DisplayMode: "single_resource", SortOrder: 1, Visible: true}
 	resourceID := monitorID
-	if resourceType == "agent" {
-		resourceID = agentID
+	if resourceType == "node" {
+		resourceID = nodeID
 	}
 	mapping := db.StatusPageComponentMapping{ID: componentID + "-mapping", ComponentID: component.ID, ResourceType: resourceType, ResourceID: resourceID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst"}
 	if err := server.db.Create(&page).Error; err != nil {
@@ -184,13 +184,13 @@ func createIncidentImpactStatusPageMapping(t *testing.T, server *Server, monitor
 }
 func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	maintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/agents/"+registered.Data.AgentID+"/maintenance", map[string]bool{"maintenance_mode": true}, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	maintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/nodes/"+registered.Data.NodeID+"/maintenance", map[string]bool{"maintenance_mode": true}, registered.Data.Token)
 	if maintenanceResp.Code != http.StatusOK {
 		t.Fatalf("maintenance status = %d, body = %s", maintenanceResp.Code, maintenanceResp.Body.String())
 	}
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{}}, registered.Data.Token)
 	if downResp.Code != http.StatusOK {
 		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
@@ -205,9 +205,9 @@ func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
 }
 func TestTLSExpiryMetricOpensAndResolvesIncident(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	expiringResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "up", "metrics": map[string]interface{}{"tls_days_remaining": 3}}, registered.Data.Token)
 	if expiringResp.Code != http.StatusOK {
 		t.Fatalf("expiring TLS report status = %d, body = %s", expiringResp.Code, expiringResp.Body.String())
@@ -230,18 +230,18 @@ func TestTLSExpiryMetricOpensAndResolvesIncident(t *testing.T) {
 		t.Fatalf("incident status = %q, want resolved", incident.Status)
 	}
 }
-func TestAgentReportOpensStaleMonitorIncident(t *testing.T) {
+func TestNodeReportOpensStaleMonitorIncident(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Update("created_at", time.Now().Add(-20*time.Minute)).Error; err != nil {
 		t.Fatalf("age monitor: %v", err)
 	}
 	reportBody := map[string]interface{}{"uptime_seconds": 120, "timestamp": time.Now().UTC().Format(time.RFC3339), "cpu": map[string]interface{}{}, "memory": map[string]interface{}{}, "disk": map[string]interface{}{}}
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/report"
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/report"
 	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, reportBody, registered.Data.Token)
 	if reportResp.Code != http.StatusOK {
-		t.Fatalf("agent report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+		t.Fatalf("node report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
 	}
 	var incident db.Incident
 	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {

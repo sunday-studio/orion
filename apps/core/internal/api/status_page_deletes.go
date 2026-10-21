@@ -206,7 +206,7 @@ func (s *Server) deleteStatusPageComponent(c *gin.Context) {
 
 // deleteStatusPageComponentMapping deletes a component mapping.
 // @Summary      Delete status page component mapping
-// @Description  Delete a public component mapping to an internal monitor or agent
+// @Description  Delete a public component mapping to an internal monitor or node
 // @Tags         status-pages
 // @Accept       json
 // @Produce      json

@@ -16,11 +16,11 @@ apps/console/dist/
 apps/console/src/orion-sdk/
 apps/console/test-results/
 
-# agent
-apps/agent/orion-agent
-apps/agent/state.yaml
-apps/agent/config.yaml
-apps/agent/tmp/
+# node
+apps/node/orion-node
+apps/node/state.yaml
+apps/node/config.yaml
+apps/node/tmp/
 
 # core
 apps/core/.env

@@ -89,9 +89,9 @@ func TestLabelRoutesCRUDOrderAndDryRun(t *testing.T) {
 func TestLabelRoutesQueueDeliveriesAndRuleCooldownReplay(t *testing.T) {
 	server := alertServer(t)
 	seedLabelChannels(server)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	server.db.Create(&db.Incident{ID: "incL", Number: 901, Status: "open", Severity: "critical", Title: "disk full", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "incL", Number: 901, Status: "open", Severity: "critical", Title: "disk full", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 	alerts := service.NewAlertService(server.db, server.logger, server.cfg)
 	if _, err := alerts.CreateLabelRoute(service.LabelRouteInput{Matchers: []service.LabelMatcher{{Key: "severity", Op: "=", Value: "critical"}}, ChannelIDs: []string{"ch-ops-team"}}); err != nil {
 		t.Fatal(err)
@@ -138,9 +138,9 @@ func TestLabelRoutesQueueDeliveriesAndRuleCooldownReplay(t *testing.T) {
 func TestLabelRoutesKeepLegacyFallbackForUnmatchedEvents(t *testing.T) {
 	server := alertServer(t)
 	seedLabelChannels(server)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	server.db.Create(&db.Incident{ID: "incF", Number: 902, Status: "open", Severity: "low", Title: "slow", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "incF", Number: 902, Status: "open", Severity: "low", Title: "slow", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 	alerts := service.NewAlertService(server.db, server.logger, server.cfg)
 	if _, err := alerts.CreateLabelRoute(service.LabelRouteInput{Matchers: []service.LabelMatcher{{Key: "severity", Op: "=", Value: "critical"}}, ChannelIDs: []string{"ch-ops-team"}}); err != nil {
 		t.Fatal(err)

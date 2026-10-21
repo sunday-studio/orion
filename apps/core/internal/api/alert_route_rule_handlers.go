@@ -30,7 +30,7 @@ func (s *Server) createAlertRoute(c *gin.Context) {
 		utils.BadRequest(c, "Invalid alert route payload")
 		return
 	}
-	route := db.AlertRoute{ID: utils.GenerateID("alert_route"), Name: strings.TrimSpace(request.Name), Enabled: true, Priority: 100, EventTypes: encodeStringList(normalizeAlertEvents(request.EventTypes)), Severities: encodeStringList(normalizeStringList(request.Severities)), AgentIDs: encodeStringList(normalizeStringList(request.AgentIDs)), MonitorIDs: encodeStringList(normalizeStringList(request.MonitorIDs)), MonitorTypes: encodeStringList(normalizeStringList(request.MonitorTypes)), ChannelIDs: encodeStringList(normalizeStringList(request.ChannelIDs)), GroupingPolicy: normalizeAlertGroupingPolicy(request.GroupingPolicy), GroupingDelaySeconds: db.DefaultAlertGroupingDelaySeconds}
+	route := db.AlertRoute{ID: utils.GenerateID("alert_route"), Name: strings.TrimSpace(request.Name), Enabled: true, Priority: 100, EventTypes: encodeStringList(normalizeAlertEvents(request.EventTypes)), Severities: encodeStringList(normalizeStringList(request.Severities)), NodeIDs: encodeStringList(normalizeStringList(request.NodeIDs)), MonitorIDs: encodeStringList(normalizeStringList(request.MonitorIDs)), MonitorTypes: encodeStringList(normalizeStringList(request.MonitorTypes)), ChannelIDs: encodeStringList(normalizeStringList(request.ChannelIDs)), GroupingPolicy: normalizeAlertGroupingPolicy(request.GroupingPolicy), GroupingDelaySeconds: db.DefaultAlertGroupingDelaySeconds}
 	if request.Enabled != nil {
 		route.Enabled = *request.Enabled
 	}
@@ -121,8 +121,8 @@ func (s *Server) updateAlertRoute(c *gin.Context) {
 	if request.Severities != nil {
 		route.Severities = encodeStringList(normalizeStringList(request.Severities))
 	}
-	if request.AgentIDs != nil {
-		route.AgentIDs = encodeStringList(normalizeStringList(request.AgentIDs))
+	if request.NodeIDs != nil {
+		route.NodeIDs = encodeStringList(normalizeStringList(request.NodeIDs))
 	}
 	if request.MonitorIDs != nil {
 		route.MonitorIDs = encodeStringList(normalizeStringList(request.MonitorIDs))
@@ -216,7 +216,7 @@ func (s *Server) dryRunAlertRoutes(c *gin.Context) {
 		return
 	}
 	alertService := service.NewAlertService(s.db, s.logger, s.cfg)
-	event := service.AlertRouteContext{IncidentID: strings.TrimSpace(request.IncidentID), EventType: strings.TrimSpace(request.EventType), Severity: strings.TrimSpace(request.Severity), AgentID: strings.TrimSpace(request.AgentID), MonitorID: strings.TrimSpace(request.MonitorID), MonitorType: strings.TrimSpace(request.MonitorType)}
+	event := service.AlertRouteContext{IncidentID: strings.TrimSpace(request.IncidentID), EventType: strings.TrimSpace(request.EventType), Severity: strings.TrimSpace(request.Severity), NodeID: strings.TrimSpace(request.NodeID), MonitorID: strings.TrimSpace(request.MonitorID), MonitorType: strings.TrimSpace(request.MonitorType)}
 	if event.IncidentID != "" {
 		loaded, err := alertService.LoadAlertRouteContext(event.IncidentID, event.EventType)
 		if err != nil {

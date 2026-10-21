@@ -55,7 +55,7 @@ Seed more volume:
 
 ```sh
 cd apps/core
-go run ./scripts/seed-demo-data -db /tmp/orion-heavy.db -days 90 -agents 25 -report-interval 30m
+go run ./scripts/seed-demo-data -db /tmp/orion-heavy.db -days 90 -nodes 25 -report-interval 30m
 ```
 
 ## Scenarios
@@ -114,9 +114,9 @@ state goes missing.
   a revoked token, a removed server with its history kept, and add-server sessions (waiting, claimed,
   expired, cancelled).
 - Monitors: every Core kind (http, keyword, tcp, dns, tls, udp, ping, domain expiry, api request, smtp,
-  synthetic, playwright, heartbeat ok, late and waiting) and agent kind, in up, degraded, down, stale,
+  synthetic, playwright, heartbeat ok, late and waiting) and node kind, in up, degraded, down, stale,
   unknown, paused and maintenance (active and scheduled) states, with runbooks, spikes and timeouts, and
-  agent monitor definitions that are reporting or still waiting.
+  node monitor definitions that are reporting or still waiting.
 - Incidents: open, acknowledged, covered by another incident, resolved (recovered, manual, monitor
   removed, decommissioned), reopened twice, declared by hand, every severity, notes, responders, and open
   and dismissed candidates.
@@ -140,7 +140,7 @@ subscriber screens show full email addresses.
   redaction rules and a display profile, one that only sends plain text) with ingest keys that are in use,
   unused, revoked and mid-rotation; about 8,000 log lines over a week across debug to fatal with correlated
   requests, structured bodies, plain text lines whose severity is read from the text and a recently started
-  failure for the Patterns tab; Core's own log lines for Internal logs; agent service log lines; saved views;
+  failure for the Patterns tab; Core's own log lines for Internal logs; node service log lines; saved views;
   one disabled log alert rule; an audit log with several people and API tokens; API tokens (read, write, unused,
   revoked) and instance settings. Log lines live in `logs.db` next to the main database, so `-db` or
   `-data-dir` decides where they go.
@@ -166,7 +166,7 @@ go run ./scripts/seed-demo-data -update-settings=false
 - `-db`: SQLite database path.
 - `-data-dir`: Core data directory when `-db` is not set.
 - `-days`: number of days to generate, default `90`.
-- `-agents`: number of seeded servers, default `10`. Must be at least `10` to cover every scenario.
+- `-nodes`: number of seeded servers, default `10`. Must be at least `10` to cover every scenario.
 - `-report-interval`: generated report spacing, default `1h`.
 - `-reset-seed`: remove previous `seed-*` rows before inserting, default `true`.
 - `-update-settings`: upsert demo lifecycle settings, default `true`.
@@ -177,13 +177,13 @@ The Docker seed service uses the same defaults as the local script. Override the
 variables:
 
 ```sh
-ORION_SEED_DAYS=14 ORION_SEED_AGENTS=10 make docker-dev-seed
+ORION_SEED_DAYS=14 ORION_SEED_NODES=10 make docker-dev-seed
 ```
 
 Supported Docker seed variables:
 
 - `ORION_SEED_DAYS`: maps to `-days`.
-- `ORION_SEED_AGENTS`: maps to `-agents`.
+- `ORION_SEED_NODES`: maps to `-nodes`.
 - `ORION_SEED_REPORT_INTERVAL`: maps to `-report-interval`.
 - `ORION_SEED_RESET`: maps to `-reset-seed`.
 - `ORION_SEED_UPDATE_SETTINGS`: maps to `-update-settings`.

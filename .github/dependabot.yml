@@ -4,7 +4,7 @@ updates:
     directory: /apps/core
     schedule: { interval: weekly }
   - package-ecosystem: gomod
-    directory: /apps/agent
+    directory: /apps/node
     schedule: { interval: weekly }
   - package-ecosystem: github-actions
     directory: /
@@ -13,5 +13,5 @@ updates:
     directory: /apps/core
     schedule: { interval: weekly }
   - package-ecosystem: docker
-    directory: /apps/agent
+    directory: /apps/node
     schedule: { interval: weekly }

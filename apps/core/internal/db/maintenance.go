@@ -2,9 +2,9 @@ package db
 
 import "time"
 
-// InMaintenance reports whether the agent is in an unexpired maintenance window.
+// InMaintenance reports whether the node is in an unexpired maintenance window.
 // A flag without an end time (legacy data) counts as active until it is migrated.
-func (a Agent) InMaintenance(now time.Time) bool {
+func (a Node) InMaintenance(now time.Time) bool {
 	if !a.MaintenanceMode {
 		return false
 	}

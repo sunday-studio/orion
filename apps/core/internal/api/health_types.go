@@ -11,8 +11,8 @@ type HealthIssue struct {
 	Health string `json:"health" enums:"down,degraded,stale"`
 	// IssueType is "stale_data" for stale monitors and omitted otherwise.
 	IssueType string `json:"issue_type,omitempty" enums:"stale_data"`
-	AgentID   string `json:"agent_id"`
-	AgentName string `json:"agent_name"`
+	NodeID    string `json:"node_id"`
+	NodeName  string `json:"node_name"`
 	// Kind is monitor or server; TargetID/TargetName identify the row to open.
 	Kind       string     `json:"kind" enums:"monitor,server"`
 	TargetID   string     `json:"target_id"`
@@ -37,9 +37,9 @@ type IncidentCandidate struct {
 	Health      string `json:"health" enums:"down,degraded,stale"`
 	IssueType   string `json:"issue_type,omitempty" enums:"stale_data"`
 	// Severity is derived from recent failures: high (3+ of the last 5 reports down), medium, low; stale monitors are high.
-	Severity  string `json:"severity" enums:"low,medium,high"`
-	AgentID   string `json:"agent_id"`
-	AgentName string `json:"agent_name"`
+	Severity string `json:"severity" enums:"low,medium,high"`
+	NodeID   string `json:"node_id"`
+	NodeName string `json:"node_name"`
 	// DownCount is how many of the last 5 reports were down.
 	DownCount int `json:"down_count"`
 	// Detail is a one-line reason such as "timeout after 10s"; SeenAt is when the signal started.

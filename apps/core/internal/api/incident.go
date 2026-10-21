@@ -21,7 +21,7 @@ type incidentLifecycleActionRequest struct {
 }
 type incidentListFilters struct {
 	statuses           []string
-	agentID            string
+	nodeID             string
 	monitorID          string
 	resolutionKind     string
 	actor              string
@@ -42,7 +42,7 @@ type incidentListFilters struct {
 // @Produce      json
 // @ID           getIncidents
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged,covered)
-// @Param        agent_id  query   string  false  "Filter incidents by agent ID"
+// @Param        node_id  query   string  false  "Filter incidents by node ID"
 // @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
 // @Param        resolution_kind  query  string  false  "Filter incidents by resolution kind"
 // @Param        actor  query     string  false  "Filter incidents by lifecycle actor: manual or system"
@@ -87,23 +87,23 @@ func (s *Server) listIncidents(c *gin.Context) {
 	}
 	responses := make([]IncidentResponse, 0, len(incidents))
 	for _, incident := range incidents {
-		var agent db.Agent
-		if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err != nil {
-			agent = db.Agent{ID: incident.AgentID, Name: incident.AgentID}
+		var node db.Node
+		if err := s.db.Where("id = ?", incident.NodeID).First(&node).Error; err != nil {
+			node = db.Node{ID: incident.NodeID, Name: incident.NodeID}
 		}
 		var monitor db.Monitor
 		if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
 			monitor = db.Monitor{ID: incident.MonitorID, Name: incident.MonitorID}
 		}
-		responses = append(responses, incidentResponse(incident, agent, monitor))
+		responses = append(responses, incidentResponse(incident, node, monitor))
 	}
 	utils.SuccessResponse(c, 200, "Incidents retrieved successfully", gin.H{"incidents": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)), "status": filters.statuses, "insights": insights, "hidden_resolved_count": s.hiddenResolvedIncidentCount(filters)})
 }
 func (s *Server) incidentListQuery(filters incidentListFilters) *gorm.DB {
 	query := s.db.Model(&db.Incident{}).Where("status IN ?", filters.statuses)
 	query = s.applyIncidentTextAndTimeFilters(query, filters)
-	if filters.agentID != "" {
-		query = query.Where("agent_id = ?", filters.agentID)
+	if filters.nodeID != "" {
+		query = query.Where("node_id = ?", filters.nodeID)
 	}
 	if filters.monitorID != "" {
 		query = query.Where("monitor_id = ?", filters.monitorID)
@@ -279,7 +279,7 @@ func (s *Server) incidentNotificationReliability(incidentIDs []string) IncidentN
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id} [get]
 func (s *Server) getIncidentDetail(c *gin.Context) {
-	incident, agent, monitor, ok := s.loadIncidentContext(c)
+	incident, node, monitor, ok := s.loadIncidentContext(c)
 	if !ok {
 		return
 	}
@@ -313,7 +313,7 @@ func (s *Server) getIncidentDetail(c *gin.Context) {
 		utils.InternalError(c, "Failed to get incident detail", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{"incident": incidentResponse(incident, agent, monitor), "evidence": evidence, "next_actions": incidentNextActions(incident, monitor, deliveries, reports, relatedIncidents), "related_incidents": relatedIncidents, "timeline": incidentTimeline(events, deliveries, reports), "summary": s.incidentDetailSummary(incident, agent, monitor, events, deliveries, reports), "events": incidentEventResponses(events), "alert_deliveries": alertDeliveryResponses(deliveries), "monitor_reports": monitorReportResponses(reports)})
+	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{"incident": incidentResponse(incident, node, monitor), "evidence": evidence, "next_actions": incidentNextActions(incident, monitor, deliveries, reports, relatedIncidents), "related_incidents": relatedIncidents, "timeline": incidentTimeline(events, deliveries, reports), "summary": s.incidentDetailSummary(incident, node, monitor, events, deliveries, reports), "events": incidentEventResponses(events), "alert_deliveries": alertDeliveryResponses(deliveries), "monitor_reports": monitorReportResponses(reports)})
 }
 
 // getIncidentTimeline retrieves one incident timeline.

@@ -15,7 +15,7 @@ func alertRuleDryRunResponse(result *service.AlertRouteDryRunResult) AlertRuleDr
 	return AlertRuleDryRunResponse{Event: alertRuleDryRunContext(result.Event), LegacyFallback: result.LegacyFallback, Suppressed: result.Suppressed, SuppressionReason: result.SuppressionReason, RuleEvaluations: evaluations, DestinationDecisions: alertRuleDestinationDecisions(result.DestinationDecisions)}
 }
 func alertRuleDryRunContext(event service.AlertRouteContext) AlertRuleDryRunContext {
-	return AlertRuleDryRunContext{IncidentID: event.IncidentID, EventType: event.EventType, Severity: event.Severity, AgentID: event.AgentID, MonitorID: event.MonitorID, MonitorType: event.MonitorType}
+	return AlertRuleDryRunContext{IncidentID: event.IncidentID, EventType: event.EventType, Severity: event.Severity, NodeID: event.NodeID, MonitorID: event.MonitorID, MonitorType: event.MonitorType}
 }
 func alertRuleDestinationDecisions(decisions []service.AlertDestinationDecision) []AlertRuleDestinationDecision {
 	responses := make([]AlertRuleDestinationDecision, 0, len(decisions))

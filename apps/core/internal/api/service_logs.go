@@ -16,42 +16,42 @@ type ServiceLogBatchResponse struct {
 	Stored   int `json:"stored"`
 }
 
-// receiveAgentLogBatch receives structured service logs from an agent.
-// @Summary      Receive agent service logs
-// @Description  Receive and deduplicate a bounded batch of structured Orion Agent service logs
+// receiveNodeLogBatch receives structured service logs from a node.
+// @Summary      Receive node service logs
+// @Description  Receive and deduplicate a bounded batch of structured Orion Node service logs
 // @Tags         service-logs
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @ID           receiveAgentLogBatch
-// @Param        agent_id  path      string                         true  "Agent ID"
+// @ID           receiveNodeLogBatch
+// @Param        node_id  path      string                         true  "Node ID"
 // @Param        data      body      service.ServiceLogBatchPayload  true  "Service log batch"
 // @Success      200       {object}  utils.APIResponse{data=api.ServiceLogBatchResponse}
 // @Failure      400       {object}  utils.APIResponse
 // @Failure      401       {object}  utils.APIResponse
 // @Failure      500       {object}  utils.APIResponse
-// @Router       /v1/agents/{agent_id}/logs/batch [post]
-func (s *Server) receiveAgentLogBatch(c *gin.Context) {
-	agentID := c.Param("agent_id")
-	if agentID == "" {
-		utils.BadRequest(c, "Agent ID is required")
+// @Router       /v1/nodes/{node_id}/logs/batch [post]
+func (s *Server) receiveNodeLogBatch(c *gin.Context) {
+	nodeID := c.Param("node_id")
+	if nodeID == "" {
+		utils.BadRequest(c, "Node ID is required")
 		return
 	}
 
 	var payload service.ServiceLogBatchPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		s.logger.Error("Invalid service log batch", "error", err, "agent_id", agentID)
+		s.logger.Error("Invalid service log batch", "error", err, "node_id", nodeID)
 		utils.BadRequest(c, "Invalid request payload")
 		return
 	}
 
-	result, err := s.serviceLogService.StoreAgentLogBatch(agentID, payload, time.Now().UTC())
+	result, err := s.serviceLogService.StoreNodeLogBatch(nodeID, payload, time.Now().UTC())
 	if err != nil {
 		if strings.Contains(err.Error(), "max is") || strings.Contains(err.Error(), "timestamp") {
 			utils.BadRequest(c, err.Error())
 			return
 		}
-		s.logger.Error("Failed to store service log batch", "error", err, "agent_id", agentID)
+		s.logger.Error("Failed to store service log batch", "error", err, "node_id", nodeID)
 		utils.InternalError(c, "Failed to store service log batch", err)
 		return
 	}
@@ -62,7 +62,7 @@ func (s *Server) receiveAgentLogBatch(c *gin.Context) {
 	})
 }
 
-// listServiceLogs retrieves service logs across agents.
+// listServiceLogs retrieves service logs across nodes.
 // @Summary      List service logs
 // @Description  Get paginated structured service logs shipped by Orion services
 // @Tags         service-logs
@@ -71,7 +71,7 @@ func (s *Server) receiveAgentLogBatch(c *gin.Context) {
 // @ID           getServiceLogs
 // @Param        limit      query     int     false  "Maximum number of logs to return" default(50)
 // @Param        offset     query     int     false  "Number of logs to skip" default(0)
-// @Param        agent_id   query     string  false  "Filter by agent ID"
+// @Param        node_id   query     string  false  "Filter by node ID"
 // @Param        monitor_id query     string  false  "Filter by monitor ID"
 // @Param        source     query     string  false  "Filter by service log source"
 // @Param        level      query     string  false  "Filter by level"
@@ -82,7 +82,7 @@ func (s *Server) receiveAgentLogBatch(c *gin.Context) {
 // @Router       /v1/logs/service [get]
 func (s *Server) listServiceLogs(c *gin.Context) {
 	s.listServiceLogsWithFilters(c, service.ServiceLogListFilters{
-		AgentID:   strings.TrimSpace(c.Query("agent_id")),
+		NodeID:    strings.TrimSpace(c.Query("node_id")),
 		MonitorID: strings.TrimSpace(c.Query("monitor_id")),
 		Source:    strings.TrimSpace(c.Query("source")),
 		Level:     strings.TrimSpace(c.Query("level")),
@@ -93,14 +93,14 @@ func (s *Server) listServiceLogs(c *gin.Context) {
 	})
 }
 
-// listAgentServiceLogs retrieves service logs for one agent.
-// @Summary      List agent service logs
-// @Description  Get paginated structured service logs for a specific Orion Agent
+// listNodeServiceLogs retrieves service logs for one node.
+// @Summary      List node service logs
+// @Description  Get paginated structured service logs for a specific Orion Node
 // @Tags         service-logs
 // @Accept       json
 // @Produce      json
-// @ID           getAgentServiceLogs
-// @Param        id         path      string  true   "Agent ID"
+// @ID           getNodeServiceLogs
+// @Param        id         path      string  true   "Node ID"
 // @Param        limit      query     int     false  "Maximum number of logs to return" default(50)
 // @Param        offset     query     int     false  "Number of logs to skip" default(0)
 // @Param        level      query     string  false  "Filter by level"
@@ -110,20 +110,20 @@ func (s *Server) listServiceLogs(c *gin.Context) {
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
-// @Router       /v1/agents/{id}/service-logs [get]
-func (s *Server) listAgentServiceLogs(c *gin.Context) {
-	agentID := c.Param("id")
-	if agentID == "" {
-		utils.BadRequest(c, "Agent ID is required")
+// @Router       /v1/nodes/{id}/service-logs [get]
+func (s *Server) listNodeServiceLogs(c *gin.Context) {
+	nodeID := c.Param("id")
+	if nodeID == "" {
+		utils.BadRequest(c, "Node ID is required")
 		return
 	}
-	if _, err := s.agentService.GetAgent(agentID); err != nil {
-		utils.NotFound(c, "Agent not found")
+	if _, err := s.nodeService.GetNode(nodeID); err != nil {
+		utils.NotFound(c, "Node not found")
 		return
 	}
 
 	s.listServiceLogsWithFilters(c, service.ServiceLogListFilters{
-		AgentID:   agentID,
+		NodeID:    nodeID,
 		Level:     strings.TrimSpace(c.Query("level")),
 		Component: strings.TrimSpace(c.Query("component")),
 		Search:    strings.TrimSpace(c.Query("q")),
@@ -146,8 +146,8 @@ func (s *Server) listServiceLogsWithFilters(c *gin.Context, filters service.Serv
 		return
 	}
 
-	agentsByID := s.serviceLogAgentsByID(result.Entries)
-	responses := serviceLogEntryResponses(result.Entries, agentsByID)
+	nodesByID := s.serviceLogNodesByID(result.Entries)
+	responses := serviceLogEntryResponses(result.Entries, nodesByID)
 	utils.SuccessResponse(c, http.StatusOK, "Service logs retrieved successfully", gin.H{
 		"logs":       responses,
 		"count":      result.Count,
@@ -157,28 +157,28 @@ func (s *Server) listServiceLogsWithFilters(c *gin.Context, filters service.Serv
 	})
 }
 
-func (s *Server) serviceLogAgentsByID(entries []db.ServiceLogEntry) map[string]db.Agent {
+func (s *Server) serviceLogNodesByID(entries []db.ServiceLogEntry) map[string]db.Node {
 	ids := make([]string, 0, len(entries))
 	seen := map[string]bool{}
 	for _, entry := range entries {
-		if entry.AgentID == "" || seen[entry.AgentID] {
+		if entry.NodeID == "" || seen[entry.NodeID] {
 			continue
 		}
-		seen[entry.AgentID] = true
-		ids = append(ids, entry.AgentID)
+		seen[entry.NodeID] = true
+		ids = append(ids, entry.NodeID)
 	}
-	agentsByID := map[string]db.Agent{}
+	nodesByID := map[string]db.Node{}
 	if len(ids) == 0 {
-		return agentsByID
+		return nodesByID
 	}
 
-	var agents []db.Agent
-	if err := s.db.Where("id IN ?", ids).Find(&agents).Error; err != nil {
-		s.logger.Error("Failed to load service log agents", "error", err)
-		return agentsByID
+	var nodes []db.Node
+	if err := s.db.Where("id IN ?", ids).Find(&nodes).Error; err != nil {
+		s.logger.Error("Failed to load service log nodes", "error", err)
+		return nodesByID
 	}
-	for _, agent := range agents {
-		agentsByID[agent.ID] = agent
+	for _, node := range nodes {
+		nodesByID[node.ID] = node
 	}
-	return agentsByID
+	return nodesByID
 }

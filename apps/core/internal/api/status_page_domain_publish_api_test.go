@@ -18,8 +18,8 @@ import (
 
 func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{"name": "internal-db-01.local", "computed_health": "up", "health": "up"}).Error; err != nil {
 		t.Fatalf("update monitor: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T)
 		t.Fatalf("marshal metadata: %v", err)
 	}
 	metadata := string(metadataJSON)
-	for _, internalValue := range []string{registeredMonitor.Data.MonitorID, "internal-db-01.local", registered.Data.AgentID} {
+	for _, internalValue := range []string{registeredMonitor.Data.MonitorID, "internal-db-01.local", registered.Data.NodeID} {
 		if strings.Contains(metadata, internalValue) {
 			t.Fatalf("metadata %s leaked internal resource value %q", metadata, internalValue)
 		}
@@ -294,9 +294,9 @@ func loginStatusPageTestAdmin(t *testing.T, server *Server) string {
 
 type statusPageSuggestionFixtures struct {
 	Page             db.StatusPage
-	Agent            db.Agent
+	Node             db.Node
 	Monitor          db.Monitor
 	MonitorComponent db.StatusPageComponent
-	AgentComponent   db.StatusPageComponent
+	NodeComponent    db.StatusPageComponent
 	HiddenComponent  db.StatusPageComponent
 }

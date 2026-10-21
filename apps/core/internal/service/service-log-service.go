@@ -34,7 +34,7 @@ type ServiceLogEntryPayload struct {
 }
 
 type ServiceLogListFilters struct {
-	AgentID   string
+	NodeID    string
 	MonitorID string
 	Source    string
 	Level     string
@@ -63,9 +63,9 @@ func NewServiceLogService(database *gorm.DB, logger *utils.Logger) *ServiceLogSe
 	return &ServiceLogService{db: database, logger: logger}
 }
 
-func (s *ServiceLogService) StoreAgentLogBatch(agentID string, payload ServiceLogBatchPayload, collectedAt time.Time) (StoreServiceLogResult, error) {
-	if agentID == "" {
-		return StoreServiceLogResult{}, fmt.Errorf("agent id is required")
+func (s *ServiceLogService) StoreNodeLogBatch(nodeID string, payload ServiceLogBatchPayload, collectedAt time.Time) (StoreServiceLogResult, error) {
+	if nodeID == "" {
+		return StoreServiceLogResult{}, fmt.Errorf("node id is required")
 	}
 	if len(payload.Entries) > maxServiceLogBatchEntries {
 		return StoreServiceLogResult{}, fmt.Errorf("service log batch has %d entries; max is %d", len(payload.Entries), maxServiceLogBatchEntries)
@@ -73,7 +73,7 @@ func (s *ServiceLogService) StoreAgentLogBatch(agentID string, payload ServiceLo
 
 	entries := make([]db.ServiceLogEntry, 0, len(payload.Entries))
 	for _, entryPayload := range payload.Entries {
-		entry, ok, err := serviceLogEntryFromPayload(agentID, entryPayload, collectedAt)
+		entry, ok, err := serviceLogEntryFromPayload(nodeID, entryPayload, collectedAt)
 		if err != nil {
 			return StoreServiceLogResult{}, err
 		}
@@ -86,7 +86,7 @@ func (s *ServiceLogService) StoreAgentLogBatch(agentID string, payload ServiceLo
 	}
 
 	result := s.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "agent_id"}, {Name: "fingerprint"}},
+		Columns:   []clause.Column{{Name: "node_id"}, {Name: "fingerprint"}},
 		DoNothing: true,
 	}).Create(&entries)
 	if result.Error != nil {
@@ -125,8 +125,8 @@ func (s *ServiceLogService) ListServiceLogs(filters ServiceLogListFilters) (Serv
 }
 
 func applyServiceLogFilters(query *gorm.DB, filters ServiceLogListFilters) *gorm.DB {
-	if filters.AgentID != "" {
-		query = query.Where("agent_id = ?", filters.AgentID)
+	if filters.NodeID != "" {
+		query = query.Where("node_id = ?", filters.NodeID)
 	}
 	if filters.MonitorID != "" {
 		query = query.Where("monitor_id = ?", filters.MonitorID)
@@ -143,7 +143,7 @@ func applyServiceLogFilters(query *gorm.DB, filters ServiceLogListFilters) *gorm
 	if filters.Search != "" {
 		like := "%" + strings.ToLower(filters.Search) + "%"
 		query = query.Where(
-			"LOWER(message) LIKE ? OR LOWER(component) LIKE ? OR LOWER(monitor_name) LIKE ? OR LOWER(agent_id) LIKE ? OR LOWER(monitor_id) LIKE ?",
+			"LOWER(message) LIKE ? OR LOWER(component) LIKE ? OR LOWER(monitor_name) LIKE ? OR LOWER(node_id) LIKE ? OR LOWER(monitor_id) LIKE ?",
 			like,
 			like,
 			like,
@@ -154,7 +154,7 @@ func applyServiceLogFilters(query *gorm.DB, filters ServiceLogListFilters) *gorm
 	return query
 }
 
-func serviceLogEntryFromPayload(agentID string, payload ServiceLogEntryPayload, collectedAt time.Time) (db.ServiceLogEntry, bool, error) {
+func serviceLogEntryFromPayload(nodeID string, payload ServiceLogEntryPayload, collectedAt time.Time) (db.ServiceLogEntry, bool, error) {
 	fingerprint := strings.TrimSpace(payload.Fingerprint)
 	if fingerprint == "" {
 		return db.ServiceLogEntry{}, false, nil
@@ -180,9 +180,9 @@ func serviceLogEntryFromPayload(agentID string, payload ServiceLogEntryPayload, 
 
 	return db.ServiceLogEntry{
 		ID:          utils.GenerateID("service_log"),
-		AgentID:     agentID,
+		NodeID:      nodeID,
 		MonitorID:   strings.TrimSpace(payload.MonitorID),
-		Source:      defaultString(strings.TrimSpace(payload.Source), "agent"),
+		Source:      defaultString(strings.TrimSpace(payload.Source), "node"),
 		Stream:      defaultString(strings.TrimSpace(payload.Stream), "jsonl"),
 		Level:       defaultString(strings.ToUpper(strings.TrimSpace(payload.Level)), "INFO"),
 		Component:   strings.TrimSpace(payload.Component),

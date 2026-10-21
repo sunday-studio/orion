@@ -52,7 +52,7 @@ Do not edit `openapi.yaml` or generated Swagger files by hand.
 
 Current behavior is documented in:
 
-- [Server/Core contract](../../docs/agent-core-contract.md)
+- [Server/Core contract](../../docs/node-core-contract.md)
 - [Core features](../../docs/architecture/core-features.md)
 - [Data ingestion](../../docs/architecture/data-ingestion.md)
 - [Persistence and lifecycle](../../docs/architecture/persistence-and-lifecycle.md)

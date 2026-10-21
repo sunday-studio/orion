@@ -1,7 +1,7 @@
 # Set up Core on a new server with Docker
 
 Run Core (with the Console and its monitor worker) as a Docker instance on one server, then connect
-every machine you want to watch with the one-line agent installer. Allow about ten minutes.
+every machine you want to watch with the one-line node installer. Allow about ten minutes.
 
 You need a Linux server with Docker Engine and the Compose plugin (`docker compose version` works) and
 `git`.
@@ -71,24 +71,24 @@ On each machine you want to watch, run the installer. In the Console, **Servers,
 command with a one-time token already filled in; copy it from there. It looks like:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
   | sudo ORION_ENROLLMENT_TOKEN='<token>' bash -s -- --core-url https://orion.example.com
 ```
 
-The installer downloads the agent, verifies it, installs it as a service (systemd on Linux, launchd on
+The installer downloads the node, verifies it, installs it as a service (systemd on Linux, launchd on
 macOS), registers the machine with Core and starts reporting. It asks no questions. The server appears
-under **Servers** within a minute. Then run `orion-agent setup` on it to choose what to monitor; see
-[Server install and upgrade](agent-install-upgrade.md) and the [CLI cheat sheet](server-cli-cheatsheet.md).
+under **Servers** within a minute. Then run `orion-node setup` on it to choose what to monitor; see
+[Server install and upgrade](node-install-upgrade.md) and the [CLI cheat sheet](server-cli-cheatsheet.md).
 
 You can use `ORION_ENROLLMENT_TOKEN` from `.env` in place of a one-time token, until you replace the
 registration secret in the Console's settings; after that, use one-time tokens.
 
 ### The server Core runs on
 
-Install the agent there like any other server. If you would rather keep everything in Docker, start an
-agent container beside Core instead. Add `COMPOSE_PROFILES=agent` to `.env` (it applies to every command,
-so `ps`, `logs` and `down` include the agent too), then run `orion_compose up -d --build` again. What the
-container can and cannot see is in [Running the Agent as a container](agent-container.md).
+Install the node there like any other server. If you would rather keep everything in Docker, start an
+node container beside Core instead. Add `COMPOSE_PROFILES=node` to `.env` (it applies to every command,
+so `ps`, `logs` and `down` include the node too), then run `orion_compose up -d --build` again. What the
+container can and cannot see is in [Running the Node as a container](node-container.md).
 
 ## Day to day
 
@@ -110,7 +110,7 @@ When an update has database migrations to apply, Core first copies the database 
   open it on the address and scheme your proxy serves (not `http` for an `https` site), and that
   `ORION_PUBLIC_URL` matches. Only a Console hosted separately from Core needs `ORION_CORS_ORIGINS`; see
   [Core Docker deployment](core-docker.md).
-- **A server never appears.** On that server run `orion-agent doctor`; it names what is wrong. The usual
+- **A server never appears.** On that server run `orion-node doctor`; it names what is wrong. The usual
   causes are a Core address the server cannot reach and a firewall.
 - **`address already in use`.** Something else uses port 8999. Set `ORION_HTTP_PORT` in `.env`.
 - **The build fails or is killed.** The Console build needs a fair amount of memory. Build on a larger

@@ -28,8 +28,8 @@ func declare(t *testing.T, server *Server, body gin.H) (int, incidentEnvelope) {
 
 func TestDeclareIncidentAssignsNumbersAndValidates(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	server.db.Create(&db.Monitor{ID: "mon-1", Type: "http", Name: "checkout-https", AgentID: agent.Data.AgentID, Lifecycle: "active", ComputedHealth: "up", Health: "up"})
+	node := registerTestNode(t, server)
+	server.db.Create(&db.Monitor{ID: "mon-1", Type: "http", Name: "checkout-https", NodeID: node.Data.NodeID, Lifecycle: "active", ComputedHealth: "up", Health: "up"})
 
 	code, first := declare(t, server, gin.H{"title": "Checkout is slow for EU customers", "severity": "high", "monitor_id": "mon-1", "summary": "p95 up", "notify": false})
 	if code != http.StatusCreated || first.Data.Incident.DisplayID != "INC-0001" || first.Data.Incident.Source != "manual" || first.Data.Incident.Status != "open" || first.Data.Incident.MonitorName != "checkout-https" {
@@ -38,13 +38,13 @@ func TestDeclareIncidentAssignsNumbersAndValidates(t *testing.T) {
 	if code, _ := declare(t, server, gin.H{"title": "again", "severity": "low", "monitor_id": "mon-1"}); code != http.StatusConflict {
 		t.Fatalf("second incident on the same monitor = %d, want 409", code)
 	}
-	code, second := declare(t, server, gin.H{"title": "Whole server flaky", "severity": "critical", "agent_id": agent.Data.AgentID})
+	code, second := declare(t, server, gin.H{"title": "Whole server flaky", "severity": "critical", "node_id": node.Data.NodeID})
 	if code != http.StatusCreated || second.Data.Incident.DisplayID != "INC-0002" || second.Data.Incident.MonitorID != "" {
-		t.Fatalf("agent-level declare = %d %+v", code, second.Data.Incident)
+		t.Fatalf("node-level declare = %d %+v", code, second.Data.Incident)
 	}
 	for name, body := range map[string]gin.H{
-		"no title":     {"severity": "low", "agent_id": agent.Data.AgentID},
-		"bad severity": {"title": "x", "severity": "urgent", "agent_id": agent.Data.AgentID},
+		"no title":     {"severity": "low", "node_id": node.Data.NodeID},
+		"bad severity": {"title": "x", "severity": "urgent", "node_id": node.Data.NodeID},
 		"no target":    {"title": "x", "severity": "low"},
 	} {
 		if code, _ := declare(t, server, body); code != http.StatusBadRequest {
@@ -56,7 +56,7 @@ func TestDeclareIncidentAssignsNumbersAndValidates(t *testing.T) {
 	}
 	// notify:true queues an alert delivery.
 	server.db.Create(&db.AlertChannel{ID: "c1", Name: "hook", Type: "webhook", Enabled: true, WebhookURL: "https://example.com/h", SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents())})
-	if code, third := declare(t, server, gin.H{"title": "loud", "severity": "high", "agent_id": agent.Data.AgentID, "notify": true}); code != http.StatusCreated {
+	if code, third := declare(t, server, gin.H{"title": "loud", "severity": "high", "node_id": node.Data.NodeID, "notify": true}); code != http.StatusCreated {
 		t.Fatalf("notify declare = %d", code)
 	} else {
 		var n int64
@@ -69,10 +69,10 @@ func TestDeclareIncidentAssignsNumbersAndValidates(t *testing.T) {
 
 func TestIncidentNotesResponderCoverByAndBulk(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	_, a := declare(t, server, gin.H{"title": "A", "severity": "high", "agent_id": agent.Data.AgentID})
-	_, b := declare(t, server, gin.H{"title": "B", "severity": "low", "agent_id": agent.Data.AgentID})
-	_, cinc := declare(t, server, gin.H{"title": "C", "severity": "medium", "agent_id": agent.Data.AgentID})
+	node := registerTestNode(t, server)
+	_, a := declare(t, server, gin.H{"title": "A", "severity": "high", "node_id": node.Data.NodeID})
+	_, b := declare(t, server, gin.H{"title": "B", "severity": "low", "node_id": node.Data.NodeID})
+	_, cinc := declare(t, server, gin.H{"title": "C", "severity": "medium", "node_id": node.Data.NodeID})
 
 	if r := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+a.Data.Incident.ID+"/notes", gin.H{"text": "Restarting the load balancer"}, ""); r.Code != http.StatusCreated {
 		t.Fatalf("note = %d %s", r.Code, r.Body.String())
@@ -142,10 +142,10 @@ func TestIncidentNotesResponderCoverByAndBulk(t *testing.T) {
 
 func TestIncidentListFiltersHiddenCountAndExport(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
 	mk := func(id string, n int, status, sev, title string, opened time.Time) {
-		server.db.Create(&db.Incident{ID: id, Number: n, Status: status, Severity: sev, Title: title, AgentID: agent.Data.AgentID, MonitorID: "", OpenedAt: opened, LastEventAt: opened, Source: "monitor"})
+		server.db.Create(&db.Incident{ID: id, Number: n, Status: status, Severity: sev, Title: title, NodeID: node.Data.NodeID, MonitorID: "", OpenedAt: opened, LastEventAt: opened, Source: "monitor"})
 	}
 	mk("i1", 1, "open", "critical", "api.example.com unreachable", now.Add(-30*time.Minute))
 	mk("i2", 2, "acknowledged", "high", "db-02 disk above 90%", now.Add(-16*time.Hour))

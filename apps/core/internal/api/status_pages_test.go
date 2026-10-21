@@ -49,8 +49,8 @@ func TestPublicStatusRoutesStayUnauthenticatedWhenFrontendAuthConfigured(t *test
 func TestStatusPageAuditEventsRecordActorAndMinimalFields(t *testing.T) {
 	server := setupStatusPageAuthTestServer(t)
 	token := loginStatusPageTestAdmin(t, server)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{"slug": "audit-status", "title": "Audit Status"}, token)
 	if createPageResp.Code != http.StatusCreated {
 		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
@@ -164,7 +164,7 @@ func TestStatusPageIncidentComponentSuggestionsMatchMonitorAndRedactInternals(t 
 	server := setupTestServer(t)
 	now := time.Now().UTC()
 	fixtures := createStatusPageSuggestionFixtures(t, server, now)
-	incident := db.Incident{ID: "incident-monitor-secret", Status: "open", Severity: "critical", Title: "internal private monitor incident", AgentID: "unmapped-agent-for-monitor-test", MonitorID: fixtures.Monitor.ID, OpenedAt: now, LastEventAt: now, LatestEvent: "raw report payload should not leak", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
+	incident := db.Incident{ID: "incident-monitor-secret", Status: "open", Severity: "critical", Title: "internal private monitor incident", NodeID: "unmapped-node-for-monitor-test", MonitorID: fixtures.Monitor.ID, OpenedAt: now, LastEventAt: now, LatestEvent: "raw report payload should not leak", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
 	if err := server.db.Create(&incident).Error; err != nil {
 		t.Fatalf("create incident: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestStatusPageIncidentComponentSuggestionsMatchMonitorAndRedactInternals(t 
 		t.Fatalf("suggestions status = %d, body = %s", resp.Code, resp.Body.String())
 	}
 	body := resp.Body.String()
-	for _, privateValue := range []string{incident.Title, incident.LatestEvent, fixtures.Agent.Name, fixtures.Agent.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.Agent.ID, "monitor-report-private-token", fixtures.HiddenComponent.PublicName} {
+	for _, privateValue := range []string{incident.Title, incident.LatestEvent, fixtures.Node.Name, fixtures.Node.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.Node.ID, "monitor-report-private-token", fixtures.HiddenComponent.PublicName} {
 		if strings.Contains(body, privateValue) {
 			t.Fatalf("suggestions leaked %q in %s", privateValue, body)
 		}
@@ -199,11 +199,11 @@ func TestStatusPageIncidentComponentSuggestionsMatchMonitorAndRedactInternals(t 
 		t.Fatalf("suggestion matches = %+v, want monitor match reason", suggestion.Matches)
 	}
 }
-func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *testing.T) {
+func TestStatusPageIncidentComponentSuggestionsMatchNodeAndRedactInternals(t *testing.T) {
 	server := setupTestServer(t)
 	now := time.Now().UTC()
 	fixtures := createStatusPageSuggestionFixtures(t, server, now)
-	incident := db.Incident{ID: "incident-agent-secret", Status: "open", Severity: "high", Title: "internal private agent incident", AgentID: fixtures.Agent.ID, MonitorID: "unmapped-monitor-for-agent-test", OpenedAt: now, LastEventAt: now, LatestEvent: "agent raw event should not leak", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
+	incident := db.Incident{ID: "incident-node-secret", Status: "open", Severity: "high", Title: "internal private node incident", NodeID: fixtures.Node.ID, MonitorID: "unmapped-monitor-for-node-test", OpenedAt: now, LastEventAt: now, LatestEvent: "node raw event should not leak", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
 	if err := server.db.Create(&incident).Error; err != nil {
 		t.Fatalf("create incident: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *t
 		t.Fatalf("suggestions status = %d, body = %s", resp.Code, resp.Body.String())
 	}
 	body := resp.Body.String()
-	for _, privateValue := range []string{incident.Title, incident.LatestEvent, fixtures.Agent.Name, fixtures.Agent.Token, fixtures.Agent.ID, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.HiddenComponent.PublicName} {
+	for _, privateValue := range []string{incident.Title, incident.LatestEvent, fixtures.Node.Name, fixtures.Node.Token, fixtures.Node.ID, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.HiddenComponent.PublicName} {
 		if strings.Contains(body, privateValue) {
 			t.Fatalf("suggestions leaked %q in %s", privateValue, body)
 		}
@@ -225,13 +225,13 @@ func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *t
 	}
 	decodeResponse(t, resp, &parsed)
 	if parsed.Data.Count != 1 || len(parsed.Data.Suggestions) != 1 {
-		t.Fatalf("suggestions = %+v, want one public agent component", parsed.Data.Suggestions)
+		t.Fatalf("suggestions = %+v, want one public node component", parsed.Data.Suggestions)
 	}
 	suggestion := parsed.Data.Suggestions[0]
-	if suggestion.ComponentID != fixtures.AgentComponent.ID || suggestion.ComponentName != fixtures.AgentComponent.PublicName {
-		t.Fatalf("suggestion = %+v, want agent component", suggestion)
+	if suggestion.ComponentID != fixtures.NodeComponent.ID || suggestion.ComponentName != fixtures.NodeComponent.PublicName {
+		t.Fatalf("suggestion = %+v, want node component", suggestion)
 	}
-	if len(suggestion.Matches) != 1 || suggestion.Matches[0].ResourceType != "agent" || !strings.Contains(suggestion.Matches[0].MatchReason, "agent") {
-		t.Fatalf("suggestion matches = %+v, want agent match reason", suggestion.Matches)
+	if len(suggestion.Matches) != 1 || suggestion.Matches[0].ResourceType != "node" || !strings.Contains(suggestion.Matches[0].MatchReason, "node") {
+		t.Fatalf("suggestion matches = %+v, want node match reason", suggestion.Matches)
 	}
 }

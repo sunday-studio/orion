@@ -169,7 +169,7 @@ Defines public-facing components:
 Maps public components to internal resources:
 
 - component id;
-- resource type: `agent`, `monitor`, or future `group`;
+- resource type: `node`, `monitor`, or future `group`;
 - resource id;
 - health rollup strategy: `worst`, `best`, `average`, or `manual`;
 - uptime rollup strategy.
@@ -275,7 +275,7 @@ erDiagram
   STATUS_PAGES ||--o{ STATUS_PAGE_SUBSCRIBERS : has
   STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_COMPONENTS : chooses
   STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_DELIVERIES : receives
-  STATUS_PAGE_COMPONENT_MAPPINGS }o--|| AGENTS : may_reference
+  STATUS_PAGE_COMPONENT_MAPPINGS }o--|| NODES : may_reference
   STATUS_PAGE_COMPONENT_MAPPINGS }o--|| MONITORS : may_reference
   STATUS_PAGE_INCIDENTS }o--o| INCIDENTS : may_link
 ```

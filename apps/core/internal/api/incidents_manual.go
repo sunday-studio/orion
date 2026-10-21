@@ -16,7 +16,7 @@ type DeclareIncidentRequest struct {
 	Title     string `json:"title" binding:"required"`
 	Severity  string `json:"severity" binding:"required" enums:"low,medium,high,critical"`
 	MonitorID string `json:"monitor_id,omitempty"`
-	AgentID   string `json:"agent_id,omitempty"`
+	NodeID    string `json:"node_id,omitempty"`
 	Summary   string `json:"summary,omitempty"`
 	// Notify queues alerts through the channels the matching rules select.
 	Notify bool `json:"notify"`
@@ -42,17 +42,17 @@ func (s *Server) declareIncident(c *gin.Context) {
 		utils.BadRequest(c, "title and severity are required")
 		return
 	}
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).DeclareIncident(service.DeclareIncidentInput{Title: request.Title, Severity: request.Severity, MonitorID: request.MonitorID, AgentID: request.AgentID, Summary: request.Summary, Notify: request.Notify}, s.incidentLifecycleActionMetadata(c, ""))
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).DeclareIncident(service.DeclareIncidentInput{Title: request.Title, Severity: request.Severity, MonitorID: request.MonitorID, NodeID: request.NodeID, Summary: request.Summary, Notify: request.Notify}, s.incidentLifecycleActionMetadata(c, ""))
 	switch {
 	case err == nil:
-		var agent db.Agent
-		s.db.Where("id = ?", incident.AgentID).First(&agent)
+		var node db.Node
+		s.db.Where("id = ?", incident.NodeID).First(&node)
 		var monitor db.Monitor
 		s.db.Where("id = ?", incident.MonitorID).First(&monitor)
-		utils.SuccessResponse(c, http.StatusCreated, "Incident declared", gin.H{"incident": incidentResponse(incident, agent, monitor)})
+		utils.SuccessResponse(c, http.StatusCreated, "Incident declared", gin.H{"incident": incidentResponse(incident, node, monitor)})
 	case errors.Is(err, service.ErrIncidentInvalid):
 		utils.BadRequest(c, err.Error())
-	case errors.Is(err, service.ErrIncidentMonitorMissing), errors.Is(err, service.ErrIncidentAgentMissing):
+	case errors.Is(err, service.ErrIncidentMonitorMissing), errors.Is(err, service.ErrIncidentNodeMissing):
 		utils.NotFound(c, err.Error())
 	case errors.Is(err, service.ErrIncidentAlreadyActive):
 		utils.ErrorResponse(c, http.StatusConflict, err.Error(), nil)
@@ -214,11 +214,11 @@ func (s *Server) bulkIncidentAction(c *gin.Context) {
 			result.Error = bulkIncidentError(err)
 		} else {
 			succeeded++
-			var agent db.Agent
-			s.db.Where("id = ?", incident.AgentID).First(&agent)
+			var node db.Node
+			s.db.Where("id = ?", incident.NodeID).First(&node)
 			var monitor db.Monitor
 			s.db.Where("id = ?", incident.MonitorID).First(&monitor)
-			r := incidentResponse(incident, agent, monitor)
+			r := incidentResponse(incident, node, monitor)
 			result.Incident = &r
 		}
 		results = append(results, result)

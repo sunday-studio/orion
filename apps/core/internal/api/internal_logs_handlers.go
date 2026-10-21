@@ -11,7 +11,7 @@ var _ utils.APIResponse
 
 // searchInternalLogs Core's own log lines.
 // @Summary      Search internal logs
-// @Description  Core's own log lines (API, worker, scheduler, agent gateway), newest first with a cursor. Same filters and shape as GET /v1/logs; the component of each line is attributes.component. Routine successful HTTP requests are not recorded; failed and slow ones are.
+// @Description  Core's own log lines (API, worker, scheduler, node gateway), newest first with a cursor. Same filters and shape as GET /v1/logs; the component of each line is attributes.component. Routine successful HTTP requests are not recorded; failed and slow ones are.
 // @Tags         internal-logs
 // @Produce      json
 // @Security     BearerAuth
@@ -47,7 +47,7 @@ func (s *Server) getInternalLogHistogram(c *gin.Context) { internalScope(s.getLo
 
 // getInternalLogFacets Internal log filter rail.
 // @Summary      Internal log facets
-// @Description  Severity counts and, in values, the components (core api, worker, scheduler, agent gateway) with counts; pass field=<key> to list another attribute.
+// @Description  Severity counts and, in values, the components (core api, worker, scheduler, node gateway) with counts; pass field=<key> to list another attribute.
 // @Tags         internal-logs
 // @Produce      json
 // @Security     BearerAuth

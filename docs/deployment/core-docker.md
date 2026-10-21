@@ -267,7 +267,7 @@ Image publishing is manually triggered from GitHub Actions. Run the `Docker Imag
 provide the version tag to publish.
 
 Servers should be installed separately on each monitored machine. They do not run inside the Core API
-or Core worker containers. The installed binary and CLI are still named `orion-agent` for
+or Core worker containers. The installed binary and CLI are still named `orion-node` for
 compatibility.
 
 ## Hardened runtime profile
@@ -287,7 +287,7 @@ Pin `ORION_CORE_IMAGE` to a release tag (or digest) in production instead of `la
 
 ### TLS reverse proxy
 
-Agents send bearer tokens to `core_url`, so use HTTPS. `deploy/examples/reverse-proxy/` has a Caddy overlay that terminates TLS, stops publishing Core's port and sets `ORION_TRUSTED_PROXIES` so rate limits see real client IPs:
+Nodes send bearer tokens to `core_url`, so use HTTPS. `deploy/examples/reverse-proxy/` has a Caddy overlay that terminates TLS, stops publishing Core's port and sets `ORION_TRUSTED_PROXIES` so rate limits see real client IPs:
 
 ```sh
 export ORION_PUBLIC_HOST=orion.example.com

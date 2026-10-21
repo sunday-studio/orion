@@ -192,12 +192,12 @@ func statusPageSeedMappings(monitorsByID map[string]db.Monitor, now time.Time) [
 		uptime      string
 	}{
 		{componentID: "seed-status-page-component-public-api", resourceID: "seed-monitor-core-public-api", resourceTyp: "monitor", health: "worst", uptime: "worst"},
-		{componentID: "seed-status-page-component-public-api", resourceID: "seed-monitor-seed-agent-01-healthy-http", resourceTyp: "monitor", health: "worst", uptime: "average"},
-		{componentID: "seed-status-page-component-checkout", resourceID: "seed-monitor-seed-agent-03-down-http", resourceTyp: "monitor", health: "worst", uptime: "worst"},
-		{componentID: "seed-status-page-component-worker", resourceID: "seed-monitor-seed-agent-02-degraded-resource", resourceTyp: "monitor", health: "worst", uptime: "average"},
-		{componentID: "seed-status-page-component-worker", resourceID: "seed-monitor-seed-agent-07-flapping-internal", resourceTyp: "monitor", health: "worst", uptime: "worst"},
-		{componentID: "seed-status-page-component-maintenance", resourceID: "seed-monitor-seed-agent-04-maintenance-http", resourceTyp: "monitor", health: "manual", uptime: "manual"},
-		{componentID: "seed-status-page-component-private-admin", resourceID: "seed-agent-10-alerts", resourceTyp: "agent", health: "worst", uptime: "worst"},
+		{componentID: "seed-status-page-component-public-api", resourceID: "seed-monitor-seed-node-01-healthy-http", resourceTyp: "monitor", health: "worst", uptime: "average"},
+		{componentID: "seed-status-page-component-checkout", resourceID: "seed-monitor-seed-node-03-down-http", resourceTyp: "monitor", health: "worst", uptime: "worst"},
+		{componentID: "seed-status-page-component-worker", resourceID: "seed-monitor-seed-node-02-degraded-resource", resourceTyp: "monitor", health: "worst", uptime: "average"},
+		{componentID: "seed-status-page-component-worker", resourceID: "seed-monitor-seed-node-07-flapping-internal", resourceTyp: "monitor", health: "worst", uptime: "worst"},
+		{componentID: "seed-status-page-component-maintenance", resourceID: "seed-monitor-seed-node-04-maintenance-http", resourceTyp: "monitor", health: "manual", uptime: "manual"},
+		{componentID: "seed-status-page-component-private-admin", resourceID: "seed-node-10-alerts", resourceTyp: "node", health: "worst", uptime: "worst"},
 	}
 
 	mappings := make([]db.StatusPageComponentMapping, 0, len(mappingInputs))
@@ -233,7 +233,7 @@ func statusPageSeedIncidents(pageID string, now time.Time) ([]db.StatusPageIncid
 		{
 			ID:                   "seed-status-page-incident-checkout-outage",
 			StatusPageID:         pageID,
-			InternalIncidentID:   "seed-incident-seed-monitor-seed-agent-03-down-http",
+			InternalIncidentID:   "seed-incident-seed-monitor-seed-node-03-down-http",
 			Title:                "Checkout API elevated errors",
 			PublicStatus:         "identified",
 			Severity:             "high",
@@ -247,7 +247,7 @@ func statusPageSeedIncidents(pageID string, now time.Time) ([]db.StatusPageIncid
 		{
 			ID:                   "seed-status-page-incident-worker-latency",
 			StatusPageID:         pageID,
-			InternalIncidentID:   "seed-incident-seed-monitor-seed-agent-02-degraded-resource",
+			InternalIncidentID:   "seed-incident-seed-monitor-seed-node-02-degraded-resource",
 			Title:                "Worker queue latency",
 			PublicStatus:         "resolved",
 			Severity:             "medium",
@@ -277,7 +277,7 @@ func statusPageSeedIncidents(pageID string, now time.Time) ([]db.StatusPageIncid
 		{
 			ID:                   "seed-status-page-incident-private-admin",
 			StatusPageID:         pageID,
-			InternalIncidentID:   "seed-incident-seed-monitor-seed-agent-10-alerts-http",
+			InternalIncidentID:   "seed-incident-seed-monitor-seed-node-10-alerts-http",
 			Title:                "Private admin API investigation",
 			PublicStatus:         "investigating",
 			Severity:             "medium",

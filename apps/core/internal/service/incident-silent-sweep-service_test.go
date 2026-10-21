@@ -10,17 +10,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func sweepFixture(t *testing.T, mutate func(*db.Agent, *db.Monitor)) (*gorm.DB, *IncidentService, db.Monitor, time.Time) {
+func sweepFixture(t *testing.T, mutate func(*db.Node, *db.Monitor)) (*gorm.DB, *IncidentService, db.Monitor, time.Time) {
 	t.Helper()
 	database := setupAlertServiceDatabase(t)
 	created := time.Now().UTC().Add(-time.Hour)
-	agent := db.Agent{ID: "agent-1", MachineId: "machine-1", Name: "host-1", OS: "linux", Arch: "amd64", Token: "t", LastSeen: created}
-	monitor := db.Monitor{ID: "monitor-1", AgentID: agent.ID, Name: "homepage", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: created}
+	node := db.Node{ID: "node-1", MachineId: "machine-1", Name: "host-1", OS: "linux", Arch: "amd64", Token: "t", LastSeen: created}
+	monitor := db.Monitor{ID: "monitor-1", NodeID: node.ID, Name: "homepage", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: created}
 	if mutate != nil {
-		mutate(&agent, &monitor)
+		mutate(&node, &monitor)
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 	if err := database.Create(&monitor).Error; err != nil {
 		t.Fatalf("create monitor: %v", err)
@@ -41,7 +41,7 @@ func activeIncidents(t *testing.T, database *gorm.DB, monitorID string) []db.Inc
 	return incidents
 }
 
-func TestSweepSilentMonitorsOpensStaleIncidentWhenAgentGoesQuiet(t *testing.T) {
+func TestSweepSilentMonitorsOpensStaleIncidentWhenNodeGoesQuiet(t *testing.T) {
 	database, svc, monitor, reportedAt := sweepFixture(t, nil)
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 
@@ -120,9 +120,9 @@ func TestSweepSilentMonitorsResolvesWhenReportsResume(t *testing.T) {
 
 func TestSweepSilentMonitorsSkipsMaintenanceCoreManagedAndNeverReported(t *testing.T) {
 	t.Run("maintenance mode", func(t *testing.T) {
-		database, svc, monitor, reportedAt := sweepFixture(t, func(a *db.Agent, _ *db.Monitor) { a.MaintenanceMode = true })
+		database, svc, monitor, reportedAt := sweepFixture(t, func(a *db.Node, _ *db.Monitor) { a.MaintenanceMode = true })
 		if n, _ := svc.SweepSilentMonitors(reportedAt.Add(time.Hour)); n != 0 || len(activeIncidents(t, database, monitor.ID)) != 0 {
-			t.Fatalf("maintenance agent flagged %d, want none", n)
+			t.Fatalf("maintenance node flagged %d, want none", n)
 		}
 	})
 	t.Run("core managed monitor", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestSweepSilentMonitorsSkipsMaintenanceCoreManagedAndNeverReported(t *testi
 		}
 	})
 	t.Run("disabled monitor", func(t *testing.T) {
-		database, svc, monitor, reportedAt := sweepFixture(t, func(_ *db.Agent, m *db.Monitor) { m.Lifecycle = "disabled" })
+		database, svc, monitor, reportedAt := sweepFixture(t, func(_ *db.Node, m *db.Monitor) { m.Lifecycle = "disabled" })
 		if n, _ := svc.SweepSilentMonitors(reportedAt.Add(time.Hour)); n != 0 || len(activeIncidents(t, database, monitor.ID)) != 0 {
 			t.Fatalf("disabled monitor flagged %d, want none", n)
 		}
@@ -151,11 +151,11 @@ func TestSweepSilentMonitorsFlagsMonitorThatNeverReported(t *testing.T) {
 	}
 }
 
-func TestSweepSilentMonitorsSkipsRevokedAgents(t *testing.T) {
+func TestSweepSilentMonitorsSkipsRevokedNodes(t *testing.T) {
 	database, svc, monitor, reportedAt := sweepFixture(t, nil)
 	revoked := time.Now().UTC()
-	database.Model(&db.Agent{}).Where("id = ?", monitor.AgentID).Update("token_revoked_at", &revoked)
+	database.Model(&db.Node{}).Where("id = ?", monitor.NodeID).Update("token_revoked_at", &revoked)
 	if n, _ := svc.SweepSilentMonitors(reportedAt.Add(time.Hour)); n != 0 || len(activeIncidents(t, database, monitor.ID)) != 0 {
-		t.Fatalf("revoking an agent paged for its monitors (flagged %d)", n)
+		t.Fatalf("revoking a node paged for its monitors (flagged %d)", n)
 	}
 }

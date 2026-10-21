@@ -2,12 +2,12 @@ package api
 
 // auditRoutes maps "METHOD /v1/route/:param" to the action recorded in the Audit log.
 var auditRoutes = map[string]auditRoute{
-	"PATCH /v1/agents/:id":                                         {Action: "server_edited", Text: "Edited server", Object: "agent", Param: "id"},
-	"POST /v1/agents/:agent_id/monitor-definitions":                {Action: "agent_monitor_added", Text: "Added agent monitor", Object: "agent", Param: "agent_id"},
-	"POST /v1/agents/:agent_id/discovery/requests":                 {Action: "agent_discovery_requested", Text: "Asked the agent about its scan", Object: "agent", Param: "agent_id"},
-	"DELETE /v1/agents/:id/discovery/requests/:request_id":         {Action: "agent_discovery_request_cancelled", Text: "Cancelled a request to the agent", Object: "agent", Param: "id"},
-	"POST /v1/agents/:agent_id/discovery/accept":                   {Action: "agent_discovery_accepted", Text: "Accepted detected suggestions", Object: "agent", Param: "agent_id"},
-	"DELETE /v1/agents/:id/monitor-definitions/:definition_id":     {Action: "agent_monitor_removed", Text: "Removed agent monitor", Object: "agent", Param: "id"},
+	"PATCH /v1/nodes/:id":                                          {Action: "server_edited", Text: "Edited server", Object: "node", Param: "id"},
+	"POST /v1/nodes/:node_id/monitor-definitions":                  {Action: "node_monitor_added", Text: "Added node monitor", Object: "node", Param: "node_id"},
+	"POST /v1/nodes/:node_id/discovery/requests":                   {Action: "node_discovery_requested", Text: "Asked the node about its scan", Object: "node", Param: "node_id"},
+	"DELETE /v1/nodes/:id/discovery/requests/:request_id":          {Action: "node_discovery_request_cancelled", Text: "Cancelled a request to the node", Object: "node", Param: "id"},
+	"POST /v1/nodes/:node_id/discovery/accept":                     {Action: "node_discovery_accepted", Text: "Accepted detected suggestions", Object: "node", Param: "node_id"},
+	"DELETE /v1/nodes/:id/monitor-definitions/:definition_id":      {Action: "node_monitor_removed", Text: "Removed node monitor", Object: "node", Param: "id"},
 	"POST /v1/alerts/channels":                                     {Action: "alert_channel_created", Text: "Created alert channel", Object: "alert_channel", Param: ""},
 	"PATCH /v1/alerts/channels/:id":                                {Action: "alert_channel_updated", Text: "Edited alert channel", Object: "alert_channel", Param: "id"},
 	"DELETE /v1/alerts/channels/:id":                               {Action: "alert_channel_deleted", Text: "Deleted alert channel", Object: "alert_channel", Param: "id"},

@@ -1,6 +1,6 @@
 # Passive App Resource Metrics: Support Matrix
 
-Spike D1 for [agent-cli-plan.md](../plans/agent-cli-plan.md). Status: findings, decisions for D2 at the end. Date: 2026-10-17.
+Spike D1 for [node-cli-plan.md](../plans/node-cli-plan.md). Status: findings, decisions for D2 at the end. Date: 2026-10-17.
 
 Goal (D-017): measure what an app costs (CPU, memory, disk, network, storage) from the outside, with no app change, no key, and no elevated daemon privilege (D-016, plan principle 5).
 
@@ -56,19 +56,19 @@ Mapping an app to a cgroup: systemd units live at `system.slice/<name>.service`;
 | P2 | Per-process list uses `/proc` and `gopsutil`; I/O is best effort. No `CAP_SYS_PTRACE`, no root. |
 | P3 | Per-process and per-unit network bandwidth is **not supported** on Linux. Per-container network is an opt-in Docker collector. macOS gets per-process network through `nettop`. |
 | P4 | Disk: configured paths (statfs plus a capped walk, default 2 s budget) and Docker volumes when Docker is enabled. |
-| P5 | New report section `app_resources` (see the contract update in `agent-core-contract.md`); series carry `kind` (process, unit, container, path), `name`, and a stable `key`. |
-| P7 | `agent-install.sh` stops adding the service user to the `docker` group unless `--docker-access` is passed (behaviour change for fresh installs; existing memberships are untouched). |
+| P5 | New report section `app_resources` (see the contract update in `node-core-contract.md`); series carry `kind` (process, unit, container, path), `name`, and a stable `key`. |
+| P7 | `node-install.sh` stops adding the service user to the `docker` group unless `--docker-access` is passed (behaviour change for fresh installs; existing memberships are untouched). |
 | P6 | The systemd unit adds no capabilities for this feature. Reading other users' process I/O is documented as unsupported rather than solved with privilege. |
 
 ## Honest gaps
 
-- Per-process network on Linux is a real product gap versus tools with eBPF agents. If it becomes a priority it needs its own decision on privilege (`CAP_BPF`, `CAP_PERFMON`) and a kernel-version matrix.
+- Per-process network on Linux is a real product gap versus tools with eBPF nodes. If it becomes a priority it needs its own decision on privilege (`CAP_BPF`, `CAP_PERFMON`) and a kernel-version matrix.
 - Docker-based signals require group `docker`, which is root-equivalent. The default install keeps the daemon out of that group.
 - Verify in the install matrix: cgroup v1 (older RHEL), SELinux denials on `/sys/fs/cgroup`, `hidepid` mounts, rootless Docker socket paths.
 
 ## Update 2026-10-20: Docker and storage suggestions
 
-- **Docker collector (implemented, off unless the socket is readable):** with access to `/var/run/docker.sock` (`app_resources.docker_socket` to override, `app_resources.docker: false` to never use it) the agent names cgroup containers and adds per-container network rates; on hosts without cgroups (macOS) containers come from the API with memory and network. Without access, containers stay visible by short id and one note says why. The installer still does not grant Docker access unless `--docker-access` is passed.
-- **Storage suggestions (implemented in discovery):** `discover` proposes tracking the size of directories an app uses: those its systemd unit declares (`WorkingDirectory`, `StateDirectory`, `LogsDirectory`, `CacheDirectory`, only under `/var/lib`, `/var/log`, `/var/cache`, `/srv`, `/opt`, `/data`, `/home`) and well-known data directories for running apps (PostgreSQL, MySQL, Redis, nginx logs, ...). Accepting one adds it to `app_resources.paths`. A directory the agent cannot read is listed as low confidence with the reason.
-- **Docker storage (implemented, same permission as above):** the writable layer of each running container (`/containers/json?size=true`), each volume, and the total for images and build cache (`/system/df`). Docker computes these by walking disk, so they are read at most every five minutes and reused in between. `orion-agent usage` lists them in a Storage panel; at most 50 volumes are reported.
+- **Docker collector (implemented, off unless the socket is readable):** with access to `/var/run/docker.sock` (`app_resources.docker_socket` to override, `app_resources.docker: false` to never use it) the node names cgroup containers and adds per-container network rates; on hosts without cgroups (macOS) containers come from the API with memory and network. Without access, containers stay visible by short id and one note says why. The installer still does not grant Docker access unless `--docker-access` is passed.
+- **Storage suggestions (implemented in discovery):** `discover` proposes tracking the size of directories an app uses: those its systemd unit declares (`WorkingDirectory`, `StateDirectory`, `LogsDirectory`, `CacheDirectory`, only under `/var/lib`, `/var/log`, `/var/cache`, `/srv`, `/opt`, `/data`, `/home`) and well-known data directories for running apps (PostgreSQL, MySQL, Redis, nginx logs, ...). Accepting one adds it to `app_resources.paths`. A directory the node cannot read is listed as low confidence with the reason.
+- **Docker storage (implemented, same permission as above):** the writable layer of each running container (`/containers/json?size=true`), each volume, and the total for images and build cache (`/system/df`). Docker computes these by walking disk, so they are read at most every five minutes and reused in between. `orion-node usage` lists them in a Storage panel; at most 50 volumes are reported.
 - **Still not supported:** per-process and per-unit network on Linux (needs eBPF or `CAP_NET_ADMIN`; see P3).

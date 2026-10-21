@@ -72,7 +72,7 @@ type AlertRoute struct {
 	Priority             int    `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
 	EventTypes           string `json:"event_types" gorm:"type:text"`
 	Severities           string `json:"severities" gorm:"type:text"`
-	AgentIDs             string `json:"agent_ids" gorm:"type:text"`
+	NodeIDs              string `json:"node_ids" gorm:"type:text"`
 	MonitorIDs           string `json:"monitor_ids" gorm:"type:text"`
 	MonitorTypes         string `json:"monitor_types" gorm:"type:text"`
 	ChannelIDs           string `json:"channel_ids" gorm:"type:text"`
@@ -123,7 +123,7 @@ type AlertDeliveryRecipient struct {
 	SentAt      time.Time `gorm:"not null"`
 }
 
-// EnrollmentSession is a one-time, expiring agent registration token created by the
+// EnrollmentSession is a one-time, expiring node registration token created by the
 // "Add server" wizard. Only the SHA-256 of the token is stored. The first machine to
 // register with it binds MachineID; that machine may retry until expiry, nobody else can.
 type EnrollmentSession struct {
@@ -131,55 +131,55 @@ type EnrollmentSession struct {
 	TokenHash   string `gorm:"not null;uniqueIndex:idx_enrollment_sessions_token_hash"`
 	Platform    string `gorm:"not null;default:''"`
 	MachineID   string `gorm:"not null;default:''"`
-	AgentID     string `gorm:"not null;default:''"`
+	NodeID      string `gorm:"not null;default:''"`
 	ClaimedAt   *time.Time
 	CancelledAt *time.Time
 	ExpiresAt   time.Time `gorm:"not null"`
 	CreatedAt   time.Time `gorm:"not null"`
 }
 
-// AgentMonitorDefinition is a check the operator configured in the Console for the agent to run
-// ("Agent monitor" setup). The agent pulls its definitions and reports under the same name.
-type AgentMonitorDefinition struct {
+// NodeMonitorDefinition is a check the operator configured in the Console for the node to run
+// ("Node monitor" setup). The node pulls its definitions and reports under the same name.
+type NodeMonitorDefinition struct {
 	ID              string    `gorm:"primaryKey"`
-	AgentID         string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
-	Name            string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
+	NodeID          string    `gorm:"not null;uniqueIndex:idx_node_monitor_definitions_name"`
+	Name            string    `gorm:"not null;uniqueIndex:idx_node_monitor_definitions_name"`
 	CheckType       string    `gorm:"not null"` // disk | memory | process | port
 	Params          string    `gorm:"type:text;not null;default:'{}'"`
 	IntervalSeconds int       `gorm:"not null;default:30"`
 	FailAfter       int       `gorm:"not null;default:3"`
 	CreatedBy       string    `gorm:"not null;default:''"`
 	CreatedAt       time.Time `gorm:"not null"`
-	// DeliveredAt is when the agent first pulled this definition; FailureReason is why the agent
-	// could not run it (verbatim from the agent), empty when it can.
+	// DeliveredAt is when the node first pulled this definition; FailureReason is why the node
+	// could not run it (verbatim from the node), empty when it can.
 	DeliveredAt   *time.Time
 	FailureReason string `gorm:"not null;default:''"`
 }
 
-// AgentDiscovery is the latest read-only scan an agent made of its own host: what it found that could
-// be monitored and how scanning each kind went. One row per agent, replaced on every report.
-type AgentDiscovery struct {
-	AgentID   string `gorm:"primaryKey"`
+// NodeDiscovery is the latest read-only scan a node made of its own host: what it found that could
+// be monitored and how scanning each kind went. One row per node, replaced on every report.
+type NodeDiscovery struct {
+	NodeID    string `gorm:"primaryKey"`
 	ScannedAt *time.Time
 	Enabled   bool   `gorm:"not null"` // no gorm default: a first report of false must store false
 	Kinds     string `gorm:"type:text;not null;default:'[]'"`
 	Items     string `gorm:"type:text;not null;default:'[]'"`
-	// Capabilities lists what this agent can do for the Console ("requests", "log_key_fetch").
+	// Capabilities lists what this node can do for the Console ("requests", "log_key_fetch").
 	Capabilities string    `gorm:"type:text;not null;default:'[]'"`
 	ReceivedAt   time.Time `gorm:"not null"`
 }
 
-// AgentDiscoveryRequest is something the Console asked the agent to do about discovery (rescan,
-// dismiss, set a scan switch, ...). Core queues it; the agent pulls it, applies it and reports back.
-type AgentDiscoveryRequest struct {
+// NodeDiscoveryRequest is something the Console asked the node to do about discovery (rescan,
+// dismiss, set a scan switch, ...). Core queues it; the node pulls it, applies it and reports back.
+type NodeDiscoveryRequest struct {
 	ID          string    `gorm:"primaryKey"`
-	AgentID     string    `gorm:"not null;index:idx_agent_discovery_requests_agent"`
+	NodeID      string    `gorm:"not null;index:idx_node_discovery_requests_node"`
 	Type        string    `gorm:"not null"`
 	Payload     string    `gorm:"type:text;not null;default:'{}'"`
 	Status      string    `gorm:"not null"`                      // queued | delivered | applied | failed | expired | unsupported | cancelled
-	Result      string    `gorm:"type:text;not null;default:''"` // the agent's words, verbatim
+	Result      string    `gorm:"type:text;not null;default:''"` // the node's words, verbatim
 	CreatedBy   string    `gorm:"not null;default:''"`
-	CreatedAt   time.Time `gorm:"not null;index:idx_agent_discovery_requests_agent"`
+	CreatedAt   time.Time `gorm:"not null;index:idx_node_discovery_requests_node"`
 	DeliveredAt *time.Time
 	FinishedAt  *time.Time
 	ExpiresAt   time.Time `gorm:"not null"`

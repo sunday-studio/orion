@@ -216,11 +216,11 @@ func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 			entries = append(entries, toLogEntry(r, names))
 		}
 	}
-	var agent db.Agent
-	if err := s.db.Select("id", "machine_id").Where("id = ?", incident.AgentID).First(&agent).Error; err == nil && agent.MachineId != "core" && agent.MachineId != "" {
+	var node db.Node
+	if err := s.db.Select("id", "machine_id").Where("id = ?", incident.NodeID).First(&node).Error; err == nil && node.MachineId != "core" && node.MachineId != "" {
 		var rows []db.ServiceLogEntry
-		if err := s.db.Where("agent_id = ? AND occurred_at BETWEEN ? AND ?", agent.ID, from, to).Order("occurred_at DESC").Limit(limit).Find(&rows).Error; err == nil {
-			entries = append(entries, agentLogEntries(rows)...)
+		if err := s.db.Where("node_id = ? AND occurred_at BETWEEN ? AND ?", node.ID, from, to).Order("occurred_at DESC").Limit(limit).Find(&rows).Error; err == nil {
+			entries = append(entries, nodeLogEntries(rows)...)
 		}
 	}
 	sort.SliceStable(entries, func(i, j int) bool { return entries[i].Timestamp.After(entries[j].Timestamp) })

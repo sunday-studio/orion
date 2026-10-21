@@ -157,14 +157,14 @@ func (s *LogAlertService) ensureMonitor(rule *db.LogAlertRule) error {
 	case !errors.Is(err, gorm.ErrRecordNotFound):
 		return err
 	}
-	owner, err := s.incidents.ensureCoreOwnerAgent("")
+	owner, err := s.incidents.ensureCoreOwnerNode("")
 	if err != nil {
 		return err
 	}
 	description := fmt.Sprintf("Raised by Core when logs of app %s match rule %q.", rule.AppID, rule.Name)
 	rule.MonitorID = id
 	return s.db.Create(&db.Monitor{
-		ID: id, AgentID: owner.ID, Name: name, Description: &description, Type: "log-alert", Lifecycle: "active",
+		ID: id, NodeID: owner.ID, Name: name, Description: &description, Type: "log-alert", Lifecycle: "active",
 		Health: "unknown", ComputedHealth: "unknown", IncidentState: "unknown",
 		ReportingIntervalSeconds: int(logAlertHeartbeat.Seconds()),
 	}).Error

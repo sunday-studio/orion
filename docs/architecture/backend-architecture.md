@@ -1,16 +1,16 @@
 # Orion Backend Architecture
 
 Status: read-only audit snapshot, 2026-10-14, `main` @ `810ac82`.
-Scope: `apps/agent/`, `apps/core/`, `deploy/`, `Makefile`, `docs/agent-core-contract.md`.
+Scope: `apps/node/`, `apps/core/`, `deploy/`, `Makefile`, `docs/node-core-contract.md`.
 Companion: [backend-gaps-and-improvements.md](backend-gaps-and-improvements.md).
 
-Terminology: the code and API say **Agent**; older docs (`docs/agent-core-contract.md`, `docs/system-design.md`) say **Server**. They are the same thing.
+Terminology: the code and API say **Node**; older docs (`docs/node-core-contract.md`, `docs/system-design.md`) say **Server**. They are the same thing.
 
 ## 1. Components at a glance
 
 | Component | Binary / entry point | Language / stack | Responsibility |
 |---|---|---|---|
-| Agent | `apps/agent/main.go` -> `internal/cli` | Go, gopsutil, GORM + SQLite (state only) | Registers with Core, collects host metrics and per-monitor checks, spools and ships reports and service logs |
+| Node | `apps/node/main.go` -> `internal/cli` | Go, gopsutil, GORM + SQLite (state only) | Registers with Core, collects host metrics and per-monitor checks, spools and ships reports and service logs |
 | Core API | `apps/core/cmd/api/main.go` | Go 1.25, Gin, GORM, mattn/go-sqlite3 (CGO), golang-jwt | REST API, ingestion, health computation, incidents, alerts, status pages, serves the Console SPA from `./web` |
 | Core Worker | `apps/core/cmd/worker/main.go` | Go, same module | Claims due Core-managed monitor configs under a DB lease, runs checks (http, tcp, dns, tls, udp, ping, mail, api_request, domain_expiration, synthetic, playwright), reconciles missed heartbeats, writes worker heartbeats |
 | Data lifecycle scheduler | goroutine inside Core API (`service/data-lifecycle-scheduler-service.go`) | Go | Hourly rollup, raw report archive, subscriber privacy retention |
@@ -25,8 +25,8 @@ Route groups (`internal/api/routes.go`):
 |---|---|---|
 | Public status pages | none | `/status/:slug`, `/status/:slug/subscribers`, `/feed.atom`, `/` (custom domain) |
 | Public v1 | none | `POST /v1/register`, `POST /v1/auth/login`, `POST /v1/heartbeats/:token[/success|/failure]` (token in path) |
-| Frontend v1 | JWT only if `ORION_ADMIN_*` set, otherwise open | all `/v1/agents`, `/v1/monitors`, `/v1/incidents`, `/v1/alerts/*`, `/v1/settings/*`, status page admin |
-| Agent-to-Core | `Authorization: Bearer <agent token>` + path `agent_id` match | `/v1/agents/:agent_id/{register-monitor,unregister-monitor,report,logs/batch,:monitor_id/report,maintenance}` |
+| Frontend v1 | JWT only if `ORION_ADMIN_*` set, otherwise open | all `/v1/nodes`, `/v1/monitors`, `/v1/incidents`, `/v1/alerts/*`, `/v1/settings/*`, status page admin |
+| Node-to-Core | `Authorization: Bearer <node token>` + path `node_id` match | `/v1/nodes/:node_id/{register-monitor,unregister-monitor,report,logs/batch,:monitor_id/report,maintenance}` |
 | Docs / health | none | `/swagger/*`, `/health` |
 
 ## 2. System overview
@@ -34,7 +34,7 @@ Route groups (`internal/api/routes.go`):
 ```mermaid
 flowchart LR
   subgraph Hosts["Monitored hosts"]
-    A1["Agent (orion-agent)<br/>systemd or launchd"]
+    A1["Node (orion-node)<br/>systemd or launchd"]
     A1S[("state.db<br/>identity, token,<br/>monitor map, report_spool")]
     A1 --- A1S
   end
@@ -60,7 +60,7 @@ flowchart LR
   SMTP["SMTP server<br/>subscriber mail"]
   TARGETS["Internet targets<br/>HTTP, TCP, DNS, TLS, mail, ping"]
 
-  A1 -- "HTTPS JSON, Bearer agent token" --> API
+  A1 -- "HTTPS JSON, Bearer node token" --> API
   CON -- "JWT or open" --> API
   PUB --> API
   HB -- "POST /v1/heartbeats/token" --> API
@@ -69,39 +69,39 @@ flowchart LR
   API -- "SMTP" --> SMTP
 ```
 
-Key fact for reading everything below: Agent-owned monitors only produce data when the Agent pushes. Core-owned monitors are pulled by the Worker. Both converge on `ReportService.StoreMonitorReport`, which is the single choke point for health, incident and alert logic.
+Key fact for reading everything below: Node-owned monitors only produce data when the Node pushes. Core-owned monitors are pulled by the Worker. Both converge on `ReportService.StoreMonitorReport`, which is the single choke point for health, incident and alert logic.
 
-## 3. Agent registration and reporting
+## 3. Node registration and reporting
 
-Source: `apps/agent/internal/registration/registration.go`, `internal/agent.go`, `internal/reporting.go`, `internal/state/report-spool.go`, `internal/transport/client.go`; Core `api/agent.go`, `service/agent-service.go`, `api/report.go`, `service/report-service.go`.
+Source: `apps/node/internal/registration/registration.go`, `internal/node.go`, `internal/reporting.go`, `internal/state/report-spool.go`, `internal/transport/client.go`; Core `api/node.go`, `service/node-service.go`, `api/report.go`, `service/report-service.go`.
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Ag as Agent process
-  participant St as Agent state.db
+  participant Ag as Node process
+  participant St as Node state.db
   participant API as Core API
   participant DB as orion.db
 
-  Note over Ag,St: Startup (cli runAgent)
+  Note over Ag,St: Startup (cli runNode)
   Ag->>St: Open state, load identity
   alt not registered
     Ag->>Ag: machine_id = md5 of hostname + first MAC
     Ag->>API: POST /v1/register (no credentials)
-    API->>DB: SELECT agent by machine_id
+    API->>DB: SELECT node by machine_id
     alt new machine_id
-      API->>DB: INSERT agent, token hash (sha256)
-      API-->>Ag: agent_id + plaintext token (once)
+      API->>DB: INSERT node, token hash (sha256)
+      API-->>Ag: node_id + plaintext token (once)
     else known and hash set
-      API-->>Ag: 409 agent_token_reissue_required
+      API-->>Ag: 409 node_token_reissue_required
     else revoked
-      API-->>Ag: 409 agent_token_revoked
+      API-->>Ag: 409 node_token_revoked
     end
-    Ag->>St: save agent_id, token, core_url
+    Ag->>St: save node_id, token, core_url
   end
   loop each configured monitor (serial HTTP calls)
-    Ag->>API: POST /v1/agents/id/register-monitor
-    API->>DB: upsert monitor by (agent_id, name)
+    Ag->>API: POST /v1/nodes/id/register-monitor
+    API->>DB: upsert monitor by (node_id, name)
   end
   Ag->>API: POST unregister-monitor for removed ones
   Ag->>St: ReplaceMonitors mapping
@@ -109,14 +109,14 @@ sequenceDiagram
   Note over Ag,API: Steady state (one goroutine per monitor plus system worker)
   par system worker (interval)
     Ag->>Ag: collect CPU, memory, disk, uptime
-    Ag->>API: POST /v1/agents/id/report
-    API->>DB: INSERT agent_report, update reporting interval
-    API->>DB: ReconcileStaleMonitors (all agents scanned)
-    API->>DB: UPDATE agent.last_seen
+    Ag->>API: POST /v1/nodes/id/report
+    API->>DB: INSERT node_report, update reporting interval
+    API->>DB: ReconcileStaleMonitors (all nodes scanned)
+    API->>DB: UPDATE node.last_seen
     Ag->>API: POST logs/batch (service logs, fingerprint dedupe)
   and monitor worker (interval)
     Ag->>Ag: run check (http, command, docker, systemd, pm2 ...)
-    Ag->>API: POST /v1/agents/id/monitor_id/report
+    Ag->>API: POST /v1/nodes/id/monitor_id/report
     API->>DB: INSERT monitor_report, UPDATE monitor health
     API->>API: incident reconcile, health compute, alert dispatch (section 4)
   end
@@ -133,7 +133,7 @@ sequenceDiagram
   Ag->>Ag: AuthError is fatal, process exits
 ```
 
-Authentication detail: `AuthMiddleware` extracts the bearer, then `ValidateAgentToken` loads the agent row by `agent_id`, rejects revoked agents, and compares `sha256(token)` to `agents.token_hash` in constant time. Legacy rows with an empty hash fall back to comparing the raw `agents.token` column.
+Authentication detail: `AuthMiddleware` extracts the bearer, then `ValidateNodeToken` loads the node row by `node_id`, rejects revoked nodes, and compares `sha256(token)` to `nodes.token_hash` in constant time. Legacy rows with an empty hash fall back to comparing the raw `nodes.token` column.
 
 ## 4. Monitor check -> health -> incident -> alert
 
@@ -142,7 +142,7 @@ Source: `worker/app.go`, `service/core-monitor-scheduler-service.go`, `service/r
 ```mermaid
 flowchart TD
   subgraph Producers
-    AGM["Agent monitor report<br/>POST /agents/id/monitor_id/report"]
+    AGM["Node monitor report<br/>POST /nodes/id/monitor_id/report"]
     WRKR["Worker tick every 5s:<br/>claim due configs with 2m DB lease"]
     HBP["Heartbeat ping<br/>POST /heartbeats/token"]
     RUN["Run check serially<br/>per-check timeout"]
@@ -159,7 +159,7 @@ flowchart TD
   STORE --> UPD["UPDATE monitors.health,<br/>invalidate computed_health cache"]
   UPD --> REC["IncidentService.ReconcileMonitorReport"]
 
-  REC --> MAINT{"Maintenance window<br/>or agent maintenance?"}
+  REC --> MAINT{"Maintenance window<br/>or node maintenance?"}
   MAINT -- yes --> SUP["Set incident_state maintenance<br/>no incident, no alert"]
   MAINT -- no --> HEALTH{"reported health"}
   HEALTH -- "up and no TLS expiry" --> RECOV{"Active incident and<br/>recovery period met?"}
@@ -186,9 +186,9 @@ flowchart TD
 
   REC --> HC["HealthService.ComputeMonitorHealth<br/>last 20 reports: stale, flapping, degraded"]
 
-  AGR["Agent system report"] --> STALE["ReconcileStaleMonitors(agent)<br/>scans ALL monitors, opens stale incidents"]
+  AGR["Node system report"] --> STALE["ReconcileStaleMonitors(node)<br/>scans ALL monitors, opens stale incidents"]
   STALE --> OPEN
-  NOAGENT["Agent silent or host down"] -. "no report arrives, nothing triggers" .-> GAP(("no stale incident,<br/>no alert"))
+  NONODE["Node silent or host down"] -. "no report arrives, nothing triggers" .-> GAP(("no stale incident,<br/>no alert"))
 ```
 
 Dashed edges are gaps found in this audit, see findings `ORB-001` and `ORB-002`.
@@ -197,13 +197,13 @@ Health model (`service/health-service.go`):
 
 | State | Rule |
 |---|---|
-| `stale` | newest report older than `max(5 min, 5 x reporting_interval)`, measured from the agent-supplied `collected_at` |
+| `stale` | newest report older than `max(5 min, 5 x reporting_interval)`, measured from the node-supplied `collected_at` |
 | `degraded` | at least 3 up/down transitions in last 20 reports, or 30% to 99% failures with at least 5 reports |
 | `up` / `down` | latest report health otherwise |
-| agent `stale` | `agents.last_seen` older than the same window |
-| agent `maintenance` | `agents.maintenance_mode` flag (no expiry) |
+| node `stale` | `nodes.last_seen` older than the same window |
+| node `maintenance` | `nodes.maintenance_mode` flag (no expiry) |
 
-Agent overall health = agent availability combined with monitor rollup (all down -> down, any down/degraded/stale -> degraded).
+Node overall health = node availability combined with monitor rollup (all down -> down, any down/degraded/stale -> degraded).
 
 ## 5. Auth flow
 
@@ -219,11 +219,11 @@ flowchart TD
   JWT -- yes --> OKF["handler, actor = sub claim"]
   JWT -- no --> R401F["401"]
 
-  ROUTE -- "agent-to-core" --> BEAR{"Bearer present?"}
+  ROUTE -- "node-to-core" --> BEAR{"Bearer present?"}
   BEAR -- no --> R401A["401"]
-  BEAR -- yes --> LOOKUP["SELECT agent WHERE id = path agent_id"]
+  BEAR -- yes --> LOOKUP["SELECT node WHERE id = path node_id"]
   LOOKUP --> REVOKED{"token_revoked_at set?"}
-  REVOKED -- yes --> R401R["401 agent_token_revoked"]
+  REVOKED -- yes --> R401R["401 node_token_revoked"]
   REVOKED -- no --> HASHC{"sha256 of token equals<br/>token_hash, constant time"}
   HASHC -- no --> R401B["401 Invalid token"]
   HASHC -- yes --> OKA["handler"]
@@ -234,9 +234,9 @@ flowchart TD
   end
   PUBH -.-> Login
 
-  subgraph Lifecycle["Agent token lifecycle (admin API)"]
+  subgraph Lifecycle["Node token lifecycle (admin API)"]
     T1["register: token generated, only hash kept"] --> T2["rotate: new token returned once"]
-    T2 --> T3["revoke: hash cleared, agent locked out"]
+    T2 --> T3["revoke: hash cleared, node locked out"]
     T3 --> T4["reissue: new token, requires revoked state"]
   end
 ```
@@ -245,14 +245,14 @@ flowchart TD
 
 ## 6. Data model
 
-There are no declared foreign keys, `PRAGMA foreign_keys` is not enabled, and deletes are mostly soft (`deleted_at` or `lifecycle = 'deleted'`). Relationships below are logical only. Core-managed monitors are attached to a synthetic owner agent row (`agent_core`).
+There are no declared foreign keys, `PRAGMA foreign_keys` is not enabled, and deletes are mostly soft (`deleted_at` or `lifecycle = 'deleted'`). Relationships below are logical only. Core-managed monitors are attached to a synthetic owner node row (`node_core`).
 
 ```mermaid
 erDiagram
-  AGENTS ||--o{ AGENT_REPORTS : "agent_id"
-  AGENTS ||--o{ MONITORS : "agent_id"
-  AGENTS ||--o{ SERVICE_LOG_ENTRIES : "agent_id"
-  AGENTS ||--o{ INCIDENTS : "agent_id"
+  NODES ||--o{ NODE_REPORTS : "node_id"
+  NODES ||--o{ MONITORS : "node_id"
+  NODES ||--o{ SERVICE_LOG_ENTRIES : "node_id"
+  NODES ||--o{ INCIDENTS : "node_id"
   MONITORS ||--o{ MONITOR_REPORTS : "monitor_id"
   MONITORS ||--o| CORE_MONITOR_CONFIGS : "monitor_id (core-owned)"
   MONITORS ||--o{ MONITOR_UPTIME_ROLLUPS : "monitor_id"
@@ -275,7 +275,7 @@ erDiagram
   STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_COMPONENTS : "subscriber_id"
   STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_DELIVERIES : "subscriber_id"
 
-  AGENTS {
+  NODES {
     text id PK
     text machine_id UK
     text token "sha256 marker or legacy plaintext"
@@ -288,8 +288,8 @@ erDiagram
   }
   MONITORS {
     text id PK
-    text agent_id
-    text name "no unique index with agent_id"
+    text node_id
+    text name "no unique index with node_id"
     text type
     text lifecycle "active, disabled, deleted"
     text health
@@ -301,7 +301,7 @@ erDiagram
     text id PK
     text monitor_id
     text payload "redacted JSON"
-    text collected_at "agent clock, string"
+    text collected_at "node clock, string"
     text health
     datetime created_at
   }
@@ -336,7 +336,7 @@ erDiagram
 
 Other tables: `schema_migrations`, `data_lifecycle_settings` (single row id=1), `audit_events`, `core_worker_statuses`.
 
-Retention model: only `agent_reports` and `monitor_reports` are archived to monthly SQLite files after `RawReportHotDays` and rolled into `monitor_uptime_rollups`. Nothing prunes `service_log_entries`, `alert_deliveries`, `alert_delivery_attempts`, `incident_events`, `audit_events`, `core_worker_statuses` or the source tables of soft-deleted rows. Subscriber PII has its own retention job.
+Retention model: only `node_reports` and `monitor_reports` are archived to monthly SQLite files after `RawReportHotDays` and rolled into `monitor_uptime_rollups`. Nothing prunes `service_log_entries`, `alert_deliveries`, `alert_delivery_attempts`, `incident_events`, `audit_events`, `core_worker_statuses` or the source tables of soft-deleted rows. Subscriber PII has its own retention job.
 
 ## 7. Configuration and state
 
@@ -344,8 +344,8 @@ Retention model: only `agent_reports` and `monitor_reports` are archived to mont
 |---|---|---|
 | Core config | env vars (`ORION_*`) plus optional `.env` in CWD (`config.LoadDotEnv`) | validated in `Config.Validate()`; invalid ints and bools silently fall back to defaults (`getEnvInt`, `getEnvBool`) |
 | Core data | `${ORION_DATA_DIR}/orion.db` | opened by both API and Worker; both run migrations at startup |
-| Agent config | YAML (`config.yaml`), validated by `internal/config/validators.go` | monitors, interval, `core_url`, logging, geo opt-in |
-| Agent state | SQLite `state.db` with `0600` file and `0700` dir | stores agent id, plaintext bearer token, monitor mapping, maintenance flag, `report_spool` |
+| Node config | YAML (`config.yaml`), validated by `internal/config/validators.go` | monitors, interval, `core_url`, logging, geo opt-in |
+| Node state | SQLite `state.db` with `0600` file and `0700` dir | stores node id, plaintext bearer token, monitor mapping, maintenance flag, `report_spool` |
 | Runtime tuning | `data_lifecycle_settings` row, edited from Console | hot days, rollups, archive schedule |
 
 ## 8. Deployment and runtime topology
@@ -370,9 +370,9 @@ flowchart TB
 
   subgraph Fleet["Monitored hosts"]
     direction TB
-    L1["Linux: systemd unit orion-agent.service<br/>User orion, ProtectSystem strict<br/>state /var/lib/orion/state.db"]
-    L2["macOS: launchd com.orion.agent<br/>user _orion"]
-    INST["deploy/scripts: agent-bootstrap.sh<br/>curl release assets, then agent-install.sh"]
+    L1["Linux: systemd unit orion-node.service<br/>User orion, ProtectSystem strict<br/>state /var/lib/orion/state.db"]
+    L2["macOS: launchd com.orion.node<br/>user _orion"]
+    INST["deploy/scripts: node-bootstrap.sh<br/>curl release assets, then node-install.sh"]
   end
 
   BR --> RP
@@ -386,7 +386,7 @@ flowchart TB
   subgraph CI["GitHub Actions"]
     CIJ["ci.yml: path-filtered<br/>go test, coverage, build, compose config,<br/>generated contract drift"]
     IMG["core-image.yml: multi-arch build,<br/>push :sha :version, optional :latest"]
-    BIN["agent-binaries.yml: build and attach<br/>release assets, no checksums"]
+    BIN["node-binaries.yml: build and attach<br/>release assets, no checksums"]
   end
   IMG --> C1
   BIN --> INST
@@ -397,19 +397,19 @@ Notes on topology:
 - API and Worker are separate processes sharing one SQLite file; scaling out horizontally means moving off SQLite or running a single node.
 - The compose file passes `ORION_ADMIN_*` and `ORION_JWT_SECRET` to the Worker too, although the Worker does not authenticate users.
 - There is no log shipping, metrics endpoint or tracing; observability is JSON slog on stdout, GORM SQL logs on stdout, and in-memory diagnostics served at `/v1/diagnostics/core` and `/v1/diagnostics/core-worker`.
-- Release gate `make release-readiness` = `agent-test core-test release-core-build console-build repository-smoke`. `make core-backend-verify` adds race, golangci-lint, govulncheck and contract drift, but CI does not run those three extra gates (see findings).
+- Release gate `make release-readiness` = `node-test core-test release-core-build console-build repository-smoke`. `make core-backend-verify` adds race, golangci-lint, govulncheck and contract drift, but CI does not run those three extra gates (see findings).
 
 ## 9. Package map (Core)
 
 | Package | Role | Biggest files |
 |---|---|---|
 | `internal/api` | Gin handlers, DTO mapping, routes, rate limiter, status page HTML | `monitor.go` 462, `routes.go` 358 |
-| `internal/service` | business logic (agents, tokens, reports, health, incidents, alerts, archive, rollups, settings, audit, diagnostics, status page subscribers) | `runtime-diagnostics-service.go` 482, `monitor-service.go` 474 |
+| `internal/service` | business logic (nodes, tokens, reports, health, incidents, alerts, archive, rollups, settings, audit, diagnostics, status page subscribers) | `runtime-diagnostics-service.go` 482, `monitor-service.go` 474 |
 | `internal/worker` | check runners and the scheduler loop | `app.go` 460, `playwright_runner.go` 461 |
 | `internal/db` | GORM models, embedded migrations, init | `models.go` 447 |
 | `internal/monitorvalidation` | Core monitor config validation and redaction | no tests |
 | `internal/config`, `internal/shared`, `internal/utils` | config, bootstrap, helpers | |
 
-Package map (Agent): `internal/cli` (CLI command surface, install/service/update commands), `internal/collector` (system + monitor collectors), `internal/registration`, `internal/transport`, `internal/state` (SQLite store + report spool), `internal/config`, `internal/logging`, `internal/services`.
+Package map (Node): `internal/cli` (CLI command surface, install/service/update commands), `internal/collector` (system + monitor collectors), `internal/registration`, `internal/transport`, `internal/state` (SQLite store + report spool), `internal/config`, `internal/logging`, `internal/services`.
 
 All source files respect the 500-line gate (`make code-line-limit` passes; largest is 482).

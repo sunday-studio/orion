@@ -48,7 +48,7 @@ type OverviewDayResponse struct {
 
 type OverviewServiceResponse struct {
 	Name          string                `json:"name"`
-	AgentID       string                `json:"agent_id"`
+	NodeID        string                `json:"node_id"`
 	Status        string                `json:"status" enums:"up,degraded,down,unknown"`
 	UptimePercent *float64              `json:"uptime_percent"`
 	Days          []OverviewDayResponse `json:"days"`
@@ -105,7 +105,7 @@ func (s *Server) getOverview(c *gin.Context) {
 		out.RecentIncidents = append(out.RecentIncidents, overviewIncident(i))
 	}
 	for _, svc := range o.Services {
-		r := OverviewServiceResponse{Name: svc.Name, AgentID: svc.AgentID, Status: svc.Status, UptimePercent: svc.UptimePercent, Days: []OverviewDayResponse{}}
+		r := OverviewServiceResponse{Name: svc.Name, NodeID: svc.NodeID, Status: svc.Status, UptimePercent: svc.UptimePercent, Days: []OverviewDayResponse{}}
 		for _, d := range svc.Days {
 			r.Days = append(r.Days, OverviewDayResponse(d))
 		}

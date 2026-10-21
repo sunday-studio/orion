@@ -13,7 +13,7 @@ import (
 
 func seedForTest(t *testing.T, database *gorm.DB, dir string) {
 	t.Helper()
-	cfg := seedConfig{dbPath: filepath.Join(dir, "x.db"), days: 3, agents: 10, reportInterval: 6 * time.Hour, resetSeed: true, updateSettings: true}
+	cfg := seedConfig{dbPath: filepath.Join(dir, "x.db"), days: 3, nodes: 10, reportInterval: 6 * time.Hour, resetSeed: true, updateSettings: true}
 	if err := resetSeedData(database); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
@@ -63,14 +63,14 @@ func TestSeedCoversEveryState(t *testing.T) {
 		}
 	}
 	// Servers.
-	atLeast("labels and notes", "SELECT COUNT(*) FROM agents WHERE id LIKE 'seed-state-%' AND labels <> '[]' AND notes <> ''", 3)
-	atLeast("maintenance server", "SELECT COUNT(*) FROM agents WHERE id LIKE 'seed-state-%' AND maintenance_mode = 1", 1)
-	atLeast("rotation grace token", "SELECT COUNT(*) FROM agents WHERE previous_token_hash <> '' AND previous_token_expires_at > ?", 1, time.Now().UTC())
-	atLeast("revoked token", "SELECT COUNT(*) FROM agents WHERE token_revoked_at IS NOT NULL AND token_revocation_reason <> '' AND deleted_at IS NOT NULL AND id LIKE 'seed-state-%'", 1)
+	atLeast("labels and notes", "SELECT COUNT(*) FROM nodes WHERE id LIKE 'seed-state-%' AND labels <> '[]' AND notes <> ''", 3)
+	atLeast("maintenance server", "SELECT COUNT(*) FROM nodes WHERE id LIKE 'seed-state-%' AND maintenance_mode = 1", 1)
+	atLeast("rotation grace token", "SELECT COUNT(*) FROM nodes WHERE previous_token_hash <> '' AND previous_token_expires_at > ?", 1, time.Now().UTC())
+	atLeast("revoked token", "SELECT COUNT(*) FROM nodes WHERE token_revoked_at IS NOT NULL AND token_revocation_reason <> '' AND deleted_at IS NOT NULL AND id LIKE 'seed-state-%'", 1)
 	atLeast("enrollment states", "SELECT COUNT(DISTINCT CASE WHEN claimed_at IS NOT NULL THEN 'c' WHEN cancelled_at IS NOT NULL THEN 'x' WHEN expires_at < ? THEN 'e' ELSE 'w' END) FROM enrollment_sessions", 4, time.Now().UTC())
 	// Monitors.
 	atLeast("monitor kinds", "SELECT COUNT(DISTINCT kind) FROM core_monitor_configs WHERE monitor_id LIKE 'seed-state-%'", 12)
-	atLeast("agent monitor types", "SELECT COUNT(DISTINCT type) FROM monitors WHERE id LIKE 'seed-state-monitor-%'", 7)
+	atLeast("node monitor types", "SELECT COUNT(DISTINCT type) FROM monitors WHERE id LIKE 'seed-state-monitor-%'", 7)
 	atLeast("paused", "SELECT COUNT(*) FROM core_monitor_configs WHERE paused = 1", 1)
 	atLeast("active maintenance window", "SELECT COUNT(*) FROM monitors WHERE maintenance_starts_at <= ? AND maintenance_ends_at > ?", 1, time.Now().UTC(), time.Now().UTC())
 	atLeast("scheduled maintenance window", "SELECT COUNT(*) FROM monitors WHERE maintenance_starts_at > ?", 1, time.Now().UTC())
@@ -78,7 +78,7 @@ func TestSeedCoversEveryState(t *testing.T) {
 	atLeast("timeouts", "SELECT COUNT(*) FROM monitor_reports WHERE payload LIKE '%deadline exceeded%'", 2)
 	atLeast("never reported", "SELECT COUNT(*) FROM monitors WHERE id LIKE 'seed-state-%' AND lifecycle = 'active' AND id NOT IN (SELECT monitor_id FROM monitor_reports)", 3)
 	atLeast("heartbeat never signaled", "SELECT COUNT(*) FROM core_monitor_configs WHERE kind = 'heartbeat' AND last_signal_at IS NULL", 1)
-	atLeast("agent monitor definitions", "SELECT COUNT(*) FROM agent_monitor_definitions WHERE id LIKE 'seed-state-%'", 4)
+	atLeast("node monitor definitions", "SELECT COUNT(*) FROM node_monitor_definitions WHERE id LIKE 'seed-state-%'", 4)
 	// Incidents.
 	for _, status := range []string{"open", "acknowledged", "covered", "resolved"} {
 		atLeast("incident "+status, "SELECT COUNT(*) FROM incidents WHERE id LIKE 'seed-state-%' AND status = ?", 1, status)
@@ -205,7 +205,7 @@ func TestSeedCoversLogsAndSettings(t *testing.T) {
 	atLeast("custom redaction rules", one("SELECT COUNT(*) FROM apps WHERE redaction_json LIKE '%rules%'"), 1)
 	atLeast("display profile", one("SELECT COUNT(*) FROM apps WHERE display_json LIKE '%columns%'"), 1)
 	atLeast("saved views", one("SELECT COUNT(*) FROM log_saved_views WHERE id LIKE 'seed-%'"), 3)
-	atLeast("agent service logs at every level", one("SELECT COUNT(DISTINCT level) FROM service_log_entries WHERE id LIKE 'seed-%'"), 3)
+	atLeast("node service logs at every level", one("SELECT COUNT(DISTINCT level) FROM service_log_entries WHERE id LIKE 'seed-%'"), 3)
 	atLeast("audit actors", one("SELECT COUNT(DISTINCT actor_id) FROM audit_events WHERE id LIKE 'seed-audit-%'"), 3)
 	atLeast("audit actor types", one("SELECT COUNT(DISTINCT actor_type) FROM audit_events WHERE id LIKE 'seed-audit-%'"), 2)
 	atLeast("api token scopes", one("SELECT COUNT(DISTINCT scope) FROM api_tokens WHERE id LIKE 'seed-%'"), 2)

@@ -13,8 +13,8 @@ import (
 
 func TestMonitorSummaryUsesComputedHealth(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-summary-computed",
+	node := db.Node{
+		ID:        "node-summary-computed",
 		MachineId: "summary-computed-machine",
 		Name:      "summary computed",
 		OS:        "linux",
@@ -22,13 +22,13 @@ func TestMonitorSummaryUsesComputedHealth(t *testing.T) {
 		Token:     "summary-computed-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitor := db.Monitor{
 		ID:                       "monitor-summary-computed",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		Name:                     "summary computed",
 		Type:                     "http",
 		Lifecycle:                "active",

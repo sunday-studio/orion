@@ -251,7 +251,7 @@ func (s *Server) listStatusPageComponentMappings(c *gin.Context) {
 
 // createStatusPageComponentMapping creates a component mapping.
 // @Summary      Create status page component mapping
-// @Description  Map a public component to an internal agent or monitor
+// @Description  Map a public component to an internal node or monitor
 // @Tags         status-pages
 // @Accept       json
 // @Produce      json

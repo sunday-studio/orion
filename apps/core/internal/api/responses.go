@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type AgentResponse struct {
+type NodeResponse struct {
 	ID                       string         `json:"id"`
 	System                   bool           `json:"system"`
 	Name                     string         `json:"name"`
@@ -27,11 +27,11 @@ type AgentResponse struct {
 	MonitorCount             int64          `json:"monitor_count,omitempty"`
 	IP                       *string        `json:"ip,omitempty"`
 	UptimeSeconds            *uint64        `json:"uptime_seconds,omitempty"`
-	// Labels are "key=value" strings; Notes is free text. Both are edited with PATCH /v1/agents/{id}.
+	// Labels are "key=value" strings; Notes is free text. Both are edited with PATCH /v1/nodes/{id}.
 	Labels []string `json:"labels"`
 	Notes  string   `json:"notes"`
 	// Latest system metrics; null until the first report. CPUSeries has up to 12 readings, oldest first.
-	AgentVersion  string     `json:"agent_version,omitempty"`
+	NodeVersion   string     `json:"node_version,omitempty"`
 	LastReportAt  *time.Time `json:"last_report_at,omitempty"`
 	CPUPercent    *float64   `json:"cpu_percent"`
 	MemoryPercent *float64   `json:"memory_percent"`
@@ -42,7 +42,7 @@ type AgentResponse struct {
 	StatusDetail string `json:"status_detail,omitempty"`
 }
 
-type AgentSummaryResponse struct {
+type NodeSummaryResponse struct {
 	Total        int64 `json:"total"`
 	Up           int64 `json:"up"`
 	Down         int64 `json:"down"`
@@ -53,8 +53,8 @@ type AgentSummaryResponse struct {
 	HasIncidents int64 `json:"has_incidents"`
 }
 
-type AgentHealthResponse struct {
-	AgentID            string `json:"agent_id"`
+type NodeHealthResponse struct {
+	NodeID             string `json:"node_id"`
 	OverallHealth      string `json:"overall_health"`
 	AvailabilityHealth string `json:"availability_health"`
 	MonitorHealth      string `json:"monitor_health"`
@@ -73,8 +73,8 @@ type MonitorResponse struct {
 	Description              *string    `json:"description"`
 	Type                     string     `json:"type"`
 	Name                     string     `json:"name"`
-	AgentID                  string     `json:"agent_id"`
-	AgentName                string     `json:"agent_name,omitempty"`
+	NodeID                   string     `json:"node_id"`
+	NodeName                 string     `json:"node_name,omitempty"`
 	OwnerKind                string     `json:"owner_kind"`
 	OwnerID                  string     `json:"owner_id"`
 	OwnerName                string     `json:"owner_name,omitempty"`
@@ -153,23 +153,23 @@ type IncidentRelatedIncidentResponse struct {
 	NotificationStatus string     `json:"notification_status"`
 }
 
-type AgentReportResponse struct {
-	ID            string                      `json:"id"`
-	AgentID       string                      `json:"agent_id"`
-	CreatedAt     time.Time                   `json:"created_at"`
-	AgentVersion  string                      `json:"agent_version"`
-	ConfigSummary *AgentConfigSummaryResponse `json:"config_summary,omitempty"`
-	UptimeSeconds uint64                      `json:"uptime_seconds"`
-	Timestamp     string                      `json:"timestamp"`
-	CPU           db.CPUStats                 `json:"cpu"`
-	Memory        db.MemoryStats              `json:"memory"`
-	Disk          db.DiskStats                `json:"disk"`
-	Location      db.GeoLocation              `json:"location"`
+type NodeReportResponse struct {
+	ID            string                     `json:"id"`
+	NodeID        string                     `json:"node_id"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	NodeVersion   string                     `json:"node_version"`
+	ConfigSummary *NodeConfigSummaryResponse `json:"config_summary,omitempty"`
+	UptimeSeconds uint64                     `json:"uptime_seconds"`
+	Timestamp     string                     `json:"timestamp"`
+	CPU           db.CPUStats                `json:"cpu"`
+	Memory        db.MemoryStats             `json:"memory"`
+	Disk          db.DiskStats               `json:"disk"`
+	Location      db.GeoLocation             `json:"location"`
 }
 type ServiceLogEntryResponse struct {
 	ID          string    `json:"id"`
-	AgentID     string    `json:"agent_id"`
-	AgentName   string    `json:"agent_name,omitempty"`
+	NodeID      string    `json:"node_id"`
+	NodeName    string    `json:"node_name,omitempty"`
 	MonitorID   string    `json:"monitor_id,omitempty"`
 	Source      string    `json:"source"`
 	Stream      string    `json:"stream"`
@@ -183,7 +183,7 @@ type ServiceLogEntryResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-type AgentConfigSummaryResponse struct {
+type NodeConfigSummaryResponse struct {
 	ReportingInterval string         `json:"reporting_interval,omitempty"`
 	MonitorCount      int            `json:"monitor_count,omitempty"`
 	MonitorTypes      map[string]int `json:"monitor_types,omitempty"`
@@ -201,8 +201,8 @@ type IncidentResponse struct {
 	Status              string                            `json:"status"`
 	Severity            string                            `json:"severity"`
 	Title               string                            `json:"title"`
-	AgentID             string                            `json:"agent_id"`
-	AgentName           string                            `json:"agent_name"`
+	NodeID              string                            `json:"node_id"`
+	NodeName            string                            `json:"node_name"`
 	MonitorID           string                            `json:"monitor_id"`
 	MonitorName         string                            `json:"monitor_name"`
 	MonitorType         string                            `json:"monitor_type"`
@@ -344,7 +344,7 @@ type AlertRouteResponse struct {
 	Priority             int       `json:"priority"`
 	EventTypes           []string  `json:"event_types"`
 	Severities           []string  `json:"severities"`
-	AgentIDs             []string  `json:"agent_ids"`
+	NodeIDs              []string  `json:"node_ids"`
 	MonitorIDs           []string  `json:"monitor_ids"`
 	MonitorTypes         []string  `json:"monitor_types"`
 	ChannelIDs           []string  `json:"channel_ids"`
@@ -393,7 +393,7 @@ type AlertRuleResponse struct {
 	Priority             int           `json:"priority"`
 	EventTypes           []string      `json:"event_types"`
 	Severities           []string      `json:"severities"`
-	AgentIDs             []string      `json:"agent_ids"`
+	NodeIDs              []string      `json:"node_ids"`
 	MonitorIDs           []string      `json:"monitor_ids"`
 	MonitorTypes         []string      `json:"monitor_types"`
 	ChannelIDs           []string      `json:"channel_ids"`
@@ -433,7 +433,7 @@ type AlertRuleDryRunContext struct {
 	IncidentID  string `json:"incident_id"`
 	EventType   string `json:"event_type"`
 	Severity    string `json:"severity"`
-	AgentID     string `json:"agent_id"`
+	NodeID      string `json:"node_id"`
 	MonitorID   string `json:"monitor_id"`
 	MonitorType string `json:"monitor_type"`
 }

@@ -78,7 +78,7 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	if len(listed.Data.Routes[0].EventTypes) != 1 || listed.Data.Routes[0].EventTypes[0] != db.AlertEventIncidentOpened || len(listed.Data.Routes[0].ChannelIDs) != 1 {
 		t.Fatalf("listed route filters = %+v, want opened event and channel", listed.Data.Routes[0])
 	}
-	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/routes/"+created.Data.Route.ID, gin.H{"name": "suppress recovery", "enabled": false, "priority": 5, "event_types": []string{db.AlertEventIncidentResolved}, "severities": []string{"medium"}, "agent_ids": []string{"agent-prod"}, "monitor_ids": []string{"monitor-api"}, "monitor_types": []string{"http"}, "channel_ids": []string{}, "suppress": true, "grouping_policy": db.AlertGroupingPolicyNone, "grouping_delay_seconds": 30}, "")
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/routes/"+created.Data.Route.ID, gin.H{"name": "suppress recovery", "enabled": false, "priority": 5, "event_types": []string{db.AlertEventIncidentResolved}, "severities": []string{"medium"}, "node_ids": []string{"node-prod"}, "monitor_ids": []string{"monitor-api"}, "monitor_types": []string{"http"}, "channel_ids": []string{}, "suppress": true, "grouping_policy": db.AlertGroupingPolicyNone, "grouping_delay_seconds": 30}, "")
 	if updateResp.Code != http.StatusOK {
 		t.Fatalf("update route status = %d, body = %s", updateResp.Code, updateResp.Body.String())
 	}
@@ -91,7 +91,7 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 				Priority             int      `json:"priority"`
 				EventTypes           []string `json:"event_types"`
 				Severities           []string `json:"severities"`
-				AgentIDs             []string `json:"agent_ids"`
+				NodeIDs              []string `json:"node_ids"`
 				MonitorIDs           []string `json:"monitor_ids"`
 				MonitorTypes         []string `json:"monitor_types"`
 				ChannelIDs           []string `json:"channel_ids"`
@@ -108,7 +108,7 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	if len(updated.Data.Route.EventTypes) != 1 || updated.Data.Route.EventTypes[0] != db.AlertEventIncidentResolved {
 		t.Fatalf("updated event_types = %#v, want resolved", updated.Data.Route.EventTypes)
 	}
-	if len(updated.Data.Route.Severities) != 1 || updated.Data.Route.Severities[0] != "medium" || len(updated.Data.Route.AgentIDs) != 1 || updated.Data.Route.AgentIDs[0] != "agent-prod" || len(updated.Data.Route.MonitorIDs) != 1 || updated.Data.Route.MonitorIDs[0] != "monitor-api" || len(updated.Data.Route.MonitorTypes) != 1 || updated.Data.Route.MonitorTypes[0] != "http" || len(updated.Data.Route.ChannelIDs) != 0 {
+	if len(updated.Data.Route.Severities) != 1 || updated.Data.Route.Severities[0] != "medium" || len(updated.Data.Route.NodeIDs) != 1 || updated.Data.Route.NodeIDs[0] != "node-prod" || len(updated.Data.Route.MonitorIDs) != 1 || updated.Data.Route.MonitorIDs[0] != "monitor-api" || len(updated.Data.Route.MonitorTypes) != 1 || updated.Data.Route.MonitorTypes[0] != "http" || len(updated.Data.Route.ChannelIDs) != 0 {
 		t.Fatalf("updated route filters = %+v, want requested filters and no channels", updated.Data.Route)
 	}
 	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/alerts/routes/"+created.Data.Route.ID, nil, "")
@@ -171,7 +171,7 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 	if rejectResp.Code != http.StatusBadRequest || !strings.Contains(rejectResp.Body.String(), "webhook alert channels") {
 		t.Fatalf("chat rule status = %d body = %s, want webhook-only rejection", rejectResp.Code, rejectResp.Body.String())
 	}
-	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/rules", gin.H{"name": "critical webhook rule", "priority": 10, "event_types": []string{db.AlertEventIncidentOpened}, "severities": []string{"high"}, "agent_ids": []string{"agent-prod"}, "monitor_types": []string{"http"}, "channel_ids": []string{"channel-ops-webhook"}, "grouping_policy": db.AlertGroupingPolicyDelayedSummary, "grouping_delay_seconds": 90}, "")
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/rules", gin.H{"name": "critical webhook rule", "priority": 10, "event_types": []string{db.AlertEventIncidentOpened}, "severities": []string{"high"}, "node_ids": []string{"node-prod"}, "monitor_types": []string{"http"}, "channel_ids": []string{"channel-ops-webhook"}, "grouping_policy": db.AlertGroupingPolicyDelayedSummary, "grouping_delay_seconds": 90}, "")
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create rule status = %d, body = %s", createResp.Code, createResp.Body.String())
 	}
@@ -184,7 +184,7 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 				Priority             int      `json:"priority"`
 				EventTypes           []string `json:"event_types"`
 				Severities           []string `json:"severities"`
-				AgentIDs             []string `json:"agent_ids"`
+				NodeIDs              []string `json:"node_ids"`
 				MonitorTypes         []string `json:"monitor_types"`
 				ChannelIDs           []string `json:"channel_ids"`
 				GroupingPolicy       string   `json:"grouping_policy"`
@@ -196,7 +196,7 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 	if created.Data.Rule.ID == "" || created.Data.Rule.Name != "critical webhook rule" || !created.Data.Rule.Enabled || created.Data.Rule.Priority != 10 || created.Data.Rule.GroupingPolicy != db.AlertGroupingPolicyDelayedSummary || created.Data.Rule.GroupingDelaySeconds != 90 {
 		t.Fatalf("created rule = %+v, want critical webhook rule", created.Data.Rule)
 	}
-	if len(created.Data.Rule.EventTypes) != 1 || created.Data.Rule.EventTypes[0] != db.AlertEventIncidentOpened || len(created.Data.Rule.Severities) != 1 || created.Data.Rule.Severities[0] != "high" || len(created.Data.Rule.AgentIDs) != 1 || created.Data.Rule.AgentIDs[0] != "agent-prod" || len(created.Data.Rule.MonitorTypes) != 1 || created.Data.Rule.MonitorTypes[0] != "http" || len(created.Data.Rule.ChannelIDs) != 1 || created.Data.Rule.ChannelIDs[0] != "channel-ops-webhook" {
+	if len(created.Data.Rule.EventTypes) != 1 || created.Data.Rule.EventTypes[0] != db.AlertEventIncidentOpened || len(created.Data.Rule.Severities) != 1 || created.Data.Rule.Severities[0] != "high" || len(created.Data.Rule.NodeIDs) != 1 || created.Data.Rule.NodeIDs[0] != "node-prod" || len(created.Data.Rule.MonitorTypes) != 1 || created.Data.Rule.MonitorTypes[0] != "http" || len(created.Data.Rule.ChannelIDs) != 1 || created.Data.Rule.ChannelIDs[0] != "channel-ops-webhook" {
 		t.Fatalf("created rule filters = %+v, want requested filters and webhook channel", created.Data.Rule)
 	}
 	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/rules", nil, "")
@@ -259,7 +259,7 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 	if updated.Data.Rule.Name != "suppress webhook recovery" || !updated.Data.Rule.Enabled || !updated.Data.Rule.Suppress || updated.Data.Rule.GroupingPolicy != db.AlertGroupingPolicyNone || len(updated.Data.Rule.ChannelIDs) != 0 || len(updated.Data.Rule.EventTypes) != 1 || updated.Data.Rule.EventTypes[0] != db.AlertEventIncidentResolved {
 		t.Fatalf("updated rule = %+v, want enabled suppress recovery rule", updated.Data.Rule)
 	}
-	dryRunResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/rules/dry-run", gin.H{"event_type": db.AlertEventIncidentResolved, "severity": "medium", "agent_id": "agent-prod", "monitor_type": "http"}, "")
+	dryRunResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/rules/dry-run", gin.H{"event_type": db.AlertEventIncidentResolved, "severity": "medium", "node_id": "node-prod", "monitor_type": "http"}, "")
 	if dryRunResp.Code != http.StatusOK {
 		t.Fatalf("dry-run rule status = %d, body = %s", dryRunResp.Code, dryRunResp.Body.String())
 	}

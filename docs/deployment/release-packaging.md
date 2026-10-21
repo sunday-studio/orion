@@ -49,17 +49,17 @@ Publish Server binaries from GitHub Actions:
 This creates or updates the GitHub release and uploads:
 
 ```txt
-orion-agent-installer.sh
-orion-agent-install.sh
-orion-agent-uninstall.sh
-orion-agent-systemd.service
-orion-agent-config.yaml
-com.orion.agent.plist
-orion-agent-linux-amd64
-orion-agent-linux-arm64
-orion-agent-darwin-amd64
-orion-agent-darwin-arm64
-orion-agent-sbom.spdx.json
+orion-node-installer.sh
+orion-node-install.sh
+orion-node-uninstall.sh
+orion-node-systemd.service
+orion-node-config.yaml
+com.orion.node.plist
+orion-node-linux-amd64
+orion-node-linux-arm64
+orion-node-darwin-amd64
+orion-node-darwin-arm64
+orion-node-sbom.spdx.json
 SHA256SUMS
 SHA256SUMS.sig
 SHA256SUMS.pem

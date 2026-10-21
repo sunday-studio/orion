@@ -71,9 +71,9 @@ func candidateIDs(t *testing.T, server *Server) map[string]bool {
 
 func TestDismissIncidentCandidateHidesUntilMonitorRecovers(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	monitor := db.Monitor{ID: "monitor-cand", AgentID: agent.Data.AgentID, Name: "api", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "", IncidentState: "unknown", ReportingIntervalSeconds: 60}
+	monitor := db.Monitor{ID: "monitor-cand", NodeID: node.Data.NodeID, Name: "api", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "", IncidentState: "unknown", ReportingIntervalSeconds: 60}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -107,12 +107,12 @@ func TestDismissIncidentCandidateHidesUntilMonitorRecovers(t *testing.T) {
 // The typed schemas must describe what the handlers really return.
 func TestHealthIssuesAndCandidatesMatchTheirTypedSchemas(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	server.db.Create(&db.Monitor{ID: "m-down", AgentID: agent.Data.AgentID, Name: "api", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60, CreatedAt: now})
+	server.db.Create(&db.Monitor{ID: "m-down", NodeID: node.Data.NodeID, Name: "api", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60, CreatedAt: now})
 	server.db.Create(&db.MonitorReport{ID: "r-down", MonitorID: "m-down", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now})
 	old := now.Add(-time.Hour)
-	server.db.Create(&db.Monitor{ID: "m-stale", AgentID: agent.Data.AgentID, Name: "worker", Type: "tcp", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
+	server.db.Create(&db.Monitor{ID: "m-stale", NodeID: node.Data.NodeID, Name: "worker", Type: "tcp", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
 
 	var issues struct {
 		Data HealthIssuesResponse `json:"data"`
@@ -144,7 +144,7 @@ func TestHealthIssuesAndCandidatesMatchTheirTypedSchemas(t *testing.T) {
 	healths := map[string]string{}
 	for _, i := range issues.Data.Issues {
 		healths[i.MonitorID] = i.Health
-		if i.AgentName == "" || i.MonitorName == "" {
+		if i.NodeName == "" || i.MonitorName == "" {
 			t.Errorf("issue %+v is missing names", i)
 		}
 	}

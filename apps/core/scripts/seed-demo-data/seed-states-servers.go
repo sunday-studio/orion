@@ -38,62 +38,62 @@ var showcaseServers = []showcaseServer{
 	{key: "removed", name: "old-worker-07", os: "linux", platform: "ubuntu", labels: []string{"env=prod", "role=worker"}, cpu: 15, mem: 35, disk: 50, uptimeDays: 60, lastSeenAgo: 20 * 24 * time.Hour, removed: true},
 }
 
-func showcaseAgentID(key string) string { return "seed-state-agent-" + key }
+func showcaseNodeID(key string) string { return "seed-state-node-" + key }
 
-func makeShowcaseAgent(i int, sv showcaseServer, now time.Time) db.Agent {
+func makeShowcaseNode(i int, sv showcaseServer, now time.Time) db.Node {
 	seen := now.Add(-sv.lastSeenAgo - 2*time.Minute)
 	if sv.lastSeenAgo == 0 && sv.noReports {
 		seen = now.Add(-10 * time.Minute)
 	}
 	loc := db.GeoLocation{IP: fmt.Sprintf("203.0.113.%d", 20+i), Hostname: sv.name + ".example.com", City: "Dublin", Region: "Leinster", Country: "IE", Loc: "53.35,-6.26", Org: "Example Hosting", Timezone: "Europe/Dublin"}
-	id := showcaseAgentID(sv.key)
-	agent := db.Agent{
+	id := showcaseNodeID(sv.key)
+	node := db.Node{
 		ID: id, MachineId: "seed-state-machine-" + sv.key, Name: sv.name, OS: sv.os, Platform: sv.platform, KernelVersion: "6.8.0", Arch: "amd64",
 		Token: "seed-state-token-" + sv.key, TokenHash: sha256Hex("seed-state-token-" + sv.key), TokenVersion: 1,
 		Labels: mustJSON(sv.labels), Notes: sv.notes, ReportingIntervalSeconds: showcaseIntervalSeconds,
 		CreatedAt: now.AddDate(0, 0, -120), LastSeen: seen, Location: datatypes.NewJSONType(loc), Meta: mustJSON(map[string]any{"seed": true, "showcase": sv.key}),
 	}
 	if sv.maintenanceHours > 0 {
-		agent.MaintenanceMode, agent.MaintenanceUntil = true, ptrTime(now.Add(time.Duration(sv.maintenanceHours)*time.Hour))
+		node.MaintenanceMode, node.MaintenanceUntil = true, ptrTime(now.Add(time.Duration(sv.maintenanceHours)*time.Hour))
 	}
 	switch sv.tokenState {
 	case "grace":
-		agent.TokenVersion, agent.TokenRotatedAt = 3, ptrTime(now.Add(-2*time.Minute))
-		agent.PreviousTokenHash, agent.PreviousTokenExpiresAt = sha256Hex("seed-state-previous-token-"+sv.key), ptrTime(now.Add(8*time.Minute))
+		node.TokenVersion, node.TokenRotatedAt = 3, ptrTime(now.Add(-2*time.Minute))
+		node.PreviousTokenHash, node.PreviousTokenExpiresAt = sha256Hex("seed-state-previous-token-"+sv.key), ptrTime(now.Add(8*time.Minute))
 	case "rotated":
-		agent.TokenVersion, agent.TokenRotatedAt = 2, ptrTime(now.AddDate(0, 0, -12))
+		node.TokenVersion, node.TokenRotatedAt = 2, ptrTime(now.AddDate(0, 0, -12))
 	case "revoked":
-		agent.TokenHash, agent.Token = "", "revoked:"+id
-		agent.TokenVersion, agent.TokenRevokedAt, agent.TokenRevocationReason = 4, ptrTime(now.AddDate(0, 0, -2)), "Token leaked in a CI log"
+		node.TokenHash, node.Token = "", "revoked:"+id
+		node.TokenVersion, node.TokenRevokedAt, node.TokenRevocationReason = 4, ptrTime(now.AddDate(0, 0, -2)), "Token leaked in a CI log"
 	}
 	if sv.removed {
-		agent.Token, agent.TokenHash = "revoked:"+id, ""
-		agent.TokenVersion, agent.TokenRevokedAt, agent.TokenRevocationReason = 2, ptrTime(now.AddDate(0, 0, -20)), "Server removed"
-		agent.MachineId += "#removed-" + id
-		agent.DeletedAt = now.AddDate(0, 0, -20)
+		node.Token, node.TokenHash = "revoked:"+id, ""
+		node.TokenVersion, node.TokenRevokedAt, node.TokenRevocationReason = 2, ptrTime(now.AddDate(0, 0, -20)), "Server removed"
+		node.MachineId += "#removed-" + id
+		node.DeletedAt = now.AddDate(0, 0, -20)
 	}
-	return agent
+	return node
 }
 
 // seedShowcaseServers creates the servers and their system reports; monitors come from seedShowcaseMonitors.
-func seedShowcaseServers(database *gorm.DB, now time.Time) (map[string]db.Agent, error) {
-	agents := map[string]db.Agent{}
+func seedShowcaseServers(database *gorm.DB, now time.Time) (map[string]db.Node, error) {
+	nodes := map[string]db.Node{}
 	for i, sv := range showcaseServers {
-		agent := makeShowcaseAgent(i, sv, now)
-		if err := database.Create(&agent).Error; err != nil {
+		node := makeShowcaseNode(i, sv, now)
+		if err := database.Create(&node).Error; err != nil {
 			return nil, err
 		}
-		agents[sv.key] = agent
+		nodes[sv.key] = node
 		if sv.noReports {
 			continue
 		}
-		reports := showcaseAgentReports(agent, sv.cpu, sv.mem, sv.disk, uint64(sv.uptimeDays)*86400, now, sv.lastSeenAgo+2*time.Minute)
+		reports := showcaseNodeReports(node, sv.cpu, sv.mem, sv.disk, uint64(sv.uptimeDays)*86400, now, sv.lastSeenAgo+2*time.Minute)
 		if err := database.CreateInBatches(reports, 100).Error; err != nil {
 			return nil, err
 		}
 	}
 	// A server that enrolled but never reported yet: a token that has never been used.
-	return agents, seedEnrollmentSessions(database, now)
+	return nodes, seedEnrollmentSessions(database, now)
 }
 
 // seedEnrollmentSessions covers the Add server wizard states: waiting, claimed, expired, cancelled.
@@ -102,7 +102,7 @@ func seedEnrollmentSessions(database *gorm.DB, now time.Time) error {
 	cancelled := now.Add(-26 * time.Hour)
 	sessions := []db.EnrollmentSession{
 		{ID: "seed-enroll-waiting", TokenHash: sha256Hex("seed-enroll-waiting"), Platform: "linux", ExpiresAt: now.Add(8 * time.Minute), CreatedAt: now.Add(-2 * time.Minute)},
-		{ID: "seed-enroll-claimed", TokenHash: sha256Hex("seed-enroll-claimed"), Platform: "linux", MachineID: "seed-state-machine-web-up", AgentID: showcaseAgentID("web-up"), ClaimedAt: &claimed, ExpiresAt: now.Add(-170 * time.Minute), CreatedAt: now.Add(-190 * time.Minute)},
+		{ID: "seed-enroll-claimed", TokenHash: sha256Hex("seed-enroll-claimed"), Platform: "linux", MachineID: "seed-state-machine-web-up", NodeID: showcaseNodeID("web-up"), ClaimedAt: &claimed, ExpiresAt: now.Add(-170 * time.Minute), CreatedAt: now.Add(-190 * time.Minute)},
 		{ID: "seed-enroll-expired", TokenHash: sha256Hex("seed-enroll-expired"), Platform: "darwin", ExpiresAt: now.Add(-25 * time.Hour), CreatedAt: now.Add(-25*time.Hour - 15*time.Minute)},
 		{ID: "seed-enroll-cancelled", TokenHash: sha256Hex("seed-enroll-cancelled"), Platform: "linux", CancelledAt: &cancelled, ExpiresAt: now.Add(-25 * time.Hour), CreatedAt: now.Add(-26*time.Hour - 5*time.Minute)},
 	}

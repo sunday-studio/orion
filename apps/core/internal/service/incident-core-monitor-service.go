@@ -23,8 +23,8 @@ type coreMonitorMaintenanceWindow struct {
 	StartAt string `json:"start_at"`
 }
 
-func (s *IncidentService) monitorIncidentSeverity(agent db.Agent, monitor db.Monitor, health string) string {
-	if !isCoreOwnerAgent(agent) {
+func (s *IncidentService) monitorIncidentSeverity(node db.Node, monitor db.Monitor, health string) string {
+	if !isCoreOwnerNode(node) {
 		return incidentSeverity(health)
 	}
 

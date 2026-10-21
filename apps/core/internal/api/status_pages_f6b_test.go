@@ -174,10 +174,10 @@ func TestStatusPageMaintenanceHoldsAlertsForMappedResources(t *testing.T) {
 	page, visible, _ := createPublishedStatusPageForSubscriberTest(t, server, "hold-status")
 	now := time.Now().UTC()
 	server.db.Create(&db.StatusPageComponentMapping{ID: "map1", ComponentID: visible.ID, ResourceType: "monitor", ResourceID: "mon-held", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst"})
-	server.db.Create(&db.StatusPageComponentMapping{ID: "map2", ComponentID: visible.ID, ResourceType: "agent", ResourceID: "agent-held", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst"})
+	server.db.Create(&db.StatusPageComponentMapping{ID: "map2", ComponentID: visible.ID, ResourceType: "node", ResourceID: "node-held", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst"})
 	win := db.StatusPageMaintenance{ID: "w1", StatusPageID: page.ID, Title: "Upgrade", ComponentIDs: `["` + visible.ID + `"]`, HoldAlerts: true, StartsAt: now.Add(-time.Minute), EndsAt: now.Add(time.Hour)}
 	server.db.Create(&win)
-	if !service.StatusPageMaintenanceHolds(server.db, "mon-held", "x", now) || !service.StatusPageMaintenanceHolds(server.db, "x", "agent-held", now) {
+	if !service.StatusPageMaintenanceHolds(server.db, "mon-held", "x", now) || !service.StatusPageMaintenanceHolds(server.db, "x", "node-held", now) {
 		t.Fatal("mapped resources should be held")
 	}
 	if service.StatusPageMaintenanceHolds(server.db, "other", "other", now) || service.StatusPageMaintenanceHolds(server.db, "mon-held", "x", now.Add(2*time.Hour)) {

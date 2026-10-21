@@ -56,13 +56,13 @@ type diagnosticSQLite struct {
 
 func TestCoreDiagnosticsReportsIngestionMetrics(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	agentReportResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 60, "timestamp": time.Now().UTC().Format(time.RFC3339), "cpu": map[string]interface{}{"usage_percent": 10}, "memory": map[string]interface{}{"used_percent": 20}, "disk": map[string]interface{}{"used_percent": 30}}, registered.Data.Token)
-	if agentReportResp.Code != http.StatusOK {
-		t.Fatalf("agent report status = %d, body = %s", agentReportResp.Code, agentReportResp.Body.String())
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	nodeReportResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/report", map[string]interface{}{"uptime_seconds": 60, "timestamp": time.Now().UTC().Format(time.RFC3339), "cpu": map[string]interface{}{"usage_percent": 10}, "memory": map[string]interface{}{"used_percent": 20}, "disk": map[string]interface{}{"used_percent": 30}}, registered.Data.Token)
+	if nodeReportResp.Code != http.StatusOK {
+		t.Fatalf("node report status = %d, body = %s", nodeReportResp.Code, nodeReportResp.Body.String())
 	}
-	monitorReportResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/"+registeredMonitor.Data.MonitorID+"/report", map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "diagnostics test failure"}}, registered.Data.Token)
+	monitorReportResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/"+registeredMonitor.Data.MonitorID+"/report", map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "diagnostics test failure"}}, registered.Data.Token)
 	if monitorReportResp.Code != http.StatusOK {
 		t.Fatalf("monitor report status = %d, body = %s", monitorReportResp.Code, monitorReportResp.Body.String())
 	}
@@ -98,23 +98,23 @@ func TestCoreDiagnosticsReportsIngestionMetrics(t *testing.T) {
 	if !diagnostics.Success || diagnostics.Data.API.Status != "healthy" || diagnostics.Data.Metrics.Status != "healthy" {
 		t.Fatalf("diagnostics status = %+v, want healthy response", diagnostics)
 	}
-	if diagnostics.Data.Metrics.Requests["/v1/agents/:agent_id/report"]["200"] != 1 {
-		t.Fatalf("agent report request counts = %+v, want one 200", diagnostics.Data.Metrics.Requests)
+	if diagnostics.Data.Metrics.Requests["/v1/nodes/:node_id/report"]["200"] != 1 {
+		t.Fatalf("node report request counts = %+v, want one 200", diagnostics.Data.Metrics.Requests)
 	}
-	if diagnostics.Data.Metrics.Requests["/v1/agents/:agent_id/:monitor_id/report"]["200"] != 1 {
+	if diagnostics.Data.Metrics.Requests["/v1/nodes/:node_id/:monitor_id/report"]["200"] != 1 {
 		t.Fatalf("monitor report request counts = %+v, want one 200", diagnostics.Data.Metrics.Requests)
 	}
 	if diagnostics.Data.Metrics.Requests["/health"]["200"] != 1 {
 		t.Fatalf("global request counts = %+v, want health request", diagnostics.Data.Metrics.Requests)
 	}
-	if diagnostics.Data.Metrics.Ingestion["agent"].Count != 1 || diagnostics.Data.Metrics.Ingestion["monitor"].Count != 1 {
-		t.Fatalf("ingestion metrics = %+v, want agent and monitor samples", diagnostics.Data.Metrics.Ingestion)
+	if diagnostics.Data.Metrics.Ingestion["node"].Count != 1 || diagnostics.Data.Metrics.Ingestion["monitor"].Count != 1 {
+		t.Fatalf("ingestion metrics = %+v, want node and monitor samples", diagnostics.Data.Metrics.Ingestion)
 	}
-	if diagnostics.Data.Metrics.ReportWrites["agent"].Count != 1 || diagnostics.Data.Metrics.ReportWrites["monitor"].Count != 1 {
-		t.Fatalf("report write metrics = %+v, want agent and monitor writes", diagnostics.Data.Metrics.ReportWrites)
+	if diagnostics.Data.Metrics.ReportWrites["node"].Count != 1 || diagnostics.Data.Metrics.ReportWrites["monitor"].Count != 1 {
+		t.Fatalf("report write metrics = %+v, want node and monitor writes", diagnostics.Data.Metrics.ReportWrites)
 	}
 	if diagnostics.Data.Metrics.Reconciliation.Count != 2 {
-		t.Fatalf("incident reconciliation metrics = %+v, want agent stale and monitor reconciliation", diagnostics.Data.Metrics.Reconciliation)
+		t.Fatalf("incident reconciliation metrics = %+v, want node stale and monitor reconciliation", diagnostics.Data.Metrics.Reconciliation)
 	}
 	if diagnostics.Data.Metrics.Lookup.Count == 0 {
 		t.Fatalf("active incident lookup metrics = %+v, want lookup timing", diagnostics.Data.Metrics.Lookup)
@@ -164,7 +164,7 @@ func TestLoginReturnsTokenForValidConfiguredCredentials(t *testing.T) {
 }
 func TestCORSPreflightAllowsConsoleFetchHeaders(t *testing.T) {
 	server := setupTestServer(t)
-	req := httptest.NewRequest(http.MethodOptions, "/v1/agents", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/v1/nodes", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
 	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type,cache-control,pragma")

@@ -34,8 +34,8 @@ func OpenMigratedDatabase(cfg *config.Config) (*gorm.DB, error) {
 	if err := db.Migrate(database); err != nil {
 		return nil, fmt.Errorf("run database migrations: %w", err)
 	}
-	if _, err := service.MigrateLegacyAgentTokens(database, utils.NewLogger()); err != nil {
-		return nil, fmt.Errorf("migrate legacy agent tokens: %w", err)
+	if _, err := service.MigrateLegacyNodeTokens(database, utils.NewLogger()); err != nil {
+		return nil, fmt.Errorf("migrate legacy node tokens: %w", err)
 	}
 	return database, nil
 }

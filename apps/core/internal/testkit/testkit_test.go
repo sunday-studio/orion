@@ -17,10 +17,10 @@ func TestNewDBIsFileBackedWAL(t *testing.T) {
 	}
 }
 
-func TestTwoAgentsAreIndependent(t *testing.T) {
+func TestTwoNodesAreIndependent(t *testing.T) {
 	database := NewDB(t)
-	a, b := TwoAgents(t, database, time.Now().UTC())
-	if a.Agent.ID == b.Agent.ID || a.Monitor.AgentID != a.Agent.ID || b.Monitor.AgentID != b.Agent.ID {
+	a, b := TwoNodes(t, database, time.Now().UTC())
+	if a.Node.ID == b.Node.ID || a.Monitor.NodeID != a.Node.ID || b.Monitor.NodeID != b.Node.ID {
 		t.Fatalf("fixtures not independent: %+v %+v", a, b)
 	}
 	var n int64

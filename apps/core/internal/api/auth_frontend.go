@@ -81,7 +81,7 @@ func (s *Server) login(c *gin.Context) {
 }
 
 // frontendAuthMiddleware returns a handler that enforces JWT when frontend auth is on.
-// When off, it does nothing. Do not use on /v1/register, /v1/auth/login, or agent routes.
+// When off, it does nothing. Do not use on /v1/register, /v1/auth/login, or node routes.
 func (s *Server) frontendAuthMiddleware() gin.HandlerFunc {
 	secret := []byte(s.cfg.JWTSecret)
 	enabled := s.cfg.FrontendAuthOn

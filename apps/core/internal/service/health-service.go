@@ -68,11 +68,11 @@ func isStaleAt(timestamp time.Time, intervalSeconds int, config HealthComputatio
 	return time.Since(timestamp) > staleWindow(intervalSeconds, config)
 }
 
-// AgentHealthSnapshot separates Agent availability from monitor rollup health.
-type AgentHealthSnapshot struct {
-	AgentID       string
+// NodeHealthSnapshot separates Node availability from monitor rollup health.
+type NodeHealthSnapshot struct {
+	NodeID        string
 	OverallHealth string
-	AgentHealth   string
+	NodeHealth    string
 	MonitorHealth string
 	Reason        string
 	UpCount       int
@@ -141,8 +141,8 @@ func (s *HealthService) computeMonitorHealthInternal(monitorID string, reporting
 		return "unknown", nil
 	}
 
-	// Staleness uses when Core received the report, never the agent-supplied
-	// collected_at, so a skewed or future-dated agent clock cannot hide an outage.
+	// Staleness uses when Core received the report, never the node-supplied
+	// collected_at, so a skewed or future-dated node clock cannot hide an outage.
 	latestReport := reports[0]
 	if isStaleAt(latestReport.CreatedAt, reportingIntervalSeconds, config) {
 		return "stale", nil
@@ -206,52 +206,52 @@ func (s *HealthService) isDegraded(reports []db.MonitorReport, failureRateThresh
 	return failureRate >= failureRateThreshold && failureRate < 1.0 // Not all failures (that would be "down")
 }
 
-// ComputeAgentHealthSnapshot computes Agent availability and monitor rollup health separately.
-func (s *HealthService) ComputeAgentHealthSnapshot(agentID string, config HealthComputationConfig) (AgentHealthSnapshot, error) {
-	snapshot := AgentHealthSnapshot{
-		AgentID:       agentID,
+// ComputeNodeHealthSnapshot computes Node availability and monitor rollup health separately.
+func (s *HealthService) ComputeNodeHealthSnapshot(nodeID string, config HealthComputationConfig) (NodeHealthSnapshot, error) {
+	snapshot := NodeHealthSnapshot{
+		NodeID:        nodeID,
 		OverallHealth: "unknown",
-		AgentHealth:   "unknown",
+		NodeHealth:    "unknown",
 		MonitorHealth: "unknown",
 		Reason:        "health has not been computed yet",
 	}
 
-	var agent db.Agent
-	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
-		s.logger.Error("Failed to get agent", "agent_id", agentID, "error", err)
+	var node db.Node
+	if err := s.db.Where("id = ?", nodeID).First(&node).Error; err != nil {
+		s.logger.Error("Failed to get node", "node_id", nodeID, "error", err)
 		return snapshot, err
 	}
 
 	var monitors []db.Monitor
-	if err := s.db.Where("agent_id = ? AND lifecycle = ?", agentID, "active").
+	if err := s.db.Where("node_id = ? AND lifecycle = ?", nodeID, "active").
 		Find(&monitors).Error; err != nil {
-		s.logger.Error("Failed to get agent monitors", "agent_id", agentID, "error", err)
+		s.logger.Error("Failed to get node monitors", "node_id", nodeID, "error", err)
 		return snapshot, err
 	}
 
 	snapshot.TotalCount = len(monitors)
 
-	if agent.InMaintenance(time.Now().UTC()) {
-		snapshot.AgentHealth = "maintenance"
+	if node.InMaintenance(time.Now().UTC()) {
+		snapshot.NodeHealth = "maintenance"
 		snapshot.OverallHealth = "maintenance"
 		snapshot.MonitorHealth = storedMonitorRollup(monitors, &snapshot)
-		snapshot.Reason = "agent is in maintenance"
+		snapshot.Reason = "node is in maintenance"
 		return snapshot, nil
 	}
 
-	if isStaleAt(agent.LastSeen, agent.ReportingIntervalSeconds, config) {
-		snapshot.AgentHealth = "stale"
+	if isStaleAt(node.LastSeen, node.ReportingIntervalSeconds, config) {
+		snapshot.NodeHealth = "stale"
 		snapshot.OverallHealth = "stale"
 		snapshot.MonitorHealth = storedMonitorRollup(monitors, &snapshot)
-		snapshot.Reason = "agent reports are stale"
+		snapshot.Reason = "node reports are stale"
 		return snapshot, nil
 	}
 
-	snapshot.AgentHealth = "up"
+	snapshot.NodeHealth = "up"
 	if len(monitors) == 0 {
 		snapshot.OverallHealth = "up"
 		snapshot.MonitorHealth = "unknown"
-		snapshot.Reason = "agent is reporting and has no active monitors"
+		snapshot.Reason = "node is reporting and has no active monitors"
 		return snapshot, nil
 	}
 
@@ -278,22 +278,22 @@ func (s *HealthService) ComputeAgentHealthSnapshot(agentID string, config Health
 	}
 
 	snapshot.MonitorHealth = monitorRollupHealth(snapshot)
-	snapshot.OverallHealth = agentOverallHealth(snapshot)
-	snapshot.Reason = agentHealthReason(snapshot)
+	snapshot.OverallHealth = nodeOverallHealth(snapshot)
+	snapshot.Reason = nodeHealthReason(snapshot)
 
 	return snapshot, nil
 }
 
-// ComputeAgentHealth computes the legacy overall health and monitor counts.
-func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputationConfig) (string, int, int, int, error) {
-	snapshot, err := s.ComputeAgentHealthSnapshot(agentID, config)
+// ComputeNodeHealth computes the legacy overall health and monitor counts.
+func (s *HealthService) ComputeNodeHealth(nodeID string, config HealthComputationConfig) (string, int, int, int, error) {
+	snapshot, err := s.ComputeNodeHealthSnapshot(nodeID, config)
 	if err != nil {
 		return "unknown", 0, 0, 0, err
 	}
 	return snapshot.OverallHealth, snapshot.UpCount, snapshot.DownCount, snapshot.DegradedCount, nil
 }
 
-func storedMonitorRollup(monitors []db.Monitor, snapshot *AgentHealthSnapshot) string {
+func storedMonitorRollup(monitors []db.Monitor, snapshot *NodeHealthSnapshot) string {
 	if len(monitors) == 0 {
 		return "unknown"
 	}
@@ -321,7 +321,7 @@ func storedMonitorRollup(monitors []db.Monitor, snapshot *AgentHealthSnapshot) s
 	return monitorRollupHealth(*snapshot)
 }
 
-func monitorRollupHealth(snapshot AgentHealthSnapshot) string {
+func monitorRollupHealth(snapshot NodeHealthSnapshot) string {
 	if snapshot.TotalCount == 0 {
 		return "unknown"
 	}
@@ -343,9 +343,9 @@ func monitorRollupHealth(snapshot AgentHealthSnapshot) string {
 	return "up"
 }
 
-func agentOverallHealth(snapshot AgentHealthSnapshot) string {
-	if snapshot.AgentHealth != "up" {
-		return snapshot.AgentHealth
+func nodeOverallHealth(snapshot NodeHealthSnapshot) string {
+	if snapshot.NodeHealth != "up" {
+		return snapshot.NodeHealth
 	}
 	switch snapshot.MonitorHealth {
 	case "down":
@@ -359,24 +359,24 @@ func agentOverallHealth(snapshot AgentHealthSnapshot) string {
 	}
 }
 
-func agentHealthReason(snapshot AgentHealthSnapshot) string {
+func nodeHealthReason(snapshot NodeHealthSnapshot) string {
 	switch {
 	case snapshot.TotalCount == 0:
-		return "agent is reporting and has no active monitors"
+		return "node is reporting and has no active monitors"
 	case snapshot.DownCount == snapshot.TotalCount:
 		return "all active monitors are failing"
 	case snapshot.StaleCount == snapshot.TotalCount:
-		return "agent is reporting but all active monitor reports are stale"
+		return "node is reporting but all active monitor reports are stale"
 	case snapshot.DownCount > 0:
-		return fmt.Sprintf("agent is reporting; %d active monitor%s failing", snapshot.DownCount, plural(snapshot.DownCount))
+		return fmt.Sprintf("node is reporting; %d active monitor%s failing", snapshot.DownCount, plural(snapshot.DownCount))
 	case snapshot.DegradedCount > 0:
-		return fmt.Sprintf("agent is reporting; %d active monitor%s degraded", snapshot.DegradedCount, plural(snapshot.DegradedCount))
+		return fmt.Sprintf("node is reporting; %d active monitor%s degraded", snapshot.DegradedCount, plural(snapshot.DegradedCount))
 	case snapshot.StaleCount > 0:
-		return fmt.Sprintf("agent is reporting; %d active monitor report%s stale", snapshot.StaleCount, plural(snapshot.StaleCount))
+		return fmt.Sprintf("node is reporting; %d active monitor report%s stale", snapshot.StaleCount, plural(snapshot.StaleCount))
 	case snapshot.UnknownCount > 0:
-		return fmt.Sprintf("agent is reporting; %d active monitor%s unknown", snapshot.UnknownCount, plural(snapshot.UnknownCount))
+		return fmt.Sprintf("node is reporting; %d active monitor%s unknown", snapshot.UnknownCount, plural(snapshot.UnknownCount))
 	default:
-		return "agent is reporting and all active monitors are healthy"
+		return "node is reporting and all active monitors are healthy"
 	}
 }
 
@@ -392,17 +392,17 @@ func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]d
 	return s.detectStaleMonitors("", config)
 }
 
-// DetectStaleMonitorsForAgent is DetectStaleMonitors limited to one agent's
+// DetectStaleMonitorsForNode is DetectStaleMonitors limited to one node's
 // monitors, so per-report reconciliation does not scan every monitor in Core.
-func (s *HealthService) DetectStaleMonitorsForAgent(agentID string, config HealthComputationConfig) ([]db.Monitor, error) {
-	return s.detectStaleMonitors(agentID, config)
+func (s *HealthService) DetectStaleMonitorsForNode(nodeID string, config HealthComputationConfig) ([]db.Monitor, error) {
+	return s.detectStaleMonitors(nodeID, config)
 }
 
-func (s *HealthService) detectStaleMonitors(agentID string, config HealthComputationConfig) ([]db.Monitor, error) {
+func (s *HealthService) detectStaleMonitors(nodeID string, config HealthComputationConfig) ([]db.Monitor, error) {
 	var monitors []db.Monitor
 	query := s.db.Where("lifecycle = ?", "active")
-	if agentID != "" {
-		query = query.Where("agent_id = ?", agentID)
+	if nodeID != "" {
+		query = query.Where("node_id = ?", nodeID)
 	}
 	if err := query.Find(&monitors).Error; err != nil {
 		return nil, err

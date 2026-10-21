@@ -18,7 +18,7 @@ func downPayload() MonitorReportPayload {
 // and exactly one incident_opened delivery.
 func TestScenarioA7ConcurrentFailingReportsOpenOneIncident(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 
 	var wg sync.WaitGroup
@@ -54,7 +54,7 @@ func TestScenarioA7ConcurrentFailingReportsOpenOneIncident(t *testing.T) {
 // A6: if queuing the delivery fails, the incident is not left behind without its page.
 func TestScenarioA6IncidentAndDeliveryCommitTogether(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 	if err := database.Exec("ALTER TABLE alert_deliveries RENAME TO alert_deliveries_broken").Error; err != nil {
 		t.Fatal(err)
@@ -80,10 +80,10 @@ func TestScenarioA6IncidentAndDeliveryCommitTogether(t *testing.T) {
 
 func TestUniqueActiveIncidentIndexRejectsSecondActiveIncident(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	now := time.Now().UTC()
 	mk := func(id, status string) error {
-		return database.Create(&db.Incident{ID: id, Status: status, Severity: "high", Title: "t", AgentID: a.Agent.ID, MonitorID: a.Monitor.ID, OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"}).Error
+		return database.Create(&db.Incident{ID: id, Status: status, Severity: "high", Title: "t", NodeID: a.Node.ID, MonitorID: a.Monitor.ID, OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"}).Error
 	}
 	if err := mk("i1", "open"); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestUniqueActiveIncidentIndexRejectsSecondActiveIncident(t *testing.T) {
 // A8: the same report ID posted 5 times stores one report and returns the same ID each time.
 func TestScenarioA8ReplayedReportIDStoresOneRow(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	reports := NewReportService(database, utils.NewLogger(), &config.Config{})
 	payload := downPayload()
 	payload.ReportID = "0b0c9d56-7a40-4b0e-9f1a-aaaaaaaaaaaa"
@@ -140,10 +140,10 @@ func TestScenarioA8ReplayedReportIDStoresOneRow(t *testing.T) {
 	}
 }
 
-// A failed reconcile must roll the report back so the agent's retry is not a silent no-op.
+// A failed reconcile must roll the report back so the node's retry is not a silent no-op.
 func TestFailedReconcileRollsBackReportSoRetryRecovers(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 	reports := NewReportService(database, utils.NewLogger(), &config.Config{})
 	payload := downPayload()

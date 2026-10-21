@@ -83,7 +83,7 @@ func (f statusFilter) union() (string, []any) {
 	monitorScope := func(extra string) (string, []any) {
 		clause, a := "1=1", []any(nil)
 		if f.ServerID != "" {
-			clause += " AND m.agent_id = ?"
+			clause += " AND m.node_id = ?"
 			a = append(a, f.ServerID)
 		}
 		if f.MonitorID != "" {
@@ -95,7 +95,7 @@ func (f statusFilter) union() (string, []any) {
 	incidentScope := func() (string, []any) {
 		clause, a := "1=1", []any(nil)
 		if f.ServerID != "" {
-			clause += " AND i.agent_id = ?"
+			clause += " AND i.node_id = ?"
 			a = append(a, f.ServerID)
 		}
 		if f.MonitorID != "" {
@@ -115,9 +115,9 @@ func (f statusFilter) union() (string, []any) {
 		tr, ta := timeRange("r.created_at")
 		sc, sa := monitorScope("")
 		add(`SELECT 'r:' || r.id AS id, `+msExpr("r.created_at")+` AS at_ms, 'monitor' AS type, CASE r.health WHEN 'up' THEN 'info' WHEN 'degraded' THEN 'warn' ELSE 'error' END AS level, 'check' AS kind,
-			COALESCE(m.agent_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num,
+			COALESCE(m.node_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num,
 			r.health AS a, r.payload AS b, '' AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM monitor_reports r JOIN monitors m ON m.id = r.monitor_id LEFT JOIN agents a ON a.id = m.agent_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
+			FROM monitor_reports r JOIN monitors m ON m.id = r.monitor_id LEFT JOIN nodes a ON a.id = m.node_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
 
 		// State changes: a report whose health differs from the previous report of the same monitor.
 		lookback := time.Time{}
@@ -138,23 +138,23 @@ func (f statusFilter) union() (string, []any) {
 		}
 		scTr, saTr := monitorScope("")
 		add(`SELECT 't:' || t.id AS id, `+msExpr("t.created_at")+` AS at_ms, 'monitor' AS type, CASE t.health WHEN 'up' THEN 'info' WHEN 'degraded' THEN 'warn' ELSE 'error' END AS level, 'transition' AS kind,
-			COALESCE(m.agent_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num,
+			COALESCE(m.node_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num,
 			t.health AS a, t.payload AS b, t.prev AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
 			FROM (SELECT r.id, r.monitor_id, r.created_at, r.health, r.payload, LAG(r.health) OVER (PARTITION BY r.monitor_id ORDER BY r.created_at, r.id) AS prev
 				FROM monitor_reports r WHERE `+lbClause+` AND `+toClause+`) t
-			JOIN monitors m ON m.id = t.monitor_id LEFT JOIN agents a ON a.id = m.agent_id
+			JOIN monitors m ON m.id = t.monitor_id LEFT JOIN nodes a ON a.id = m.node_id
 			WHERE t.prev IS NOT NULL AND t.prev <> t.health AND `+fromClause+` AND `+scTr, concatArgs(lbArgs, toArgs, fromArgs, saTr)...)
 	}
 	if f.allowsType("server") && noIncident && f.MonitorID == "" {
 		tr, ta := timeRange("ar.created_at")
 		scope, sa := "1=1", []any(nil)
 		if f.ServerID != "" {
-			scope, sa = "ar.agent_id = ?", []any{f.ServerID}
+			scope, sa = "ar.node_id = ?", []any{f.ServerID}
 		}
 		add(`SELECT 'a:' || ar.id AS id, `+msExpr("ar.created_at")+` AS at_ms, 'server' AS type, 'info' AS level, 'report' AS kind,
-			ar.agent_id AS server_id, COALESCE(a.name,'') AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num,
-			COALESCE(CAST(json_extract(ar.cpu, '$.usage_percent') AS TEXT),'') AS a, COALESCE(CAST(json_extract(ar.memory, '$.used_percent') AS TEXT),'') AS b, COALESCE(CAST(json_extract(ar.disk, '$.used_percent') AS TEXT),'') AS c, ar.agent_version AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM agent_reports ar LEFT JOIN agents a ON a.id = ar.agent_id WHERE `+tr+` AND `+scope, append(ta, sa...)...)
+			ar.node_id AS server_id, COALESCE(a.name,'') AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num,
+			COALESCE(CAST(json_extract(ar.cpu, '$.usage_percent') AS TEXT),'') AS a, COALESCE(CAST(json_extract(ar.memory, '$.used_percent') AS TEXT),'') AS b, COALESCE(CAST(json_extract(ar.disk, '$.used_percent') AS TEXT),'') AS c, ar.node_version AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
+			FROM node_reports ar LEFT JOIN nodes a ON a.id = ar.node_id WHERE `+tr+` AND `+scope, append(ta, sa...)...)
 		tr, ta = timeRange("g.created_at")
 		scope, sa = "g.system = 0", nil
 		if f.ServerID != "" {
@@ -162,45 +162,45 @@ func (f statusFilter) union() (string, []any) {
 		}
 		add(`SELECT 'g:' || g.id AS id, `+msExpr("g.created_at")+` AS at_ms, 'server' AS type, 'info' AS level, 'registered' AS kind,
 			g.id AS server_id, g.name AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num, g.name AS a, '' AS b, '' AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM agents g WHERE `+tr+` AND `+scope, append(ta, sa...)...)
+			FROM nodes g WHERE `+tr+` AND `+scope, append(ta, sa...)...)
 	}
 	if f.allowsType("monitor") && noIncident {
 		tr, ta := timeRange("m.created_at")
 		sc, sa := monitorScope(" AND m.system = 0")
 		add(`SELECT 'm:' || m.id AS id, `+msExpr("m.created_at")+` AS at_ms, 'monitor' AS type, 'info' AS level, 'created' AS kind,
-			COALESCE(m.agent_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num, m.name AS a, '' AS b, '' AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM monitors m LEFT JOIN agents a ON a.id = m.agent_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
+			COALESCE(m.node_id,'') AS server_id, COALESCE(a.name,'') AS server_name, m.id AS monitor_id, m.name AS monitor_name, '' AS incident_id, 0 AS inc_num, m.name AS a, '' AS b, '' AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
+			FROM monitors m LEFT JOIN nodes a ON a.id = m.node_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
 	}
 	if f.allowsType("incident") {
 		tr, ta := timeRange("e.created_at")
 		sc, sa := incidentScope()
 		add(`SELECT 'i:' || e.id AS id, `+msExpr("e.created_at")+` AS at_ms, 'incident' AS type,
 			CASE e.type WHEN 'incident_opened' THEN 'error' WHEN 'monitor_failed' THEN 'error' WHEN 'incident_reopened' THEN 'error' WHEN 'incident_declared' THEN 'error' WHEN 'incident_covered' THEN 'warn' ELSE 'info' END AS level, e.type AS kind,
-			i.agent_id AS server_id, COALESCE(a.name,'') AS server_name, i.monitor_id AS monitor_id, COALESCE(m.name,'') AS monitor_name, i.id AS incident_id, i.number AS inc_num,
+			i.node_id AS server_id, COALESCE(a.name,'') AS server_name, i.monitor_id AS monitor_id, COALESCE(m.name,'') AS monitor_name, i.id AS incident_id, i.number AS inc_num,
 			e.message AS a, e.note AS b, e.actor_id AS c, i.title AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM incident_events e JOIN incidents i ON i.id = e.incident_id LEFT JOIN monitors m ON m.id = i.monitor_id LEFT JOIN agents a ON a.id = i.agent_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
+			FROM incident_events e JOIN incidents i ON i.id = e.incident_id LEFT JOIN monitors m ON m.id = i.monitor_id LEFT JOIN nodes a ON a.id = i.node_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
 	}
 	if f.allowsType("alert") {
 		tr, ta := timeRange("d.created_at")
 		sc, sa := incidentScope()
 		add(`SELECT 'd:' || d.id AS id, `+msExpr("d.created_at")+` AS at_ms, 'alert' AS type,
 			CASE d.status WHEN 'failed' THEN 'error' WHEN 'suppressed' THEN 'warn' WHEN 'cooldown' THEN 'warn' ELSE 'info' END AS level, 'delivery' AS kind,
-			COALESCE(i.agent_id,'') AS server_id, COALESCE(a.name,'') AS server_name, COALESCE(i.monitor_id,'') AS monitor_id, COALESCE(m.name,'') AS monitor_name, COALESCE(i.id,'') AS incident_id, COALESCE(i.number,0) AS inc_num,
+			COALESCE(i.node_id,'') AS server_id, COALESCE(a.name,'') AS server_name, COALESCE(i.monitor_id,'') AS monitor_id, COALESCE(m.name,'') AS monitor_name, COALESCE(i.id,'') AS incident_id, COALESCE(i.number,0) AS inc_num,
 			d.channel AS a, d.type AS b, d.status AS c, d.error AS d, d.attempt_count AS n1, d.max_attempts AS n2,
 			COALESCE((SELECT x.http_status FROM alert_delivery_attempts x WHERE x.alert_delivery_id = d.id ORDER BY x.attempt_number DESC LIMIT 1),0) AS n3,
 			COALESCE((SELECT CAST((julianday(x.completed_at) - julianday(x.started_at)) * 86400000 AS INTEGER) FROM alert_delivery_attempts x WHERE x.alert_delivery_id = d.id AND x.completed_at IS NOT NULL ORDER BY x.attempt_number DESC LIMIT 1),0) AS n4
-			FROM alert_deliveries d LEFT JOIN incidents i ON i.id = d.incident_id LEFT JOIN monitors m ON m.id = i.monitor_id LEFT JOIN agents a ON a.id = i.agent_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
+			FROM alert_deliveries d LEFT JOIN incidents i ON i.id = d.incident_id LEFT JOIN monitors m ON m.id = i.monitor_id LEFT JOIN nodes a ON a.id = i.node_id WHERE `+tr+` AND `+sc, append(ta, sa...)...)
 	}
 	if f.allowsType("system") && noIncident && f.MonitorID == "" {
 		tr, ta := timeRange("u.created_at")
 		scope, sa := "1=1", []any(nil)
 		if f.ServerID != "" {
-			scope, sa = "u.affected_object_type = 'agent' AND u.affected_object_id = ?", []any{f.ServerID}
+			scope, sa = "u.affected_object_type = 'node' AND u.affected_object_id = ?", []any{f.ServerID}
 		}
 		add(`SELECT 'u:' || u.id AS id, `+msExpr("u.created_at")+` AS at_ms, 'system' AS type, 'info' AS level, 'audit' AS kind,
-			CASE WHEN u.affected_object_type = 'agent' THEN u.affected_object_id ELSE '' END AS server_id, COALESCE(a.name,'') AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num,
+			CASE WHEN u.affected_object_type = 'node' THEN u.affected_object_id ELSE '' END AS server_id, COALESCE(a.name,'') AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num,
 			u.action AS a, u.metadata_json AS b, u.actor_id AS c, u.affected_object_type AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4
-			FROM audit_events u LEFT JOIN agents a ON a.id = u.affected_object_id AND u.affected_object_type = 'agent' WHERE `+tr+` AND `+scope, append(ta, sa...)...)
+			FROM audit_events u LEFT JOIN nodes a ON a.id = u.affected_object_id AND u.affected_object_type = 'node' WHERE `+tr+` AND `+scope, append(ta, sa...)...)
 	}
 	if len(branches) == 0 {
 		return `SELECT '' AS id, 0 AS at_ms, '' AS type, '' AS level, '' AS kind, '' AS server_id, '' AS server_name, '' AS monitor_id, '' AS monitor_name, '' AS incident_id, 0 AS inc_num, '' AS a, '' AS b, '' AS c, '' AS d, 0 AS n1, 0 AS n2, 0 AS n3, 0 AS n4 WHERE 1=0`, nil

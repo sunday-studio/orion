@@ -64,16 +64,16 @@ func TestAppDispatchAlertsProcessesDueDeliveries(t *testing.T) {
 	}
 }
 
-func TestAppSweepSilentMonitorsOpensIncidentForQuietAgentMonitor(t *testing.T) {
+func TestAppSweepSilentMonitorsOpensIncidentForQuietNodeMonitor(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}, SweepBootGrace: -1})
 	if app.sweepEvery != defaultSweepInterval {
 		t.Fatalf("sweepEvery = %v, want %v", app.sweepEvery, defaultSweepInterval)
 	}
 	old := time.Now().UTC().Add(-time.Hour)
-	agent := db.Agent{ID: "agent-quiet", MachineId: "machine-quiet", Name: "quiet", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old}
-	monitor := db.Monitor{ID: "monitor-quiet", AgentID: agent.ID, Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old}
-	if err := database.Create(&agent).Error; err != nil {
+	node := db.Node{ID: "node-quiet", MachineId: "machine-quiet", Name: "quiet", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old}
+	monitor := db.Monitor{ID: "monitor-quiet", NodeID: node.ID, Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old}
+	if err := database.Create(&node).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := database.Create(&monitor).Error; err != nil {
@@ -96,8 +96,8 @@ func TestAppSweepWaitsForBootGraceAfterStart(t *testing.T) {
 		t.Fatalf("sweepBootGrace = %v, want %v", app.sweepBootGrace, defaultSweepBootGrace)
 	}
 	old := time.Now().UTC().Add(-time.Hour)
-	database.Create(&db.Agent{ID: "agent-boot", MachineId: "machine-boot", Name: "boot", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old})
-	database.Create(&db.Monitor{ID: "monitor-boot", AgentID: "agent-boot", Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
+	database.Create(&db.Node{ID: "node-boot", MachineId: "machine-boot", Name: "boot", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old})
+	database.Create(&db.Monitor{ID: "monitor-boot", NodeID: "node-boot", Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
 
 	app.sweepSilentMonitors()
 	var count int64

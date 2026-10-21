@@ -16,8 +16,8 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 
-	if !database.Migrator().HasTable(&Agent{}) {
-		t.Fatal("agents table was not created")
+	if !database.Migrator().HasTable(&Node{}) {
+		t.Fatal("nodes table was not created")
 	}
 	if !database.Migrator().HasTable(&AlertDelivery{}) {
 		t.Fatal("alert_deliveries table was not created")
@@ -88,8 +88,8 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 		t.Fatal("audit_events.metadata_json was not created")
 	}
 	for _, column := range []string{"token_hash", "token_version", "token_rotated_at", "token_revoked_at", "token_revocation_reason"} {
-		if !database.Migrator().HasColumn(&Agent{}, column) {
-			t.Fatalf("agents.%s was not created", column)
+		if !database.Migrator().HasColumn(&Node{}, column) {
+			t.Fatalf("nodes.%s was not created", column)
 		}
 	}
 	if !database.Migrator().HasTable(&StatusPageSubscriber{}) {
@@ -286,7 +286,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
+func TestMigrateRepairsLegacyNodeReportMetadataColumns(t *testing.T) {
 	database := openMigrationTestDatabase(t)
 	sqlDB, err := database.DB()
 	if err != nil {
@@ -299,7 +299,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			(2, '000002_data_lifecycle_settings.up.sql', CURRENT_TIMESTAMP),
 			(3, '000003_monitor_uptime_rollups.up.sql', CURRENT_TIMESTAMP),
 			(4, '000004_incident_reconciliation_state.up.sql', CURRENT_TIMESTAMP);
-		CREATE TABLE agents (
+		CREATE TABLE nodes (
 			id TEXT PRIMARY KEY,
 			machine_id TEXT NOT NULL,
 			name TEXT NOT NULL,
@@ -311,9 +311,9 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			created_at DATETIME,
 			last_seen DATETIME
 		);
-		CREATE TABLE agent_reports (
+		CREATE TABLE node_reports (
 			id VARCHAR(255) PRIMARY KEY,
-			agent_id TEXT NOT NULL,
+			node_id TEXT NOT NULL,
 			created_at DATETIME,
 			uptime_seconds INTEGER,
 			timestamp TEXT,
@@ -324,7 +324,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 		);
 		CREATE TABLE monitors (
 			id TEXT PRIMARY KEY,
-			agent_id TEXT NOT NULL,
+			node_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			lifecycle TEXT NOT NULL,
 			active_incident_id TEXT NOT NULL DEFAULT '',
@@ -371,7 +371,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			status TEXT NOT NULL,
 			severity TEXT NOT NULL,
 			title TEXT NOT NULL,
-			agent_id TEXT NOT NULL,
+			node_id TEXT NOT NULL,
 			monitor_id TEXT NOT NULL,
 			opened_at DATETIME NOT NULL,
 			resolved_at DATETIME,
@@ -386,7 +386,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			status,
 			severity,
 			title,
-			agent_id,
+			node_id,
 			monitor_id,
 			opened_at,
 			last_event_at,
@@ -396,7 +396,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			'open',
 			'high',
 			'legacy incident',
-			'agent-legacy',
+			'node-legacy',
 			'monitor-legacy',
 			CURRENT_TIMESTAMP,
 			CURRENT_TIMESTAMP,
@@ -410,9 +410,9 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 
-	for _, column := range []string{"agent_version", "config_summary"} {
-		if !database.Migrator().HasColumn(&AgentReport{}, column) {
-			t.Fatalf("agent_reports.%s was not added", column)
+	for _, column := range []string{"node_version", "config_summary"} {
+		if !database.Migrator().HasColumn(&NodeReport{}, column) {
+			t.Fatalf("node_reports.%s was not added", column)
 		}
 	}
 	if !database.Migrator().HasColumn(&Incident{}, "impacted_components") {

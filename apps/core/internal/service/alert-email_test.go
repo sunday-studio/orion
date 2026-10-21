@@ -75,7 +75,7 @@ func TestEmailChannelDoubleOptInAllModes(t *testing.T) {
 			if err := s.ConfirmRecipient(confirmToken); err != nil {
 				t.Fatalf("ConfirmRecipient: %v", err)
 			}
-			newIncidentForOtherAgent(t, s, "incident-2", "agent-2") // separate alert group
+			newIncidentForOtherNode(t, s, "incident-2", "node-2") // separate alert group
 			if err := s.QueueIncidentNotifications("incident-2", "incident_opened"); err != nil {
 				t.Fatal(err)
 			}
@@ -98,7 +98,7 @@ func TestEmailChannelDoubleOptInAllModes(t *testing.T) {
 			if err := s.UnsubscribeRecipient(lastLink(t, alert, "unsubscribe")); err != nil {
 				t.Fatal(err)
 			}
-			newIncidentForOtherAgent(t, s, "incident-3", "agent-3")
+			newIncidentForOtherNode(t, s, "incident-3", "node-3")
 			if err := s.QueueIncidentNotifications("incident-3", "incident_opened"); err != nil {
 				t.Fatal(err)
 			}
@@ -183,8 +183,8 @@ func TestEmailChannelRejectsBadAddressesAndUnconfiguredSMTP(t *testing.T) {
 	}
 }
 
-func newIncidentForOtherAgent(t *testing.T, s *AlertService, id, agent string) {
+func newIncidentForOtherNode(t *testing.T, s *AlertService, id, node string) {
 	t.Helper()
 	createTestIncident(t, s.db, id)
-	s.db.Model(&db.Incident{}).Where("id = ?", id).Update("agent_id", agent)
+	s.db.Model(&db.Incident{}).Where("id = ?", id).Update("node_id", node)
 }

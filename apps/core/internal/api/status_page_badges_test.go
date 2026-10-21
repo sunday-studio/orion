@@ -28,7 +28,7 @@ func TestPublicStatusPageBadgeRendersCurrentStatusAndCacheHeaders(t *testing.T) 
 		t.Fatalf("page badge body = %s, want public title and current status", body)
 	}
 	assertNotContains(t, body, monitorID)
-	assertNotContains(t, body, "agent-private-badge")
+	assertNotContains(t, body, "node-private-badge")
 	assertNotContains(t, body, "mapping-private-badge")
 	assertNotContains(t, body, visibleComponent.ManualStatusReason)
 }
@@ -46,7 +46,7 @@ func TestPublicStatusPageComponentBadgeRendersVisibleComponent(t *testing.T) {
 	}
 	assertNotContains(t, body, visibleComponent.ID)
 	assertNotContains(t, body, monitorID)
-	assertNotContains(t, body, "agent-private-badge")
+	assertNotContains(t, body, "node-private-badge")
 }
 
 func TestPublicStatusPageComponentBadgeReturnsNotFoundForHiddenComponent(t *testing.T) {
@@ -122,19 +122,19 @@ func setupStatusPageBadgeTestData(t *testing.T) (*Server, db.StatusPage, db.Stat
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	agent := db.Agent{
-		ID:        "agent-private-badge",
+	node := db.Node{
+		ID:        "node-private-badge",
 		MachineId: "machine-private-badge",
 		Name:      "private host",
 		OS:        "linux",
 		Arch:      "arm64",
-		Token:     "secret-agent-badge-token",
+		Token:     "secret-node-badge-token",
 		LastSeen:  now,
 		CreatedAt: now,
 	}
 	monitor := db.Monitor{
 		ID:             "monitor-private-badge",
-		AgentID:        agent.ID,
+		NodeID:         node.ID,
 		Name:           "private monitor",
 		Type:           "http",
 		Lifecycle:      "active",
@@ -166,8 +166,8 @@ func setupStatusPageBadgeTestData(t *testing.T) (*Server, db.StatusPage, db.Stat
 	if err := server.db.Model(&db.StatusPageComponent{}).Where("id = ?", hiddenComponent.ID).Update("visible", false).Error; err != nil {
 		t.Fatalf("hide component: %v", err)
 	}
-	if err := server.db.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := server.db.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatalf("create monitor: %v", err)

@@ -20,7 +20,7 @@ type orionEventFilters struct {
 
 // listOrionEvents retrieves Orion operational events derived from stored records.
 // @Summary      List Orion events
-// @Description  Operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions, newest first. Page with the keyset `cursor` (preferred: constant cost per page); `offset` is kept for compatibility, capped at 5000 rows, and makes `count` a lower bound.
+// @Description  Operational event log for Core, nodes, monitors, incidents, alerts, and lifecycle actions, newest first. Page with the keyset `cursor` (preferred: constant cost per page); `offset` is kept for compatibility, capped at 5000 rows, and makes `count` a lower bound.
 // @Tags         events
 // @Accept       json
 // @Produce      json
@@ -103,12 +103,12 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 
 func auditEventMessage(event db.AuditEvent) string {
 	switch event.Action {
-	case service.AgentTokenAuditActionRotated:
-		return "Agent token rotated"
-	case service.AgentTokenAuditActionRevoked:
-		return "Agent token revoked"
-	case service.AgentTokenAuditActionReissued:
-		return "Agent token reissued"
+	case service.NodeTokenAuditActionRotated:
+		return "Node token rotated"
+	case service.NodeTokenAuditActionRevoked:
+		return "Node token revoked"
+	case service.NodeTokenAuditActionReissued:
+		return "Node token reissued"
 	case service.DataLifecycleAuditActionSettingsUpdated:
 		return "Data lifecycle settings updated"
 	case service.DataLifecycleAuditActionRollupRun:
@@ -120,16 +120,16 @@ func auditEventMessage(event db.AuditEvent) string {
 	case service.DataLifecycleAuditActionArchiveRun:
 		metadata := auditEventMetadata(event)
 		status := auditEventMetadataString(metadata, "result_status", "unknown")
-		agentReports := auditEventMetadataInt(metadata, "agent_reports_archived")
+		nodeReports := auditEventMetadataInt(metadata, "node_reports_archived")
 		monitorReports := auditEventMetadataInt(metadata, "monitor_reports_archived")
-		return fmt.Sprintf("Manual data lifecycle archive finished with %s status (%d agent reports, %d monitor reports)", status, agentReports, monitorReports)
+		return fmt.Sprintf("Manual data lifecycle archive finished with %s status (%d node reports, %d monitor reports)", status, nodeReports, monitorReports)
 	default:
 		return strings.ReplaceAll(event.Action, "_", " ")
 	}
 }
 
-func auditEventAgentID(event db.AuditEvent) string {
-	if event.AffectedObjectType == "agent" {
+func auditEventNodeID(event db.AuditEvent) string {
+	if event.AffectedObjectType == "node" {
 		return event.AffectedObjectID
 	}
 	return ""
@@ -165,7 +165,7 @@ func orionEventMatchesSearch(event OrionEventResponse, search string) bool {
 		event.Type,
 		event.Source,
 		event.Message,
-		event.AgentID,
+		event.NodeID,
 		event.MonitorID,
 		event.IncidentID,
 	}

@@ -25,7 +25,7 @@ func describeMonitorReport(report db.MonitorReport) (summary string, durationMs 
 	case "heartbeat":
 		reportedBy = "Heartbeat ping"
 	default:
-		reportedBy = "Agent"
+		reportedBy = "Node"
 	}
 	var parts []string
 	if msg, ok := payload["error"].(string); ok && strings.TrimSpace(msg) != "" {

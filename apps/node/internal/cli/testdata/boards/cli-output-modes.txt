@@ -1,0 +1,60 @@
+=== plain output
+$ NO_COLOR=1 orion-node status        (or any pipe)
+edge-05 [up] connected to core.example.com
+last report 14:32:08 (2 s ago), queue 0 pending
+monitors 5: 3 up, 1 slow, 1 down
+  [down]  redis       port 6379 refused, 4 m
+  [slow]  api         412 ms over limit, 9 m
+next: orion-node doctor
+
+No color, no box, no glyphs, no animation. Same words, same order, one fact per line,
+so grep and screen readers both work. TERM=dumb behaves the same.
+
+=== --json
+$ orion-node status --json
+{
+  "schema_version": 2,
+  "registered": true,
+  "maintenance": false,
+  "monitors": 5,
+  "queue_pending": 0,
+  "service_running": true,
+  "state_status": "connected",
+  …
+}
+Flat, versioned and stable. Doctor lists each check with id, label, status and message.
+Abridged here; full shapes are the golden files in the repo.
+
+=== accessible prompts
+$ ACCESSIBLE=1 orion-node setup
+Where is your Core? The address you open the Console at.
+Input: https://core.example.com
+Reachable. Core 1.4.0.
+One-time token (input is hidden):
+
+Which of these should Orion watch? Enter numbers separated by commas.
+  1. nginx (high)   2. postgresql (high)   3. api (high)   4. redis (medium)
+Choice: 1,2,3
+
+Plain line prompts, no cursor movement. Used automatically with no TTY.
+
+=== exit codes and modes
+ EXIT CODES
+   0   ok
+   1   failed checks or errors
+   2   usage error: unknown command or flag
+   3   needs elevation: run with sudo
+
+ WHICH COMMANDS OPEN AN INTERFACE
+   forms       setup · enroll · token apply · maintenance down · stop · config edit
+   live inline doctor · update · status --watch · usage --watch
+   full screen logs --follow
+   plain       everything else, always when piped or with --json
+
+No arguments on a terminal prints help; there is no app.
+
+--- notes
+NOTE One rule: Interface only appears when a person is on a terminal and the command needs input or takes time. Everything else is text.
+NOTE Plain is a real layout: Not stripped color: a designed text layout with bracketed states, one fact per line.
+NOTE Accessible prompts: Setup and enroll fall back to line prompts with ACCESSIBLE=1 or without a TTY.
+NOTE Contract: Text layout, JSON shape and exit codes are covered by the golden tests in the repo.

@@ -24,12 +24,12 @@ func TestUniqueActiveIncidentMigrationDedupesExistingRows(t *testing.T) {
 	}
 	base := time.Now().UTC()
 	for i, id := range []string{"old", "mid", "new"} {
-		inc := Incident{ID: id, Status: "open", Severity: "high", Title: "t", AgentID: "a", MonitorID: "m1", OpenedAt: base.Add(time.Duration(i) * time.Minute), LastEventAt: base, NotificationStatus: "pending"}
+		inc := Incident{ID: id, Status: "open", Severity: "high", Title: "t", NodeID: "a", MonitorID: "m1", OpenedAt: base.Add(time.Duration(i) * time.Minute), LastEventAt: base, NotificationStatus: "pending"}
 		if err := database.Create(&inc).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
-	other := Incident{ID: "other", Status: "open", Severity: "high", Title: "t", AgentID: "a", MonitorID: "m2", OpenedAt: base, LastEventAt: base, NotificationStatus: "pending"}
+	other := Incident{ID: "other", Status: "open", Severity: "high", Title: "t", NodeID: "a", MonitorID: "m2", OpenedAt: base, LastEventAt: base, NotificationStatus: "pending"}
 	database.Create(&other)
 
 	sql, err := os.ReadFile("migrations/000028_unique_active_incident.up.sql")
@@ -65,21 +65,21 @@ func TestMaintenanceMigrationGivesLegacyMaintenanceAnEnd(t *testing.T) {
 	if err := Migrate(database); err != nil {
 		t.Fatal(err)
 	}
-	database.Create(&Agent{ID: "legacy", MachineId: "m1", Name: "legacy", OS: "linux", Arch: "amd64", Token: "t1", MaintenanceMode: true})
-	database.Create(&Agent{ID: "idle", MachineId: "m2", Name: "idle", OS: "linux", Arch: "amd64", Token: "t2"})
-	sql, _ := os.ReadFile("migrations/000034_agent_maintenance_until.up.sql")
+	database.Create(&Node{ID: "legacy", MachineId: "m1", Name: "legacy", OS: "linux", Arch: "amd64", Token: "t1", MaintenanceMode: true})
+	database.Create(&Node{ID: "idle", MachineId: "m2", Name: "idle", OS: "linux", Arch: "amd64", Token: "t2"})
+	sql, _ := os.ReadFile("migrations/000034_node_maintenance_until.up.sql")
 	// Re-run only the backfill UPDATE (the ALTER already ran with Migrate).
-	update := string(sql)[strings.Index(string(sql), "UPDATE agents"):]
+	update := string(sql)[strings.Index(string(sql), "UPDATE nodes"):]
 	if err := database.Exec(update).Error; err != nil {
 		t.Fatal(err)
 	}
-	var legacy, idle Agent
+	var legacy, idle Node
 	database.First(&legacy, "id = ?", "legacy")
 	database.First(&idle, "id = ?", "idle")
 	if legacy.MaintenanceUntil == nil || time.Until(*legacy.MaintenanceUntil) < 23*time.Hour {
 		t.Fatalf("legacy maintenance end = %v, want about 24h from now", legacy.MaintenanceUntil)
 	}
 	if idle.MaintenanceUntil != nil {
-		t.Fatal("agents not in maintenance must be untouched")
+		t.Fatal("nodes not in maintenance must be untouched")
 	}
 }

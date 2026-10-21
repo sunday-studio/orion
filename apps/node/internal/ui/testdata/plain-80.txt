@@ -1,0 +1,16 @@
+Orion Node / status
+  service    ● up
+  core       https://core.example.com
+  reporting  ‖ maintenance deploying
+
+Check   Result  Detail                                                          
+config  ok      /etc/orion/config.yaml, 3 monitor(s)                            
+core    FAIL    connection refused: check the network path to Core and the      
+                core_url value                                                  
+
+▌ WARNING  the clock differs from Core by 2m
+  ok   check ok
+  warn check warn
+  FAIL check fail
+  skip check skip
+  ..   check running

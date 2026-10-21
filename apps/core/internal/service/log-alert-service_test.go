@@ -201,7 +201,7 @@ func TestEvaluateAllSkipsDisabledRulesAndKeepsGoingAfterAnError(t *testing.T) {
 	}
 }
 
-// Review P2: rules share the Core owner agent, so grouping by agent would swallow the second page.
+// Review P2: rules share the Core owner node, so grouping by node would swallow the second page.
 func TestTwoFiringRulesPageSeparately(t *testing.T) {
 	f := newLogAlertFixture(t)
 	second := db.App{ID: "app-2", Name: "billing", Slug: "billing", RetentionDays: 14, DebugSampleRate: 1, DisplayJSON: "{}", RedactionJSON: "{}", CreatedAt: f.now, UpdatedAt: f.now}

@@ -1,0 +1,61 @@
+=== doctor  ·  running
+$ orion-node doctor
+
+ ◆ Doctor  edge-05                                                           18 checks
+ ╭ Node ──────────────────────────────────────────────────────────────────────── 3 ✓ ╮
+ │ ✓ Config valid                 /etc/orion/config.yaml                       4 ms   │
+ │ ✓ Service running              systemd · pid 2114                                  │
+ │ ✓ State database                                                                   │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Core ───────────────────────────────────────────────────────────────────────── 3 ✓ ╮
+ │ ✓ Reachable                    core.example.com                            38 ms   │
+ │ ✓ Credentials accepted                                                             │
+ │ ✓ Clock within 1 s                                                                 │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Discovery ──────────────────────────────────────────────────────────────────── 1 ! ╮
+ │ ✓ Last scan                    14:30 · found 7 things                              │
+ │ ! Docker is not readable by the node                                              │
+ │      │ Containers are not scanned, so none can be suggested.                       │
+ │      │ Fix  sudo usermod -aG docker orion   (this access is powerful)              │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Logs ───────────────────────────────────────────────────────────────────────── 1 ! ╮
+ │ ! Log key for nginx is missing                                                     │
+ │      │ Fix  orion-node setup --logs nginx                                         │
+ │ ⠹ Spool writable…                                                                  │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸────  16 of 18
+
+=== doctor  ·  all clear
+$ orion-node doctor
+
+ ◆ Doctor  edge-05
+
+   ✓ 16 checks passed                                                            0.9 s
+
+(when everything passes the list collapses to one line; --verbose shows each check)
+
+=== doctor  ·  failing
+$ orion-node doctor
+
+   ✓ Config valid
+   ✗ Core is not reachable
+     │ dial tcp 10.0.0.5:8999: connection refused
+     │ Fix  check the address, then orion-node config edit
+   ✗ Credentials rejected by Core
+     │ Core answered 401 for this server's token
+     │ Fix  orion-node token apply  with a replacement token from the Console
+
+ ╭──────────────────────────────────────────────────╮
+ │ ✓ 13 passed   ! 1 warning   ✗ 2 failed           │
+ ╰──────────────────────────────────────────────────╯
+
+$ echo $?
+1
+
+--- notes
+NOTE A checklist that fills in: Grouped by where things break: Node, Core, Logs, System. One line per check with the live item shown by a spinner.
+NOTE Problems explain themselves: A warning or failure expands inline: what it means, the evidence, and the exact fix in bold, ready to copy.
+NOTE Calm when healthy: All passing collapses to a single line. Detail is a flag away.
+NOTE Real exit codes: 0 healthy, 1 problems found. --json keeps the per-check schema.
+NOTE New check: Log source and ingest key check does not exist yet; this board assumes it.

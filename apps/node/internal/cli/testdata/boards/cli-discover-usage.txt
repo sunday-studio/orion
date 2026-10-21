@@ -1,0 +1,43 @@
+=== discover
+$ orion-node discover
+
+ ◆ Discover  found on edge-05                                         7 things · 1 new
+ ╭ Services ─────────────────────────────────────────────────────────────────────── 3 ╮
+ │  ◉ nginx             Check it is running                                 high      │
+ │  ◉ postgresql        Check it is running                                 high      │
+ │  ✓ redis             already monitored               managed in file               │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Containers ───────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◉ api               Check it is running                                 high      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Ports ────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◯ :6379 redis       Check it accepts connections                        medium    │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Disks ────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◉ /var              Alert above 90% full                                high      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Logs ─────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◯ nginx error.log   Ship its lines                  needs a log key     medium    │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ 4 pre-ticked · apply them with orion-node setup
+
+=== usage --watch
+$ orion-node usage --watch
+
+ ◆ Usage  what apps cost right now                                   ● live 3 s window
+ ╭ Apps ────────────────────────────────────────────────────────────────────── by CPU ╮
+ │ NAME          CPU                       MEMORY                 NET rx / tx         │
+ │ nginx      ━━━━━╸──────── 4.1%   ╸─────── 86 MB      1.2 MB / 3.4 MB               │
+ │ postgresql ━━━╸────────── 2.8%   ━━━───── 412 MB     -                             │
+ │ api        ━╸──────────── 1.2%   ━╸────── 204 MB     320 KB / 90 KB                │
+ │ redis      ────────────── 0.2%   ──────── 31 MB      12 KB / 8 KB                  │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ measured from outside: processes, systemd units and containers. - means unknown.
+
+  s  sort   q  quit
+
+--- notes
+NOTE Pick from what exists: Discover becomes a selectable table (bubbles/table). Enter adds the selection to the config using the same code as setup.
+NOTE Usage is live: Bars update in place every few seconds. Without --watch it samples twice and prints once.
+NOTE Unknown is not zero: A value that cannot be measured shows -, never an empty bar.

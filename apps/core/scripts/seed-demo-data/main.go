@@ -38,13 +38,13 @@ type seedConfig struct {
 	dbPath         string
 	dataDir        string
 	days           int
-	agents         int
+	nodes          int
 	reportInterval time.Duration
 	resetSeed      bool
 	updateSettings bool
 }
 
-const defaultAgentCount = 36
+const defaultNodeCount = 36
 
 type dayCounts struct {
 	up       int
@@ -106,9 +106,9 @@ func main() {
 	}
 
 	fmt.Printf("Seeded Orion demo data into %s\n", cfg.dbPath)
-	fmt.Printf("  agents: %d\n", stats.agents)
+	fmt.Printf("  nodes: %d\n", stats.nodes)
 	fmt.Printf("  monitors: %d\n", stats.monitors)
-	fmt.Printf("  agent reports: %d\n", stats.agentReports)
+	fmt.Printf("  node reports: %d\n", stats.nodeReports)
 	fmt.Printf("  monitor reports: %d\n", stats.monitorReports)
 	fmt.Printf("  incidents: %d\n", stats.incidents)
 	fmt.Printf("  alert channels: %d, recipients: %d, rules: %d, delivery attempts: %d\n", stats.alertDetails.channels, stats.alertDetails.recipients, stats.alertDetails.rules, stats.alertDetails.attempts)
@@ -132,9 +132,9 @@ func main() {
 }
 
 type seedStats struct {
-	agents                   int
+	nodes                    int
 	monitors                 int
-	agentReports             int
+	nodeReports              int
 	monitorReports           int
 	incidents                int
 	incidentExtras           incidentExtraStats
@@ -158,7 +158,7 @@ func parseFlags() seedConfig {
 	flag.StringVar(&cfg.dataDir, "data-dir", "data", "Core data directory used when -db is empty")
 	flag.StringVar(&cfg.dbPath, "db", "", "SQLite database path. Defaults to <data-dir>/orion.db")
 	flag.IntVar(&cfg.days, "days", 90, "Number of days of data to generate")
-	flag.IntVar(&cfg.agents, "agents", defaultAgentCount, "Number of seed agents to generate")
+	flag.IntVar(&cfg.nodes, "nodes", defaultNodeCount, "Number of seed nodes to generate")
 	flag.DurationVar(&cfg.reportInterval, "report-interval", time.Hour, "Time between generated report samples")
 	flag.BoolVar(&cfg.resetSeed, "reset-seed", true, "Delete previous seed-* rows before inserting new data")
 	flag.BoolVar(&cfg.updateSettings, "update-settings", true, "Upsert data lifecycle settings for demo data")
@@ -170,11 +170,11 @@ func parseFlags() seedConfig {
 	if cfg.days < 1 {
 		log.Fatal("-days must be >= 1")
 	}
-	if cfg.agents < 1 {
-		log.Fatal("-agents must be >= 1")
+	if cfg.nodes < 1 {
+		log.Fatal("-nodes must be >= 1")
 	}
-	if cfg.agents < len(scenarios) {
-		log.Fatalf("-agents must be >= %d to cover every seed scenario", len(scenarios))
+	if cfg.nodes < len(scenarios) {
+		log.Fatalf("-nodes must be >= %d to cover every seed scenario", len(scenarios))
 	}
 	if cfg.reportInterval < time.Minute {
 		log.Fatal("-report-interval must be >= 1m")
@@ -231,13 +231,13 @@ func resetSeedData(database *gorm.DB) error {
 	}
 
 	// Core may have opened real incidents on seeded monitors between runs.
-	const seedIncidents = "SELECT id FROM incidents WHERE monitor_id LIKE 'seed-%' OR agent_id LIKE 'seed-%'"
+	const seedIncidents = "SELECT id FROM incidents WHERE monitor_id LIKE 'seed-%' OR node_id LIKE 'seed-%'"
 	for _, table := range []string{"alert_deliveries", "incident_events"} {
 		if err := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE incident_id IN (%s)", table, seedIncidents)).Error; err != nil {
 			return err
 		}
 	}
-	if err := database.Exec("DELETE FROM incidents WHERE monitor_id LIKE 'seed-%' OR agent_id LIKE 'seed-%'").Error; err != nil {
+	if err := database.Exec("DELETE FROM incidents WHERE monitor_id LIKE 'seed-%' OR node_id LIKE 'seed-%'").Error; err != nil {
 		return err
 	}
 
@@ -246,9 +246,9 @@ func resetSeedData(database *gorm.DB) error {
 		"incident_events",
 		"incidents",
 		"monitor_reports",
-		"agent_reports",
+		"node_reports",
 		"monitors",
-		"agents",
+		"nodes",
 	}
 	for _, table := range tables {
 		query := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE id LIKE ?", table), "seed-%")
@@ -257,7 +257,7 @@ func resetSeedData(database *gorm.DB) error {
 		}
 	}
 	for _, statement := range []string{
-		"DELETE FROM agent_monitor_definitions WHERE id LIKE 'seed-%'",
+		"DELETE FROM node_monitor_definitions WHERE id LIKE 'seed-%'",
 		"DELETE FROM enrollment_sessions WHERE id LIKE 'seed-%'",
 		"DELETE FROM app_ingest_keys WHERE id LIKE 'seed-%'",
 		"DELETE FROM apps WHERE id LIKE 'seed-%'",
@@ -286,9 +286,9 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	stats := seedStats{}
 	now := time.Now().UTC().Truncate(time.Second)
 	start := now.AddDate(0, 0, -cfg.days)
-	agentCount := cfg.agents
-	if agentCount < len(scenarios) {
-		agentCount = len(scenarios)
+	nodeCount := cfg.nodes
+	if nodeCount < len(scenarios) {
+		nodeCount = len(scenarios)
 	}
 
 	if cfg.updateSettings {
@@ -298,27 +298,27 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	}
 
 	allMonitors := []db.Monitor{}
-	monitorToAgent := map[string]db.Agent{}
+	monitorToNode := map[string]db.Node{}
 	monitorToScenario := map[string]scenario{}
 	monitorToTemplate := map[string]monitorTemplate{}
 
-	for i := 0; i < agentCount; i++ {
+	for i := 0; i < nodeCount; i++ {
 		sc := scenarioForIndex(i)
-		agent := makeAgent(i, sc, now)
-		if err := database.Create(&agent).Error; err != nil {
+		node := makeNode(i, sc, now)
+		if err := database.Create(&node).Error; err != nil {
 			return stats, err
 		}
-		stats.agents++
+		stats.nodes++
 
 		if !sc.noReports {
-			created, err := seedAgentReports(database, agent, sc, cfg, start, now)
+			created, err := seedNodeReports(database, node, sc, cfg, start, now)
 			if err != nil {
 				return stats, err
 			}
-			stats.agentReports += created
+			stats.nodeReports += created
 		}
 
-		monitors := makeMonitors(agent, sc, now)
+		monitors := makeMonitors(node, sc, now)
 		if err := database.Create(&monitors).Error; err != nil {
 			return stats, err
 		}
@@ -326,7 +326,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		allMonitors = append(allMonitors, monitors...)
 
 		for _, monitor := range monitors {
-			monitorToAgent[monitor.ID] = agent
+			monitorToNode[monitor.ID] = node
 			monitorToScenario[monitor.ID] = sc
 			monitorToTemplate[monitor.ID] = templateByMonitor(monitor)
 		}
@@ -336,7 +336,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	if err := database.Create(&coreOwner).Error; err != nil {
 		return stats, err
 	}
-	stats.agents++
+	stats.nodes++
 	coreMonitor := makeCoreMonitor(coreOwner, now)
 	if err := database.Create(&coreMonitor).Error; err != nil {
 		return stats, err
@@ -346,7 +346,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	}
 	stats.monitors++
 	allMonitors = append(allMonitors, coreMonitor)
-	monitorToAgent[coreMonitor.ID] = coreOwner
+	monitorToNode[coreMonitor.ID] = coreOwner
 	monitorToScenario[coreMonitor.ID] = scenarios[0]
 	monitorToTemplate[coreMonitor.ID] = monitorTemplate{
 		key:         "core-http",
@@ -383,7 +383,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		return stats, err
 	}
 
-	incidentStats, err := seedIncidents(database, allMonitors, monitorToAgent, monitorToScenario, monitorToTemplate, now)
+	incidentStats, err := seedIncidents(database, allMonitors, monitorToNode, monitorToScenario, monitorToTemplate, now)
 	if err != nil {
 		return stats, err
 	}
@@ -392,7 +392,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		return stats, err
 	}
 	stats.alertDetails = alertStats
-	extraStats, err := seedIncidentExtras(database, allMonitors, monitorToAgent, monitorToScenario, now)
+	extraStats, err := seedIncidentExtras(database, allMonitors, monitorToNode, monitorToScenario, now)
 	if err != nil {
 		return stats, err
 	}

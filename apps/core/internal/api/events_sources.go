@@ -131,16 +131,16 @@ func (s *Server) orionEventsPage(cursor *orionEventCursor, need int, filters ori
 
 func (s *Server) orionEventFetchers(source string) []orionEventFetcher {
 	byName := map[string]orionEventFetcher{
-		"agent":          s.fetchAgentEvents,
+		"node":           s.fetchNodeEvents,
 		"monitor":        s.fetchMonitorEvents,
-		"agent_report":   s.fetchAgentReportEvents,
+		"node_report":    s.fetchNodeReportEvents,
 		"monitor_report": s.fetchMonitorReportEvents,
 		"incident_event": s.fetchIncidentEvents,
 		"alert_delivery": s.fetchDeliveryEvents,
 	}
 	source = strings.ToLower(strings.TrimSpace(source))
 	if source == "" {
-		return []orionEventFetcher{s.fetchAgentEvents, s.fetchMonitorEvents, s.fetchAgentReportEvents, s.fetchMonitorReportEvents,
+		return []orionEventFetcher{s.fetchNodeEvents, s.fetchMonitorEvents, s.fetchNodeReportEvents, s.fetchMonitorReportEvents,
 			s.fetchIncidentEvents, s.fetchDeliveryEvents, s.fetchAuditEvents, s.fetchLifecycleSettingsEvents}
 	}
 	if fetch, ok := byName[source]; ok {
@@ -150,14 +150,14 @@ func (s *Server) orionEventFetchers(source string) []orionEventFetcher {
 	return []orionEventFetcher{s.fetchAuditEvents, s.fetchLifecycleSettingsEvents}
 }
 
-func (s *Server) fetchAgentEvents(cursor *orionEventCursor, n int) ([]OrionEventResponse, error) {
-	var rows []db.Agent
+func (s *Server) fetchNodeEvents(cursor *orionEventCursor, n int) ([]OrionEventResponse, error) {
+	var rows []db.Node
 	if err := keysetBefore(s.db, cursor).Order("created_at DESC, id DESC").Limit(n).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make([]OrionEventResponse, 0, len(rows))
 	for _, a := range rows {
-		out = append(out, OrionEventResponse{ID: a.ID + ":registered", Type: "agent_registered", Source: "agent", Message: "Agent " + a.Name + " registered", AgentID: a.ID, CreatedAt: a.CreatedAt, rowID: a.ID})
+		out = append(out, OrionEventResponse{ID: a.ID + ":registered", Type: "node_registered", Source: "node", Message: "Node " + a.Name + " registered", NodeID: a.ID, CreatedAt: a.CreatedAt, rowID: a.ID})
 	}
 	return out, nil
 }
@@ -169,19 +169,19 @@ func (s *Server) fetchMonitorEvents(cursor *orionEventCursor, n int) ([]OrionEve
 	}
 	out := make([]OrionEventResponse, 0, len(rows))
 	for _, m := range rows {
-		out = append(out, OrionEventResponse{ID: m.ID + ":registered", Type: "monitor_registered", Source: "monitor", Message: "Monitor " + m.Name + " registered", AgentID: m.AgentID, MonitorID: m.ID, CreatedAt: m.CreatedAt, rowID: m.ID})
+		out = append(out, OrionEventResponse{ID: m.ID + ":registered", Type: "monitor_registered", Source: "monitor", Message: "Monitor " + m.Name + " registered", NodeID: m.NodeID, MonitorID: m.ID, CreatedAt: m.CreatedAt, rowID: m.ID})
 	}
 	return out, nil
 }
 
-func (s *Server) fetchAgentReportEvents(cursor *orionEventCursor, n int) ([]OrionEventResponse, error) {
-	var rows []db.AgentReport
+func (s *Server) fetchNodeReportEvents(cursor *orionEventCursor, n int) ([]OrionEventResponse, error) {
+	var rows []db.NodeReport
 	if err := keysetBefore(s.db, cursor).Order("created_at DESC, id DESC").Limit(n).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make([]OrionEventResponse, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, OrionEventResponse{ID: r.ID, Type: "agent_report_received", Source: "agent_report", Message: "Agent report received", AgentID: r.AgentID, CreatedAt: r.CreatedAt, rowID: r.ID})
+		out = append(out, OrionEventResponse{ID: r.ID, Type: "node_report_received", Source: "node_report", Message: "Node report received", NodeID: r.NodeID, CreatedAt: r.CreatedAt, rowID: r.ID})
 	}
 	return out, nil
 }
@@ -235,7 +235,7 @@ func (s *Server) fetchAuditEvents(cursor *orionEventCursor, n int) ([]OrionEvent
 		} else if event.AffectedObjectType != "" {
 			source = event.AffectedObjectType + "_lifecycle"
 		}
-		out = append(out, OrionEventResponse{ID: event.ID, Type: event.Action, Source: source, Message: auditEventMessage(event), AgentID: auditEventAgentID(event), CreatedAt: event.CreatedAt, rowID: event.ID})
+		out = append(out, OrionEventResponse{ID: event.ID, Type: event.Action, Source: source, Message: auditEventMessage(event), NodeID: auditEventNodeID(event), CreatedAt: event.CreatedAt, rowID: event.ID})
 	}
 	return out, nil
 }

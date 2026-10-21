@@ -232,9 +232,9 @@ func (s *Server) coreMonitorManagementResponse(record *service.CoreManagedMonito
 	monitor := monitorResponse(record.Monitor)
 	monitor.OwnerKind = "core"
 	monitor.Source = "core"
-	if agent, err := s.agentService.GetAgent(record.Monitor.AgentID); err == nil {
-		monitor.AgentName = agent.Name
-		monitor.OwnerName = agent.Name
+	if node, err := s.nodeService.GetNode(record.Monitor.NodeID); err == nil {
+		monitor.NodeName = node.Name
+		monitor.OwnerName = node.Name
 	}
 	config := coreMonitorConfigResponse(record.Config)
 	config.HeartbeatToken = record.HeartbeatToken

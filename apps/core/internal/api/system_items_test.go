@@ -12,7 +12,7 @@ import (
 )
 
 // A fresh install must read as empty even though Core watches itself: its worker monitor and
-// owner agent are system items, hidden from counts and default lists, but a dead worker still
+// owner node are system items, hidden from counts and default lists, but a dead worker still
 // raises an incident and turns the health chip.
 func TestCoreSelfMonitorIsSystemAndKeepsFirstRunEmpty(t *testing.T) {
 	cfg := &config.Config{CoreWorkerStaleSeconds: 60, AlertRecoveryNotifications: true}
@@ -35,7 +35,7 @@ func TestCoreSelfMonitorIsSystemAndKeepsFirstRunEmpty(t *testing.T) {
 	listed := func(path string) string {
 		return performJSONRequest(t, server, http.MethodGet, path, nil, "").Body.String()
 	}
-	for _, path := range []string{"/v1/agents", "/v1/monitors"} {
+	for _, path := range []string{"/v1/nodes", "/v1/monitors"} {
 		if body := listed(path); !strings.Contains(body, `"count":0`) {
 			t.Fatalf("%s lists system items by default: %s", path, body)
 		}
@@ -43,7 +43,7 @@ func TestCoreSelfMonitorIsSystemAndKeepsFirstRunEmpty(t *testing.T) {
 			t.Fatalf("%s?include_system=true = %s", path, body)
 		}
 	}
-	for _, path := range []string{"/v1/agents/summary", "/v1/monitors/summary"} {
+	for _, path := range []string{"/v1/nodes/summary", "/v1/monitors/summary"} {
 		if body := listed(path); !strings.Contains(body, `"total":0`) {
 			t.Fatalf("%s counts system items: %s", path, body)
 		}
@@ -51,11 +51,11 @@ func TestCoreSelfMonitorIsSystemAndKeepsFirstRunEmpty(t *testing.T) {
 	var health struct {
 		Data struct {
 			Monitors struct{ Total int } `json:"monitors"`
-			Agents   struct{ Total int } `json:"agents"`
+			Nodes    struct{ Total int } `json:"nodes"`
 		}
 	}
 	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/health/summary", nil, ""), &health)
-	if health.Data.Monitors.Total != 0 || health.Data.Agents.Total != 0 {
+	if health.Data.Monitors.Total != 0 || health.Data.Nodes.Total != 0 {
 		t.Fatalf("health summary counts system items: %+v", health.Data)
 	}
 	if body := listed("/v1/search?q=core"); !strings.Contains(body, `"count":0`) {

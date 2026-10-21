@@ -44,7 +44,7 @@ func TestEveryMutatingAdminRouteIsAuditedOrExempt(t *testing.T) {
 		rec := httptest.NewRecorder()
 		server.router.ServeHTTP(rec, req)
 		if !strings.Contains(rec.Body.String(), `"admin_route"`) {
-			continue // not an admin route: agents, ingest, registration, heartbeats, login
+			continue // not an admin route: nodes, ingest, registration, heartbeats, login
 		}
 		key := r.Method + " " + path
 		_, audited := auditRoutes[key]
@@ -106,14 +106,14 @@ func TestAPITokensScopesAuditAndSessionOnlyManagement(t *testing.T) {
 	}
 
 	// Read scope: GET works, writes are refused.
-	if r := bearer(t, server, http.MethodGet, "/v1/agents", reader.Token, nil); r.Code != http.StatusOK {
+	if r := bearer(t, server, http.MethodGet, "/v1/nodes", reader.Token, nil); r.Code != http.StatusOK {
 		t.Errorf("reader GET = %d", r.Code)
 	}
 	if r := bearer(t, server, http.MethodPost, "/v1/incidents/bulk", reader.Token, gin.H{}); r.Code != http.StatusForbidden || !strings.Contains(r.Body.String(), "read only") {
 		t.Errorf("reader POST = %d %s", r.Code, r.Body.String())
 	}
 	// Write scope can work, but never manages tokens or the registration token.
-	server.db.Create(&db.Monitor{ID: "m1", Name: "api-https", Type: "http", AgentID: "a1", Lifecycle: "active", Health: "up"})
+	server.db.Create(&db.Monitor{ID: "m1", Name: "api-https", Type: "http", NodeID: "a1", Lifecycle: "active", Health: "up"})
 	server.db.Create(&db.CoreMonitorConfig{MonitorID: "m1", Kind: "http", ConfigJSON: `{"url":"https://x.test"}`, SecretRefJSON: "{}", IntervalSeconds: 60, TimeoutSeconds: 10, NextRunAt: time.Now().UTC().Add(time.Hour)})
 	if r := bearer(t, server, http.MethodPost, "/v1/monitors/m1/pause", writer.Token, nil); r.Code != http.StatusOK {
 		t.Errorf("writer pause = %d %s", r.Code, r.Body.String())
@@ -148,7 +148,7 @@ func TestAPITokensScopesAuditAndSessionOnlyManagement(t *testing.T) {
 		}
 	}
 	// Unknown and revoked tokens are refused; last use is recorded.
-	if r := bearer(t, server, http.MethodGet, "/v1/agents", "orn_api_deadbeef", nil); r.Code != http.StatusUnauthorized {
+	if r := bearer(t, server, http.MethodGet, "/v1/nodes", "orn_api_deadbeef", nil); r.Code != http.StatusUnauthorized {
 		t.Errorf("unknown token = %d", r.Code)
 	}
 	var list struct {
@@ -172,7 +172,7 @@ func TestAPITokensScopesAuditAndSessionOnlyManagement(t *testing.T) {
 	if r := bearer(t, server, http.MethodDelete, "/v1/settings/api-tokens/"+reader.ID, jwt, nil); r.Code != http.StatusOK {
 		t.Fatalf("revoke = %d", r.Code)
 	}
-	if r := bearer(t, server, http.MethodGet, "/v1/agents", reader.Token, nil); r.Code != http.StatusUnauthorized {
+	if r := bearer(t, server, http.MethodGet, "/v1/nodes", reader.Token, nil); r.Code != http.StatusUnauthorized {
 		t.Errorf("revoked token = %d, want 401", r.Code)
 	}
 

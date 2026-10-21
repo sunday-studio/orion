@@ -8,11 +8,11 @@ import (
 
 // seedShowcase adds the named, explicit "every state" data. Each stage is one file (seed-states-*.go).
 func seedShowcase(database *gorm.DB, dbPath string, now time.Time) error {
-	agents, err := seedShowcaseServers(database, now)
+	nodes, err := seedShowcaseServers(database, now)
 	if err != nil {
 		return err
 	}
-	if _, err := seedShowcaseMonitors(database, agents, now); err != nil {
+	if _, err := seedShowcaseMonitors(database, nodes, now); err != nil {
 		return err
 	}
 	if err := seedShowcaseIncidents(database, now); err != nil {

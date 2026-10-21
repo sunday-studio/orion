@@ -105,26 +105,26 @@ func TestSavedViewsCRUD(t *testing.T) {
 	}
 }
 
-func TestSearchAgentSourceReturnsAgentServiceLogs(t *testing.T) {
+func TestSearchNodeSourceReturnsNodeServiceLogs(t *testing.T) {
 	server := setupLogsServer(t, nil)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
 	for i, level := range []string{"INFO", "ERROR", "WARNING"} {
-		server.db.Create(&db.ServiceLogEntry{ID: fmt.Sprintf("sl-%d", i), AgentID: agent.Data.AgentID, Level: level, Message: fmt.Sprintf("agent said %d", i), Component: "reporter", Fingerprint: fmt.Sprintf("f%d", i), OccurredAt: now.Add(-time.Duration(i) * time.Minute), CollectedAt: now, FieldsJSON: `{"k":"v"}`})
+		server.db.Create(&db.ServiceLogEntry{ID: fmt.Sprintf("sl-%d", i), NodeID: node.Data.NodeID, Level: level, Message: fmt.Sprintf("node said %d", i), Component: "reporter", Fingerprint: fmt.Sprintf("f%d", i), OccurredAt: now.Add(-time.Duration(i) * time.Minute), CollectedAt: now, FieldsJSON: `{"k":"v"}`})
 	}
-	resp := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=agent&agent_id="+agent.Data.AgentID+"&limit=2", nil, "")
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=node&node_id="+node.Data.NodeID+"&limit=2", nil, "")
 	var out logList
 	json.Unmarshal(resp.Body.Bytes(), &out)
-	if resp.Code != http.StatusOK || len(out.Data.Entries) != 2 || out.Data.NextCursor == "" || out.Data.Entries[0].Body != "agent said 0" {
-		t.Fatalf("agent logs page 1 = %d %s", resp.Code, resp.Body.String())
+	if resp.Code != http.StatusOK || len(out.Data.Entries) != 2 || out.Data.NextCursor == "" || out.Data.Entries[0].Body != "node said 0" {
+		t.Fatalf("node logs page 1 = %d %s", resp.Code, resp.Body.String())
 	}
-	page2 := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=agent&limit=2&cursor="+out.Data.NextCursor, nil, "")
-	if !strings.Contains(page2.Body.String(), "agent said 2") || !strings.Contains(page2.Body.String(), `"source":"agent"`) {
-		t.Fatalf("agent logs page 2 = %s", page2.Body.String())
+	page2 := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=node&limit=2&cursor="+out.Data.NextCursor, nil, "")
+	if !strings.Contains(page2.Body.String(), "node said 2") || !strings.Contains(page2.Body.String(), `"source":"node"`) {
+		t.Fatalf("node logs page 2 = %s", page2.Body.String())
 	}
-	errs := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=agent&severity=error", nil, "")
-	if !strings.Contains(errs.Body.String(), "agent said 1") || strings.Contains(errs.Body.String(), "agent said 0") {
-		t.Fatalf("severity=error agent logs = %s", errs.Body.String())
+	errs := performJSONRequest(t, server, http.MethodGet, "/v1/logs?source=node&severity=error", nil, "")
+	if !strings.Contains(errs.Body.String(), "node said 1") || strings.Contains(errs.Body.String(), "node said 0") {
+		t.Fatalf("severity=error node logs = %s", errs.Body.String())
 	}
 }
 

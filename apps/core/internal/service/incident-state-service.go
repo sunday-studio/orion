@@ -25,21 +25,21 @@ func (s *IncidentService) inTx(fn func(*IncidentService) error) error {
 	})
 }
 
-func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
+func (s *IncidentService) openOrUpdateIncident(node db.Node, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
 	return s.inTx(func(tx *IncidentService) error {
-		return tx.openOrUpdateIncidentTx(agent, monitor, monitorReportID, health, incidentState)
+		return tx.openOrUpdateIncidentTx(node, monitor, monitorReportID, health, incidentState)
 	})
 }
 
-func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
+func (s *IncidentService) openOrUpdateIncidentTx(node db.Node, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
 	now := time.Now().UTC()
 	// Maintenance holds incidents and alerts; the check itself still ran and its report is stored.
-	if monitor.InMaintenance(now) || agent.InMaintenance(now) || StatusPageMaintenanceHolds(s.db, monitor.ID, agent.ID, now) {
+	if monitor.InMaintenance(now) || node.InMaintenance(now) || StatusPageMaintenanceHolds(s.db, monitor.ID, node.ID, now) {
 		return nil
 	}
-	message := incidentMessage(agent, monitor, health)
-	severity := s.monitorIncidentSeverity(agent, monitor, health)
-	impactedComponents, err := s.impactedComponentsForMonitorIncident(agent, monitor, health)
+	message := incidentMessage(node, monitor, health)
+	severity := s.monitorIncidentSeverity(node, monitor, health)
+	impactedComponents, err := s.impactedComponentsForMonitorIncident(node, monitor, health)
 	if err != nil {
 		return err
 	}
@@ -89,8 +89,8 @@ func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Moni
 		Status:             "open",
 		Severity:           severity,
 		Number:             number,
-		Title:              incidentTitle(agent, monitor, health),
-		AgentID:            agent.ID,
+		Title:              incidentTitle(node, monitor, health),
+		NodeID:             node.ID,
 		MonitorID:          monitor.ID,
 		ImpactedComponents: encodeIncidentComponentImpacts(impactedComponents),
 		OpenedAt:           now,

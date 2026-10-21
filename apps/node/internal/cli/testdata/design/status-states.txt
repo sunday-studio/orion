@@ -1,0 +1,19 @@
+$ orion-node status
+
+ ◆ edge-05                                                             ○ Not enrolled
+   ▸ orion-node setup  connect this host to a Core
+ ──────────────────────────────────────────────────────────────────────────────────────
+ ◆ edge-05                                                                  ○ Waiting
+   enrolled; first report is due within 30 s
+ ──────────────────────────────────────────────────────────────────────────────────────
+ ◆ edge-05                                                         ◐ No recent report
+   last report 14:21:08, 11 m ago · queue 312 pending
+   ▸ orion-node doctor  find out why reports are not arriving
+ ──────────────────────────────────────────────────────────────────────────────────────
+ ◆ edge-05                                                              ‖ Maintenance
+   kernel upgrade · alerts muted until 16:42 (1 h 52 m)
+   ▸ orion-node maintenance up  end it early
+ ──────────────────────────────────────────────────────────────────────────────────────
+ ◆ edge-05                                                              ○ Not running
+   the service is stopped
+   ▸ orion-node service start
