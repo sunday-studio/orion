@@ -1,7 +1,9 @@
 package appres
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"sort"
 	"strings"
@@ -36,28 +38,33 @@ type dockerStorageSource func() (dockerStorage, error)
 func newDockerStorageSource(sock string, now func() time.Time) dockerStorageSource {
 	api := newDockerAPI(sock)
 	var (
-		mu   sync.Mutex
-		at   time.Time
-		last dockerStorage
+		mu      sync.Mutex
+		at      time.Time // when sizes were last asked for, whether or not it worked
+		last    dockerStorage
+		lastErr error
 	)
 	return func() (dockerStorage, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		if !at.IsZero() && now().Sub(at) < dockerStorageEvery {
-			return last, nil
+			return last, lastErr // a struggling Docker is not asked again before the window ends
 		}
 		if _, err := os.Stat(api.sock); err != nil {
 			return dockerStorage{}, errNoDocker
+		}
+		fail := func(err error) (dockerStorage, error) {
+			at, lastErr = now(), err // keep the last good sizes in the meantime
+			return last, err
 		}
 		var list []struct {
 			ID     string `json:"Id"`
 			SizeRw int64  `json:"SizeRw"`
 		}
 		if err := api.get("/containers/json?size=true", &list); err != nil {
-			if os.IsPermission(err) || strings.Contains(err.Error(), "permission denied") {
-				return dockerStorage{}, fmt.Errorf("docker socket: permission denied (the agent user is not in the docker group)")
+			if errors.Is(err, fs.ErrPermission) || strings.Contains(err.Error(), "permission denied") {
+				return fail(fmt.Errorf("docker socket: permission denied (the agent user is not in the docker group)"))
 			}
-			return dockerStorage{}, err
+			return fail(err)
 		}
 		out := dockerStorage{Containers: map[string]uint64{}}
 		for _, c := range list {
@@ -92,7 +99,7 @@ func newDockerStorageSource(sock string, now func() time.Time) dockerStorageSour
 				out.Volumes = out.Volumes[:maxDockerVolumes]
 			}
 		}
-		at, last = now(), out
+		at, last, lastErr = now(), out, nil
 		return out, nil
 	}
 }
