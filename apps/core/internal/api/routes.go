@@ -190,6 +190,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/agents/:id/discovery", s.getAgentDiscovery)
 			frontend.GET("/agents/:id/monitor-definitions", s.listAgentMonitorDefinitions)
 			frontend.POST("/agents/:agent_id/monitor-definitions", s.createAgentMonitorDefinition)
 			frontend.DELETE("/agents/:id/monitor-definitions/:definition_id", s.deleteAgentMonitorDefinition)
@@ -298,6 +299,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
 			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
 			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
+			protected.POST("/:agent_id/discovery", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentDiscovery)
 			protected.POST("/:agent_id/monitor-definitions/sync", ValidateAgentToken(s.agentService, s.authService), s.pullAgentMonitorDefinitions)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
