@@ -46,7 +46,7 @@ export const serviceRow = (entry: ApiLogEntry): LogRow => {
     id: entry.id ?? "",
     at: entry.timestamp,
     level: entry.severity ?? "info",
-    label: component ?? entry.app_name ?? (entry.source === "agent" ? "agent" : undefined),
+    label: component ?? entry.app_name ?? (entry.source === "node" ? "node" : undefined),
     title: entry.event ?? entry.body ?? "",
     detail: entry.event ? [entry.body, attributes].filter(Boolean).join(" ") : attributes,
     inferred: entry.severity_inferred,

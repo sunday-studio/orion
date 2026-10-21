@@ -128,7 +128,7 @@ export const ControlsPreview = () => {
         </Field>
         <EmptyState
           title="No servers yet"
-          description="Install the agent to start collecting reports."
+          description="Install the node to start collecting reports."
           action={<Button size="sm">Add server</Button>}
         />
       </Section>

@@ -126,7 +126,7 @@ export const IncidentSidePanel = ({
           <span>Target</span>
           <span className="truncate">{source?.target ?? incident.monitor_type ?? "-"}</span>
           <span>Server</span>
-          <span className="truncate">{source?.server_name ?? incident.agent_name ?? "-"}</span>
+          <span className="truncate">{source?.server_name ?? incident.node_name ?? "-"}</span>
         </Facts>
       </Section>
       <Section title="People">

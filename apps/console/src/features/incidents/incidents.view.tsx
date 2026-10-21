@@ -34,7 +34,7 @@ export const IncidentsPage = () => {
     opened_since: filters.since || undefined,
     q: filters.q.trim() || undefined,
     notification_status: filters.notified.length > 0 ? filters.notified.join(",") : undefined,
-    agent_id: filters.server || undefined,
+    node_id: filters.server || undefined,
     monitor_id: filters.monitor || undefined,
     needs_review: filters.review || undefined,
   };

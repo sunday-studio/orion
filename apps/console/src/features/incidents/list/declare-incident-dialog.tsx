@@ -19,7 +19,7 @@ import {
   getGetIncidentsQueryKey,
   getGetOverviewQueryKey,
   useDeclareIncident,
-  useGetAgents,
+  useGetNodes,
   useGetMonitors,
 } from "@/orion-sdk";
 import { severityOptions } from "../incident-format";
@@ -41,15 +41,15 @@ export const DeclareIncidentDialog = ({
   const queryClient = useQueryClient();
   const declare = useDeclareIncident();
   const monitors = useGetMonitors({ limit: 100 }, { query: { enabled: open } });
-  const agents = useGetAgents({ limit: 100 }, { query: { enabled: open } });
+  const nodes = useGetNodes({ limit: 100 }, { query: { enabled: open } });
   const targetOptions = [
     ...(monitors.data?.monitors ?? []).map((monitor) => ({
       value: `monitor:${monitor.id ?? ""}`,
-      label: `${monitor.name ?? monitor.id ?? "Monitor"}${monitor.agent_name ? ` on ${monitor.agent_name}` : ""}`,
+      label: `${monitor.name ?? monitor.id ?? "Monitor"}${monitor.node_name ? ` on ${monitor.node_name}` : ""}`,
     })),
-    ...(agents.data?.agents ?? []).map((agent) => ({
-      value: `agent:${agent.id ?? ""}`,
-      label: `${agent.name ?? agent.id ?? "Server"} (server)`,
+    ...(nodes.data?.nodes ?? []).map((node) => ({
+      value: `node:${node.id ?? ""}`,
+      label: `${node.name ?? node.id ?? "Server"} (server)`,
     })),
   ];
 
@@ -73,7 +73,7 @@ export const DeclareIncidentDialog = ({
                   title: title.trim(),
                   severity: severity as "low" | "medium" | "high" | "critical",
                   monitor_id: target.startsWith("monitor:") ? target.slice(8) : undefined,
-                  agent_id: target.startsWith("agent:") ? target.slice(6) : undefined,
+                  node_id: target.startsWith("node:") ? target.slice(6) : undefined,
                   summary: summary.trim() || undefined,
                   notify,
                 },

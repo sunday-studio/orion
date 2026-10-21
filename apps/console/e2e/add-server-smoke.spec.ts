@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { coreApiURL, signIn } from "./console-smoke-helpers";
 
-test("add server mints an enrollment and detects the agent registering with it", async ({
+test("add server mints an enrollment and detects the node registering with it", async ({
   page,
 }) => {
   const machineId = `e2e-machine-${Date.now()}`;
@@ -15,7 +15,7 @@ test("add server mints an enrollment and detects the agent registering with it",
   const text = (await command.innerText()).trim();
   const token = /ORION_ENROLLMENT_TOKEN='([^']+)'/.exec(text)?.[1] ?? "";
   expect(token).not.toBe("");
-  await expect(page.getByText("Waiting for the agent")).toBeVisible();
+  await expect(page.getByText("Waiting for the node")).toBeVisible();
 
   const response = await page.request.post(`${coreApiURL}/register`, {
     headers: { "X-Orion-Enrollment-Token": token },

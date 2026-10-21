@@ -21,13 +21,13 @@ import {
   defaultForm,
 } from "../components/core-monitor-dialog-state";
 
-type Kind = "http" | "tcp" | "heartbeat" | "agent";
+type Kind = "http" | "tcp" | "heartbeat" | "node";
 
 const TILES = [
   { value: "http", title: "HTTP", caption: "Website, API" },
   { value: "tcp", title: "TCP", caption: "Port" },
   { value: "heartbeat", title: "Heartbeat", caption: "Cron job" },
-  { value: "agent", title: "Agent", caption: "On a server" },
+  { value: "node", title: "Node", caption: "On a server" },
 ] as const;
 
 const seconds = (values: readonly number[], unit: "seconds" | "minutes" | "hours" = "seconds") =>
@@ -90,7 +90,7 @@ export const MonitorCreateDialog = ({
   const pick = (next: string) => {
     const value = next as Kind;
     setKind(value);
-    if (value === "agent") return;
+    if (value === "node") return;
     patch({
       kind: value,
       intervalSeconds: value === "http" ? "30" : value === "tcp" ? "60" : "86400",
@@ -100,7 +100,7 @@ export const MonitorCreateDialog = ({
   };
 
   const valid =
-    kind !== "agent" &&
+    kind !== "node" &&
     form.name.trim() !== "" &&
     (kind === "http"
       ? form.url.trim() !== ""
@@ -156,16 +156,16 @@ export const MonitorCreateDialog = ({
               onValueChange={pick}
             />
             <AnimatedHeight>
-              {kind === "agent" ? (
+              {kind === "node" ? (
                 <Callout tone="warn" className="leading-[1.5]">
-                  Agent monitors run on a server through its agent. Pick the server and what to
+                  Node monitors run on a server through its node. Pick the server and what to
                   check on the{" "}
                   <Link
                     className="underline"
-                    to="/monitors/new/agent"
+                    to="/monitors/new/node"
                     onClick={() => onOpenChange(false)}
                   >
-                    agent monitor page
+                    node monitor page
                   </Link>
                   .
                 </Callout>

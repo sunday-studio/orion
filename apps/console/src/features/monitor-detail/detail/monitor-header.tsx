@@ -13,7 +13,7 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   breadcrumb?: boolean;
-  /** Core-run monitors can be tested, paused and configured; agent monitors cannot. */
+  /** Core-run monitors can be tested, paused and configured; node monitors cannot. */
   core: boolean;
   heartbeat: boolean;
 };

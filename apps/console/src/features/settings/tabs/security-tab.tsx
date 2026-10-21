@@ -87,7 +87,7 @@ export const SecurityTab = () => {
               </SettingRow>
             </RaisedCard>
           </FieldPanel>
-          <FieldPanel title="Agent registration" aside="Agents register with this token">
+          <FieldPanel title="Node registration" aside="Nodes register with this token">
             <div className="flex gap-2">
               <Input
                 readOnly
@@ -163,7 +163,7 @@ export const SecurityTab = () => {
         open={rotating}
         onOpenChange={setRotating}
         title="Rotate the registration token"
-        description="New agents need the new token. Servers that are already connected keep working."
+        description="New nodes need the new token. Servers that are already connected keep working."
         confirmLabel="Rotate token"
         onConfirm={() => rotate.mutate()}
       />

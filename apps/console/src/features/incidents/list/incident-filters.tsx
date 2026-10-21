@@ -1,5 +1,5 @@
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-import { useGetAgents, useGetMonitors } from "@/orion-sdk";
+import { useGetNodes, useGetMonitors } from "@/orion-sdk";
 import {
   AddFilterButton,
   CheckFilterPanel,
@@ -118,9 +118,9 @@ const PickList = ({
 );
 
 export const IncidentFilterRow = ({ filters }: { filters: IncidentFilters }) => {
-  const agents = useGetAgents({ limit: 100 });
+  const nodes = useGetNodes({ limit: 100 });
   const monitorList = useGetMonitors({ limit: 100 });
-  const servers = (agents.data?.agents ?? []).map((a) => ({
+  const servers = (nodes.data?.nodes ?? []).map((a) => ({
     value: a.id ?? "",
     label: a.name ?? a.id ?? "Server",
   }));

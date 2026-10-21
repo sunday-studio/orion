@@ -112,7 +112,7 @@ export const IncidentTable = ({
                 </StatusBadge>
               </span>
               <span className="font-mono text-xs text-faint">
-                {incident.monitor_name ?? incident.agent_name ?? "-"}
+                {incident.monitor_name ?? incident.node_name ?? "-"}
               </span>
               <span>
                 <StatusBadge
