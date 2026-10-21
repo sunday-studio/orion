@@ -1,62 +1,142 @@
 # Getting started
 
-About ten minutes, on a Linux or macOS machine with Docker.
+Run Orion end to end in about ten minutes: start Core on a server you own, connect a server to watch,
+add a monitor, and receive an alert. You need no knowledge of this codebase.
 
-**1. Start Core.**
+Prefer to have an AI assistant do it? See [Set up Orion with an AI assistant](ai-setup.md).
 
-```sh
-curl -fsSL -o orion-compose.yml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
+## What you are setting up
 
-ADMIN_PASSWORD="$(openssl rand -base64 24)"
-JWT_SECRET="$(openssl rand -base64 32)"
+| Piece | What it is | Where it runs |
+|---|---|---|
+| **Core** | The Orion server: API, Console (the web UI), monitor worker, status pages and the database (SQLite). | One machine you own, in Docker. |
+| **Node** | A small program that watches a server (CPU, disk, services, containers, logs) and reports to Core. | Each Linux or macOS machine you want to watch. Optional: Core can also check public URLs by itself. |
 
-cat > .env <<'EOF'
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
-ORION_HTTP_PORT=8999
-ORION_REQUIRE_FRONTEND_AUTH=true
-ORION_ADMIN_USERNAME=admin
-# The address people reach Orion on. Used in emails, install commands and status page
-# links, and as the DNS target for custom status page domains.
-ORION_PUBLIC_URL=https://orion.example.com
-EOF
-printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
+You need:
 
-docker compose -f orion-compose.yml up -d
-```
+- A Linux or macOS machine with **Docker** and the **Docker Compose plugin** for Core
+  (`docker compose version` must work), plus `curl` and `openssl`.
+- For each machine you want to watch: Linux or macOS, `curl`, and root or `sudo` access (or use the
+  per-user install, see [Node install and upgrade](deployment/node-install-upgrade.md)).
+- The machines you watch must be able to reach Core's address over HTTP or HTTPS.
 
-Open `http://localhost:8999` and sign in with `admin` and the password in `.env`.
+## 1. Start Core
 
-`ORION_PUBLIC_URL` is the public address of Core. Set it at setup, or later under Settings, General
-(the saved value wins). Custom status page domains point a CNAME record at its host; set
-`ORION_STATUS_PAGES_CNAME_TARGET` when the DNS target differs from that host.
-
-Setting up a fresh server and want to build Core from source? See
-[Set up Core on a new server with Docker](deployment/docker-new-server.md).
-
-**2. Connect a server.** Run this on any Linux or macOS host you want to watch, using a Core URL that host
-can reach:
+One command creates a folder, writes the settings with generated secrets, starts Core and waits until it
+is healthy:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --core-url https://core.your-domain.tld
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
 ```
 
-**3. Add a monitor and an alert channel** in the Console, then send a test message.
+Add `--public-url https://orion.example.com` if Core will be reached at a domain, and `--dir /opt/orion`
+to choose the folder. The script ends by printing the Console address and your login, for example:
 
-Want to see it work before installing anything? Run the demo:
-[examples/python-sleep-compose](../examples/python-sleep-compose/) starts Core, monitors a tiny Python
-service, breaks it, and checks recovery.
+```text
+Orion Core is running.
+
+  Console   http://localhost:8999
+  Login     admin  /  <generated password>
+```
+
+Open that address and sign in. You land on the first-run screen ("Nothing is monitored yet").
+
+The password is stored in `orion/.env`. To change anything, edit that file and run
+`docker compose up -d` in the `orion` folder.
+
+**Prefer to do it by hand?**
 
 ```sh
-examples/python-sleep-compose/smoke.sh
+mkdir orion && cd orion
+curl -fsSLO https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
+curl -fsSL  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/.env.example -o .env
 ```
 
-## Next steps
+Edit `.env` and set `ORION_ADMIN_PASSWORD` (for example `openssl rand -base64 24 | tr -d '/+='`) and
+`ORION_JWT_SECRET` (`openssl rand -hex 32`). Optionally pin `ORION_CORE_IMAGE` to a release such as
+`ghcr.io/sunday-studio/orion-core:0.2.0`. Then:
 
-- Understand the pieces: [How Orion works](how-it-works.md).
-- Harden and tune Core: [Core security defaults](deployment/core-security-defaults.md) and
-  [Core Docker deployment](deployment/core-docker.md).
-- Day-to-day Server commands: [Server CLI cheat sheet](deployment/server-cli-cheatsheet.md).
-- Send logs from your apps: [Product logs](product-logs.md).
-- Back up the database: [SQLite backup and restore](sqlite-backup-restore.md).
+```sh
+docker compose up -d
+docker compose ps        # both services should say "healthy" within a minute
+```
+
+Every setting, including email alerts, status page mail and tuning, is documented inside `.env.example`.
+The compose file itself lists every variable Core reads.
+
+**Using a domain and HTTPS.** Put a reverse proxy in front of Core (a Caddy example is in
+[`deploy/examples/reverse-proxy`](../deploy/examples/reverse-proxy)), set `ORION_PUBLIC_URL` to the
+public address, and set `ORION_TRUSTED_PROXIES` to the proxy's address. See
+[Core security defaults](deployment/core-security-defaults.md).
+
+## 2. Connect a server
+
+In the Console open **Servers**, choose **Add server**, pick Linux or macOS and copy the command it shows.
+Run it on the machine you want to watch. It looks like this:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | \
+  ORION_ENROLLMENT_TOKEN=<token> bash -s -- --core-url https://orion.example.com
+```
+
+The installer prints what it will do, downloads the Node, verifies its checksum, creates a service
+and enrolls with Core. When it finishes, the Console shows the server as connected within a minute.
+
+Check it on the server:
+
+```sh
+orion-node status     # the service is running and Core accepted its token
+orion-node doctor     # a checklist: config, service, connection, clock, disk
+```
+
+If something fails, `orion-node doctor` names the problem and the command that fixes it. More commands:
+[Server CLI cheat sheet](deployment/server-cli-cheatsheet.md).
+
+You can skip this step to start: Core also monitors public websites and TCP ports on its own (step 3).
+
+## 3. Add a monitor
+
+In the Console choose **Monitors**, then **New monitor**:
+
+- **HTTP:** a URL that should answer with a healthy status code. Start with your own site.
+- **TCP:** a host and port that should accept connections.
+- **Heartbeat:** a URL your job calls on a schedule; Orion alerts when it stops.
+- **Node monitor:** a service, container or disk on a connected server.
+
+Choose **Test now** before saving. The monitor appears on the Overview within a minute.
+
+## 4. Get an alert
+
+In **Alerts**, open **Channels**, add a **Webhook** (Slack, Discord or any URL) or an **Email** channel
+(email needs the SMTP settings in `.env`), and use **Send test** to confirm it works.
+
+To see a real incident, point an HTTP monitor at an address that fails (for example
+`http://localhost:9`), wait for it to turn red, and watch the incident open in **Incidents** and the
+notification arrive. Delete the monitor when you are done.
+
+## 5. Optional next steps
+
+- **Status page:** **Status pages** → **Create** publishes a public page at `/status/<name>`.
+- **Send logs from your own apps:** [Product logs](product-logs.md).
+- **Back up the database:** [SQLite backup and restore](sqlite-backup-restore.md).
+- **Upgrade:** pull the new image and run `docker compose up -d`; read the
+  [upgrade notes](deployment/upgrade-notes-node-rename.md) first when moving from a version before 0.2.0.
+- **Remove a server:** `orion-node` uninstall steps are in
+  [Node install and upgrade](deployment/node-install-upgrade.md).
+
+## If something goes wrong
+
+| Symptom | Try |
+|---|---|
+| `docker compose up` says a variable is not set | Set `ORION_ADMIN_PASSWORD` and `ORION_JWT_SECRET` in `.env`. |
+| The Console does not load | `docker compose ps` and `docker compose logs orion-core` in the `orion` folder. |
+| A server does not appear | Run `orion-node doctor` on it. The usual causes are a Core address the server cannot reach, a wrong token, or a firewall on port 8999. |
+| A monitor of a private address fails with a blocked-target error | Core blocks private addresses by default; see `ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS` in `.env.example`. |
+| You forgot the password | It is in `orion/.env`. |
+
+More help: [How Orion works](how-it-works.md) and the [deployment docs](deployment/README.md).
+
+## Developing Orion itself
+
+Contributors run the stack from source with `make docker-dev-up` and load demo data with
+`make docker-dev-seed`; see [Local development](development/local-development.md).

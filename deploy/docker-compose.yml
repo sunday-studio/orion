@@ -1,3 +1,13 @@
+# Orion Core + monitor worker. Quick start (details: docs/getting-started.md):
+#
+#   cp .env.example .env        # then set ORION_ADMIN_PASSWORD and ORION_JWT_SECRET
+#   docker compose up -d        # reads .env from this folder; Console on http://localhost:8999
+#
+# Or run deploy/scripts/setup-core.sh, which creates .env with generated secrets and starts Core.
+# Every setting is documented in .env.example. Data lives in the `orion-data` volume (SQLite);
+# see docs/sqlite-backup-restore.md before upgrading.
+name: orion
+
 # Hardened profile: non-root user (the entrypoint starts as root only to chown an
 # older root-owned volume, then drops privileges), read-only root filesystem,
 # no capabilities beyond that one-time chown/drop, resource limits and a 30s grace
@@ -33,9 +43,9 @@ services:
       ORION_PORT: "8999"
       ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: ${ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS:-3600}
       ORION_REQUIRE_FRONTEND_AUTH: "true"
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:?set ORION_ADMIN_USERNAME}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET}
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD in .env (copy .env.example)}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET in .env (copy .env.example)}
       ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS: ${ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS:-false}
       # Console "Test now" runs checks inside this process, so it needs the same target policy as the Worker.
       ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
@@ -67,6 +77,13 @@ services:
       ORION_PUBLIC_STATUS_URL_ORIGIN: ${ORION_PUBLIC_STATUS_URL_ORIGIN:-}
       ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-}
       ORION_STATUS_PAGES_CNAME_TARGET: ${ORION_STATUS_PAGES_CNAME_TARGET:-}
+      ORION_SESSION_HOURS: ${ORION_SESSION_HOURS:-12}
+      ORION_LOGIN_RATE_LIMIT_ATTEMPTS: ${ORION_LOGIN_RATE_LIMIT_ATTEMPTS:-5}
+      ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS: ${ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS:-60}
+      ORION_REGISTER_RATE_LIMIT_PER_MINUTE: ${ORION_REGISTER_RATE_LIMIT_PER_MINUTE:-30}
+      ORION_INTERNAL_LOG_RETENTION_DAYS: ${ORION_INTERNAL_LOG_RETENTION_DAYS:-7}
+      ORION_INTERNAL_LOG_MAX_STORAGE_MB: ${ORION_INTERNAL_LOG_MAX_STORAGE_MB:-200}
+      ORION_ALERT_TLS_EXPIRY_DAYS: ${ORION_ALERT_TLS_EXPIRY_DAYS:-14}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
       interval: 30s
