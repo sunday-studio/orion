@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
 	"os"
@@ -222,9 +223,9 @@ func (c *Config) ValidateAPIAuth() error {
 // ORION_LISTEN_HOST says, because an open admin API must never be reachable from the network.
 func (c *Config) ListenAddress() string {
 	if c.RunsWithoutAuth() {
-		return "127.0.0.1:" + c.Port
+		return net.JoinHostPort("127.0.0.1", c.Port)
 	}
-	return c.ListenHost + ":" + c.Port
+	return net.JoinHostPort(c.ListenHost, c.Port)
 }
 
 // RunsWithoutAuth reports whether the admin API will accept unauthenticated requests.
