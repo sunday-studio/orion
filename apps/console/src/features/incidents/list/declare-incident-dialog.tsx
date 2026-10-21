@@ -19,8 +19,8 @@ import {
   getGetIncidentsQueryKey,
   getGetOverviewQueryKey,
   useDeclareIncident,
-  useGetNodes,
   useGetMonitors,
+  useGetNodes,
 } from "@/orion-sdk";
 import { severityOptions } from "../incident-format";
 
