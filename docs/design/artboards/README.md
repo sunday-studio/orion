@@ -40,6 +40,9 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [app-redaction](app-redaction.html) ([light](png/app-redaction-light.png), [dark](png/app-redaction-dark.png)) | 907 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
 | [app-retention](app-retention.html) ([light](png/app-retention-light.png), [dark](png/app-retention-dark.png)) | 654 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
 | [app-send-test](app-send-test.html) ([light](png/app-send-test-light.png), [dark](png/app-send-test-dark.png)) | 992 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
+| [apps-usage](apps-usage.html) ([dark](apps-usage-dark.html)) | 1180 | D-048 | /servers/:id (Apps tab) | apps/console/src/features/agent-detail/ |
+| [apps-states](apps-states.html) ([dark](apps-states-dark.html)) | 920 | D-048 | /servers/:id (Apps tab) | apps/console/src/features/agent-detail/ |
+| [apps-track-storage](apps-track-storage.html) ([dark](apps-track-storage-dark.html)) | 820 | D-048 | /servers/:id (Apps tab) | apps/console/src/features/agent-detail/ |
 | [avatar-menu](avatar-menu.html) ([light](png/avatar-menu-light.png), [dark](png/avatar-menu-dark.png)) | 460 | 49 | global header | components/shared/app-header.tsx |
 | [channel-detail](channel-detail.html) ([light](png/channel-detail-light.png), [dark](png/channel-detail-dark.png)) | 993 | 7 | /alerts/channels/:id | apps/console/src/features/alerts/ |
 | [channel-dialog](channel-dialog.html) ([light](png/channel-dialog-light.png), [dark](png/channel-dialog-dark.png)) | 640 | 18 | dialog | apps/console/src/features/alerts/ |
