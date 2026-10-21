@@ -9,10 +9,10 @@ root is needed; everything lives in /tmp/orion-walk.
     make agent-walkthrough ONLY=status     only screens whose board or name contains "status"
 
 Core runs on http://127.0.0.1:8999. To see the Console too, run `make console-dev` in another
-terminal, open http://localhost:5173 and log in as admin / orion-walk (throwaway, local only).
+terminal, open http://localhost:5173 and log in with the username and password the script prints (new each run, local only).
 Screens that need a real server (service manager, root, a release) are shown and skipped.
 """
-import json, os, re, shlex, shutil, signal, subprocess, sys, time, urllib.request
+import json, os, re, secrets, shlex, shutil, signal, subprocess, sys, time, urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 WORK = f"/tmp/orion-walk-{os.getuid()}"  # short path: unix socket paths are limited to ~100 bytes
@@ -21,6 +21,7 @@ CORE = f"http://127.0.0.1:{PORT}"
 BOARDS = os.path.join(ROOT, "docs", "testing", "agent-cli-boards.json")
 DIM, BOLD, RESET = "\033[2m", "\033[1m", "\033[0m"
 HOST_CMD = re.compile(r"^orion-agent (start|stop|restart|update|service)\b|curl |\| bash|^… \| bash")
+ADMIN_USER, ADMIN_PASSWORD = "admin", secrets.token_urlsafe(12)  # new every run, never stored
 ENV = dict(os.environ, ORION_LOG_PATH=f"{WORK}/agent.log", EDITOR=os.environ.get("EDITOR", "vi"))
 
 
@@ -82,8 +83,8 @@ class Walk:
             return
         if self.healthy():
             sys.exit(f"Something else is already listening on port {PORT}. Stop it or set ORION_WALK_PORT.")
-        env = dict(ENV, ORION_ADMIN_USERNAME="admin", ORION_ADMIN_PASSWORD="orion-walk", ORION_JWT_SECRET="orion-walk-local-secret-0123456789abcdef0123456789",
-                   ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)
+        env = dict(ENV, ORION_ADMIN_USERNAME=ADMIN_USER, ORION_ADMIN_PASSWORD=ADMIN_PASSWORD, ORION_JWT_SECRET=secrets.token_hex(32),
+                   ORION_LISTEN_HOST="127.0.0.1", ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)  # loopback only: Core with a login would otherwise bind every interface
         self.core = subprocess.Popen([f"{WORK}/core"], env=env, stdout=open(f"{WORK}/core.log", "w"), stderr=subprocess.STDOUT)
         for _ in range(60):
             if self.healthy():
@@ -277,7 +278,7 @@ def main():
     if not os.path.isdir(f"{ROOT}/apps/agent"):
         sys.exit("Run this from the repository.")
     walk.build()
-    print(f"\nCore: {CORE}\nConsole: run `make console-dev` in another terminal, open http://localhost:5173 and log in as  admin / orion-walk")
+    print(f"\nCore: {CORE}\nConsole: run `make console-dev` in another terminal, open http://localhost:5173 and log in:\n  username  {ADMIN_USER}\n  password  {ADMIN_PASSWORD}   (new every run)")
     walk.start_core()
     try:
         i = 0
