@@ -15,7 +15,7 @@ Screens that need a real server (service manager, root, a release) are shown and
 import json, os, re, secrets, shlex, shutil, signal, subprocess, sys, time, urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-WORK = f"/tmp/orion-walk-{os.getuid()}"  # short path: unix socket paths are limited to ~100 bytes
+WORK = os.environ.get("ORION_WALK_DIR") or f"/tmp/orion-walk-{os.getuid()}"  # short: unix socket paths are limited to ~100 bytes; set ORION_WALK_DIR to run a second copy side by side
 PORT = os.environ.get("ORION_WALK_PORT", "8999")
 CORE = f"http://127.0.0.1:{PORT}"
 BOARDS = os.path.join(ROOT, "docs", "testing", "agent-cli-boards.json")
@@ -243,7 +243,7 @@ class Walk:
             return "opens your editor, so it needs a terminal"
         if board == "CLI, update and rollback" or (board.startswith("CLI, start, stop") and name != "run"):
             return "host"
-        fresh = board == "CLI, setup" or name == "enroll" or board == "CLI, output modes and exit codes" and name == "accessible prompts"
+        fresh = (board == "CLI, setup" and name != "non-interactive") or name == "enroll" or board == "CLI, output modes and exit codes" and name == "accessible prompts"
         if name.startswith("first start"):
             self.screen_first_start()
             return None

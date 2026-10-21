@@ -24,7 +24,18 @@ func probeToken(ctx context.Context, coreURL, agentID, token string) (int, error
 	}
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(coreURL, "/")+"/v1/agents/"+agentID+"/monitors", nil)
+	base := strings.TrimRight(coreURL, "/") + "/v1/agents/" + agentID
+	// token-check accepts an agent token on every Core that has it. An older Core lacks it (404 or 405),
+	// and then the admin route it used to call is the only thing there is to ask.
+	code, err := probeOnce(ctx, http.MethodPost, base+"/token-check", token)
+	if err == nil && (code == http.StatusNotFound || code == http.StatusMethodNotAllowed) {
+		return probeOnce(ctx, http.MethodGet, base+"/monitors", token)
+	}
+	return code, err
+}
+
+func probeOnce(ctx context.Context, method, url, token string) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return 0, err
 	}

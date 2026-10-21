@@ -103,6 +103,8 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
   Registers, revives, or rejects duplicate monitors. Requires auth.
 - `POST /v1/agents/:agent_id/unregister-monitor`
   Soft-deletes a monitor. Requires auth.
+- `POST /v1/agents/:agent_id/token-check`
+  Succeeds, with an empty body, when the bearer token is this agent's. Changes nothing. The Agent's `doctor` and `setup` use it to ask whether Core accepts their credentials; they must not call an admin route for that, because an agent token is not accepted there once Console authentication is on. An older Core answers 404 or 405 and the Agent then falls back to the admin route it used before.
 - `POST /v1/agents/:agent_id/report`
   Stores system metrics and updates server `last_seen`. Requires auth.
 - `POST /v1/agents/:agent_id/logs/batch`
