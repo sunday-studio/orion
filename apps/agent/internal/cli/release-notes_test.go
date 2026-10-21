@@ -76,3 +76,24 @@ func TestHelpTopicsPrintAndUnknownOnesFallThrough(t *testing.T) {
 		t.Fatal("a command name is not a topic: its own help must run")
 	}
 }
+
+func TestMiniMarkdownStylesWhatWeUseAndLeavesTheRestAlone(t *testing.T) {
+	md := "# Title\n\n## Section\n\nSome **bold** and `code` and [docs](https://x.io/a).\n\n- first\n- second item\n\n1. one\n\n```\nraw  code\n```\n\n| a | b |\n"
+	out := renderMarkdown(ui.WithMode(true), md, 80)
+	for _, gone := range []string{"# Title", "## Section", "**bold**", "`code`", "[docs]", "```"} {
+		if strings.Contains(out, gone) {
+			t.Errorf("markup %q should be rendered, got:\n%s", gone, out)
+		}
+	}
+	for _, want := range []string{"Title", "Section", "bold", "code", "docs (https://x.io/a)", "•", "first", "1.", "raw  code", "| a | b |"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	long := renderMarkdown(ui.WithMode(true), strings.Repeat("word ", 60), 60)
+	for _, l := range strings.Split(strings.TrimRight(long, "\n"), "\n") {
+		if visibleWidth(l) > 60 {
+			t.Errorf("line wider than the terminal: %d", visibleWidth(l))
+		}
+	}
+}
