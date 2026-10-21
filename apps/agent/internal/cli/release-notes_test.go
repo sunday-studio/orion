@@ -11,8 +11,8 @@ import (
 )
 
 func TestSanitizeMarkdownDropsTerminalControlSequences(t *testing.T) {
-	got := sanitizeMarkdown("# Hi\x1b[2J\x1b]0;pwned\x07\r\n- item\there\x7f")
-	if strings.ContainsAny(got, "\x1b\x07\r\x7f") || !strings.Contains(got, "# Hi") || !strings.Contains(got, "item\there") {
+	got := sanitizeMarkdown("# Hi\x1b[2J\x1b]0;pwned\x07\r\n- item\there\x7f\u202e evil\u2028")
+	if strings.ContainsAny(got, "\x1b\x07\r\x7f\u202e\u2028") || !strings.Contains(got, "# Hi") || !strings.Contains(got, "item\there") {
 		t.Fatalf("got %q", got)
 	}
 }

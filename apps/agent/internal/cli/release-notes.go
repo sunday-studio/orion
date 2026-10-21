@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -29,7 +30,7 @@ type releaseNotes struct {
 func fetchReleaseNotes(repo, version string) (*releaseNotes, error) {
 	path := "/releases/latest"
 	if version != "" && version != "latest" {
-		path = "/releases/tags/" + version
+		path = "/releases/tags/" + url.PathEscape(version)
 	}
 	req, err := http.NewRequest(http.MethodGet, releaseNotesAPI+"/repos/"+repo+path, nil)
 	if err != nil {
