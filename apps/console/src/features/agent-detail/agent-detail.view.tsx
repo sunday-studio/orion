@@ -1,11 +1,26 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Callout, EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import {
+  Callout,
+  EmptyState,
+  Skeleton,
+  TabCount,
+  Tabs,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+} from "@/design-system";
 import type { ServerRow } from "@/features/agents/server-format";
 import { useNow } from "@/features/overview/overview-time";
 import { incidentLabel } from "@/features/incidents/incident-format";
-import { type ApiAgentReportResponse, useGetAgent, useGetIncidents } from "@/orion-sdk";
+import {
+  type ApiAgentReportResponse,
+  useGetAgent,
+  useGetAgentDiscovery,
+  useGetIncidents,
+} from "@/orion-sdk";
 import { AgentLogsTab } from "./components/agent-logs-tab";
+import { DetectedTab } from "./components/detected-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { ServerEditDialog } from "./components/server-edit-dialog";
 import { ServerHeader } from "./components/server-header";
@@ -13,7 +28,7 @@ import { ServerOverviewTab } from "./components/server-overview-tab";
 import { ServerRemoveDialog } from "./components/server-remove-dialog";
 import { ServerTokenTab } from "./components/server-token-tab";
 
-const TABS = ["overview", "reports", "monitors", "token"] as const;
+const TABS = ["overview", "reports", "monitors", "detected", "token"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Old links used "logs" and "cpu"; they land on the matching new tab. */
@@ -29,6 +44,7 @@ export const AgentDetailPage = () => {
   const tab = resolveTab(searchParams.get("tab"));
   const now = useNow(30_000);
   const query = useGetAgent(agentId);
+  const discovery = useGetAgentDiscovery(agentId).data?.discovery;
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -88,6 +104,10 @@ export const AgentDetailPage = () => {
           <TabsTab value="overview">Overview</TabsTab>
           <TabsTab value="reports">Reports</TabsTab>
           <TabsTab value="monitors">Monitors</TabsTab>
+          <TabsTab value="detected">
+            Detected
+            {(discovery?.suggested ?? 0) > 0 && <TabCount>{discovery?.suggested}</TabCount>}
+          </TabsTab>
           <TabsTab value="token">Token</TabsTab>
         </TabsList>
         <TabsPanel value="overview">
@@ -102,6 +122,9 @@ export const AgentDetailPage = () => {
         </TabsPanel>
         <TabsPanel value="monitors">
           <AgentMonitorsTab agentId={agentId} />
+        </TabsPanel>
+        <TabsPanel value="detected">
+          <DetectedTab agentId={agentId} />
         </TabsPanel>
         <TabsPanel value="token">
           <ServerTokenTab agentId={agentId} name={agent.name ?? agentId} />
