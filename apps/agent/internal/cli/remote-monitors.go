@@ -26,6 +26,10 @@ type remoteMonitors struct {
 	mu    sync.Mutex
 	last  []config.UserMonitor
 	fp    string
+	// posted is the last outcome list Core accepted, so an unchanged one is not sent every minute.
+	posted string
+	// sendResults replaces the real call in tests.
+	sendResults func(st *config.InternalState, res []transport.DefinitionResult) error
 }
 
 func (r *remoteMonitors) current() []config.UserMonitor {
@@ -49,6 +53,7 @@ func (r *remoteMonitors) sync() (changed bool, err error) {
 	for name, why := range problems {
 		logging.Errorf("Console check %q cannot run on this agent: %s", name, why)
 	}
+	r.postResults(st, remotemon.Results(defs, problems))
 	fp := remotemon.Fingerprint(monitors)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -117,4 +122,29 @@ func (r *remoteMonitors) saveLocked() {
 	if os.WriteFile(tmp, data, 0o600) == nil {
 		_ = os.Rename(tmp, r.path)
 	}
+}
+
+// postResults tells Core which checks this agent cannot run (and clears ones that now run).
+// An older Core without the endpoint just keeps showing the check as waiting.
+func (r *remoteMonitors) postResults(st *config.InternalState, res []transport.DefinitionResult) {
+	raw, _ := json.Marshal(res)
+	r.mu.Lock()
+	same := r.posted == string(raw)
+	r.mu.Unlock()
+	if same || len(res) == 0 {
+		return
+	}
+	send := r.sendResults
+	if send == nil {
+		send = func(st *config.InternalState, res []transport.DefinitionResult) error {
+			return transport.NewClient(st.CoreURL, st.Token).SendDefinitionResults(st.AgentID, res)
+		}
+	}
+	if err := send(st, res); err != nil {
+		logging.Warnf("Could not report Console check outcomes: %v", err)
+		return
+	}
+	r.mu.Lock()
+	r.posted = string(raw)
+	r.mu.Unlock()
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -16,7 +17,13 @@ func TestRemoteMonitorSyncDetectsChangesAndSurvivesFailure(t *testing.T) {
 	var fail atomic.Bool
 	body.Store(`{"success":true,"data":{"definitions":[{"id":"1","name":"web-port","check_type":"port","params":{"port":8080},"interval_seconds":30,"fail_after":3}]}}`)
 	var gotAuth, gotPath string
+	var resultPosts atomic.Int32
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/results") {
+			resultPosts.Add(1)
+			w.Write([]byte(`{"success":true}`))
+			return
+		}
 		gotAuth, gotPath = r.Header.Get("Authorization"), r.URL.Path
 		if fail.Load() {
 			w.WriteHeader(503)
@@ -44,6 +51,9 @@ func TestRemoteMonitorSyncDetectsChangesAndSurvivesFailure(t *testing.T) {
 	}
 	if changed, _ := r.sync(); changed {
 		t.Fatal("identical definitions must not count as a change")
+	}
+	if resultPosts.Load() != 1 {
+		t.Fatalf("outcomes are sent once while they do not change; posts = %d", resultPosts.Load())
 	}
 	fail.Store(true)
 	if _, err := r.sync(); err == nil || len(r.current()) != 1 {

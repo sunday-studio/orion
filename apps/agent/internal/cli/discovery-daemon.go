@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"orion/agent/internal/config"
@@ -27,6 +28,11 @@ type scanner struct {
 	// onScan is told about each finished scan (the daemon sends it to Core).
 	onScan func(control.Discovery)
 
+	// kick asks the loop for a scan now; rescanOnConfig makes the next config
+	// reload do that, so a Console change shows up in Core without waiting.
+	kick           chan struct{}
+	rescanOnConfig atomic.Bool
+
 	mu       sync.Mutex
 	scanning bool
 	last     discover.Result
@@ -35,7 +41,7 @@ type scanner struct {
 }
 
 func newScanner(store *agentstate.Store, cfg func() *config.UserConfig) *scanner {
-	return &scanner{store: store, cfg: cfg, env: hostDiscoverEnv}
+	return &scanner{store: store, cfg: cfg, env: hostDiscoverEnv, kick: make(chan struct{}, 1)}
 }
 
 // hostDiscoverEnv is the real-host scan configured by discovery.* and the
@@ -62,7 +68,16 @@ func (s *scanner) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(rescanEvery):
+		case <-s.kick:
 		}
+	}
+}
+
+// requestScan asks the loop to scan soon; it never blocks.
+func (s *scanner) requestScan() {
+	select {
+	case s.kick <- struct{}{}:
+	default:
 	}
 }
 

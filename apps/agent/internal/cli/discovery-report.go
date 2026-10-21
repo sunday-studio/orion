@@ -13,6 +13,9 @@ import (
 	"orion/agent/internal/transport"
 )
 
+// agentCapabilities is what this agent tells Core it can do.
+var agentCapabilities = []string{"requests"}
+
 // discoveryResendEvery re-sends an unchanged scan this often, so Core's copy
 // does not look stale and a Core that lost it gets it back.
 const discoveryResendEvery = 24 * time.Hour
@@ -42,7 +45,7 @@ func newDiscoveryReporter(store *agentstate.Store, cfg func() *config.UserConfig
 }
 
 func reportOf(d control.Discovery) transport.DiscoveryReport {
-	rep := transport.DiscoveryReport{ScannedAt: d.ScannedAt, Enabled: d.Enabled, Kinds: []transport.DiscoveredKind{}, Items: []transport.DiscoveredItem{}}
+	rep := transport.DiscoveryReport{ScannedAt: d.ScannedAt, Enabled: d.Enabled, Kinds: []transport.DiscoveredKind{}, Items: []transport.DiscoveredItem{}, Capabilities: agentCapabilities}
 	for _, k := range d.Kinds {
 		rep.Kinds = append(rep.Kinds, transport.DiscoveredKind{Kind: k.Kind, State: k.State, Message: k.Message, Fix: k.Fix, Why: k.Why})
 	}
