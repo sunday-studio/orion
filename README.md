@@ -57,12 +57,20 @@ Postgres, Kubernetes or a hosted observability stack first.
 About ten minutes on a Linux or macOS machine with Docker. The full steps, with every command, are in
 [Getting started](docs/getting-started.md).
 
-1. **Start Core** with Docker Compose and sign in to the Console on port `8999`.
-2. **Connect a server** with the one-line installer on any Linux or macOS host you want to watch.
-3. **Add a monitor and an alert channel**, then send a test message.
+```sh
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
+```
 
-Setting up a new server? [Set up Core with Docker](docs/deployment/docker-new-server.md) builds Core and
-the Console from source in one command; then connect servers with the installer.
+That starts **Core** (the API, the Console and the worker) with Docker Compose and prints the address and
+your login. Then:
+
+1. **Connect a server** with the one-line installer the Console shows under Servers, Add server, on any Linux
+   or macOS host you want to watch.
+2. **Add a monitor and an alert channel**, then send a test message.
+
+Every setting lives in [`deploy/.env.example`](deploy/.env.example); the compose file is
+[`deploy/docker-compose.yml`](deploy/docker-compose.yml). Building Core from source on a new server:
+[Set up Core with Docker](docs/deployment/docker-new-server.md).
 
 Want to see it work before installing anything? The demo starts Core, monitors a tiny Python service,
 breaks it and checks recovery:
@@ -70,6 +78,24 @@ breaks it and checks recovery:
 ```sh
 examples/python-sleep-compose/smoke.sh
 ```
+
+## Let your AI set it up
+
+Hand the whole setup to an AI assistant. It asks you a few questions, then installs and verifies Core, connects
+your servers and sends a test alert, asking before it changes anything.
+
+[![Set up Orion with Claude](https://img.shields.io/badge/Set%20up%20Orion%20with-Claude-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/new?q=Set%20up%20Orion%20%28self-hosted%20monitoring%29%20for%20me%20end%20to%20end.%20Read%20https%3A%2F%2Fraw.githubusercontent.com%2Fsunday-studio%2Forion%2Fmain%2Fdocs%2Fai-setup.md%20and%20follow%20it%20step%20by%20step.%20Ask%20me%20the%20questions%20it%20lists%20first%2C%20and%20ask%20before%20you%20change%20anything%20on%20a%20machine.)
+
+Using Claude Code or another assistant that can run commands? Paste this:
+
+```text
+Set up Orion (self-hosted monitoring) for me end to end. Read
+https://raw.githubusercontent.com/sunday-studio/orion/main/docs/ai-setup.md and follow it step by step.
+Ask me the questions it lists first, and ask before you change anything on a machine.
+```
+
+The instructions the assistant follows are in [docs/ai-setup.md](docs/ai-setup.md): what to ask, the exact
+commands, how to check every step, and when to stop.
 
 ## Documentation
 

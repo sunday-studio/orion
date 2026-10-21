@@ -7,6 +7,7 @@ This is the map of the documentation in this repository. The public documentatio
 ## Start here
 
 - [Getting started](getting-started.md): Core, a Server and your first alert in about ten minutes.
+- [Set up Orion with an AI assistant](ai-setup.md): a runbook an AI agent follows to do the whole setup for you.
 - [How Orion works](how-it-works.md): the pieces, the diagram and what it can watch.
 
 ## Run it
