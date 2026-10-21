@@ -13,6 +13,7 @@ The supported self-hosted setup is:
 - [Kubernetes position](kubernetes-position.md)
 - [Server install and upgrade](node-install-upgrade.md)
 - [Node configuration reference](node-config-reference.md)
+- [Upgrade notes: the agent is now the node](upgrade-notes-node-rename.md)
 - [Release readiness gate](release-readiness.md)
 - [SQLite backup and restore](../sqlite-backup-restore.md)
 

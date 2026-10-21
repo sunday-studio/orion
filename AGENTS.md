@@ -11,7 +11,7 @@ Multi-agent work follows COORDINATION.md.
 
 ## Repository Map
 
-- `apps/agent/`: Orion Agent. Go daemon, CLI, config/state handling, collectors, registration, and transport to Core.
+- `apps/node/`: Orion Node. Go daemon, CLI, config/state handling, collectors, registration, and transport to Core.
 - `apps/core/`: Orion Core. Go API server, SQLite models/services, OpenAPI spec, generated Swagger docs, and generated `web/` assets served by Core.
 - `apps/console/`: Main editable React/Vite product UI. New frontend product work belongs here.
 - `packages/sdk/`: Generated/shared API types. Treat as generated unless the task is specifically about SDK generation or contracts.
@@ -21,7 +21,7 @@ Multi-agent work follows COORDINATION.md.
 
 ## Ownership Rules
 
-- Agent runtime work goes in `apps/agent/`.
+- Node runtime work goes in `apps/node/`.
 - Core API, persistence, health computation, and auth work goes in `apps/core/`.
 - Main UI work goes in `apps/console/`.
 - Deployment/service integration work goes in `deploy/`.
@@ -40,7 +40,7 @@ Multi-agent work follows COORDINATION.md.
 ## App Code Size Rules
 
 - App source files under `apps/` with `.go`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.css`, and `.sh` extensions must stay at or below 500 lines.
-- This rule applies to product and test code in `apps/agent/`, `apps/core/`, and `apps/console/`.
+- This rule applies to product and test code in `apps/node/`, `apps/core/`, and `apps/console/`.
 - This rule does not apply to docs, config files, generated SDK/OpenAPI/Swagger output, built web assets, public assets, or database migrations.
 - Before adding a new oversized file or expanding an existing oversized file, split it by responsibility instead.
 - Run `make code-line-limit` before handing off app source changes.
@@ -49,14 +49,14 @@ Multi-agent work follows COORDINATION.md.
 ## Contract Rules
 
 - Core route or response changes must update route annotations and regenerate `apps/core/openapi.yaml`.
-- Agent/Core behavior changes must update `docs/agent-core-contract.md` when the wire contract or responsibility split changes.
+- Node/Core behavior changes must update `docs/node-core-contract.md` when the wire contract or responsibility split changes.
 - UI changes that rely on new API fields must land with matching Core/OpenAPI updates.
 - Deployment path changes must update `README.md`, `Makefile`, and relevant files under `deploy/`.
 
 ## Console Table Rules
 
 - Use the OpenStatus data-table pattern for log-like tables in `apps/console/`.
-- Log-like tables include Agent report logs, monitor check logs, incident timelines/events, Orion event logs, alert delivery logs, and any future operational history view.
+- Log-like tables include Node report logs, monitor check logs, incident timelines/events, Orion event logs, alert delivery logs, and any future operational history view.
 - Prefer schema-driven data-table components, TanStack Table, TanStack Query, and `nuqs` URL-backed state for filters, sorting, and pagination.
 - Do not hand-roll one-off log tables unless the OpenStatus data-table components cannot support the required interaction.
 - Keep server-side pagination and filtering wired to Core API query params when the API supports them.
@@ -64,7 +64,7 @@ Multi-agent work follows COORDINATION.md.
 ## Coordination Rules for Multiple Agents
 
 - Work in disjoint areas when possible:
-  - Agent worker: `apps/agent/`
+  - Node worker: `apps/node/`
   - Core worker: `apps/core/`
   - Console worker: `apps/console/`
   - Deploy/docs worker: `deploy/`, `docs/`, root docs
@@ -104,10 +104,10 @@ Run Core tests:
 cd apps/core && go test ./...
 ```
 
-Run Agent tests:
+Run Node tests:
 
 ```sh
-cd apps/agent && go test ./...
+cd apps/node && go test ./...
 ```
 
 Install and build the main console app:
@@ -173,7 +173,7 @@ conventional-commit-type(service/package changed): one liner
 
 - Does the change stay inside the right app/package/deploy/doc boundary?
 - If an API changed, were OpenAPI and generated clients handled?
-- If Agent/Core behavior changed, was the contract doc updated?
+- If Node/Core behavior changed, was the contract doc updated?
 - If paths changed, were README, Makefile, Docker, and deploy docs updated?
 - Are generated files clearly identified?
 - Were relevant tests or build commands run, or is the reason they were not run stated clearly?
