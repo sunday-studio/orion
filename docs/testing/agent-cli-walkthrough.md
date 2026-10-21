@@ -11,8 +11,8 @@ local Core and an enrolled agent, and asks "Same as the board?". Nothing is inst
 needed; everything lives in `/tmp/orion-walk-<your uid>` and is stopped when you quit.
 
 - Core runs on `http://127.0.0.1:8999`. For the Console, run `make console-dev` in another terminal,
-  open `http://localhost:5173` and log in as `admin` / `orion-walk` (a throwaway, local-only login
-  the script sets; the Console always asks for one).
+  open `http://localhost:5173` and log in with the username and password the script prints (new on every
+  run; the Console always asks for one). Core is bound to `127.0.0.1` only.
 - `make agent-walkthrough ONLY=status` shows only the screens whose board or name contains "status".
 - Each screen puts the sandbox in the state it needs (a fresh host and empty Core for setup and enrol,
   Core stopped for the offline screen, the agent stopped for "not running"). Interactive screens
