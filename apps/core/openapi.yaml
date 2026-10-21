@@ -4502,6 +4502,89 @@ definitions:
       used_percent:
         type: number
     type: object
+  orion_core_internal_service.AgentDiscoveryInput:
+    properties:
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryItem'
+        type: array
+      kinds:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryKind'
+        type: array
+      scanned_at:
+        type: string
+    type: object
+  orion_core_internal_service.AgentDiscoveryItem:
+    properties:
+      confidence:
+        enum:
+        - high
+        - medium
+        - low
+        type: string
+      detail:
+        type: string
+      dismissed:
+        type: boolean
+      id:
+        type: string
+      kind:
+        type: string
+      managed_in:
+        type: string
+      name:
+        type: string
+      new:
+        type: boolean
+      status:
+        description: Status is suggested (nothing watches it yet) or monitored (a
+          monitor already covers it).
+        enum:
+        - suggested
+        - monitored
+        type: string
+    type: object
+  orion_core_internal_service.AgentDiscoveryKind:
+    properties:
+      fix:
+        type: string
+      kind:
+        type: string
+      message:
+        type: string
+      state:
+        type: string
+      why:
+        type: string
+    type: object
+  orion_core_internal_service.AgentDiscoveryView:
+    properties:
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryItem'
+        type: array
+      kinds:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryKind'
+        type: array
+      monitored:
+        type: integer
+      new_items:
+        type: integer
+      received_at:
+        type: string
+      scanned_at:
+        type: string
+      suggested:
+        type: integer
+      things:
+        type: integer
+    type: object
   orion_core_internal_service.AgentReportPayload:
     properties:
       agent_version:
@@ -6056,6 +6139,47 @@ paths:
       summary: Receive monitor report
       tags:
       - reports
+  /v1/agents/{agent_id}/discovery:
+    post:
+      consumes:
+      - application/json
+      description: Agent-to-Core. The agent scans its host read-only for services,
+        containers, ports, disks and log files that could be monitored and reports
+        the result after each scan. The latest report replaces the previous one. Core
+        only stores and shows it; nothing is monitored until a person accepts a suggestion.
+      operationId: receiveAgentDiscovery
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Latest scan
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Agent: report what was found on the host'
+      tags:
+      - agents
   /v1/agents/{agent_id}/logs/batch:
     post:
       consumes:
@@ -6672,6 +6796,41 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update server details
+      tags:
+      - agents
+  /v1/agents/{id}/discovery:
+    get:
+      description: 'The latest read-only scan the agent reported: things that could
+        be monitored, which are already monitored, which are new, and kinds that could
+        not be scanned with the exact fix. discovery is null until the agent has reported
+        one.'
+      operationId: getAgentDiscovery
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    discovery:
+                      $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryView'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: What the agent found on its host
       tags:
       - agents
   /v1/agents/{id}/health:

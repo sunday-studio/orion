@@ -152,6 +152,17 @@ type AgentMonitorDefinition struct {
 	CreatedAt       time.Time `gorm:"not null"`
 }
 
+// AgentDiscovery is the latest read-only scan an agent made of its own host: what it found that could
+// be monitored and how scanning each kind went. One row per agent, replaced on every report.
+type AgentDiscovery struct {
+	AgentID    string `gorm:"primaryKey"`
+	ScannedAt  *time.Time
+	Enabled    bool      `gorm:"not null;default:true"`
+	Kinds      string    `gorm:"type:text;not null;default:'[]'"`
+	Items      string    `gorm:"type:text;not null;default:'[]'"`
+	ReceivedAt time.Time `gorm:"not null"`
+}
+
 // AlertLabelRoute picks channels by label (the Routes tab): matchers are ANDed; routes are tried in
 // position order and the first match wins unless ContinueMatching is set.
 type AlertLabelRoute struct {

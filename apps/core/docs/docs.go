@@ -1481,6 +1481,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{agent_id}/discovery": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Agent-to-Core. The agent scans its host read-only for services, containers, ports, disks and log files that could be monitored and reports the result after each scan. The latest report replaces the previous one. Core only stores and shows it; nothing is monitored until a person accepts a suggestion.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Agent: report what was found on the host",
+                "operationId": "receiveAgentDiscovery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Latest scan",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/logs/batch": {
             "post": {
                 "security": [
@@ -2521,6 +2580,59 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{id}/discovery": {
+            "get": {
+                "description": "The latest read-only scan the agent reported: things that could be monitored, which are already monitored, which are new, and kinds that could not be scanned with the exact fix. discovery is null until the agent has reported one.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "What the agent found on its host",
+                "operationId": "getAgentDiscovery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "discovery": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryView"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
@@ -22767,6 +22879,129 @@ const docTemplate = `{
                 },
                 "used_percent": {
                     "type": "number"
+                }
+            }
+        },
+        "orion_core_internal_service.AgentDiscoveryInput": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryItem"
+                    }
+                },
+                "kinds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryKind"
+                    }
+                },
+                "scanned_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AgentDiscoveryItem": {
+            "type": "object",
+            "properties": {
+                "confidence": {
+                    "type": "string",
+                    "enum": [
+                        "high",
+                        "medium",
+                        "low"
+                    ]
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "managed_in": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "new": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "description": "Status is suggested (nothing watches it yet) or monitored (a monitor already covers it).",
+                    "type": "string",
+                    "enum": [
+                        "suggested",
+                        "monitored"
+                    ]
+                }
+            }
+        },
+        "orion_core_internal_service.AgentDiscoveryKind": {
+            "type": "object",
+            "properties": {
+                "fix": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "why": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AgentDiscoveryView": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryItem"
+                    }
+                },
+                "kinds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryKind"
+                    }
+                },
+                "monitored": {
+                    "type": "integer"
+                },
+                "new_items": {
+                    "type": "integer"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "scanned_at": {
+                    "type": "string"
+                },
+                "suggested": {
+                    "type": "integer"
+                },
+                "things": {
+                    "type": "integer"
                 }
             }
         },
