@@ -288,6 +288,14 @@ func checkToken(ctx context.Context, e *Env) Result {
 	return ok("valid").titled("Credentials accepted")
 }
 
+// restartCommand is how to restart the node service on this platform; orion-node restart works on both.
+func restartCommand(goos string) string {
+	if goos == "darwin" {
+		return "orion-node restart"
+	}
+	return "sudo systemctl restart orion-node"
+}
+
 func checkLogAccess(_ context.Context, e *Env) Result {
 	if e.Config == nil {
 		return skip("no config yet")
@@ -311,9 +319,13 @@ func checkLogAccess(_ context.Context, e *Env) Result {
 	case err == nil:
 		return ok("can read " + path).titled("Log file readable")
 	case os.IsNotExist(err):
-		return warn(path+" does not exist yet", "sudo systemctl restart orion-node   (the daemon creates it on start)").titled("The node log file does not exist yet", path)
+		return warn(path+" does not exist yet", restartCommand(e.GOOS)+"   (the daemon creates it on start)").titled("The node log file does not exist yet", path)
 	case os.IsPermission(err):
-		return fail("cannot read "+path, "sudo usermod -aG orion $USER && sudo systemctl restart orion-node   (or read through the daemon: orion-node logs)").titled("The node log file cannot be read", path)
+		fix := "read it through the daemon: orion-node logs"
+		if e.GOOS != "darwin" {
+			fix = "sudo usermod -aG orion $USER && " + restartCommand(e.GOOS) + "   (or read through the daemon: orion-node logs)"
+		}
+		return fail("cannot read "+path, fix).titled("The node log file cannot be read", path)
 	}
 	return warn(firstLine(err.Error()), "")
 }

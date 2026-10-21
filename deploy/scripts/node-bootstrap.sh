@@ -188,8 +188,7 @@ detect_arch() {
   case "$(uname -m)" in
     x86_64|amd64) echo amd64 ;;
     arm64|aarch64) echo arm64 ;;
-    armv7l|armv7) echo armv7 ;;
-    *) die "unsupported architecture: $(uname -m)" "supported: amd64, arm64, armv7 (Linux only)" ;;
+    *) die "unsupported architecture: $(uname -m)" "supported: amd64 and arm64, on Linux and macOS" ;;
   esac
 }
 detect_init() {
@@ -205,7 +204,6 @@ sha256_of() {
 
 OS="$(detect_os)"
 ARCH="$(detect_arch)"
-[ "$OS" = "darwin" ] && [ "$ARCH" = "armv7" ] && die "armv7 is not a macOS architecture"
 INIT="$(detect_init "$OS")"
 ASSET="orion-node-${OS}-${ARCH}"
 
@@ -270,7 +268,7 @@ if [ "$DRY_RUN" = "true" ]; then
   printf '  ● system     %s/%s, %s\n' "$OS" "$ARCH" "$INIT"
   printf '  ● download   %s, static\n' "$ASSET"
   printf '  ● verify     sha256%s\n' "$([ "$REQUIRE_SIGNATURE" = "true" ] && printf ' and signature' || printf '')"
-  printf '  ● create     %s, %s, %s\n' "$([ "$USER_MODE" = "true" ] && printf 'user directories' || printf 'user orion')" "$(dirname "$CFG")" "$STATE_DIR"
+  printf '  ● create     %s, %s, %s\n' "$([ "$USER_MODE" = "true" ] && printf 'user directories' || printf 'user %s' "$([ "$OS" = "darwin" ] && printf _orion || printf orion)")" "$(dirname "$CFG")" "$STATE_DIR"
   printf '  ● install    orion-node (%s)\n' "$INIT"
   printf '  ● enroll     %s\n' "$CORE_URL"
   printf '\n  dry run: this plan makes no changes.\n'
@@ -500,7 +498,7 @@ else
   record ok "Installed" "$BIN_DIR/orion-node"
   if [ "$START_SERVICE" != "true" ]; then SERVICE_DETAIL="installed, not started (--no-start)"
   elif [ "$INIT" = "systemd" ]; then SERVICE_DETAIL="systemd unit, runs as user orion"
-  else SERVICE_DETAIL="launchd daemon, runs as the orion service user"; fi
+  else SERVICE_DETAIL="launchd daemon, runs as user _orion"; fi
   record ok "Service" "$SERVICE_DETAIL"
   ENROLLED_MS=0
 fi
@@ -538,7 +536,8 @@ if [ "$START_SERVICE" = "true" ]; then
     box_row "${C_DIM}Detected${C_OFF}     ${C_BOLD}$found things${C_OFF} to monitor" "$C_OK"
   fi
   box_row "" "$C_OK"
-  box_row "${C_OK}▸${C_OFF} ${C_BOLD}orion-node setup${C_OFF}   ${C_DIM}or open${C_OFF} ${CORE_URL%/}/servers/$HOST_NAME" "$C_OK"
+  # The Servers list always exists; a single server is addressed by its id, which is too long for this box.
+  box_row "${C_OK}▸${C_OFF} ${C_BOLD}orion-node setup${C_OFF}   ${C_DIM}or open${C_OFF} ${CORE_URL%/}/servers" "$C_OK"
   box_bottom "$C_OK"
   printf '\n  %sNo questions were asked. Setup is optional; host metrics are already reporting.%s\n' "$C_DIM" "$C_OFF"
 else
