@@ -141,3 +141,25 @@ func TestReporterCoalescesScansThatFinishWhileOneIsSending(t *testing.T) {
 		t.Fatalf("sent %v, want [one three]", names)
 	}
 }
+
+func TestReportAdvertisesAppResourcesOnlyWhileTheyAreSent(t *testing.T) {
+	has := func(caps []string, c string) bool {
+		for _, x := range caps {
+			if x == c {
+				return true
+			}
+		}
+		return false
+	}
+	r, sent, _ := reporterFixture(t, true, &config.UserConfig{})
+	r.Report(scanOf("nginx"))
+	if len(*sent) != 1 || !has((*sent)[0].Capabilities, "requests") || !has((*sent)[0].Capabilities, "app_resources") {
+		t.Fatalf("capabilities = %+v", *sent)
+	}
+	off := false
+	r2, sent2, _ := reporterFixture(t, true, &config.UserConfig{AppResources: config.AppResourcesConfig{Enabled: &off}})
+	r2.Report(scanOf("nginx"))
+	if len(*sent2) != 1 || has((*sent2)[0].Capabilities, "app_resources") || !has((*sent2)[0].Capabilities, "requests") {
+		t.Fatalf("turned off, the agent must not claim it sends app usage: %+v", *sent2)
+	}
+}
