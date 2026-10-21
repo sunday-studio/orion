@@ -352,12 +352,6 @@ Open readiness gaps:
 
 These gaps are implementation tickets, not accepted architecture behavior.
 
-## Settings PR Closeout
-
-Settings readiness PRs should use
-[`docs/plans/settings-pr-closeout-checklist.md`](../plans/settings-pr-closeout-checklist.md)
-before review.
-
 ## Generated OpenAPI Contract
 
 The API contract is generated from Core route annotations.

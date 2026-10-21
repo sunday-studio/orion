@@ -91,8 +91,10 @@ subscriber suppression records, and 180 days for subscriber delivery rows. The j
 events before anonymization or hard deletion, and it still runs when raw report archiving is set to
 manual mode.
 
-These SMTP variables only support public status page subscriber mail. Core does not use them for
-internal alert delivery, and internal alert rules should target webhook channels.
+These `ORION_PUBLIC_STATUS_MAIL_*` variables only send public status page subscriber mail. Email
+alert channels use a separate SMTP setup, `ORION_ALERT_SMTP_*`, and when it is set the API and the
+Worker must also share `ORION_ALERT_EMAIL_SECRET`. Every variable, with its default and which
+container reads it, is in [Core environment variables](core-environment.md).
 
 Start Core after creating the `.env` file. Compose starts two services:
 

@@ -17,8 +17,15 @@ Tailscale-reachable host, or a home server that is more reliable than the things
 - Swagger UI is off unless `ORION_ENABLE_SWAGGER=true`.
 - Request bodies are limited (1 MiB, or 5 MiB for NDJSON log batches), and URL paths with embedded tokens are not
   logged.
-- Public status page subscriber email uses its own sender (`ORION_PUBLIC_STATUS_MAIL_*`). Internal alerts
-  are delivered through alert rules, not that SMTP setup.
+- Node registration is open to anyone who can reach Core unless you set `ORION_ENROLLMENT_TOKEN` (or a
+  registration token in Settings). Console "Add server" commands carry a one-time token that works either
+  way, and `/v1/register` is rate limited, but set a token on any Core reachable from the internet.
+- Public status page subscriber email uses its own sender (`ORION_PUBLIC_STATUS_MAIL_*`). Email alert
+  channels use `ORION_ALERT_SMTP_*` and need `ORION_ALERT_EMAIL_SECRET` shared by the API and the Worker;
+  without it the Worker, which has no JWT secret, cannot sign alert email links and email deliveries fail.
+- `/metrics` needs an admin sign-in unless `ORION_METRICS_TOKEN` is set, which is the token to give a scraper.
+
+Every variable, its default and which container reads it: [Core environment variables](core-environment.md).
 
 Plain `docker run` commands, backup, CORS and upgrades are in
 [Core Docker deployment](core-docker.md).
