@@ -61,6 +61,9 @@ About ten minutes on a Linux or macOS machine with Docker. The full steps, with 
 2. **Connect a server** with the one-line installer on any Linux or macOS host you want to watch.
 3. **Add a monitor and an alert channel**, then send a test message.
 
+Setting up a new server? [Set up Core with Docker](docs/deployment/docker-new-server.md) builds Core and
+the Console from source in one command; then connect servers with the installer.
+
 Want to see it work before installing anything? The demo starts Core, monitors a tiny Python service,
 breaks it and checks recovery:
 

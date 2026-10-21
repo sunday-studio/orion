@@ -28,7 +28,8 @@ docker run -d --name orion-agent --restart unless-stopped \
 
 The token is used once; after the first start the agent keeps its own credentials in the `orion-agent-data` volume, so the token can be removed from the command afterwards. Recreate the container without `ORION_ENROLLMENT_TOKEN` once it has enrolled: an environment variable stays visible in `docker inspect`. Keep the volume: removing it makes the agent enroll again as a new server.
 
-A Compose version is in [deploy/examples/agent-container-compose.yaml](../../deploy/examples/agent-container-compose.yaml).
+To run an agent container beside Core on the same server, see
+[Set up Core on a new server with Docker](docker-new-server.md) (`--profile agent`). A standalone Compose version of the agent is in [deploy/examples/agent-container-compose.yaml](../../deploy/examples/agent-container-compose.yaml).
 
 ## What it sees
 
