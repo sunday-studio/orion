@@ -70,278 +70,6 @@ definitions:
     required:
     - item_ids
     type: object
-  internal_api.NodeConfigSummaryResponse:
-    properties:
-      monitor_count:
-        type: integer
-      monitor_types:
-        additionalProperties:
-          type: integer
-        type: object
-      reporting_interval:
-        type: string
-    type: object
-  internal_api.NodeHealthResponse:
-    properties:
-      node_id:
-        type: string
-      availability_health:
-        type: string
-      degraded_count:
-        type: integer
-      down_count:
-        type: integer
-      monitor_health:
-        type: string
-      overall_health:
-        type: string
-      stale_count:
-        type: integer
-      status_reason:
-        type: string
-      total_count:
-        type: integer
-      unknown_count:
-        type: integer
-      up_count:
-        type: integer
-    type: object
-  internal_api.NodeMonitorDefinitionRequest:
-    properties:
-      check_type:
-        description: 'CheckType: disk (params path, threshold_percent), memory (threshold_percent),
-          process (process_name), port (port), systemd (unit), docker (container),
-          pm2 (app).'
-        enum:
-        - disk
-        - memory
-        - process
-        - port
-        - systemd
-        - docker
-        - pm2
-        type: string
-      fail_after:
-        type: integer
-      interval_seconds:
-        type: integer
-      name:
-        type: string
-      params:
-        additionalProperties: {}
-        type: object
-    required:
-    - check_type
-    - name
-    type: object
-  internal_api.NodeMonitorDefinitionResponse:
-    properties:
-      check_type:
-        type: string
-      created_at:
-        type: string
-      delivered_at:
-        description: DeliveredAt is when the node first fetched this definition (Requested
-          becomes Applied).
-        type: string
-      fail_after:
-        type: integer
-      failure_reason:
-        description: FailureReason is why the node could not run this check, in its
-          own words (state failed).
-        type: string
-      first_report_at:
-        type: string
-      id:
-        type: string
-      interval_seconds:
-        type: integer
-      monitor_id:
-        type: string
-      name:
-        type: string
-      params:
-        additionalProperties: {}
-        type: object
-      state:
-        description: State is waiting until the node has fetched the definition and
-          reported under this name, then reporting.
-        enum:
-        - waiting
-        - failed
-        - reporting
-        type: string
-    type: object
-  internal_api.NodePulledDefinition:
-    properties:
-      check_type:
-        type: string
-      fail_after:
-        type: integer
-      id:
-        type: string
-      interval_seconds:
-        type: integer
-      name:
-        type: string
-      params:
-        additionalProperties: {}
-        type: object
-    type: object
-  internal_api.NodeReportResponse:
-    properties:
-      node_id:
-        type: string
-      node_version:
-        type: string
-      config_summary:
-        $ref: '#/definitions/internal_api.NodeConfigSummaryResponse'
-      cpu:
-        $ref: '#/definitions/orion_core_internal_db.CPUStats'
-      created_at:
-        type: string
-      disk:
-        $ref: '#/definitions/orion_core_internal_db.DiskStats'
-      id:
-        type: string
-      location:
-        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
-      memory:
-        $ref: '#/definitions/orion_core_internal_db.MemoryStats'
-      timestamp:
-        type: string
-      uptime_seconds:
-        type: integer
-    type: object
-  internal_api.NodeResponse:
-    properties:
-      node_version:
-        description: Latest system metrics; null until the first report. CPUSeries
-          has up to 12 readings, oldest first.
-        type: string
-      arch:
-        type: string
-      availability_health:
-        type: string
-      cpu_percent:
-        type: number
-      cpu_series:
-        items:
-          type: number
-        type: array
-      created_at:
-        type: string
-      disk_percent:
-        type: number
-      id:
-        type: string
-      ip:
-        type: string
-      kernel_version:
-        type: string
-      labels:
-        description: Labels are "key=value" strings; Notes is free text. Both are
-          edited with PATCH /v1/nodes/{id}.
-        items:
-          type: string
-        type: array
-      last_report_at:
-        type: string
-      last_seen:
-        type: string
-      location:
-        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
-      maintenance_mode:
-        type: boolean
-      maintenance_until:
-        type: string
-      memory_percent:
-        type: number
-      monitor_count:
-        type: integer
-      monitor_health:
-        type: string
-      name:
-        type: string
-      notes:
-        type: string
-      os:
-        type: string
-      platform:
-        type: string
-      reporting_interval_seconds:
-        type: integer
-      status:
-        type: string
-      status_detail:
-        type: string
-      status_reason:
-        type: string
-      status_text:
-        description: StatusText is the badge ("Up 41d", "No report 12m"); StatusDetail
-          the one-line reason ("Disk 91%").
-        type: string
-      system:
-        type: boolean
-      uptime_seconds:
-        type: integer
-    type: object
-  internal_api.NodeSummaryResponse:
-    properties:
-      degraded:
-        type: integer
-      down:
-        type: integer
-      has_incidents:
-        type: integer
-      maintenance:
-        type: integer
-      stale:
-        type: integer
-      total:
-        type: integer
-      unknown:
-        type: integer
-      up:
-        type: integer
-    type: object
-  internal_api.NodeTokenActionRequest:
-    properties:
-      reason:
-        type: string
-    type: object
-  internal_api.NodeTokenIssuedResponse:
-    properties:
-      status:
-        $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
-      token:
-        type: string
-    type: object
-  internal_api.NodeTokenStatusResponse:
-    properties:
-      node_id:
-        type: string
-      last_used_at:
-        type: string
-      previous_token_valid_until:
-        description: PreviousTokenValidUntil is set for 10 minutes after a rotation
-          while the old token still works.
-        type: string
-      request_id:
-        type: string
-      state:
-        type: string
-      token_exists:
-        type: boolean
-      token_revocation_reason:
-        type: string
-      token_revoked_at:
-        type: string
-      token_rotated_at:
-        type: string
-      token_version:
-        type: integer
-    type: object
   internal_api.AlertChannelDetailResponse:
     properties:
       alert:
@@ -575,10 +303,6 @@ definitions:
     type: object
   internal_api.AlertRouteResponse:
     properties:
-      node_ids:
-        items:
-          type: string
-        type: array
       channel_ids:
         items:
           type: string
@@ -607,6 +331,10 @@ definitions:
         type: array
       name:
         type: string
+      node_ids:
+        items:
+          type: string
+        type: array
       priority:
         type: integer
       severities:
@@ -637,8 +365,6 @@ definitions:
     type: object
   internal_api.AlertRuleDryRunContext:
     properties:
-      node_id:
-        type: string
       event_type:
         type: string
       incident_id:
@@ -646,6 +372,8 @@ definitions:
       monitor_id:
         type: string
       monitor_type:
+        type: string
+      node_id:
         type: string
       severity:
         type: string
@@ -693,10 +421,6 @@ definitions:
     type: object
   internal_api.AlertRuleResponse:
     properties:
-      node_ids:
-        items:
-          type: string
-        type: array
       channel_ids:
         items:
           type: string
@@ -731,6 +455,10 @@ definitions:
         type: array
       name:
         type: string
+      node_ids:
+        items:
+          type: string
+        type: array
       priority:
         type: integer
       severities:
@@ -1091,9 +819,9 @@ definitions:
     type: object
   internal_api.DeclareIncidentRequest:
     properties:
-      node_id:
-        type: string
       monitor_id:
+        type: string
+      node_id:
         type: string
       notify:
         description: Notify queues alerts through the channels the matching rules
@@ -1159,16 +887,6 @@ definitions:
     type: object
   internal_api.EnrollmentCreatedResponse:
     properties:
-      node_arch:
-        type: string
-      node_id:
-        type: string
-      node_name:
-        type: string
-      node_os:
-        type: string
-      node_version:
-        type: string
       claimed_at:
         type: string
       core_url:
@@ -1182,6 +900,16 @@ definitions:
       id:
         type: string
       install_command:
+        type: string
+      node_arch:
+        type: string
+      node_id:
+        type: string
+      node_name:
+        type: string
+      node_os:
+        type: string
+      node_version:
         type: string
       platform:
         type: string
@@ -1213,16 +941,6 @@ definitions:
     type: object
   internal_api.EnrollmentResponse:
     properties:
-      node_arch:
-        type: string
-      node_id:
-        type: string
-      node_name:
-        type: string
-      node_os:
-        type: string
-      node_version:
-        type: string
       claimed_at:
         type: string
       created_at:
@@ -1232,6 +950,16 @@ definitions:
       first_report_at:
         type: string
       id:
+        type: string
+      node_arch:
+        type: string
+      node_id:
+        type: string
+      node_name:
+        type: string
+      node_os:
+        type: string
+      node_version:
         type: string
       platform:
         type: string
@@ -1344,10 +1072,6 @@ definitions:
     type: object
   internal_api.HealthIssue:
     properties:
-      node_id:
-        type: string
-      node_name:
-        type: string
       detail:
         example: timeout after 10s
         type: string
@@ -1381,6 +1105,10 @@ definitions:
       monitor_name:
         type: string
       monitor_type:
+        type: string
+      node_id:
+        type: string
+      node_name:
         type: string
       since:
         type: string
@@ -1431,10 +1159,6 @@ definitions:
     type: object
   internal_api.IncidentCandidate:
     properties:
-      node_id:
-        type: string
-      node_name:
-        type: string
       detail:
         description: Detail is a one-line reason such as "timeout after 10s"; SeenAt
           is when the signal started.
@@ -1457,6 +1181,10 @@ definitions:
       monitor_name:
         type: string
       monitor_type:
+        type: string
+      node_id:
+        type: string
+      node_name:
         type: string
       seen_at:
         type: string
@@ -1739,10 +1467,6 @@ definitions:
     type: object
   internal_api.IncidentResponse:
     properties:
-      node_id:
-        type: string
-      node_name:
-        type: string
       allowed_actions:
         $ref: '#/definitions/internal_api.IncidentAllowedActionsResponse'
       coverage_note:
@@ -1773,6 +1497,10 @@ definitions:
       monitor_name:
         type: string
       monitor_type:
+        type: string
+      node_id:
+        type: string
+      node_name:
         type: string
       notification_status:
         type: string
@@ -2139,8 +1867,6 @@ definitions:
     type: object
   internal_api.LogEntry:
     properties:
-      node_id:
-        type: string
       app_id:
         type: string
       app_name:
@@ -2157,6 +1883,8 @@ definitions:
       id:
         type: string
       ingested_at:
+        type: string
+      node_id:
         type: string
       request_id:
         type: string
@@ -2608,10 +2336,6 @@ definitions:
     properties:
       active_incident_id:
         type: string
-      node_id:
-        type: string
-      node_name:
-        type: string
       computed_health:
         type: string
       created_at:
@@ -2644,6 +2368,10 @@ definitions:
         - $ref: '#/definitions/internal_api.MonitorMaintenanceInfo'
         description: Maintenance is set while a window is active or scheduled.
       name:
+        type: string
+      node_id:
+        type: string
+      node_name:
         type: string
       owner_id:
         type: string
@@ -2712,10 +2440,280 @@ definitions:
       status_code:
         type: integer
     type: object
-  internal_api.OrionEventResponse:
+  internal_api.NodeConfigSummaryResponse:
     properties:
+      monitor_count:
+        type: integer
+      monitor_types:
+        additionalProperties:
+          type: integer
+        type: object
+      reporting_interval:
+        type: string
+    type: object
+  internal_api.NodeHealthResponse:
+    properties:
+      availability_health:
+        type: string
+      degraded_count:
+        type: integer
+      down_count:
+        type: integer
+      monitor_health:
+        type: string
       node_id:
         type: string
+      overall_health:
+        type: string
+      stale_count:
+        type: integer
+      status_reason:
+        type: string
+      total_count:
+        type: integer
+      unknown_count:
+        type: integer
+      up_count:
+        type: integer
+    type: object
+  internal_api.NodeMonitorDefinitionRequest:
+    properties:
+      check_type:
+        description: 'CheckType: disk (params path, threshold_percent), memory (threshold_percent),
+          process (process_name), port (port), systemd (unit), docker (container),
+          pm2 (app).'
+        enum:
+        - disk
+        - memory
+        - process
+        - port
+        - systemd
+        - docker
+        - pm2
+        type: string
+      fail_after:
+        type: integer
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    required:
+    - check_type
+    - name
+    type: object
+  internal_api.NodeMonitorDefinitionResponse:
+    properties:
+      check_type:
+        type: string
+      created_at:
+        type: string
+      delivered_at:
+        description: DeliveredAt is when the node first fetched this definition (Requested
+          becomes Applied).
+        type: string
+      fail_after:
+        type: integer
+      failure_reason:
+        description: FailureReason is why the node could not run this check, in its
+          own words (state failed).
+        type: string
+      first_report_at:
+        type: string
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      monitor_id:
+        type: string
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+      state:
+        description: State is waiting until the node has fetched the definition and
+          reported under this name, then reporting.
+        enum:
+        - waiting
+        - failed
+        - reporting
+        type: string
+    type: object
+  internal_api.NodePulledDefinition:
+    properties:
+      check_type:
+        type: string
+      fail_after:
+        type: integer
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    type: object
+  internal_api.NodeReportResponse:
+    properties:
+      config_summary:
+        $ref: '#/definitions/internal_api.NodeConfigSummaryResponse'
+      cpu:
+        $ref: '#/definitions/orion_core_internal_db.CPUStats'
+      created_at:
+        type: string
+      disk:
+        $ref: '#/definitions/orion_core_internal_db.DiskStats'
+      id:
+        type: string
+      location:
+        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
+      memory:
+        $ref: '#/definitions/orion_core_internal_db.MemoryStats'
+      node_id:
+        type: string
+      node_version:
+        type: string
+      timestamp:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  internal_api.NodeResponse:
+    properties:
+      arch:
+        type: string
+      availability_health:
+        type: string
+      cpu_percent:
+        type: number
+      cpu_series:
+        items:
+          type: number
+        type: array
+      created_at:
+        type: string
+      disk_percent:
+        type: number
+      id:
+        type: string
+      ip:
+        type: string
+      kernel_version:
+        type: string
+      labels:
+        description: Labels are "key=value" strings; Notes is free text. Both are
+          edited with PATCH /v1/nodes/{id}.
+        items:
+          type: string
+        type: array
+      last_report_at:
+        type: string
+      last_seen:
+        type: string
+      location:
+        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
+      maintenance_mode:
+        type: boolean
+      maintenance_until:
+        type: string
+      memory_percent:
+        type: number
+      monitor_count:
+        type: integer
+      monitor_health:
+        type: string
+      name:
+        type: string
+      node_version:
+        description: Latest system metrics; null until the first report. CPUSeries
+          has up to 12 readings, oldest first.
+        type: string
+      notes:
+        type: string
+      os:
+        type: string
+      platform:
+        type: string
+      reporting_interval_seconds:
+        type: integer
+      status:
+        type: string
+      status_detail:
+        type: string
+      status_reason:
+        type: string
+      status_text:
+        description: StatusText is the badge ("Up 41d", "No report 12m"); StatusDetail
+          the one-line reason ("Disk 91%").
+        type: string
+      system:
+        type: boolean
+      uptime_seconds:
+        type: integer
+    type: object
+  internal_api.NodeSummaryResponse:
+    properties:
+      degraded:
+        type: integer
+      down:
+        type: integer
+      has_incidents:
+        type: integer
+      maintenance:
+        type: integer
+      stale:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+      up:
+        type: integer
+    type: object
+  internal_api.NodeTokenActionRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  internal_api.NodeTokenIssuedResponse:
+    properties:
+      status:
+        $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
+      token:
+        type: string
+    type: object
+  internal_api.NodeTokenStatusResponse:
+    properties:
+      last_used_at:
+        type: string
+      node_id:
+        type: string
+      previous_token_valid_until:
+        description: PreviousTokenValidUntil is set for 10 minutes after a rotation
+          while the old token still works.
+        type: string
+      request_id:
+        type: string
+      state:
+        type: string
+      token_exists:
+        type: boolean
+      token_revocation_reason:
+        type: string
+      token_revoked_at:
+        type: string
+      token_rotated_at:
+        type: string
+      token_version:
+        type: integer
+    type: object
+  internal_api.OrionEventResponse:
+    properties:
       created_at:
         type: string
       id:
@@ -2725,6 +2723,8 @@ definitions:
       message:
         type: string
       monitor_id:
+        type: string
+      node_id:
         type: string
       source:
         type: string
@@ -2825,13 +2825,13 @@ definitions:
     type: object
   internal_api.OverviewServiceResponse:
     properties:
-      node_id:
-        type: string
       days:
         items:
           $ref: '#/definitions/internal_api.OverviewDayResponse'
         type: array
       name:
+        type: string
+      node_id:
         type: string
       status:
         enum:
@@ -3069,10 +3069,6 @@ definitions:
     type: object
   internal_api.ServiceLogEntryResponse:
     properties:
-      node_id:
-        type: string
-      node_name:
-        type: string
       collected_at:
         type: string
       component:
@@ -3090,6 +3086,10 @@ definitions:
       monitor_id:
         type: string
       monitor_name:
+        type: string
+      node_id:
+        type: string
+      node_name:
         type: string
       occurred_at:
         type: string
@@ -4183,8 +4183,6 @@ definitions:
     type: object
   internal_api.alertRouteDryRunRequest:
     properties:
-      node_id:
-        type: string
       event_type:
         type: string
       incident_id:
@@ -4193,15 +4191,13 @@ definitions:
         type: string
       monitor_type:
         type: string
+      node_id:
+        type: string
       severity:
         type: string
     type: object
   internal_api.alertRouteRequest:
     properties:
-      node_ids:
-        items:
-          type: string
-        type: array
       channel_ids:
         items:
           type: string
@@ -4226,6 +4222,10 @@ definitions:
         type: array
       name:
         type: string
+      node_ids:
+        items:
+          type: string
+        type: array
       priority:
         type: integer
       severities:
@@ -4237,8 +4237,6 @@ definitions:
     type: object
   internal_api.alertRuleDryRunRequest:
     properties:
-      node_id:
-        type: string
       event_type:
         type: string
       incident_id:
@@ -4247,15 +4245,13 @@ definitions:
         type: string
       monitor_type:
         type: string
+      node_id:
+        type: string
       severity:
         type: string
     type: object
   internal_api.alertRuleRequest:
     properties:
-      node_ids:
-        items:
-          type: string
-        type: array
       channel_ids:
         items:
           type: string
@@ -4284,6 +4280,10 @@ definitions:
         type: array
       name:
         type: string
+      node_ids:
+        items:
+          type: string
+        type: array
       priority:
         type: integer
       severities:
@@ -4580,6 +4580,316 @@ definitions:
       name:
         type: string
     type: object
+  orion_core_internal_service.AlertDestinationDecision:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      channel_type:
+        type: string
+      reason:
+        type: string
+      route_id:
+        type: string
+      route_name:
+        type: string
+      status:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayload:
+    properties:
+      delivered_at:
+        type: string
+      event_type:
+        type: string
+      incident:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadIncident'
+      monitor:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadMonitor'
+      node:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadNode'
+      summary:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadSummary'
+      test:
+        type: boolean
+      version:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadIncident:
+    properties:
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      monitor_id:
+        type: string
+      node_id:
+        type: string
+      opened_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadMonitor:
+    properties:
+      computed_health:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadNode:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadSummary:
+    properties:
+      text:
+        type: string
+      title:
+        type: string
+    type: object
+  orion_core_internal_service.AlertRouteContext:
+    properties:
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      labels:
+        description: 'Labels are the key=value pairs label routes match on: the server''s
+          labels plus severity, event, monitor_type, server and monitor.'
+        items:
+          type: string
+        type: array
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      node_id:
+        type: string
+      severity:
+        type: string
+    type: object
+  orion_core_internal_service.AppResourceSeries:
+    properties:
+      cpu_percent:
+        type: number
+      io_read_bytes_per_sec:
+        type: number
+      io_write_bytes_per_sec:
+        type: number
+      key:
+        type: string
+      kind:
+        enum:
+        - process
+        - unit
+        - container
+        - path
+        - volume
+        - docker
+        type: string
+      memory_bytes:
+        type: integer
+      name:
+        type: string
+      net_rx_bytes_per_sec:
+        type: number
+      net_tx_bytes_per_sec:
+        type: number
+      pids:
+        type: integer
+      storage_bytes:
+        type: integer
+      storage_capped:
+        type: boolean
+    type: object
+  orion_core_internal_service.ArchiveRunResult:
+    properties:
+      archive_path:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      cutoff:
+        type: string
+      monitor_reports_archived:
+        type: integer
+      node_reports_archived:
+        type: integer
+      skipped_because_disabled:
+        type: boolean
+      skipped_because_no_reports:
+        type: boolean
+    type: object
+  orion_core_internal_service.CoreManagedMonitorCreateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_check_count:
+        type: integer
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      runbook_url:
+        description: RunbookURL (http or https) is shown on incidents for this monitor.
+        type: string
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
+    required:
+    - config
+    - kind
+    - name
+    type: object
+  orion_core_internal_service.CoreManagedMonitorUpdateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_check_count:
+        type: integer
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      runbook_url:
+        description: RunbookURL sets the runbook link; an empty string clears it.
+        type: string
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
+    type: object
+  orion_core_internal_service.DataLifecycleSettingsPayload:
+    properties:
+      alert_delivery_retention_days:
+        type: integer
+      archive_dir:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      archive_schedule:
+        type: string
+      audit_event_retention_days:
+        type: integer
+      incident_event_retention_days:
+        type: integer
+      raw_report_hot_days:
+        type: integer
+      rollup_retention_days:
+        type: integer
+      rollups_enabled:
+        type: boolean
+      service_log_retention_days:
+        description: Optional retention windows (days, 1-3650). Omitted fields keep
+          their current value.
+        type: integer
+      worker_status_retention_days:
+        type: integer
+    type: object
+  orion_core_internal_service.DecommissionResult:
+    properties:
+      history_kept:
+        type: boolean
+      incidents_closed:
+        type: integer
+      monitors_removed:
+        type: integer
+    type: object
+  orion_core_internal_service.DefinitionResult:
+    properties:
+      definition_id:
+        type: string
+      ok:
+        type: boolean
+      reason:
+        type: string
+    type: object
+  orion_core_internal_service.MonitorReportPayload:
+    properties:
+      error: {}
+      health:
+        description: up | down
+        type: string
+      metrics: {}
+      report_id:
+        description: |-
+          ReportID is an optional node-generated idempotency key (UUID). Replaying a
+          report with the same ID for the same monitor stores nothing new.
+        type: string
+      timestamp:
+        type: string
+    required:
+    - health
+    - metrics
+    - timestamp
+    type: object
+  orion_core_internal_service.MonitorSummary:
+    properties:
+      degraded:
+        type: integer
+      down:
+        type: integer
+      has_incidents:
+        type: integer
+      paused:
+        description: Paused counts Core-managed monitors that are paused.
+        type: integer
+      stale:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+      up:
+        type: integer
+    type: object
   orion_core_internal_service.NodeAppResourcesView:
     properties:
       interval_seconds:
@@ -4746,8 +5056,6 @@ definitions:
     type: object
   orion_core_internal_service.NodeReportPayload:
     properties:
-      node_version:
-        type: string
       app_resources:
         description: AppResources is the node's passive per-app measurements; Core
           stores the latest.
@@ -4761,325 +5069,15 @@ definitions:
         $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       memory:
         $ref: '#/definitions/orion_core_internal_db.MemoryStats'
+      node_version:
+        type: string
       timestamp:
         type: string
       uptime_seconds:
         type: integer
     type: object
-  orion_core_internal_service.AlertDestinationDecision:
-    properties:
-      channel_id:
-        type: string
-      channel_name:
-        type: string
-      channel_type:
-        type: string
-      reason:
-        type: string
-      route_id:
-        type: string
-      route_name:
-        type: string
-      status:
-        type: string
-    type: object
-  orion_core_internal_service.AlertPayload:
-    properties:
-      node:
-        $ref: '#/definitions/orion_core_internal_service.AlertPayloadNode'
-      delivered_at:
-        type: string
-      event_type:
-        type: string
-      incident:
-        $ref: '#/definitions/orion_core_internal_service.AlertPayloadIncident'
-      monitor:
-        $ref: '#/definitions/orion_core_internal_service.AlertPayloadMonitor'
-      summary:
-        $ref: '#/definitions/orion_core_internal_service.AlertPayloadSummary'
-      test:
-        type: boolean
-      version:
-        type: string
-    type: object
-  orion_core_internal_service.AlertPayloadNode:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  orion_core_internal_service.AlertPayloadIncident:
-    properties:
-      node_id:
-        type: string
-      id:
-        type: string
-      last_event_at:
-        type: string
-      latest_event:
-        type: string
-      monitor_id:
-        type: string
-      opened_at:
-        type: string
-      resolved_at:
-        type: string
-      severity:
-        type: string
-      status:
-        type: string
-      title:
-        type: string
-    type: object
-  orion_core_internal_service.AlertPayloadMonitor:
-    properties:
-      computed_health:
-        type: string
-      health:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      type:
-        type: string
-    type: object
-  orion_core_internal_service.AlertPayloadSummary:
-    properties:
-      text:
-        type: string
-      title:
-        type: string
-    type: object
-  orion_core_internal_service.AlertRouteContext:
-    properties:
-      node_id:
-        type: string
-      event_type:
-        type: string
-      incident_id:
-        type: string
-      labels:
-        description: 'Labels are the key=value pairs label routes match on: the server''s
-          labels plus severity, event, monitor_type, server and monitor.'
-        items:
-          type: string
-        type: array
-      monitor_id:
-        type: string
-      monitor_type:
-        type: string
-      severity:
-        type: string
-    type: object
-  orion_core_internal_service.AppResourceSeries:
-    properties:
-      cpu_percent:
-        type: number
-      io_read_bytes_per_sec:
-        type: number
-      io_write_bytes_per_sec:
-        type: number
-      key:
-        type: string
-      kind:
-        enum:
-        - process
-        - unit
-        - container
-        - path
-        - volume
-        - docker
-        type: string
-      memory_bytes:
-        type: integer
-      name:
-        type: string
-      net_rx_bytes_per_sec:
-        type: number
-      net_tx_bytes_per_sec:
-        type: number
-      pids:
-        type: integer
-      storage_bytes:
-        type: integer
-      storage_capped:
-        type: boolean
-    type: object
-  orion_core_internal_service.ArchiveRunResult:
-    properties:
-      node_reports_archived:
-        type: integer
-      archive_path:
-        type: string
-      archive_raw_reports:
-        type: boolean
-      cutoff:
-        type: string
-      monitor_reports_archived:
-        type: integer
-      skipped_because_disabled:
-        type: boolean
-      skipped_because_no_reports:
-        type: boolean
-    type: object
-  orion_core_internal_service.CoreManagedMonitorCreateRequest:
-    properties:
-      config:
-        additionalProperties: true
-        type: object
-      confirmation_check_count:
-        type: integer
-      confirmation_period_seconds:
-        type: integer
-      description:
-        type: string
-      interval_seconds:
-        type: integer
-      kind:
-        type: string
-      name:
-        type: string
-      paused:
-        type: boolean
-      recovery_period_seconds:
-        type: integer
-      runbook_url:
-        description: RunbookURL (http or https) is shown on incidents for this monitor.
-        type: string
-      secret_refs:
-        additionalProperties: true
-        type: object
-      timeout_seconds:
-        type: integer
-      type:
-        type: string
-    required:
-    - config
-    - kind
-    - name
-    type: object
-  orion_core_internal_service.CoreManagedMonitorUpdateRequest:
-    properties:
-      config:
-        additionalProperties: true
-        type: object
-      confirmation_check_count:
-        type: integer
-      confirmation_period_seconds:
-        type: integer
-      description:
-        type: string
-      interval_seconds:
-        type: integer
-      kind:
-        type: string
-      name:
-        type: string
-      paused:
-        type: boolean
-      recovery_period_seconds:
-        type: integer
-      runbook_url:
-        description: RunbookURL sets the runbook link; an empty string clears it.
-        type: string
-      secret_refs:
-        additionalProperties: true
-        type: object
-      timeout_seconds:
-        type: integer
-      type:
-        type: string
-    type: object
-  orion_core_internal_service.DataLifecycleSettingsPayload:
-    properties:
-      alert_delivery_retention_days:
-        type: integer
-      archive_dir:
-        type: string
-      archive_raw_reports:
-        type: boolean
-      archive_schedule:
-        type: string
-      audit_event_retention_days:
-        type: integer
-      incident_event_retention_days:
-        type: integer
-      raw_report_hot_days:
-        type: integer
-      rollup_retention_days:
-        type: integer
-      rollups_enabled:
-        type: boolean
-      service_log_retention_days:
-        description: Optional retention windows (days, 1-3650). Omitted fields keep
-          their current value.
-        type: integer
-      worker_status_retention_days:
-        type: integer
-    type: object
-  orion_core_internal_service.DecommissionResult:
-    properties:
-      history_kept:
-        type: boolean
-      incidents_closed:
-        type: integer
-      monitors_removed:
-        type: integer
-    type: object
-  orion_core_internal_service.DefinitionResult:
-    properties:
-      definition_id:
-        type: string
-      ok:
-        type: boolean
-      reason:
-        type: string
-    type: object
-  orion_core_internal_service.MonitorReportPayload:
-    properties:
-      error: {}
-      health:
-        description: up | down
-        type: string
-      metrics: {}
-      report_id:
-        description: |-
-          ReportID is an optional node-generated idempotency key (UUID). Replaying a
-          report with the same ID for the same monitor stores nothing new.
-        type: string
-      timestamp:
-        type: string
-    required:
-    - health
-    - metrics
-    - timestamp
-    type: object
-  orion_core_internal_service.MonitorSummary:
-    properties:
-      degraded:
-        type: integer
-      down:
-        type: integer
-      has_incidents:
-        type: integer
-      paused:
-        description: Paused counts Core-managed monitors that are paused.
-        type: integer
-      stale:
-        type: integer
-      total:
-        type: integer
-      unknown:
-        type: integer
-      up:
-        type: integer
-    type: object
   orion_core_internal_service.RegisterMonitorRequest:
     properties:
-      node_id:
-        type: string
       description:
         type: string
       last_checked:
@@ -5087,6 +5085,8 @@ definitions:
       meta:
         type: string
       name:
+        type: string
+      node_id:
         type: string
       reporting_interval_seconds:
         description: Monitor check interval in seconds
@@ -5318,9 +5318,9 @@ definitions:
     type: object
   orion_core_internal_service.UnregisterMonitorRequest:
     properties:
-      node_id:
-        type: string
       monitor_id:
+        type: string
+      node_id:
         type: string
     required:
     - monitor_id
@@ -6224,1566 +6224,6 @@ paths:
       summary: Unsubscribe public status page subscriber
       tags:
       - public-status
-  /v1/nodes:
-    get:
-      consumes:
-      - application/json
-      description: Get a paginated list of all registered nodes
-      operationId: getNodes
-      parameters:
-      - default: 50
-        description: Maximum number of nodes to return
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Number of nodes to skip
-        in: query
-        name: offset
-        type: integer
-      - description: Search by server or monitor name
-        in: query
-        name: search
-        type: string
-      - description: Filter by computed server status
-        in: query
-        name: status
-        type: string
-      - description: Filter by maintenance mode true or false
-        in: query
-        name: maintenance
-        type: string
-      - description: Only return stale servers
-        in: query
-        name: stale_only
-        type: boolean
-      - description: Only return servers with active incidents
-        in: query
-        name: has_incidents
-        type: boolean
-      - description: Include Core's own system node (default false)
-        in: query
-        name: include_system
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    nodes:
-                      items:
-                        $ref: '#/definitions/internal_api.NodeResponse'
-                      type: array
-                    count:
-                      format: int64
-                      type: integer
-                    limit:
-                      type: integer
-                    offset:
-                      type: integer
-                    pagination:
-                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
-                  type: object
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: List nodes
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/{monitor_id}/report:
-    post:
-      consumes:
-      - application/json
-      description: Receive and store a monitor report for a specific monitor
-      operationId: receiveMonitorReport
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Monitor ID
-        in: path
-        name: monitor_id
-        required: true
-        type: string
-      - description: Monitor report data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.MonitorReportPayload'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Receive monitor report
-      tags:
-      - reports
-  /v1/nodes/{node_id}/discovery:
-    post:
-      consumes:
-      - application/json
-      description: Node-to-Core. The node scans its host read-only for services,
-        containers, ports, disks and log files that could be monitored and reports
-        the result after each scan. The latest report replaces the previous one. Core
-        only stores and shows it; nothing is monitored until a person accepts a suggestion.
-      operationId: receiveNodeDiscovery
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Latest scan
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: 'Node: report what was found on the host'
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/discovery/accept:
-    post:
-      consumes:
-      - application/json
-      description: 'Creates a monitor definition (Managed in Console) for each selected
-        service, container, pm2 app, port or disk from the node''s latest scan, with
-        the defaults interval 30 s and fail after 2. Storage rows are queued as one
-        track_storage request. Log files are skipped: they need a log key. Core does
-        not run anything; the node fetches the definitions at its next sync and reports
-        under the same names.'
-      operationId: acceptDiscoveredItems
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Suggestions
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_api.AcceptDiscoveredRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/orion_core_internal_service.AcceptResult'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Accept detected suggestions
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/discovery/requests:
-    post:
-      consumes:
-      - application/json
-      description: 'The Console never changes the host. A request is queued here and
-        the node applies it at its next check-in (about every minute), then reports
-        the outcome. Types: rescan, dismiss, restore, ignore, unignore (payload.ids),
-        set_scanning (payload.enabled), set_kind (payload.kind, payload.enabled),
-        track_storage (payload.paths). A node that has not said it can take requests
-        gets the request stored as unsupported. Requests expire after 24 hours.'
-      operationId: createNodeDiscoveryRequest
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestInput'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    request:
-                      $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Ask the node to do something about discovery
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/discovery/requests/{request_id}/result:
-    post:
-      consumes:
-      - application/json
-      operationId: finishNodeDiscoveryRequest
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Request ID
-        in: path
-        name: request_id
-        required: true
-        type: string
-      - description: Outcome
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/internal_api.DiscoveryRequestResult'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: 'Node: report the outcome of a discovery request'
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/discovery/requests/pull:
-    post:
-      description: Node-to-Core. Returns the requests the Console queued and marks
-        them delivered. One delivered but never finished is offered again after five
-        minutes.
-      operationId: pullNodeDiscoveryRequests
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    requests:
-                      items:
-                        $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
-                      type: array
-                  type: object
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: 'Node: collect queued discovery requests'
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/logs/batch:
-    post:
-      consumes:
-      - application/json
-      description: Receive and deduplicate a bounded batch of structured Orion Node
-        service logs
-      operationId: receiveNodeLogBatch
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Service log batch
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.ServiceLogBatchPayload'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.ServiceLogBatchResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Receive node service logs
-      tags:
-      - service-logs
-  /v1/nodes/{node_id}/maintenance:
-    put:
-      consumes:
-      - application/json
-      description: Enable or disable maintenance mode for a specific node. Enabling
-        lasts duration_seconds (default 24h, max 30 days) and then expires automatically;
-        every change is audited.
-      operationId: setMaintenanceMode
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Maintenance mode request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.SetMaintenanceModeRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Set node maintenance mode
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/monitor-definitions:
-    post:
-      consumes:
-      - application/json
-      description: Defines a disk, memory, process or port check. The node fetches
-        its definitions with POST /v1/nodes/{node_id}/monitor-definitions/sync and
-        reports under the same name; state turns reporting after the first report.
-      operationId: createNodeMonitorDefinition
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Check
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_api.NodeMonitorDefinitionRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    definition:
-                      $ref: '#/definitions/internal_api.NodeMonitorDefinitionResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Create a node monitor definition
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/monitor-definitions/results:
-    post:
-      consumes:
-      - application/json
-      description: Node-to-Core. For each definition the node could not run it sends
-        ok=false and the reason in its own words; ok=true clears an earlier failure.
-      operationId: recordNodeDefinitionResults
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Results
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/internal_api.DefinitionResultsRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: 'Node: report which monitor definitions could not run'
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/monitor-definitions/sync:
-    post:
-      description: Node-to-Core. Returns the checks configured for this node in
-        the Console; the node registers each as a monitor with the same name and
-        reports to it.
-      operationId: pullNodeMonitorDefinitions
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    definitions:
-                      items:
-                        $ref: '#/definitions/internal_api.NodePulledDefinition'
-                      type: array
-                  type: object
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: 'Node: sync configured monitor definitions'
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/register-monitor:
-    post:
-      consumes:
-      - application/json
-      description: Register a new monitor for a specific node
-      operationId: registerMonitor
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Monitor registration request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.RegisterMonitorRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/orion_core_internal_service.RegisterMonitorResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Register a monitor
-      tags:
-      - monitors
-  /v1/nodes/{node_id}/report:
-    post:
-      consumes:
-      - application/json
-      description: Receive and store a system metrics report from a node
-      operationId: receiveNodeReport
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Node report data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.NodeReportPayload'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.ReportResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Receive node report
-      tags:
-      - reports
-  /v1/nodes/{node_id}/token-check:
-    post:
-      description: Succeeds when the bearer token belongs to this node. It changes
-        nothing and returns nothing, so a node (or its doctor and setup) can ask
-        "does Core accept my token?" without calling an admin route, which a node
-        token cannot use once Console authentication is on.
-      operationId: checkNodeToken
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Check a node token
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/token/reissue:
-    post:
-      consumes:
-      - application/json
-      description: Create a replacement token for a revoked node and return it once
-      operationId: reissueNodeToken
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Token action request
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeTokenIssuedResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Reissue node token
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/token/revoke:
-    post:
-      consumes:
-      - application/json
-      description: Revoke the active token for a node without deleting the node
-        or monitors
-      operationId: revokeNodeToken
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Token action request
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Revoke node token
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/token/rotate:
-    post:
-      consumes:
-      - application/json
-      description: Create a replacement token for an active node and return it once
-      operationId: rotateNodeToken
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Token action request
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeTokenIssuedResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Rotate node token
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/token/status:
-    get:
-      consumes:
-      - application/json
-      description: Get non-secret token lifecycle metadata for a node
-      operationId: getNodeTokenStatus
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node token status
-      tags:
-      - nodes
-  /v1/nodes/{node_id}/unregister-monitor:
-    post:
-      consumes:
-      - application/json
-      description: Unregister a monitor for a specific node
-      operationId: unregisterMonitor
-      parameters:
-      - description: Node ID
-        in: path
-        name: node_id
-        required: true
-        type: string
-      - description: Monitor unregistration request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Unregister a monitor
-      tags:
-      - monitors
-  /v1/nodes/{id}:
-    delete:
-      description: Revokes the token, deletes the server's monitors, closes its open
-        incidents and hides it. keep_history=true (default) keeps reports for 90 days
-        then purges them; false deletes everything now. The same host can be added
-        again.
-      operationId: decommissionNode
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Keep reports for 90 days (default true)
-        in: query
-        name: keep_history
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    result:
-                      $ref: '#/definitions/orion_core_internal_service.DecommissionResult'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Remove (decommission) a server
-      tags:
-      - nodes
-    get:
-      consumes:
-      - application/json
-      description: Get detailed information about a specific node including latest
-        report
-      operationId: getNode
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    node:
-                      $ref: '#/definitions/internal_api.NodeResponse'
-                    latest_report:
-                      type: object
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node details
-      tags:
-      - nodes
-    patch:
-      consumes:
-      - application/json
-      description: Change name, labels (key=value, at most 20) and notes. Omitted
-        fields stay as they are.
-      operationId: updateNode
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Fields to change
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_api.UpdateNodeRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    node:
-                      $ref: '#/definitions/internal_api.NodeResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Update server details
-      tags:
-      - nodes
-  /v1/nodes/{id}/app-resources:
-    get:
-      description: 'The latest passive measurements the node reported: CPU, memory,
-        disk and network per process group, systemd unit and container, plus storage
-        sizes for tracked paths, Docker volumes, images and build cache. app_resources
-        is null until the node has reported some. Core keeps only the latest report;
-        fields the node could not measure are absent.'
-      operationId: getNodeAppResources
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    app_resources:
-                      $ref: '#/definitions/orion_core_internal_service.NodeAppResourcesView'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: What apps cost on a server
-      tags:
-      - nodes
-  /v1/nodes/{id}/discovery:
-    get:
-      description: 'The latest read-only scan the node reported: things that could
-        be monitored, which are already monitored, which are new, and kinds that could
-        not be scanned with the exact fix. discovery is null until the node has reported
-        one.'
-      operationId: getNodeDiscovery
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    discovery:
-                      $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryView'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: What the node found on its host
-      tags:
-      - nodes
-  /v1/nodes/{id}/discovery/requests:
-    get:
-      operationId: listNodeDiscoveryRequests
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    requests:
-                      items:
-                        $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
-                      type: array
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Requests sent to the node about discovery
-      tags:
-      - nodes
-  /v1/nodes/{id}/discovery/requests/{request_id}:
-    delete:
-      operationId: cancelNodeDiscoveryRequest
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Request ID
-        in: path
-        name: request_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Cancel a request the node has not picked up
-      tags:
-      - nodes
-  /v1/nodes/{id}/health:
-    get:
-      consumes:
-      - application/json
-      description: Get split node availability and monitor rollup health for a specific
-        node
-      operationId: getNodeHealth
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeHealthResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node health
-      tags:
-      - nodes
-  /v1/nodes/{id}/monitor-definitions:
-    get:
-      operationId: listNodeMonitorDefinitions
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    definitions:
-                      items:
-                        $ref: '#/definitions/internal_api.NodeMonitorDefinitionResponse'
-                      type: array
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: List node monitor definitions
-      tags:
-      - nodes
-  /v1/nodes/{id}/monitor-definitions/{definition_id}:
-    delete:
-      operationId: deleteNodeMonitorDefinition
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Definition ID
-        in: path
-        name: definition_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Delete a node monitor definition
-      tags:
-      - nodes
-  /v1/nodes/{id}/monitors:
-    get:
-      consumes:
-      - application/json
-      description: Get a paginated list of monitors for a specific node with optional
-        filters
-      operationId: getNodeMonitors
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Filter by health status (up|down|degraded|unknown)
-        in: query
-        name: health
-        type: string
-      - description: Filter by lifecycle status (active|disabled|deleted)
-        in: query
-        name: lifecycle
-        type: string
-      - description: 'Comma-separated computed statuses to show: up,down,degraded,stale,unknown.
-          total and hidden_count report what the filter hides'
-        in: query
-        name: status
-        type: string
-      - default: 50
-        description: Maximum number of monitors to return
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Number of monitors to skip
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      format: int64
-                      type: integer
-                    hidden_count:
-                      format: int64
-                      type: integer
-                    limit:
-                      type: integer
-                    monitors:
-                      items:
-                        $ref: '#/definitions/internal_api.MonitorResponse'
-                      type: array
-                    offset:
-                      type: integer
-                    pagination:
-                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
-                    total:
-                      format: int64
-                      type: integer
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: List monitors for a node
-      tags:
-      - monitors
-  /v1/nodes/{id}/reports:
-    get:
-      consumes:
-      - application/json
-      description: Get a paginated list of system metric reports for a specific node
-      operationId: getNodeReports
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - default: 50
-        description: Maximum number of reports to return
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Number of reports to skip
-        in: query
-        name: offset
-        type: integer
-      - description: 'Only reports since: 1h, 24h, 7d style duration or RFC3339'
-        in: query
-        name: since
-        type: string
-      - description: Only reports before this RFC3339 time
-        in: query
-        name: until
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      format: int64
-                      type: integer
-                    limit:
-                      type: integer
-                    offset:
-                      type: integer
-                    pagination:
-                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
-                    reports:
-                      items:
-                        $ref: '#/definitions/internal_api.NodeReportResponse'
-                      type: array
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node reports
-      tags:
-      - nodes
-  /v1/nodes/{id}/service-logs:
-    get:
-      consumes:
-      - application/json
-      description: Get paginated structured service logs for a specific Orion Node
-      operationId: getNodeServiceLogs
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - default: 50
-        description: Maximum number of logs to return
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Number of logs to skip
-        in: query
-        name: offset
-        type: integer
-      - description: Filter by level
-        in: query
-        name: level
-        type: string
-      - description: Filter by component
-        in: query
-        name: component
-        type: string
-      - description: Search message, component, monitor, and related IDs
-        in: query
-        name: q
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      format: int64
-                      type: integer
-                    limit:
-                      type: integer
-                    logs:
-                      items:
-                        $ref: '#/definitions/internal_api.ServiceLogEntryResponse'
-                      type: array
-                    offset:
-                      type: integer
-                    pagination:
-                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: List node service logs
-      tags:
-      - service-logs
-  /v1/nodes/{id}/uptime:
-    get:
-      description: Returns daily uptime buckets and overall uptime percentage for
-        a node.
-      operationId: getNodeUptime
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Uptime period such as 7d, 30d, or 90d
-        in: query
-        name: period
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    daily_buckets:
-                      items:
-                        $ref: '#/definitions/internal_api.UptimeDayBucketResponse'
-                      type: array
-                    uptime_percent:
-                      type: number
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node uptime
-      tags:
-      - nodes
-  /v1/nodes/summary:
-    get:
-      consumes:
-      - application/json
-      description: Get aggregate counts for registered nodes by health, maintenance,
-        stale, and incident status
-      operationId: getNodeSummary
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/internal_api.NodeSummaryResponse'
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Get node summary
-      tags:
-      - nodes
   /v1/alerts/channels:
     get:
       consumes:
@@ -10024,11 +8464,6 @@ paths:
             - properties:
                 data:
                   properties:
-                    nodes:
-                      properties:
-                        total:
-                          type: integer
-                      type: object
                     monitors:
                       properties:
                         degraded:
@@ -10042,6 +8477,11 @@ paths:
                         unknown:
                           type: integer
                         up:
+                          type: integer
+                      type: object
+                    nodes:
+                      properties:
+                        total:
                           type: integer
                       type: object
                     overall_health:
@@ -11394,8 +9834,8 @@ paths:
       consumes:
       - application/json
       description: Newest-first, cursor-paginated log list. source=app (default) searches
-        product logs; source=node lists node service logs (severity, q, from, to
-        and node_id apply).
+        product logs; source=node lists node service logs (severity, q, from, to and
+        node_id apply).
       operationId: searchLogs
       parameters:
       - description: app (default) or node
@@ -13181,6 +11621,1566 @@ paths:
       summary: Test-run a monitor that is not saved yet
       tags:
       - monitors
+  /v1/nodes:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of all registered nodes
+      operationId: getNodes
+      parameters:
+      - default: 50
+        description: Maximum number of nodes to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of nodes to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Search by server or monitor name
+        in: query
+        name: search
+        type: string
+      - description: Filter by computed server status
+        in: query
+        name: status
+        type: string
+      - description: Filter by maintenance mode true or false
+        in: query
+        name: maintenance
+        type: string
+      - description: Only return stale servers
+        in: query
+        name: stale_only
+        type: boolean
+      - description: Only return servers with active incidents
+        in: query
+        name: has_incidents
+        type: boolean
+      - description: Include Core's own system node (default false)
+        in: query
+        name: include_system
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    nodes:
+                      items:
+                        $ref: '#/definitions/internal_api.NodeResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List nodes
+      tags:
+      - nodes
+  /v1/nodes/{id}:
+    delete:
+      description: Revokes the token, deletes the server's monitors, closes its open
+        incidents and hides it. keep_history=true (default) keeps reports for 90 days
+        then purges them; false deletes everything now. The same host can be added
+        again.
+      operationId: decommissionNode
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Keep reports for 90 days (default true)
+        in: query
+        name: keep_history
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/orion_core_internal_service.DecommissionResult'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Remove (decommission) a server
+      tags:
+      - nodes
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific node including latest
+        report
+      operationId: getNode
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    latest_report:
+                      type: object
+                    node:
+                      $ref: '#/definitions/internal_api.NodeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node details
+      tags:
+      - nodes
+    patch:
+      consumes:
+      - application/json
+      description: Change name, labels (key=value, at most 20) and notes. Omitted
+        fields stay as they are.
+      operationId: updateNode
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.UpdateNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    node:
+                      $ref: '#/definitions/internal_api.NodeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Update server details
+      tags:
+      - nodes
+  /v1/nodes/{id}/app-resources:
+    get:
+      description: 'The latest passive measurements the node reported: CPU, memory,
+        disk and network per process group, systemd unit and container, plus storage
+        sizes for tracked paths, Docker volumes, images and build cache. app_resources
+        is null until the node has reported some. Core keeps only the latest report;
+        fields the node could not measure are absent.'
+      operationId: getNodeAppResources
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    app_resources:
+                      $ref: '#/definitions/orion_core_internal_service.NodeAppResourcesView'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: What apps cost on a server
+      tags:
+      - nodes
+  /v1/nodes/{id}/discovery:
+    get:
+      description: 'The latest read-only scan the node reported: things that could
+        be monitored, which are already monitored, which are new, and kinds that could
+        not be scanned with the exact fix. discovery is null until the node has reported
+        one.'
+      operationId: getNodeDiscovery
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    discovery:
+                      $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryView'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: What the node found on its host
+      tags:
+      - nodes
+  /v1/nodes/{id}/discovery/requests:
+    get:
+      operationId: listNodeDiscoveryRequests
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    requests:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Requests sent to the node about discovery
+      tags:
+      - nodes
+  /v1/nodes/{id}/discovery/requests/{request_id}:
+    delete:
+      operationId: cancelNodeDiscoveryRequest
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Cancel a request the node has not picked up
+      tags:
+      - nodes
+  /v1/nodes/{id}/health:
+    get:
+      consumes:
+      - application/json
+      description: Get split node availability and monitor rollup health for a specific
+        node
+      operationId: getNodeHealth
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeHealthResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node health
+      tags:
+      - nodes
+  /v1/nodes/{id}/monitor-definitions:
+    get:
+      operationId: listNodeMonitorDefinitions
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.NodeMonitorDefinitionResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List node monitor definitions
+      tags:
+      - nodes
+  /v1/nodes/{id}/monitor-definitions/{definition_id}:
+    delete:
+      operationId: deleteNodeMonitorDefinition
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Definition ID
+        in: path
+        name: definition_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Delete a node monitor definition
+      tags:
+      - nodes
+  /v1/nodes/{id}/monitors:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of monitors for a specific node with optional
+        filters
+      operationId: getNodeMonitors
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by health status (up|down|degraded|unknown)
+        in: query
+        name: health
+        type: string
+      - description: Filter by lifecycle status (active|disabled|deleted)
+        in: query
+        name: lifecycle
+        type: string
+      - description: 'Comma-separated computed statuses to show: up,down,degraded,stale,unknown.
+          total and hidden_count report what the filter hides'
+        in: query
+        name: status
+        type: string
+      - default: 50
+        description: Maximum number of monitors to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of monitors to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    hidden_count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    monitors:
+                      items:
+                        $ref: '#/definitions/internal_api.MonitorResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    total:
+                      format: int64
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List monitors for a node
+      tags:
+      - monitors
+  /v1/nodes/{id}/reports:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of system metric reports for a specific node
+      operationId: getNodeReports
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of reports to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of reports to skip
+        in: query
+        name: offset
+        type: integer
+      - description: 'Only reports since: 1h, 24h, 7d style duration or RFC3339'
+        in: query
+        name: since
+        type: string
+      - description: Only reports before this RFC3339 time
+        in: query
+        name: until
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    reports:
+                      items:
+                        $ref: '#/definitions/internal_api.NodeReportResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node reports
+      tags:
+      - nodes
+  /v1/nodes/{id}/service-logs:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated structured service logs for a specific Orion Node
+      operationId: getNodeServiceLogs
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of logs to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of logs to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by level
+        in: query
+        name: level
+        type: string
+      - description: Filter by component
+        in: query
+        name: component
+        type: string
+      - description: Search message, component, monitor, and related IDs
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    logs:
+                      items:
+                        $ref: '#/definitions/internal_api.ServiceLogEntryResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List node service logs
+      tags:
+      - service-logs
+  /v1/nodes/{id}/uptime:
+    get:
+      description: Returns daily uptime buckets and overall uptime percentage for
+        a node.
+      operationId: getNodeUptime
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Uptime period such as 7d, 30d, or 90d
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    daily_buckets:
+                      items:
+                        $ref: '#/definitions/internal_api.UptimeDayBucketResponse'
+                      type: array
+                    uptime_percent:
+                      type: number
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node uptime
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/{monitor_id}/report:
+    post:
+      consumes:
+      - application/json
+      description: Receive and store a monitor report for a specific monitor
+      operationId: receiveMonitorReport
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Monitor ID
+        in: path
+        name: monitor_id
+        required: true
+        type: string
+      - description: Monitor report data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.MonitorReportPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive monitor report
+      tags:
+      - reports
+  /v1/nodes/{node_id}/discovery:
+    post:
+      consumes:
+      - application/json
+      description: Node-to-Core. The node scans its host read-only for services, containers,
+        ports, disks and log files that could be monitored and reports the result
+        after each scan. The latest report replaces the previous one. Core only stores
+        and shows it; nothing is monitored until a person accepts a suggestion.
+      operationId: receiveNodeDiscovery
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Latest scan
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Node: report what was found on the host'
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/discovery/accept:
+    post:
+      consumes:
+      - application/json
+      description: 'Creates a monitor definition (Managed in Console) for each selected
+        service, container, pm2 app, port or disk from the node''s latest scan, with
+        the defaults interval 30 s and fail after 2. Storage rows are queued as one
+        track_storage request. Log files are skipped: they need a log key. Core does
+        not run anything; the node fetches the definitions at its next sync and reports
+        under the same names.'
+      operationId: acceptDiscoveredItems
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Suggestions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AcceptDiscoveredRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/orion_core_internal_service.AcceptResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Accept detected suggestions
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/discovery/requests:
+    post:
+      consumes:
+      - application/json
+      description: 'The Console never changes the host. A request is queued here and
+        the node applies it at its next check-in (about every minute), then reports
+        the outcome. Types: rescan, dismiss, restore, ignore, unignore (payload.ids),
+        set_scanning (payload.enabled), set_kind (payload.kind, payload.enabled),
+        track_storage (payload.paths). A node that has not said it can take requests
+        gets the request stored as unsupported. Requests expire after 24 hours.'
+      operationId: createNodeDiscoveryRequest
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    request:
+                      $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Ask the node to do something about discovery
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/discovery/requests/{request_id}/result:
+    post:
+      consumes:
+      - application/json
+      operationId: finishNodeDiscoveryRequest
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Outcome
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.DiscoveryRequestResult'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Node: report the outcome of a discovery request'
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/discovery/requests/pull:
+    post:
+      description: Node-to-Core. Returns the requests the Console queued and marks
+        them delivered. One delivered but never finished is offered again after five
+        minutes.
+      operationId: pullNodeDiscoveryRequests
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    requests:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Node: collect queued discovery requests'
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/logs/batch:
+    post:
+      consumes:
+      - application/json
+      description: Receive and deduplicate a bounded batch of structured Orion Node
+        service logs
+      operationId: receiveNodeLogBatch
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Service log batch
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.ServiceLogBatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.ServiceLogBatchResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive node service logs
+      tags:
+      - service-logs
+  /v1/nodes/{node_id}/maintenance:
+    put:
+      consumes:
+      - application/json
+      description: Enable or disable maintenance mode for a specific node. Enabling
+        lasts duration_seconds (default 24h, max 30 days) and then expires automatically;
+        every change is audited.
+      operationId: setMaintenanceMode
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Maintenance mode request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.SetMaintenanceModeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Set node maintenance mode
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/monitor-definitions:
+    post:
+      consumes:
+      - application/json
+      description: Defines a disk, memory, process or port check. The node fetches
+        its definitions with POST /v1/nodes/{node_id}/monitor-definitions/sync and
+        reports under the same name; state turns reporting after the first report.
+      operationId: createNodeMonitorDefinition
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Check
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.NodeMonitorDefinitionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definition:
+                      $ref: '#/definitions/internal_api.NodeMonitorDefinitionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Create a node monitor definition
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/monitor-definitions/results:
+    post:
+      consumes:
+      - application/json
+      description: Node-to-Core. For each definition the node could not run it sends
+        ok=false and the reason in its own words; ok=true clears an earlier failure.
+      operationId: recordNodeDefinitionResults
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Results
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.DefinitionResultsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Node: report which monitor definitions could not run'
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/monitor-definitions/sync:
+    post:
+      description: Node-to-Core. Returns the checks configured for this node in the
+        Console; the node registers each as a monitor with the same name and reports
+        to it.
+      operationId: pullNodeMonitorDefinitions
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.NodePulledDefinition'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: 'Node: sync configured monitor definitions'
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/register-monitor:
+    post:
+      consumes:
+      - application/json
+      description: Register a new monitor for a specific node
+      operationId: registerMonitor
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Monitor registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.RegisterMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/orion_core_internal_service.RegisterMonitorResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a monitor
+      tags:
+      - monitors
+  /v1/nodes/{node_id}/report:
+    post:
+      consumes:
+      - application/json
+      description: Receive and store a system metrics report from a node
+      operationId: receiveNodeReport
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Node report data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.NodeReportPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.ReportResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive node report
+      tags:
+      - reports
+  /v1/nodes/{node_id}/token-check:
+    post:
+      description: Succeeds when the bearer token belongs to this node. It changes
+        nothing and returns nothing, so a node (or its doctor and setup) can ask "does
+        Core accept my token?" without calling an admin route, which a node token
+        cannot use once Console authentication is on.
+      operationId: checkNodeToken
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Check a node token
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/token/reissue:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for a revoked node and return it once
+      operationId: reissueNodeToken
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Reissue node token
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/token/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the active token for a node without deleting the node or
+        monitors
+      operationId: revokeNodeToken
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Revoke node token
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/token/rotate:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for an active node and return it once
+      operationId: rotateNodeToken
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.NodeTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Rotate node token
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/token/status:
+    get:
+      consumes:
+      - application/json
+      description: Get non-secret token lifecycle metadata for a node
+      operationId: getNodeTokenStatus
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node token status
+      tags:
+      - nodes
+  /v1/nodes/{node_id}/unregister-monitor:
+    post:
+      consumes:
+      - application/json
+      description: Unregister a monitor for a specific node
+      operationId: unregisterMonitor
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Monitor unregistration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unregister a monitor
+      tags:
+      - monitors
+  /v1/nodes/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregate counts for registered nodes by health, maintenance,
+        stale, and incident status
+      operationId: getNodeSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.NodeSummaryResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get node summary
+      tags:
+      - nodes
   /v1/overview:
     get:
       description: Summary numbers, the incident needing attention, ongoing and recent
@@ -13209,8 +13209,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register a new node or reconnect an existing node by machine
-        ID
+      description: Register a new node or reconnect an existing node by machine ID
       operationId: registerNode
       parameters:
       - description: Node registration request
@@ -13257,7 +13256,7 @@ paths:
       - nodes
   /v1/register/preflight:
     post:
-      description: Checks that the presented enrollment credential can register an
+      description: Checks that the presented enrollment credential can register a
         Node. This does not claim or consume a one-time Add server token.
       parameters:
       - description: Enrollment credential
