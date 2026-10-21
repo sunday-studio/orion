@@ -23703,11 +23703,7 @@ const docTemplate = `{
                 },
                 "app_resources": {
                     "description": "AppResources is the agent's passive per-app measurements; Core stores the latest.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/orion_core_internal_service.AppResourcesInput"
-                        }
-                    ]
+                    "type": "object"
                 },
                 "config_summary": {},
                 "cpu": {
@@ -23938,26 +23934,6 @@ const docTemplate = `{
                 },
                 "storage_capped": {
                     "type": "boolean"
-                }
-            }
-        },
-        "orion_core_internal_service.AppResourcesInput": {
-            "type": "object",
-            "properties": {
-                "interval_seconds": {
-                    "type": "number"
-                },
-                "notes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "series": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/orion_core_internal_service.AppResourceSeries"
-                    }
                 }
             }
         },
