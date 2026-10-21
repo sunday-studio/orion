@@ -309,10 +309,6 @@ func releaseAssetName() (string, error) {
 	switch runtime.GOARCH {
 	case "amd64", "arm64":
 		return fmt.Sprintf("orion-node-%s-%s", runtime.GOOS, runtime.GOARCH), nil
-	case "arm":
-		if runtime.GOOS == "linux" {
-			return "orion-node-linux-armv7", nil
-		}
 	}
 	return "", fmt.Errorf("unsupported architecture: %s", runtime.GOARCH)
 }

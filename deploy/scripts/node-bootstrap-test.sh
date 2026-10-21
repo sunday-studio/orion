@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OS="$(uname -s | tr 'A-Z' 'a-z')"
-case "$(uname -m)" in x86_64|amd64) ARCH=amd64 ;; arm64|aarch64) ARCH=arm64 ;; armv7l) ARCH=armv7 ;; esac
+case "$(uname -m)" in x86_64|amd64) ARCH=amd64 ;; arm64|aarch64) ARCH=arm64 ;; esac
 ASSET="orion-node-${OS}-${ARCH}"
 BIN="${ORION_TEST_BINARY:-}"
 if [ -z "$BIN" ]; then
