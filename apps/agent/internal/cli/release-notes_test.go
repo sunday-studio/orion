@@ -90,6 +90,9 @@ func TestMiniMarkdownStylesWhatWeUseAndLeavesTheRestAlone(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
+	if out := renderMarkdown(ui.WithMode(true), "#123 fixed a crash\n", 80); !strings.Contains(out, "#123 fixed a crash") {
+		t.Errorf("an issue reference is text, not a heading: %q", out)
+	}
 	long := renderMarkdown(ui.WithMode(true), strings.Repeat("word ", 60), 60)
 	for _, l := range strings.Split(strings.TrimRight(long, "\n"), "\n") {
 		if visibleWidth(l) > 60 {
