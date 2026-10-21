@@ -22,6 +22,10 @@ BOARDS = os.path.join(ROOT, "docs", "testing", "agent-cli-boards.json")
 DIM, BOLD, RESET = "\033[2m", "\033[1m", "\033[0m"
 HOST_CMD = re.compile(r"^orion-agent (start|stop|restart|update|service)\b|curl |\| bash|^… \| bash")
 ADMIN_USER, ADMIN_PASSWORD = "admin", secrets.token_urlsafe(12)  # new every run, never stored
+JWT_SECRET = secrets.token_hex(32)  # once per run, so a Console login survives the resets between screens
+# Vite moves to the next port when 5173 is taken (another project often holds it), and Core only answers
+# browser origins it knows, so allow the whole range the dev server can land on.
+CORS_ORIGINS = ",".join(f"http://{h}:{p}" for p in range(5173, 5181) for h in ("localhost", "127.0.0.1"))
 ENV = dict(os.environ, ORION_LOG_PATH=f"{WORK}/agent.log", EDITOR=os.environ.get("EDITOR", "vi"))
 
 
@@ -83,8 +87,8 @@ class Walk:
             return
         if self.healthy():
             sys.exit(f"Something else is already listening on port {PORT}. Stop it or set ORION_WALK_PORT.")
-        env = dict(ENV, ORION_ADMIN_USERNAME=ADMIN_USER, ORION_ADMIN_PASSWORD=ADMIN_PASSWORD, ORION_JWT_SECRET=secrets.token_hex(32),
-                   ORION_LISTEN_HOST="127.0.0.1", ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)  # loopback only: Core with a login would otherwise bind every interface
+        env = dict(ENV, ORION_ADMIN_USERNAME=ADMIN_USER, ORION_ADMIN_PASSWORD=ADMIN_PASSWORD, ORION_JWT_SECRET=JWT_SECRET,
+                   ORION_CORS_ORIGINS=CORS_ORIGINS, ORION_LISTEN_HOST="127.0.0.1", ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)  # loopback only: Core with a login would otherwise bind every interface
         self.core = subprocess.Popen([f"{WORK}/core"], env=env, stdout=open(f"{WORK}/core.log", "w"), stderr=subprocess.STDOUT)
         for _ in range(60):
             if self.healthy():
@@ -278,7 +282,7 @@ def main():
     if not os.path.isdir(f"{ROOT}/apps/agent"):
         sys.exit("Run this from the repository.")
     walk.build()
-    print(f"\nCore: {CORE}\nConsole: run `make console-dev` in another terminal, open http://localhost:5173 and log in:\n  username  {ADMIN_USER}\n  password  {ADMIN_PASSWORD}   (new every run)")
+    print(f"\nCore: {CORE}\nConsole: run `make console-dev` in another terminal, open the address it prints (usually http://localhost:5173) and log in:\n  username  {ADMIN_USER}\n  password  {ADMIN_PASSWORD}   (new every run)")
     walk.start_core()
     try:
         i = 0

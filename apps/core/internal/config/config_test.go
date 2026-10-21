@@ -359,6 +359,7 @@ func TestListenAddressBindsLoopbackWithoutAuthAndHonoursTheHostWithAuth(t *testi
 	}{
 		{"no auth ignores the host", Config{Port: "8999", ListenHost: "0.0.0.0"}, "127.0.0.1:8999"},
 		{"auth, default host", Config{Port: "8999", FrontendAuthOn: true}, ":8999"},
+		{"auth, ipv6 loopback", Config{Port: "8999", FrontendAuthOn: true, ListenHost: "::1"}, "[::1]:8999"},
 		{"auth, loopback host", Config{Port: "8999", FrontendAuthOn: true, ListenHost: "127.0.0.1"}, "127.0.0.1:8999"},
 	}
 	for _, c := range cases {
