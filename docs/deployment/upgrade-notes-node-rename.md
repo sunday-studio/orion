@@ -43,6 +43,9 @@ volume and run it with the same settings.
 The paths `/etc/orion`, `/var/lib/orion`, the `orion` service user and the `ORION_` prefix are unchanged.
 In the Console a monitored machine is still a **Server**; the **node** is the software on it.
 
+Logs the node wrote before the upgrade keep the component name `agent gateway`; entries after it say
+`node gateway`, so a filter on the new name does not match the older lines.
+
 ## For people who call the API
 
 Replace `/v1/agents` with `/v1/nodes`, and `agent_id`, `agent_ids`, `agent_version` and similar

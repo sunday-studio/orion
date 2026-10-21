@@ -49,6 +49,7 @@ func TestRenameMigrationKeepsDataAndRewritesStoredNames(t *testing.T) {
 		`INSERT INTO status_page_component_mappings (id, component_id, resource_type, resource_id, health_rollup_strategy, uptime_rollup_strategy) VALUES ('sm1', 'c', 'agent', 'agent-1', 'worst', 'avg')`,
 		`INSERT INTO status_page_component_mappings (id, component_id, resource_type, resource_id, health_rollup_strategy, uptime_rollup_strategy) VALUES ('sm2', 'c', 'monitor', 'monitor-agent-offline-agent-1', 'worst', 'avg')`,
 		`INSERT INTO alert_routes (id, name, agent_ids) VALUES ('ar1', 'route', '["agent-1"]')`,
+		`INSERT INTO alert_groups (id, group_key, status, event_type, severity, summary, first_incident_id, last_incident_id, incident_count, first_event_at, last_event_at) VALUES ('g1', 'agent:agent-1|monitor_type:http|severity:high', 'open', 'incident_opened', 'high', '{"agent_id":"agent-1"}', 'i1', 'i1', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 	} {
 		if _, err := sqlDB.Exec(stmt); err != nil {
 			t.Fatalf("seed: %v\n%s", err, stmt)
@@ -104,6 +105,8 @@ func TestRenameMigrationKeepsDataAndRewritesStoredNames(t *testing.T) {
 		`SELECT actor_type FROM incident_events WHERE id = 'e1'`:                             "node",
 		`SELECT source FROM service_log_entries WHERE id = 'l1'`:                             "node",
 		`SELECT resource_type FROM status_page_component_mappings WHERE id = 'sm1'`:          "node",
+		`SELECT group_key FROM alert_groups WHERE id = 'g1'`:                                 "node:agent-1|monitor_type:http|severity:high",
+		`SELECT summary FROM alert_groups WHERE id = 'g1'`:                                   `{"node_id":"agent-1"}`,
 		`SELECT impacted_components FROM incidents WHERE id = 'i1'`:                          `[{"type":"node","id":"agent-1"}]`,
 		`SELECT summary FROM incidents WHERE id = 'i1'`:                                      `{"node_id":"agent-1"}`,
 	} {

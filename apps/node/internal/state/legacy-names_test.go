@@ -20,7 +20,7 @@ func writeLegacyState(t *testing.T, path string) {
 		`INSERT INTO agent_state (id, agent_id, token, registered, core_url) VALUES (1, 'agent-1', 'tok', 1, 'https://core.example.com')`,
 		`CREATE TABLE monitor_state (name TEXT PRIMARY KEY, monitor_id TEXT NOT NULL, status TEXT NOT NULL, last_checked DATETIME, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE report_spool (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, agent_id TEXT NOT NULL, monitor_id TEXT, monitor_name TEXT, payload_json TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, next_attempt_at DATETIME, created_at DATETIME)`,
-		`INSERT INTO report_spool (kind, agent_id, payload_json) VALUES ('system', 'agent-1', '{}')`,
+		`INSERT INTO report_spool (kind, agent_id, payload_json) VALUES ('system', 'agent-1', '{"agent_id":"agent-1","agent_version":"0.9.3"}')`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			t.Fatalf("%v\n%s", err, stmt)
@@ -51,6 +51,10 @@ func TestAStateKeptUnderTheOldNamesKeepsItsRegistration(t *testing.T) {
 	var spooled int64
 	if err := store.db.Table("report_spool").Where("node_id = ?", "agent-1").Count(&spooled).Error; err != nil || spooled != 1 {
 		t.Fatalf("spool rows after the rename = %d (%v)", spooled, err)
+	}
+	var payload string
+	if err := store.db.Table("report_spool").Select("payload_json").Where("node_id = ?", "agent-1").Scan(&payload).Error; err != nil || payload != `{"node_id":"agent-1","node_version":"0.9.3"}` {
+		t.Fatalf("spooled payload after the rename = %q (%v)", payload, err)
 	}
 	if store.db.Migrator().HasTable("agent_state") {
 		t.Fatal("agent_state should have been renamed")

@@ -239,6 +239,25 @@ if [ "$DRY_RUN" = "true" ]; then
 fi
 info "platform: $OS"
 
+# A host that was half upgraded may still hold the old name (orion-agent) from before the rename.
+step "Previous version"
+legacy="false"
+if [ "$OS" = "linux" ] && [ -f /etc/systemd/system/orion-agent.service ]; then
+  legacy="true"
+  run_cmd systemctl disable --now orion-agent 2>/dev/null || true
+  run_cmd rm -f /etc/systemd/system/orion-agent.service
+  run_cmd systemctl daemon-reload 2>/dev/null || true
+elif [ "$OS" = "macos" ] && [ -f /Library/LaunchDaemons/com.orion.agent.plist ]; then
+  legacy="true"
+  run_cmd launchctl bootout system /Library/LaunchDaemons/com.orion.agent.plist 2>/dev/null || true
+  run_cmd rm -f /Library/LaunchDaemons/com.orion.agent.plist
+fi
+if [ -e "$INSTALL_DIR/orion-agent" ]; then
+  legacy="true"
+  run_cmd rm -f "$INSTALL_DIR/orion-agent"
+fi
+if [ "$legacy" = "true" ]; then ok "removed the orion-agent service and binary left from before the rename"; else skip "no orion-agent leftovers"; fi
+
 step "Service"
 if [ "$OS" = "linux" ]; then
   if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
