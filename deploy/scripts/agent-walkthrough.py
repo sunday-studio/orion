@@ -8,8 +8,8 @@ root is needed; everything lives in /tmp/orion-walk.
     make agent-walkthrough                 all screens
     make agent-walkthrough ONLY=status     only screens whose board or name contains "status"
 
-Core runs on http://127.0.0.1:8999 with authentication off, so there is no login. To see the
-Console too, run `make console-dev` in another terminal and open http://localhost:5173.
+Core runs on http://127.0.0.1:8999. To see the Console too, run `make console-dev` in another
+terminal, open http://localhost:5173 and log in as admin / orion-walk (throwaway, local only).
 Screens that need a real server (service manager, root, a release) are shown and skipped.
 """
 import json, os, re, shlex, shutil, signal, subprocess, sys, time, urllib.request
@@ -82,7 +82,8 @@ class Walk:
             return
         if self.healthy():
             sys.exit(f"Something else is already listening on port {PORT}. Stop it or set ORION_WALK_PORT.")
-        env = dict(ENV, ORION_ALLOW_INSECURE_NO_AUTH="true", ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)
+        env = dict(ENV, ORION_ADMIN_USERNAME="admin", ORION_ADMIN_PASSWORD="orion-walk", ORION_JWT_SECRET="orion-walk-local-secret-0123456789abcdef0123456789",
+                   ORION_DATA_DIR=f"{WORK}/data", ORION_PORT=PORT)
         self.core = subprocess.Popen([f"{WORK}/core"], env=env, stdout=open(f"{WORK}/core.log", "w"), stderr=subprocess.STDOUT)
         for _ in range(60):
             if self.healthy():
@@ -276,7 +277,7 @@ def main():
     if not os.path.isdir(f"{ROOT}/apps/agent"):
         sys.exit("Run this from the repository.")
     walk.build()
-    print(f"\nCore: {CORE} (no login). Console: run `make console-dev` in another terminal, open http://localhost:5173")
+    print(f"\nCore: {CORE}\nConsole: run `make console-dev` in another terminal, open http://localhost:5173 and log in as  admin / orion-walk")
     walk.start_core()
     try:
         i = 0

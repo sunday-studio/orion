@@ -10,8 +10,9 @@ For each screen it prints the board's text, waits for Enter, runs the real comma
 local Core and an enrolled agent, and asks "Same as the board?". Nothing is installed and no root is
 needed; everything lives in `/tmp/orion-walk-<your uid>` and is stopped when you quit.
 
-- Core runs on `http://127.0.0.1:8999` with authentication off, so there is no login. For the Console,
-  run `make console-dev` in another terminal and open `http://localhost:5173`.
+- Core runs on `http://127.0.0.1:8999`. For the Console, run `make console-dev` in another terminal,
+  open `http://localhost:5173` and log in as `admin` / `orion-walk` (a throwaway, local-only login
+  the script sets; the Console always asks for one).
 - `make agent-walkthrough ONLY=status` shows only the screens whose board or name contains "status".
 - Each screen puts the sandbox in the state it needs (a fresh host and empty Core for setup and enrol,
   Core stopped for the offline screen, the agent stopped for "not running"). Interactive screens
@@ -27,8 +28,8 @@ Marked and skipped, because they need a real server:
 - the install script, `start`, `stop`, `restart`, `service install`, `update` and rollback (service
   manager, root, a published release);
 - the log viewer (needs log shipping with an ingest key from the Console);
-- the "Not enrolled" status, a rejected token and "No recent report" (need Core with authentication on,
-  or an 11 minute wait).
+- the "Not enrolled" status and "No recent report" (the first needs a running daemon with no
+  registration, the second an 11 minute wait).
 
 In the sandbox `doctor` reports "Service is not installed" and exits 1, and `emit` and `run-job` say
 there is no ingest key. Both are expected there.
