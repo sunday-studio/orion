@@ -25,11 +25,11 @@ func sanitizeMarkdown(s string) string {
 }
 
 var (
-	mdBold  = regexp.MustCompile(`\*\*([^*]+)\*\*`)
-	mdCode  = regexp.MustCompile("`([^`]+)`")
-	mdLink  = regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)\)`)
+	mdBold    = regexp.MustCompile(`\*\*([^*]+)\*\*`)
+	mdCode    = regexp.MustCompile("`([^`]+)`")
+	mdLink    = regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)\)`)
 	mdHeading = regexp.MustCompile(`^#{1,6}\s`) // "#123 fixed" is text, not a heading
-	mdOrder = regexp.MustCompile(`^(\d+)[.)]\s+(.*)$`)
+	mdOrder   = regexp.MustCompile(`^(\d+)[.)]\s+(.*)$`)
 )
 
 // inlineMarkdown styles **bold**, `code` and [text](url); anything else stays as written.
