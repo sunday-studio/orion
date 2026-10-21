@@ -182,7 +182,7 @@ func TestHeartbeatMonitorTokenAndIngestRoutes(t *testing.T) {
 }
 func TestCoreMonitorIncidentSeverityOverrideAppearsInResponses(t *testing.T) {
 	server := setupTestServer(t)
-	monitor := db.Monitor{ID: "monitor-core-severity-override", AgentID: "agent-core-severity-override", Name: "Checkout journey", Type: "synthetic", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 60, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	monitor := db.Monitor{ID: "monitor-core-severity-override", NodeID: "node-core-severity-override", Name: "Checkout journey", Type: "synthetic", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 60, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatalf("create core monitor: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestCoreMonitorIncidentSeverityOverrideAppearsInResponses(t *testing.T) {
 }
 func TestCoreMonitorIncidentSeverityInvalidOverrideFallsBack(t *testing.T) {
 	server := setupTestServer(t)
-	monitor := db.Monitor{ID: "monitor-core-severity-invalid", AgentID: "agent-core-severity-invalid", Name: "API health", Type: "http", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 60, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	monitor := db.Monitor{ID: "monitor-core-severity-invalid", NodeID: "node-core-severity-invalid", Name: "API health", Type: "http", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 60, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatalf("create core monitor: %v", err)
 	}

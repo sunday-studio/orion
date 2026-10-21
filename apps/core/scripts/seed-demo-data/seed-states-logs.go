@@ -103,7 +103,7 @@ func seedShowcaseLogs(database *gorm.DB, dbPath string, now time.Time) error {
 	views := []db.LogSavedView{
 		{ID: "seed-view-errors", Name: "Errors, last hour", FiltersJSON: `{"severity":"error","from":"-1h"}`, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -6)},
 		{ID: "seed-view-payments", Name: "Failed payments", FiltersJSON: `{"app_id":"` + appIDFor("billing-api") + `","event":"payment.failed","from":"-24h"}`, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -5)},
-		{ID: "seed-view-agent", Name: "Agent warnings", FiltersJSON: `{"source":"agent","severity":">=warn"}`, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -3)},
+		{ID: "seed-view-node", Name: "Node warnings", FiltersJSON: `{"source":"node","severity":">=warn"}`, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -3)},
 		{ID: "seed-view-cron", Name: "Cron failures", FiltersJSON: `{"app_id":"` + appIDFor("legacy-cron") + `","severity":"error"}`, CreatedBy: "ci-deploys", CreatedAt: now.AddDate(0, 0, -1)},
 	}
 	if err := database.Create(&views).Error; err != nil {
@@ -132,21 +132,21 @@ func seedShowcaseLogs(database *gorm.DB, dbPath string, now time.Time) error {
 		store.Flush(30 * time.Second)
 	}
 	store.Flush(30 * time.Second)
-	return seedAgentServiceLogs(database, now)
+	return seedNodeServiceLogs(database, now)
 }
 
-// seedAgentServiceLogs gives the agent source of the unified Logs page a few lines at each level.
-func seedAgentServiceLogs(database *gorm.DB, now time.Time) error {
+// seedNodeServiceLogs gives the node source of the unified Logs page a few lines at each level.
+func seedNodeServiceLogs(database *gorm.DB, now time.Time) error {
 	type line struct {
 		level, component, message string
 	}
 	lines := []line{{"INFO", "reporter", "report accepted"}, {"INFO", "collector", "collected 5 monitors"}, {"WARN", "reporter", "slow report: latency 1204ms"}, {"WARN", "collector", "disk usage 91% on /var/lib/postgresql"},
-		{"ERROR", "reporter", "report rejected: 503 from Core"}, {"INFO", "updater", "agent is up to date"}, {"ERROR", "collector", "docker socket not reachable"}, {"INFO", "collector", "retrying docker socket"}}
+		{"ERROR", "reporter", "report rejected: 503 from Core"}, {"INFO", "updater", "node is up to date"}, {"ERROR", "collector", "docker socket not reachable"}, {"INFO", "collector", "retrying docker socket"}}
 	var rows []db.ServiceLogEntry
 	for i := 0; i < 48; i++ {
 		l := lines[i%len(lines)]
 		at := now.Add(-time.Duration(i*17) * time.Minute)
-		rows = append(rows, db.ServiceLogEntry{ID: fmt.Sprintf("seed-svc-log-%02d", i), AgentID: showcaseAgentID("web-up"), Source: "agent", Stream: "jsonl", Level: l.level, Component: l.component, Message: l.message,
+		rows = append(rows, db.ServiceLogEntry{ID: fmt.Sprintf("seed-svc-log-%02d", i), NodeID: showcaseNodeID("web-up"), Source: "node", Stream: "jsonl", Level: l.level, Component: l.component, Message: l.message,
 			FieldsJSON: `{}`, Raw: l.message, Fingerprint: fmt.Sprintf("seed-fp-%02d", i), OccurredAt: at, CollectedAt: at, CreatedAt: at})
 	}
 	return database.CreateInBatches(rows, 50).Error

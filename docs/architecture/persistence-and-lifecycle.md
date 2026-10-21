@@ -8,11 +8,11 @@ The Server also stores its local runtime state in SQLite at `state.db`. User-fac
 
 ```mermaid
 erDiagram
-  AGENTS ||--o{ AGENT_REPORTS : receives
-  AGENTS ||--o{ MONITORS : owns
+  NODES ||--o{ NODE_REPORTS : receives
+  NODES ||--o{ MONITORS : owns
   MONITORS ||--o{ MONITOR_REPORTS : receives
   MONITORS ||--o{ MONITOR_UPTIME_ROLLUPS : aggregates
-  AGENTS ||--o{ INCIDENTS : affected_server
+  NODES ||--o{ INCIDENTS : affected_server
   MONITORS ||--o{ INCIDENTS : affected_monitor
   INCIDENTS ||--o{ INCIDENT_EVENTS : has
   INCIDENTS ||--o{ ALERT_DELIVERIES : notifies
@@ -25,7 +25,7 @@ erDiagram
 
 Tracks embedded SQL migrations that have already run.
 
-### `agents`
+### `nodes`
 
 Stores registered servers:
 
@@ -38,7 +38,7 @@ Stores registered servers:
 - created/deleted/last-seen timestamps;
 - location and meta JSON/text.
 
-### `agent_reports`
+### `node_reports`
 
 Stores system metrics reports:
 
@@ -198,7 +198,7 @@ Current lifecycle-relevant migrations:
 - `000004_incident_reconciliation_state.up.sql`: monitor incident-state cache and active incident lookup index.
 - `000014_audit_events.up.sql`: durable audit event table.
 - `000023_incident_lifecycle_fields.up.sql`: structured incident lifecycle fields.
-- `000024_agent_token_lifecycle.up.sql`: Server token lifecycle metadata.
+- `000024_node_token_lifecycle.up.sql`: Server token lifecycle metadata.
 
 ## Uptime Rollups
 
@@ -246,7 +246,7 @@ Archive behavior:
 - skips when `archive_raw_reports` is false;
 - computes cutoff as `now - raw_report_hot_days`;
 - opens/creates `raw-reports-YYYY-MM.sqlite` in the configured archive directory;
-- copies old `agent_reports` and `monitor_reports` into the archive database;
+- copies old `node_reports` and `monitor_reports` into the archive database;
 - deletes copied rows from the hot database inside the Core database transaction;
 - records last archive run status and error.
 
@@ -275,7 +275,7 @@ flowchart TD
   Enabled -- "yes" --> Cutoff["Compute cutoff"]
   Cutoff --> ValidatePath["Validate archive path inside data dir"]
   ValidatePath --> ArchiveDB["Open monthly archive SQLite"]
-  ArchiveDB --> Select["Select old agent_reports and monitor_reports"]
+  ArchiveDB --> Select["Select old node_reports and monitor_reports"]
   Select --> Empty{"Any old reports?"}
   Empty -- "no" --> Noop["Record no reports archived"]
   Empty -- "yes" --> Copy["Copy reports into archive DB"]
@@ -400,7 +400,7 @@ Keeping this in SQLite gives the Server an atomic state layer without making use
 - retry attempts with next retry time and last error;
 - local Server event log;
 - last check result cache per monitor;
-- richer `orion-agent status` and future `doctor` output;
+- richer `orion-node status` and future `doctor` output;
 - safer concurrent access from daemon and CLI;
 - future Server update bookkeeping;
 - future token rotation or credential metadata;

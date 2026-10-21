@@ -14,26 +14,26 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func seedAgentReports(database *gorm.DB, agent db.Agent, sc scenario, cfg seedConfig, start time.Time, now time.Time) (int, error) {
-	reports := make([]db.AgentReport, 0, cfg.days)
+func seedNodeReports(database *gorm.DB, node db.Node, sc scenario, cfg seedConfig, start time.Time, now time.Time) (int, error) {
+	reports := make([]db.NodeReport, 0, cfg.days)
 	stop := now
 	if sc.stale {
 		stop = staleSince(now, len(sc.key))
 	}
 	for t := start; !t.After(stop); t = t.Add(cfg.reportInterval) {
 		cpu, memory, disk := systemStats(sc, t)
-		report := db.AgentReport{
-			ID:            fmt.Sprintf("seed-agent-report-%s-%d", agent.ID, t.Unix()),
-			AgentID:       agent.ID,
+		report := db.NodeReport{
+			ID:            fmt.Sprintf("seed-node-report-%s-%d", node.ID, t.Unix()),
+			NodeID:        node.ID,
 			CreatedAt:     t,
-			AgentVersion:  fmt.Sprintf("seed-%s", sc.key),
+			NodeVersion:   fmt.Sprintf("seed-%s", sc.key),
 			ConfigSummary: mustJSON(map[string]any{"monitor_count": len(monitorTemplates), "reporting_interval": cfg.reportInterval.String(), "scenario": sc.key}),
 			UptimeSeconds: uint64(math.Max(0, now.Sub(t).Seconds())) + 3600,
 			Timestamp:     t.Format(time.RFC3339),
 			CPU:           datatypes.NewJSONType(cpu),
 			Memory:        datatypes.NewJSONType(memory),
 			Disk:          datatypes.NewJSONType(disk),
-			Location:      agent.Location,
+			Location:      node.Location,
 		}
 		reports = append(reports, report)
 	}

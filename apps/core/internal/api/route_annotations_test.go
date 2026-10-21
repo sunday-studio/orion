@@ -30,7 +30,7 @@ var routerAnnotation = regexp.MustCompile(`@Router\s+(\S+)\s+\[(\w+)\]`)
 var pathParam = regexp.MustCompile(`\{([^}]+)\}`)
 var ginParam = regexp.MustCompile(`:[A-Za-z_]+`)
 
-// normalizeRoute makes parameter names irrelevant: gin's :id and OpenAPI's {agent_id} both become :p.
+// normalizeRoute makes parameter names irrelevant: gin's :id and OpenAPI's {node_id} both become :p.
 func normalizeRoute(method, path string) string {
 	return strings.ToUpper(method) + " " + ginParam.ReplaceAllString(pathParam.ReplaceAllString(path, ":p"), ":p")
 }

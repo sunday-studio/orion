@@ -53,24 +53,24 @@ func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testin
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	agent := db.Agent{
-		ID:        "agent-private-history",
+	node := db.Node{
+		ID:        "node-private-history",
 		MachineId: "machine-private-history",
 		Name:      "private host",
 		OS:        "linux",
 		Arch:      "arm64",
-		Token:     "secret-agent-token",
+		Token:     "secret-node-token",
 		LastSeen:  now,
 		CreatedAt: now,
 	}
 	monitors := []db.Monitor{
-		{ID: "monitor-history-perfect", AgentID: agent.ID, Name: "private perfect", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", CreatedAt: now, UpdatedAt: now},
-		{ID: "monitor-history-degraded", AgentID: agent.ID, Name: "private degraded", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", CreatedAt: now, UpdatedAt: now},
+		{ID: "monitor-history-perfect", NodeID: node.ID, Name: "private perfect", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", CreatedAt: now, UpdatedAt: now},
+		{ID: "monitor-history-degraded", NodeID: node.ID, Name: "private degraded", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", CreatedAt: now, UpdatedAt: now},
 	}
 	mappings := []db.StatusPageComponentMapping{
 		{ID: "mapping-perfect", ComponentID: component.ID, ResourceType: "monitor", ResourceID: monitors[0].ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
 		{ID: "mapping-degraded", ComponentID: component.ID, ResourceType: "monitor", ResourceID: monitors[1].ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
-		{ID: "mapping-hidden", ComponentID: hiddenComponent.ID, ResourceType: "agent", ResourceID: agent.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+		{ID: "mapping-hidden", ComponentID: hiddenComponent.ID, ResourceType: "node", ResourceID: node.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
 	}
 	reports := []db.MonitorReport{
 		{ID: "report-perfect-up-1", MonitorID: monitors[0].ID, Payload: `{"secret":"private-perfect"}`, CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
@@ -91,8 +91,8 @@ func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testin
 	if err := server.db.Model(&db.StatusPageComponent{}).Where("id = ?", hiddenComponent.ID).Update("visible", false).Error; err != nil {
 		t.Fatalf("hide component: %v", err)
 	}
-	if err := server.db.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := server.db.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 	if err := server.db.Create(&monitors).Error; err != nil {
 		t.Fatalf("create monitors: %v", err)
@@ -112,8 +112,8 @@ func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testin
 	for _, privateValue := range []string{
 		monitors[0].ID,
 		monitors[1].ID,
-		agent.ID,
-		"secret-agent-token",
+		node.ID,
+		"secret-node-token",
 		"private-perfect",
 		"private-degraded",
 		"total",
@@ -194,8 +194,8 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	agentComponent := db.StatusPageComponent{
-		ID:           "public-component-agent",
+	nodeComponent := db.StatusPageComponent{
+		ID:           "public-component-node",
 		StatusPageID: page.ID,
 		SectionID:    section.ID,
 		PublicName:   "Workers",
@@ -227,13 +227,13 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	monitorAgent := db.Agent{ID: "internal-agent-monitor", MachineId: "internal-machine-monitor", Name: "private monitor host", OS: "linux", Arch: "arm64", Token: "private-monitor-agent-token", LastSeen: now, CreatedAt: now}
-	workerAgent := db.Agent{ID: "internal-agent-workers", MachineId: "internal-machine-workers", Name: "private worker host", OS: "linux", Arch: "arm64", Token: "private-worker-agent-token", LastSeen: now, CreatedAt: now}
-	monitor := db.Monitor{ID: "internal-monitor-api", AgentID: monitorAgent.ID, Name: "private api monitor", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", CreatedAt: now, UpdatedAt: now}
-	workerMonitor := db.Monitor{ID: "internal-monitor-workers", AgentID: workerAgent.ID, Name: "private worker monitor", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", CreatedAt: now, UpdatedAt: now}
+	monitorNode := db.Node{ID: "internal-node-monitor", MachineId: "internal-machine-monitor", Name: "private monitor host", OS: "linux", Arch: "arm64", Token: "private-monitor-node-token", LastSeen: now, CreatedAt: now}
+	workerNode := db.Node{ID: "internal-node-workers", MachineId: "internal-machine-workers", Name: "private worker host", OS: "linux", Arch: "arm64", Token: "private-worker-node-token", LastSeen: now, CreatedAt: now}
+	monitor := db.Monitor{ID: "internal-monitor-api", NodeID: monitorNode.ID, Name: "private api monitor", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", CreatedAt: now, UpdatedAt: now}
+	workerMonitor := db.Monitor{ID: "internal-monitor-workers", NodeID: workerNode.ID, Name: "private worker monitor", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", CreatedAt: now, UpdatedAt: now}
 	mappings := []db.StatusPageComponentMapping{
 		{ID: "public-uptime-monitor-mapping", ComponentID: monitorComponent.ID, ResourceType: "monitor", ResourceID: monitor.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
-		{ID: "public-uptime-agent-mapping", ComponentID: agentComponent.ID, ResourceType: "agent", ResourceID: workerAgent.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+		{ID: "public-uptime-node-mapping", ComponentID: nodeComponent.ID, ResourceType: "node", ResourceID: workerNode.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
 		{ID: "public-uptime-no-data-mapping", ComponentID: noDataComponent.ID, ResourceType: "monitor", ResourceID: "missing-private-resource", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
 		{ID: "public-uptime-hidden-mapping", ComponentID: hiddenComponent.ID, ResourceType: "monitor", ResourceID: "hidden-private-resource", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
 	}
@@ -249,14 +249,14 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 	if err := server.db.Create(&section).Error; err != nil {
 		t.Fatalf("create section: %v", err)
 	}
-	if err := server.db.Create(&[]db.StatusPageComponent{monitorComponent, agentComponent, noDataComponent, hiddenComponent}).Error; err != nil {
+	if err := server.db.Create(&[]db.StatusPageComponent{monitorComponent, nodeComponent, noDataComponent, hiddenComponent}).Error; err != nil {
 		t.Fatalf("create components: %v", err)
 	}
 	if err := server.db.Model(&db.StatusPageComponent{}).Where("id = ?", hiddenComponent.ID).Update("visible", false).Error; err != nil {
 		t.Fatalf("hide component: %v", err)
 	}
-	if err := server.db.Create(&[]db.Agent{monitorAgent, workerAgent}).Error; err != nil {
-		t.Fatalf("create agents: %v", err)
+	if err := server.db.Create(&[]db.Node{monitorNode, workerNode}).Error; err != nil {
+		t.Fatalf("create nodes: %v", err)
 	}
 	if err := server.db.Create(&[]db.Monitor{monitor, workerMonitor}).Error; err != nil {
 		t.Fatalf("create monitors: %v", err)
@@ -276,10 +276,10 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 	for _, privateValue := range []string{
 		monitor.ID,
 		workerMonitor.ID,
-		monitorAgent.ID,
-		workerAgent.ID,
-		monitorAgent.Token,
-		workerAgent.Token,
+		monitorNode.ID,
+		workerNode.ID,
+		monitorNode.Token,
+		workerNode.Token,
 		"missing-private-resource",
 		"hidden-private-resource",
 		"private-api",
@@ -349,7 +349,7 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 		t.Fatalf("API uptime history = %+v, want 90 buckets ending degraded", components["API"].UptimeHistory)
 	}
 	if components["Workers"].Uptime.Status != "operational" || components["Workers"].Uptime.UptimeRatio == nil || *components["Workers"].Uptime.UptimeRatio != 1 {
-		t.Fatalf("Workers uptime = %+v, want operational agent-mapped uptime", components["Workers"].Uptime)
+		t.Fatalf("Workers uptime = %+v, want operational node-mapped uptime", components["Workers"].Uptime)
 	}
 	if components["Queue"].Uptime.Status != "no_data" || components["Queue"].Uptime.UptimeRatio != nil || components["Queue"].Uptime.UptimeDisplay != "No data" {
 		t.Fatalf("Queue uptime = %+v, want no-data uptime", components["Queue"].Uptime)

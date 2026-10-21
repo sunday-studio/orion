@@ -3,11 +3,11 @@ package api
 // auditExempt lists mutating admin routes that are not recorded by the audit middleware, with the reason.
 // A route in neither this table nor auditRoutes fails TestEveryMutatingAdminRouteIsAuditedOrExempt.
 var auditExempt = map[string]string{
-	"POST /v1/agents/:agent_id/token/rotate":                                    "recorded by the agent token service",
-	"POST /v1/agents/:agent_id/token/revoke":                                    "recorded by the agent token service",
-	"POST /v1/agents/:agent_id/token/reissue":                                   "recorded by the agent token service",
-	"PUT /v1/agents/:agent_id/maintenance":                                      "recorded by the agent service",
-	"DELETE /v1/agents/:id":                                                     "recorded as agent_decommissioned by the agent service",
+	"POST /v1/nodes/:node_id/token/rotate":                                      "recorded by the node token service",
+	"POST /v1/nodes/:node_id/token/revoke":                                      "recorded by the node token service",
+	"POST /v1/nodes/:node_id/token/reissue":                                     "recorded by the node token service",
+	"PUT /v1/nodes/:node_id/maintenance":                                        "recorded by the node service",
+	"DELETE /v1/nodes/:id":                                                      "recorded as node_decommissioned by the node service",
 	"PUT /v1/settings/data-lifecycle":                                           "recorded by the settings service",
 	"POST /v1/settings/data-lifecycle/actions/rollup":                           "recorded by the settings service",
 	"POST /v1/settings/data-lifecycle/actions/archive":                          "recorded by the settings service",

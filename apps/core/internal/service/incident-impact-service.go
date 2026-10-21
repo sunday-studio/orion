@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (s *IncidentService) impactedComponentsForMonitorIncident(agent db.Agent, monitor db.Monitor, impact string) ([]db.IncidentComponentImpact, error) {
+func (s *IncidentService) impactedComponentsForMonitorIncident(node db.Node, monitor db.Monitor, impact string) ([]db.IncidentComponentImpact, error) {
 	type componentRow struct {
 		ComponentID   string
 		ComponentName string
@@ -18,9 +18,9 @@ func (s *IncidentService) impactedComponentsForMonitorIncident(agent db.Agent, m
 		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
 		matchArgs = append(matchArgs, "monitor", monitor.ID)
 	}
-	if agent.ID != "" {
+	if node.ID != "" {
 		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
-		matchArgs = append(matchArgs, "agent", agent.ID)
+		matchArgs = append(matchArgs, "node", node.ID)
 	}
 	if len(matchClauses) == 0 {
 		return []db.IncidentComponentImpact{}, nil

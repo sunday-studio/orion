@@ -1,0 +1,51 @@
+=== maintenance down  ·  no arguments
+$ orion-node maintenance down
+
+ ◆ Maintenance
+ ╭ Why? ──────────────────────────────────────────────────────────────────────────────╮
+ │ ┃ › kernel upgrade                                                                 │
+ │ Optional. Shown on the incident and in status.                                     │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ How long? ─────────────────────────────────────────────────────────────────────────╮
+ │  2 hours   1 hour  4 hours  24 hours  custom…                                      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+    Start     Cancel
+
+ ╭ Result ────────────────────────────────────────────────────────────────────────────╮
+ │ ✓ Maintenance on               alerts muted until 16:42                            │
+ │ ✓ Core told                                                                        │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+  Short form:  orion-node maintenance down "kernel upgrade" --for 2h
+
+=== maintenance down  ·  edge cases
+$ orion-node maintenance down "disk swap"
+
+   ✓ Maintenance on               until 14:32 tomorrow
+   ! Local only
+     │ This host is not enrolled, so Core was not told.
+     │ Connect it first:  orion-node setup
+
+$ orion-node maintenance down --for 800h
+
+ ERROR  Maintenance can last at most 720 h
+   Try --for 720h, or end it early with orion-node maintenance up
+
+=== maintenance up, and how status shows it
+$ orion-node maintenance up
+
+   ✓ Maintenance off              alerts resume
+   ✓ Core told
+
+$ orion-node status
+
+ ◆ edge-05                                                              ‖ Maintenance
+   kernel upgrade · alerts muted until 16:42 (1 h 52 m)
+   ▸ orion-node maintenance up  end it early
+
+--- notes
+NOTE Always ends: Default 24 h, never more than 720 h, so it cannot be forgotten. status shows when it ends.
+NOTE A form only when you give nothing: With no arguments on a terminal a short Huh form asks why and for how long. With arguments it just runs, so scripts are unchanged.
+NOTE Honest about Core: If Core could not be told, the line says Local only and what to do. Nothing silently half-works.
+NOTE Same words everywhere: The chip in status and the log viewer header use the same MAINTENANCE state.

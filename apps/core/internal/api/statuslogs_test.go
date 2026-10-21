@@ -27,24 +27,24 @@ func seedStatusFixtures(t *testing.T, server *Server) (now time.Time) {
 			}
 		}
 	}
-	check(&db.Agent{ID: "ag1", MachineId: "m1", Name: "edge-01", OS: "linux", Arch: "amd64", Token: "t1", CreatedAt: min(600), LastSeen: now},
-		&db.Agent{ID: "ag2", MachineId: "m2", Name: "db-02", OS: "linux", Arch: "amd64", Token: "t2", CreatedAt: min(600), LastSeen: now})
-	check(&db.Monitor{ID: "mon1", Name: "api-https", Type: "http", AgentID: "ag1", Lifecycle: "active", Health: "down", CreatedAt: min(500)},
-		&db.Monitor{ID: "mon2", Name: "pg-tcp", Type: "tcp", AgentID: "ag2", Lifecycle: "active", Health: "up", CreatedAt: min(500)})
+	check(&db.Node{ID: "ag1", MachineId: "m1", Name: "edge-01", OS: "linux", Arch: "amd64", Token: "t1", CreatedAt: min(600), LastSeen: now},
+		&db.Node{ID: "ag2", MachineId: "m2", Name: "db-02", OS: "linux", Arch: "amd64", Token: "t2", CreatedAt: min(600), LastSeen: now})
+	check(&db.Monitor{ID: "mon1", Name: "api-https", Type: "http", NodeID: "ag1", Lifecycle: "active", Health: "down", CreatedAt: min(500)},
+		&db.Monitor{ID: "mon2", Name: "pg-tcp", Type: "tcp", NodeID: "ag2", Lifecycle: "active", Health: "up", CreatedAt: min(500)})
 	report := func(id, monitor, health, payload string, ago int) *db.MonitorReport {
 		return &db.MonitorReport{ID: id, MonitorID: monitor, Health: health, Payload: payload, CollectedAt: min(ago).Format(time.RFC3339), CreatedAt: min(ago)}
 	}
 	check(report("r1", "mon1", "up", `{"duration_ms":201,"status_code":200}`, 60), report("r2", "mon1", "down", `{"error":"context deadline exceeded","duration_ms":10000}`, 30),
 		report("r3", "mon1", "down", `{"error":"context deadline exceeded","duration_ms":10000}`, 20), report("r4", "mon2", "up", `{"duration_ms":12}`, 25), report("r5", "mon1", "up", `{"duration_ms":180,"status_code":200}`, 5))
-	check(&db.Incident{ID: "inc1", Number: 231, Status: "open", Severity: "high", Title: "api-https unreachable", AgentID: "ag1", MonitorID: "mon1", OpenedAt: min(29), LastEventAt: min(29), CreatedAt: min(29)})
+	check(&db.Incident{ID: "inc1", Number: 231, Status: "open", Severity: "high", Title: "api-https unreachable", NodeID: "ag1", MonitorID: "mon1", OpenedAt: min(29), LastEventAt: min(29), CreatedAt: min(29)})
 	check(&db.IncidentEvent{ID: "ie1", IncidentID: "inc1", Type: "incident_opened", Message: "3 failed checks in a row", CreatedAt: min(29)},
 		&db.IncidentEvent{ID: "ie2", IncidentID: "inc1", Type: "incident_note", Message: "Note added", Note: "Restarting the pool", ActorID: "admin", ActorType: "user", CreatedAt: min(10)})
 	check(&db.AlertDelivery{ID: "dl1", IncidentID: "inc1", EventType: "incident_opened", Channel: "oncall webhook", Type: "webhook", Status: "failed", AttemptCount: 3, MaxAttempts: 3, CreatedAt: min(28)},
 		&db.AlertDelivery{ID: "dl2", IncidentID: "inc1", EventType: "incident_opened", Channel: "ops-team", Type: "email", Status: "sent", AttemptCount: 1, MaxAttempts: 8, CreatedAt: min(27)})
 	check(&db.AlertDeliveryAttempt{ID: "at1", AlertDeliveryID: "dl1", AttemptNumber: 3, Status: "failed", Stage: "http_response", HTTPStatus: 502, StartedAt: min(28), CompletedAt: ptrTime(min(28).Add(2 * time.Second))},
 		&db.AlertDeliveryAttempt{ID: "at2", AlertDeliveryID: "dl2", AttemptNumber: 1, Status: "sent", Stage: "transport", StartedAt: min(27), CompletedAt: ptrTime(min(27).Add(900 * time.Millisecond))})
-	check(&db.AuditEvent{ID: "au1", Action: "agent_token_rotated", AffectedObjectType: "agent", AffectedObjectID: "ag1", ActorType: "user", ActorID: "admin", CreatedAt: min(5)})
-	check(&db.AgentReport{ID: "ar1", AgentID: "ag1", CreatedAt: min(2), AgentVersion: "0.9"})
+	check(&db.AuditEvent{ID: "au1", Action: "node_token_rotated", AffectedObjectType: "node", AffectedObjectID: "ag1", ActorType: "user", ActorID: "admin", CreatedAt: min(5)})
+	check(&db.NodeReport{ID: "ar1", NodeID: "ag1", CreatedAt: min(2), NodeVersion: "0.9"})
 	return now
 }
 
@@ -80,7 +80,7 @@ func TestStatusLogsListFiltersTitlesAndPaging(t *testing.T) {
 		"INC-0231 opened":       "api-https unreachable",
 		"Note on INC-0231":      "Restarting the pool",
 		"Report accepted":       "",
-		"Agent token rotated":   "admin",
+		"Node token rotated":    "admin",
 		"Server registered":     "edge-01",
 		"Monitor created":       "api-https",
 		"Check failed":          "Timeout, 10,000 ms",
@@ -280,7 +280,7 @@ func TestInternalLogsAreCapturedSeparately(t *testing.T) {
 	logger.Info("Alert delivery retry failed", "channel", "oncall", "token", "abc123")
 	logger.Warn("Core worker flagged silent monitors as stale", "count", 3)
 	logger.Info("HTTP request", "method", "GET", "route", "/v1/overview", "status", 200, "duration_ms", 12)
-	logger.Error("HTTP request", "method", "POST", "route", "/v1/agents/x/report", "status", 500, "duration_ms", 30)
+	logger.Error("HTTP request", "method", "POST", "route", "/v1/nodes/x/report", "status", 500, "duration_ms", 30)
 	logger.Info("Dropped a batch of log entries")
 	appID, key := createAppWithKey(t, server, "web-store")
 	ingest(server, key, "application/json", `{"body":"product line"}`)
@@ -301,7 +301,7 @@ func TestInternalLogsAreCapturedSeparately(t *testing.T) {
 	if got["Core worker flagged silent monitors as stale|warn"].Attributes["component"] != "worker" {
 		t.Errorf("worker line = %+v", got)
 	}
-	if e := got["HTTP request|error"]; e.Attributes["component"] != "agent gateway" {
+	if e := got["HTTP request|error"]; e.Attributes["component"] != "node gateway" {
 		t.Errorf("gateway line = %+v", e)
 	}
 	if len(internal.Entries) != 3 {

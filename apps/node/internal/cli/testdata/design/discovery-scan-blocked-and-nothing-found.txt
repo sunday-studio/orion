@@ -1,0 +1,18 @@
+$ orion-node discover --rescan
+
+ ╭ Scan ───────────────────────────────────────────────────────────────────────── 1 ! ╮
+ │ ✓ Services, containers, ports, disks                                               │
+ │ ! Containers                   not fully scanned                                   │
+ │      │ Could not look at Docker: the node has no access.                          │
+ │      │ Fix  sudo usermod -aG docker orion  then restart the node                  │
+ │      │ Docker access is powerful: members can control this host.                   │
+ │ ✓ Log files                                                                        │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+$ orion-node discover
+
+ ╭ Nothing else detected ─────────────────────────────────────────────────────────────╮
+ │ Host metrics are on. Nothing new to suggest.                                       │
+ │                                                                                    │
+ │  orion-node discover --rescan                                                     │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯

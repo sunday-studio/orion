@@ -16,7 +16,7 @@ const (
 	ComponentAPI       = "core api"
 	ComponentWorker    = "worker"
 	ComponentScheduler = "scheduler"
-	ComponentGateway   = "agent gateway"
+	ComponentGateway   = "node gateway"
 )
 
 // scrubRules remove credentials that travel inside text: URL user info, secret-looking query parameters
@@ -105,10 +105,10 @@ func classifyComponent(process, msg string, attrs map[string]any) string {
 	case process == "worker" || strings.Contains(lower, "alert delivery") || strings.Contains(lower, "core worker") || strings.Contains(lower, "dispatch"):
 		return ComponentWorker
 	}
-	if route, _ := attrs["route"].(string); strings.HasPrefix(route, "/v1/agents") || strings.HasPrefix(route, "/v1/ingest") || strings.HasPrefix(route, "/v1/register") {
+	if route, _ := attrs["route"].(string); strings.HasPrefix(route, "/v1/nodes") || strings.HasPrefix(route, "/v1/ingest") || strings.HasPrefix(route, "/v1/register") {
 		return ComponentGateway
 	}
-	if strings.Contains(lower, "agent") && (strings.Contains(lower, "report") || strings.Contains(lower, "token") || strings.Contains(lower, "register")) {
+	if strings.Contains(lower, "node") && (strings.Contains(lower, "report") || strings.Contains(lower, "token") || strings.Contains(lower, "register")) {
 		return ComponentGateway
 	}
 	return ComponentAPI

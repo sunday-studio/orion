@@ -11,15 +11,15 @@ var _ utils.APIResponse
 
 // searchLogs Search logs.
 // @Summary      Search logs
-// @Description  Newest-first, cursor-paginated log list. source=app (default) searches product logs; source=agent lists agent service logs (severity, q, from, to and agent_id apply).
+// @Description  Newest-first, cursor-paginated log list. source=app (default) searches product logs; source=node lists node service logs (severity, q, from, to and node_id apply).
 // @Tags         logs
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           searchLogs
-// @Param        source query string false "app (default) or agent"
+// @Param        source query string false "app (default) or node"
 // @Param        app_id query string false "Filter by app"
-// @Param        agent_id query string false "Filter by agent (agent service logs)"
+// @Param        node_id query string false "Filter by node (node service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
 // @Param        event query string false "Exact event name"
 // @Param        q query string false "Full-text search over body and attributes"
@@ -45,9 +45,9 @@ func (s *Server) searchLogs(c *gin.Context) { s.searchLogsImpl(c) }
 // @Produce      json
 // @Security     BearerAuth
 // @ID           getLogHistogram
-// @Param        source query string false "app (default) or agent"
+// @Param        source query string false "app (default) or node"
 // @Param        app_id query string false "Filter by app"
-// @Param        agent_id query string false "Filter by agent (agent service logs)"
+// @Param        node_id query string false "Filter by node (node service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
 // @Param        event query string false "Exact event name"
 // @Param        q query string false "Full-text search over body and attributes"
@@ -88,9 +88,9 @@ func (s *Server) getLogFieldCatalog(c *gin.Context) { s.getLogFieldCatalogImpl(c
 // @Produce      json
 // @Security     BearerAuth
 // @ID           streamLogs
-// @Param        source query string false "app (default) or agent"
+// @Param        source query string false "app (default) or node"
 // @Param        app_id query string false "Filter by app"
-// @Param        agent_id query string false "Filter by agent (agent service logs)"
+// @Param        node_id query string false "Filter by node (node service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
 // @Param        event query string false "Exact event name"
 // @Param        q query string false "Full-text search over body and attributes"

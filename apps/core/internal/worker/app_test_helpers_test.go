@@ -37,8 +37,8 @@ func openWorkerMigratedTestDatabase(t *testing.T) *gorm.DB {
 func insertWorkerCoreOwner(t *testing.T, database *gorm.DB) {
 	t.Helper()
 
-	agent := db.Agent{
-		ID:        "agent_core",
+	node := db.Node{
+		ID:        "node_core",
 		MachineId: "core",
 		Name:      "Orion Core",
 		OS:        "linux",
@@ -46,7 +46,7 @@ func insertWorkerCoreOwner(t *testing.T, database *gorm.DB) {
 		Token:     "core-token",
 		LastSeen:  time.Now().UTC(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
+	if err := database.Create(&node).Error; err != nil {
 		t.Fatalf("create core owner: %v", err)
 	}
 }
@@ -56,7 +56,7 @@ func insertWorkerMonitor(t *testing.T, database *gorm.DB, monitorID string) {
 
 	monitor := db.Monitor{
 		ID:                       monitorID,
-		AgentID:                  "agent_core",
+		NodeID:                   "node_core",
 		Name:                     monitorID,
 		Type:                     "http",
 		Lifecycle:                "active",

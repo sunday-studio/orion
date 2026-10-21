@@ -1,16 +1,16 @@
-.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-e2e agent-walkthrough agent-image agent-perf agent-theme agent-theme-check agent-config-reference
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed node-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build node-build seed-demo-data code-line-limit node-build-all node-installer-test node-e2e node-walkthrough node-image node-perf node-theme node-theme-check node-config-reference
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-AGENT_OUTPUT ?= orion-agent
+NODE_OUTPUT ?= orion-node
 CORE_OUTPUT ?= orion-core
 CORE_WORKER_OUTPUT ?= orion-core-worker
 CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
 CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
 APP_CODE_LINE_LIMIT ?= 500
-AGENT_CGO_ENABLED ?= 0
+NODE_CGO_ENABLED ?= 0
 
 generate-openapi:
 	cd apps/core && ./scripts/generate-openapi.sh
@@ -65,15 +65,15 @@ core-contract-check: generate-openapi
 # Local Core backend verification bundle used before opening backend PRs.
 core-backend-verify: core-test core-race core-modernize-check core-vulncheck core-contract-check core-build core-worker-build
 
-agent-test:
-	cd apps/agent && go test ./...
+node-test:
+	cd apps/node && go test ./...
 
 console-build: console-sdk
 	cd apps/console && pnpm run build
 
 repository-smoke:
 	bash -n deploy/scripts/*.sh
-	bash deploy/scripts/test-agent-bootstrap-verify.sh
+	bash deploy/scripts/test-node-bootstrap-verify.sh
 	ORION_ADMIN_USERNAME=ci-admin ORION_ADMIN_PASSWORD=ci-password ORION_JWT_SECRET=ci-secret-at-least-long-enough docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
 
 generated-contracts-check: generate-sdk
@@ -84,19 +84,19 @@ release-core-build:
 	$(MAKE) core-build CORE_OUTPUT=/tmp/orion-core
 	$(MAKE) core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
 
-release-readiness: agent-test core-test release-core-build console-build repository-smoke
+release-readiness: node-test core-test release-core-build console-build repository-smoke
 
 # Build orion-core Docker image (context: repo root)
 docker-build:
 	docker build -f apps/core/Dockerfile --build-arg VERSION=$(VERSION) -t $(CORE_IMAGE):$(VERSION) .
 
-# Build the Agent container image (context: repo root).
-AGENT_IMAGE ?= ghcr.io/sunday-studio/orion-agent
-agent-walkthrough:
-	python3 deploy/scripts/agent-walkthrough.py
+# Build the Node container image (context: repo root).
+NODE_IMAGE ?= ghcr.io/sunday-studio/orion-node
+node-walkthrough:
+	python3 deploy/scripts/node-walkthrough.py
 
-agent-image:
-	docker build -f apps/agent/Dockerfile --build-arg VERSION=$(VERSION) -t $(AGENT_IMAGE):$(VERSION) .
+node-image:
+	docker build -f apps/node/Dockerfile --build-arg VERSION=$(VERSION) -t $(NODE_IMAGE):$(VERSION) .
 
 # Build Core API for local/package validation.
 core-build:
@@ -106,9 +106,9 @@ core-build:
 core-worker-build:
 	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X orion/core/internal/buildinfo.Version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
 
-# Build Orion Agent for the requested platform.
-agent-build:
-	cd apps/agent && CGO_ENABLED=$(AGENT_CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o $(AGENT_OUTPUT) .
+# Build Orion Node for the requested platform.
+node-build:
+	cd apps/node && CGO_ENABLED=$(NODE_CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath -ldflags "-s -w -X orion/node/internal.Version=$(VERSION)" -o $(NODE_OUTPUT) .
 
 # Run orion-core via docker compose (set ORION_ADMIN_* and ORION_JWT_SECRET for frontend auth)
 docker-up:
@@ -163,30 +163,30 @@ code-line-limit:
 	fi; \
 	printf 'code-line-limit: all app source files are at or below %s lines\n' "$(APP_CODE_LINE_LIMIT)"
 
-# Static agent builds for every supported target (Linux and macOS only, D-014).
-agent-build-all:
+# Static node builds for every supported target (Linux and macOS only, D-014).
+node-build-all:
 	@for t in linux/amd64 linux/arm64 linux/arm/7 darwin/amd64 darwin/arm64; do \
 	  os=$${t%%/*}; r=$${t#*/}; arch=$${r%%/*}; arm=; [ "$$arch" != "$$r" ] && arm=$${r#*/}; \
-	  out=tmp/agent-dist/orion-agent-$$os-$$arch$${arm:+v$$arm}; mkdir -p tmp/agent-dist; \
-	  (cd apps/agent && CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=$$arm go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o ../../$$out .) || exit 1; \
+	  out=tmp/node-dist/orion-node-$$os-$$arch$${arm:+v$$arm}; mkdir -p tmp/node-dist; \
+	  (cd apps/node && CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=$$arm go build -trimpath -ldflags "-s -w -X orion/node/internal.Version=$(VERSION)" -o ../../$$out .) || exit 1; \
 	  echo "built $$out"; done
 
-agent-installer-test:
-	deploy/scripts/agent-bootstrap-test.sh
+node-installer-test:
+	deploy/scripts/node-bootstrap-test.sh
 
-agent-e2e:
-	deploy/scripts/agent-e2e-smoke.sh
+node-e2e:
+	deploy/scripts/node-e2e-smoke.sh
 
-agent-perf:
-	cd apps/agent && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../../tmp/orion-agent-perf .
-	python3 deploy/scripts/agent-perf-budget.py tmp/orion-agent-perf
+node-perf:
+	cd apps/node && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../../tmp/orion-node-perf .
+	python3 deploy/scripts/node-perf-budget.py tmp/orion-node-perf
 
 # CLI theme is generated from docs/design/tokens.json.
-agent-theme:
-	cd apps/agent && go generate ./internal/ui/
+node-theme:
+	cd apps/node && go generate ./internal/ui/
 
-agent-theme-check: agent-theme
-	git diff --exit-code apps/agent/internal/ui/theme_gen.go
+node-theme-check: node-theme
+	git diff --exit-code apps/node/internal/ui/theme_gen.go
 
-agent-config-reference:
-	cd apps/agent && go run ./internal/config/gen-reference -out ../../docs/deployment/agent-config-reference.md
+node-config-reference:
+	cd apps/node && go run ./internal/config/gen-reference -out ../../docs/deployment/node-config-reference.md

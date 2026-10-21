@@ -41,11 +41,11 @@ func (s *Server) exportIncidentsCSV(c *gin.Context) {
 		utils.InternalError(c, "Failed to export incidents", err)
 		return
 	}
-	agents, monitors := map[string]string{}, map[string]string{}
-	var agentRows []db.Agent
-	s.db.Select("id", "name").Find(&agentRows)
-	for _, a := range agentRows {
-		agents[a.ID] = a.Name
+	nodes, monitors := map[string]string{}, map[string]string{}
+	var nodeRows []db.Node
+	s.db.Select("id", "name").Find(&nodeRows)
+	for _, a := range nodeRows {
+		nodes[a.ID] = a.Name
 	}
 	var monitorRows []db.Monitor
 	s.db.Select("id", "name").Find(&monitorRows)
@@ -64,7 +64,7 @@ func (s *Server) exportIncidentsCSV(c *gin.Context) {
 		if i.ResolvedAt != nil {
 			end, resolved = *i.ResolvedAt, i.ResolvedAt.UTC().Format(time.RFC3339)
 		}
-		_ = w.Write([]string{csvSafe(incidentDisplayID(i.Number)), csvSafe(i.Title), i.Status, i.Severity, csvSafe(monitors[i.MonitorID]), csvSafe(agents[i.AgentID]),
+		_ = w.Write([]string{csvSafe(incidentDisplayID(i.Number)), csvSafe(i.Title), i.Status, i.Severity, csvSafe(monitors[i.MonitorID]), csvSafe(nodes[i.NodeID]),
 			i.OpenedAt.UTC().Format(time.RFC3339), resolved, strconv.FormatInt(int64(end.Sub(i.OpenedAt).Seconds()), 10), csvSafe(i.Responder), i.Source})
 	}
 	w.Flush()
@@ -119,7 +119,7 @@ type IncidentStatusPageState struct {
 	PublishedUpdates int  `json:"published_updates"`
 }
 
-func (s *Server) incidentDetailSummary(incident db.Incident, agent db.Agent, monitor db.Monitor, events []db.IncidentEvent, deliveries []db.AlertDelivery, reports []db.MonitorReport) IncidentDetailSummary {
+func (s *Server) incidentDetailSummary(incident db.Incident, node db.Node, monitor db.Monitor, events []db.IncidentEvent, deliveries []db.AlertDelivery, reports []db.MonitorReport) IncidentDetailSummary {
 	now := time.Now().UTC()
 	sum := IncidentDetailSummary{DetectedAt: incident.OpenedAt, ResolvedAt: incident.ResolvedAt, NotifiedChannels: []string{}}
 	end := now
@@ -159,7 +159,7 @@ func (s *Server) incidentDetailSummary(incident db.Incident, agent db.Agent, mon
 		s.db.Model(&db.MonitorReport{}).Where("monitor_id = ? AND health IN ? AND created_at >= ? AND created_at <= ?", incident.MonitorID, []string{"down", "degraded"}, incident.OpenedAt, end).Count(&failed)
 		sum.FailedChecks = int(failed)
 	}
-	sum.Source = IncidentDetailSource{MonitorID: incident.MonitorID, MonitorName: monitor.Name, MonitorType: monitor.Type, ServerID: agent.ID, ServerName: agent.Name}
+	sum.Source = IncidentDetailSource{MonitorID: incident.MonitorID, MonitorName: monitor.Name, MonitorType: monitor.Type, ServerID: node.ID, ServerName: node.Name}
 	var cfg db.CoreMonitorConfig
 	if incident.MonitorID != "" && s.db.Where("monitor_id = ?", incident.MonitorID).Limit(1).Find(&cfg).RowsAffected > 0 {
 		sum.Source.Target = monitorTarget(cfg)

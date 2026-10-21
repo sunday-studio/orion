@@ -11,69 +11,69 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *IncidentService) reportOwner(monitor db.Monitor, payload MonitorReportPayload) (db.Agent, db.Monitor, error) {
-	var agent db.Agent
-	if monitor.AgentID != "" {
-		err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error
+func (s *IncidentService) reportOwner(monitor db.Monitor, payload MonitorReportPayload) (db.Node, db.Monitor, error) {
+	var node db.Node
+	if monitor.NodeID != "" {
+		err := s.db.Where("id = ?", monitor.NodeID).First(&node).Error
 		if err == nil {
-			return agent, monitor, nil
+			return node, monitor, nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return db.Agent{}, monitor, err
+			return db.Node{}, monitor, err
 		}
 		if !isCoreProducedMonitorReport(payload) {
-			return db.Agent{}, monitor, err
+			return db.Node{}, monitor, err
 		}
 	}
 
 	if !isCoreProducedMonitorReport(payload) {
-		return db.Agent{}, monitor, gorm.ErrRecordNotFound
+		return db.Node{}, monitor, gorm.ErrRecordNotFound
 	}
 
-	agent, err := s.ensureCoreOwnerAgent(monitor.AgentID)
+	node, err := s.ensureCoreOwnerNode(monitor.NodeID)
 	if err != nil {
-		return db.Agent{}, monitor, err
+		return db.Node{}, monitor, err
 	}
-	if monitor.AgentID != agent.ID {
-		if err := s.db.Model(&db.Monitor{}).Where("id = ?", monitor.ID).Update("agent_id", agent.ID).Error; err != nil {
-			return db.Agent{}, monitor, err
+	if monitor.NodeID != node.ID {
+		if err := s.db.Model(&db.Monitor{}).Where("id = ?", monitor.ID).Update("node_id", node.ID).Error; err != nil {
+			return db.Node{}, monitor, err
 		}
-		monitor.AgentID = agent.ID
+		monitor.NodeID = node.ID
 	}
-	return agent, monitor, nil
+	return node, monitor, nil
 }
 
-func (s *IncidentService) ensureCoreOwnerAgent(preferredID string) (db.Agent, error) {
-	var agent db.Agent
+func (s *IncidentService) ensureCoreOwnerNode(preferredID string) (db.Node, error) {
+	var node db.Node
 	if preferredID != "" {
-		err := s.db.Where("id = ?", preferredID).First(&agent).Error
+		err := s.db.Where("id = ?", preferredID).First(&node).Error
 		if err == nil {
-			return agent, nil
+			return node, nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return db.Agent{}, err
+			return db.Node{}, err
 		}
 	}
 
-	err := s.db.Where("machine_id = ?", coreOwnerMachineID).First(&agent).Error
+	err := s.db.Where("machine_id = ?", coreOwnerMachineID).First(&node).Error
 	if err == nil {
-		return agent, nil
+		return node, nil
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return db.Agent{}, err
+		return db.Node{}, err
 	}
 
 	ownerID := strings.TrimSpace(preferredID)
 	if ownerID == "" {
-		ownerID = coreOwnerAgentID
+		ownerID = coreOwnerNodeID
 	}
 	token, err := utils.GenerateToken()
 	if err != nil {
-		return db.Agent{}, err
+		return db.Node{}, err
 	}
 
 	now := time.Now().UTC()
-	agent = db.Agent{
+	node = db.Node{
 		ID:                       ownerID,
 		MachineId:                coreOwnerMachineID,
 		Name:                     coreOwnerName,
@@ -86,14 +86,14 @@ func (s *IncidentService) ensureCoreOwnerAgent(preferredID string) (db.Agent, er
 		LastSeen:                 now,
 		Meta:                     `{"owner":"core"}`,
 	}
-	if err := s.db.Create(&agent).Error; err != nil {
-		var existing db.Agent
+	if err := s.db.Create(&node).Error; err != nil {
+		var existing db.Node
 		if findErr := s.db.Where("machine_id = ? OR id = ?", coreOwnerMachineID, ownerID).First(&existing).Error; findErr == nil {
 			return existing, nil
 		}
-		return db.Agent{}, err
+		return db.Node{}, err
 	}
-	return agent, nil
+	return node, nil
 }
 
 func isCoreProducedMonitorReport(payload MonitorReportPayload) bool {
@@ -120,22 +120,22 @@ func isCoreValue(value string) bool {
 	return strings.EqualFold(strings.TrimSpace(value), coreMonitorRunner)
 }
 
-func incidentTitle(agent db.Agent, monitor db.Monitor, health string) string {
-	if isCoreOwnerAgent(agent) {
+func incidentTitle(node db.Node, monitor db.Monitor, health string) string {
+	if isCoreOwnerNode(node) {
 		return fmt.Sprintf("Core monitor %s: %s", health, monitor.Name)
 	}
 	return fmt.Sprintf("%s is %s", monitor.Name, health)
 }
 
-func incidentMessage(agent db.Agent, monitor db.Monitor, health string) string {
-	if isCoreOwnerAgent(agent) {
+func incidentMessage(node db.Node, monitor db.Monitor, health string) string {
+	if isCoreOwnerNode(node) {
 		return fmt.Sprintf("Core monitor %s reported %s", monitor.Name, health)
 	}
 	return fmt.Sprintf("Monitor %s reported %s", monitor.Name, health)
 }
 
-func isCoreOwnerAgent(agent db.Agent) bool {
-	return agent.MachineId == coreOwnerMachineID
+func isCoreOwnerNode(node db.Node) bool {
+	return node.MachineId == coreOwnerMachineID
 }
 
 func activeIncidentStatuses() []string {

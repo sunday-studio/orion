@@ -11,7 +11,7 @@ type InstanceSettings struct {
 	Timezone  string `gorm:"not null;default:UTC"`
 	// TimeFormat is "12" or "24".
 	TimeFormat string `gorm:"not null;default:24"`
-	// RegistrationToken, when set, replaces ORION_ENROLLMENT_TOKEN as the secret agents register with.
+	// RegistrationToken, when set, replaces ORION_ENROLLMENT_TOKEN as the secret nodes register with.
 	RegistrationToken          string `gorm:"not null;default:''"`
 	RegistrationTokenRotatedAt *time.Time
 	UpdatedBy                  string `gorm:"not null;default:''"`

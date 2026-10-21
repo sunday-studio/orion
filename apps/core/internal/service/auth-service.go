@@ -21,27 +21,27 @@ func NewAuthService(database *gorm.DB, logger *utils.Logger) *AuthService {
 	}
 }
 
-// ValidateToken checks if a token is valid and belongs to the specified agent
-func (s *AuthService) ValidateToken(agentID string, token string) (*db.Agent, error) {
-	var agent db.Agent
+// ValidateToken checks if a token is valid and belongs to the specified node
+func (s *AuthService) ValidateToken(nodeID string, token string) (*db.Node, error) {
+	var node db.Node
 
-	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+	if err := s.db.Where("id = ?", nodeID).First(&node).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			s.logger.Warn("Invalid token for agent", "agent_id", agentID)
+			s.logger.Warn("Invalid token for node", "node_id", nodeID)
 			return nil, err
 		}
 		s.logger.Error("Database error during token validation", "error", err)
 		return nil, err
 	}
-	if agent.TokenRevokedAt != nil {
-		s.logger.Warn("Rejected revoked token for agent", "agent_id", agentID)
-		return nil, ErrAgentTokenRevoked
+	if node.TokenRevokedAt != nil {
+		s.logger.Warn("Rejected revoked token for node", "node_id", nodeID)
+		return nil, ErrNodeTokenRevoked
 	}
-	if !agentTokenMatches(agent, token) {
-		s.logger.Warn("Invalid token for agent", "agent_id", agentID)
+	if !nodeTokenMatches(node, token) {
+		s.logger.Warn("Invalid token for node", "node_id", nodeID)
 		return nil, gorm.ErrRecordNotFound
 	}
 
-	s.logger.Debug("Token validated successfully", "agent_id", agentID, "agent_name", agent.Name)
-	return &agent, nil
+	s.logger.Debug("Token validated successfully", "node_id", nodeID, "node_name", node.Name)
+	return &node, nil
 }

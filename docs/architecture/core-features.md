@@ -8,12 +8,12 @@ Core uses Gin and serves these route groups:
   - `POST /v1/register`
   - `POST /v1/auth/login`
 - Frontend-facing, JWT-protected only when frontend auth is configured:
-  - `GET /v1/agents`
-  - `GET /v1/agents/:id`
-  - `GET /v1/agents/:id/health`
-  - `GET /v1/agents/:id/reports`
-  - `GET /v1/agents/:id/uptime`
-  - `GET /v1/agents/:id/monitors`
+  - `GET /v1/nodes`
+  - `GET /v1/nodes/:id`
+  - `GET /v1/nodes/:id/health`
+  - `GET /v1/nodes/:id/reports`
+  - `GET /v1/nodes/:id/uptime`
+  - `GET /v1/nodes/:id/monitors`
   - `GET /v1/monitors/:id`
   - `GET /v1/monitors/:id/uptime`
   - `GET /v1/monitors/:id/history`
@@ -25,11 +25,11 @@ Core uses Gin and serves these route groups:
   - `POST /v1/settings/data-lifecycle/actions/rollup`
   - `POST /v1/settings/data-lifecycle/actions/archive`
 - Server-protected:
-  - `POST /v1/agents/:agent_id/register-monitor`
-  - `POST /v1/agents/:agent_id/unregister-monitor`
-  - `POST /v1/agents/:agent_id/report`
-  - `POST /v1/agents/:agent_id/:monitor_id/report`
-  - `PUT /v1/agents/:agent_id/maintenance`
+  - `POST /v1/nodes/:node_id/register-monitor`
+  - `POST /v1/nodes/:node_id/unregister-monitor`
+  - `POST /v1/nodes/:node_id/report`
+  - `POST /v1/nodes/:node_id/:monitor_id/report`
+  - `PUT /v1/nodes/:node_id/maintenance`
 - Other:
   - `GET /health`
   - `GET /swagger/*any`
@@ -41,7 +41,7 @@ flowchart TD
   Request["HTTP request"] --> RouteType{"Route type"}
   RouteType -- "public" --> Handler["Handler"]
   RouteType -- "server protected" --> Bearer["Require Bearer token"]
-  Bearer --> Validate["Validate token against agent_id"]
+  Bearer --> Validate["Validate token against node_id"]
   Validate --> Handler
   RouteType -- "frontend" --> AuthOn{"Frontend auth enabled?"}
   AuthOn -- "no" --> Handler
@@ -53,7 +53,7 @@ Server auth:
 
 - Server receives a token at registration.
 - Protected Server routes require `Authorization: Bearer <token>`.
-- Core validates that token belongs to the route `agent_id`.
+- Core validates that token belongs to the route `node_id`.
 
 Frontend auth:
 
@@ -183,7 +183,7 @@ Configured behavior:
 There are two maintenance concepts:
 
 - Server local state can pause report workers.
-- Core `agents.maintenance_mode` suppresses incident opening and makes server health return `maintenance`.
+- Core `nodes.maintenance_mode` suppresses incident opening and makes server health return `maintenance`.
 
 The Server CLI can call Core to set maintenance mode. The Server also rereads local state before every report cycle so it can stop sending reports if local maintenance state changes.
 

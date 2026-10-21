@@ -31,12 +31,12 @@ Tests and builds:
 ```sh
 cd apps/core && go test ./...
 make core-worker-build
-cd apps/agent && go test ./...
+cd apps/node && go test ./...
 cd apps/console && npm run build
 ```
 
 OpenAPI is generated from Core route annotations. Regenerate with `make generate-openapi` and
 `make generate-sdk`; do not edit `apps/core/openapi.yaml` or the generated Console SDK by hand. Build a
-Server binary with `make agent-build VERSION=0.1.2`.
+Server binary with `make node-build VERSION=0.1.2`.
 
 The public site and documentation live in [apps/website](../../apps/website/).

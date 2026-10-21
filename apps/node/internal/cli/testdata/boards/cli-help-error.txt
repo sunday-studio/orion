@@ -1,0 +1,56 @@
+=== --help
+$ orion-node --help
+
+ ◆ orion-node  monitor this host and report to Orion Core
+
+ USAGE   orion-node <command> [flags]
+
+ START HERE
+   setup     connect this host and choose what to monitor
+   doctor    check everything and fix what is wrong
+   status    see what the node is doing right now
+
+ DAY TO DAY
+   logs      read node and shipped logs
+   config    show, diff, validate and edit settings
+   update    upgrade safely, with rollback
+   service   start, stop, restart, install
+
+ EXAMPLES
+   $ orion-node setup
+   $ orion-node logs --follow --level warn
+   $ orion-node status --short
+
+ More: enroll · discover · usage · maintenance · token · version · run
+
+=== errors
+$ orion-node config validate
+
+ ERROR  Invalid config
+
+   /etc/orion/config.yaml:14:3
+   13 │   interval: 30s
+   14 │   intervall: 30s
+      │   ^^^^^^^^^ unknown key
+
+   Did you mean interval?
+
+   Fix   orion-node config edit
+   Docs  https://orion.thesunday.studio/docs/config
+ ──────────────────────────────────────────────────────────────────────────────────────
+$ orion-node statsu
+
+ ERROR  Unknown command "statsu"
+   Did you mean status?  Run orion-node --help for all commands.
+ ──────────────────────────────────────────────────────────────────────────────────────
+$ orion-node start
+
+ ERROR  Cannot start: state database is not writable
+   /var/lib/orion/state.db is owned by root
+   Fix   sudo orion-node start   or   orion-node doctor
+
+--- notes
+NOTE Fang does the work: Styled Cobra help and errors are already in the node. This tightens the layout and adds examples that are real commands.
+NOTE Intent, not alphabet: Start here, Day to day, then a one-line list of the rest, so no command is hidden.
+NOTE Errors are three lines: What went wrong, where, and the fix. Code frames show the exact line. Suggestions use edit distance.
+NOTE Exit codes: 0 ok, 1 failed or errors, 2 usage error, 3 needs elevation (run with sudo). Listed in the output modes board.

@@ -1,0 +1,176 @@
+package service
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"orion/core/internal/db"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+var ErrDiscoveryInvalid = errors.New("invalid discovery report")
+
+const (
+	maxDiscoveryItems = 500
+	maxDiscoveryKinds = 20
+	maxDiscoveryText  = 300
+)
+
+// NodeDiscoveryItem is one thing the node found on its host.
+type NodeDiscoveryItem struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Detail     string `json:"detail,omitempty"`
+	Confidence string `json:"confidence" enums:"high,medium,low"`
+	// Status is suggested (nothing watches it yet) or monitored (a monitor already covers it).
+	Status    string `json:"status" enums:"suggested,monitored"`
+	ManagedIn string `json:"managed_in,omitempty"`
+	New       bool   `json:"new,omitempty"`
+	Dismissed bool   `json:"dismissed,omitempty"`
+}
+
+// NodeDiscoveryKind says how scanning one kind of thing went on the host.
+type NodeDiscoveryKind struct {
+	Kind    string `json:"kind"`
+	State   string `json:"state"`
+	Message string `json:"message,omitempty"`
+	Fix     string `json:"fix,omitempty"`
+	Why     string `json:"why,omitempty"`
+}
+
+// NodeDiscoveryInput is what a node reports.
+type NodeDiscoveryInput struct {
+	ScannedAt time.Time           `json:"scanned_at"`
+	Enabled   bool                `json:"enabled"`
+	Kinds     []NodeDiscoveryKind `json:"kinds"`
+	Items     []NodeDiscoveryItem `json:"items"`
+	// Capabilities lists what this node can do for the Console: "requests" (takes queued
+	// discovery requests), "log_key_fetch" (can receive a log key from Core).
+	Capabilities []string `json:"capabilities"`
+}
+
+// NodeDiscoveryView is the stored scan with the numbers a panel needs.
+type NodeDiscoveryView struct {
+	NodeDiscoveryInput
+	ReceivedAt time.Time `json:"received_at"`
+	Things     int       `json:"things"`
+	Suggested  int       `json:"suggested"`
+	Monitored  int       `json:"monitored"`
+	NewItems   int       `json:"new_items"`
+}
+
+func clipText(s string) string {
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > maxDiscoveryText {
+		return string(r[:maxDiscoveryText])
+	}
+	return s
+}
+
+func validateDiscovery(in NodeDiscoveryInput) (NodeDiscoveryInput, error) {
+	if len(in.Items) > maxDiscoveryItems {
+		return in, fmt.Errorf("%w: at most %d items", ErrDiscoveryInvalid, maxDiscoveryItems)
+	}
+	if len(in.Kinds) > maxDiscoveryKinds {
+		return in, fmt.Errorf("%w: at most %d kinds", ErrDiscoveryInvalid, maxDiscoveryKinds)
+	}
+	for i := range in.Items {
+		it := &in.Items[i]
+		it.ID, it.Kind, it.Name, it.Detail, it.ManagedIn = clipText(it.ID), clipText(it.Kind), clipText(it.Name), clipText(it.Detail), clipText(it.ManagedIn)
+		if it.ID == "" || it.Kind == "" || it.Name == "" {
+			return in, fmt.Errorf("%w: every item needs id, kind and name", ErrDiscoveryInvalid)
+		}
+		switch it.Confidence {
+		case "high", "medium", "low":
+		default:
+			return in, fmt.Errorf("%w: confidence must be high, medium or low", ErrDiscoveryInvalid)
+		}
+		switch it.Status {
+		case "suggested", "monitored":
+		default:
+			return in, fmt.Errorf("%w: status must be suggested or monitored", ErrDiscoveryInvalid)
+		}
+	}
+	for i := range in.Kinds {
+		k := &in.Kinds[i]
+		k.Kind, k.State, k.Message, k.Fix, k.Why = clipText(k.Kind), clipText(k.State), clipText(k.Message), clipText(k.Fix), clipText(k.Why)
+		if k.Kind == "" || k.State == "" {
+			return in, fmt.Errorf("%w: every kind needs kind and state", ErrDiscoveryInvalid)
+		}
+	}
+	if len(in.Capabilities) > 20 {
+		return in, fmt.Errorf("%w: at most 20 capabilities", ErrDiscoveryInvalid)
+	}
+	for i := range in.Capabilities {
+		in.Capabilities[i] = clipText(in.Capabilities[i])
+	}
+	if in.ScannedAt.IsZero() || in.ScannedAt.After(time.Now().Add(5*time.Minute)) {
+		in.ScannedAt = time.Now().UTC()
+	}
+	return in, nil
+}
+
+// SaveNodeDiscovery replaces the node's stored scan with the one it just reported.
+func (s *NodeService) SaveNodeDiscovery(nodeID string, in NodeDiscoveryInput) error {
+	in, err := validateDiscovery(in)
+	if err != nil {
+		return err
+	}
+	kinds, _ := json.Marshal(in.Kinds)
+	items, _ := json.Marshal(in.Items)
+	if in.Capabilities == nil {
+		in.Capabilities = []string{}
+	}
+	caps, _ := json.Marshal(in.Capabilities)
+	scanned := in.ScannedAt.UTC()
+	row := db.NodeDiscovery{NodeID: nodeID, ScannedAt: &scanned, Enabled: in.Enabled, Kinds: string(kinds), Items: string(items), Capabilities: string(caps), ReceivedAt: time.Now().UTC()}
+	return s.db.Save(&row).Error
+}
+
+// GetNodeDiscovery returns the node's latest scan, or nil when it has not reported one.
+func (s *NodeService) GetNodeDiscovery(nodeID string) (*NodeDiscoveryView, error) {
+	var row db.NodeDiscovery
+	if err := s.db.Where("node_id = ?", nodeID).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	v := &NodeDiscoveryView{ReceivedAt: row.ReceivedAt}
+	v.Enabled = row.Enabled
+	if row.ScannedAt != nil {
+		v.ScannedAt = *row.ScannedAt
+	}
+	_ = json.Unmarshal([]byte(row.Kinds), &v.Kinds)
+	_ = json.Unmarshal([]byte(row.Items), &v.Items)
+	_ = json.Unmarshal([]byte(row.Capabilities), &v.Capabilities)
+	if v.Capabilities == nil {
+		v.Capabilities = []string{}
+	}
+	if v.Kinds == nil {
+		v.Kinds = []NodeDiscoveryKind{}
+	}
+	if v.Items == nil {
+		v.Items = []NodeDiscoveryItem{}
+	}
+	for _, it := range v.Items {
+		if it.Dismissed {
+			continue
+		}
+		v.Things++
+		switch it.Status {
+		case "monitored":
+			v.Monitored++
+		default:
+			v.Suggested++
+		}
+		if it.New {
+			v.NewItems++
+		}
+	}
+	return v, nil
+}

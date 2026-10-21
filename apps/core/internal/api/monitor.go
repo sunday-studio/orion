@@ -9,21 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// registerMonitor registers a new monitor for an agent
+// registerMonitor registers a new monitor for a node
 // @Summary      Register a monitor
-// @Description  Register a new monitor for a specific agent
+// @Description  Register a new monitor for a specific node
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           registerMonitor
-// @Param        agent_id  path      string                      true  "Agent ID"
+// @Param        node_id  path      string                      true  "Node ID"
 // @Param        request   body      service.RegisterMonitorRequest  true  "Monitor registration request"
 // @Success      200       {object}  utils.APIResponse{data=service.RegisterMonitorResponse}
 // @Failure      400       {object}  utils.APIResponse
 // @Failure      401       {object}  utils.APIResponse
 // @Failure      500       {object}  utils.APIResponse
-// @Router       /v1/agents/{agent_id}/register-monitor [post]
+// @Router       /v1/nodes/{node_id}/register-monitor [post]
 func (s *Server) registerMonitor(c *gin.Context) {
 	var req service.RegisterMonitorRequest
 
@@ -33,16 +33,16 @@ func (s *Server) registerMonitor(c *gin.Context) {
 		return
 	}
 
-	agentID := c.Param("agent_id")
-	if agentID == "" {
-		utils.BadRequest(c, "Agent ID is required")
+	nodeID := c.Param("node_id")
+	if nodeID == "" {
+		utils.BadRequest(c, "Node ID is required")
 		return
 	}
-	if req.AgentID != "" && req.AgentID != agentID {
-		utils.BadRequest(c, "Request agent_id must match route agent_id")
+	if req.NodeID != "" && req.NodeID != nodeID {
+		utils.BadRequest(c, "Request node_id must match route node_id")
 		return
 	}
-	req.AgentID = agentID
+	req.NodeID = nodeID
 
 	response, err := s.monitorService.RegisterMonitor(&req)
 	if err != nil {
@@ -54,22 +54,22 @@ func (s *Server) registerMonitor(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor registered successfully", response)
 }
 
-// unregisterMonitor unregisters a monitor for an agent
+// unregisterMonitor unregisters a monitor for a node
 // @Summary      Unregister a monitor
-// @Description  Unregister a monitor for a specific agent
+// @Description  Unregister a monitor for a specific node
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           unregisterMonitor
-// @Param        agent_id   path      string                        true  "Agent ID"
+// @Param        node_id   path      string                        true  "Node ID"
 // @Param        request    body      service.UnregisterMonitorRequest true  "Monitor unregistration request"
 // @Success      200        {object}  utils.APIResponse{data=service.UnregisterMonitorResponse}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      401        {object}  utils.APIResponse
 // @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
-// @Router       /v1/agents/{agent_id}/unregister-monitor [post]
+// @Router       /v1/nodes/{node_id}/unregister-monitor [post]
 func (s *Server) unregisterMonitor(c *gin.Context) {
 	var req service.UnregisterMonitorRequest
 
@@ -79,16 +79,16 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 		return
 	}
 
-	agentID := c.Param("agent_id")
-	if agentID == "" {
-		utils.BadRequest(c, "Agent ID is required")
+	nodeID := c.Param("node_id")
+	if nodeID == "" {
+		utils.BadRequest(c, "Node ID is required")
 		return
 	}
-	if req.AgentID != "" && req.AgentID != agentID {
-		utils.BadRequest(c, "Request agent_id must match route agent_id")
+	if req.NodeID != "" && req.NodeID != nodeID {
+		utils.BadRequest(c, "Request node_id must match route node_id")
 		return
 	}
-	req.AgentID = agentID
+	req.NodeID = nodeID
 
 	response, err := s.monitorService.UnregisterMonitor(&req)
 	if errors.Is(err, service.ErrMonitorNotOwned) {
@@ -109,14 +109,14 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor unregistered successfully", response)
 }
 
-// listMonitors retrieves a paginated list of monitors for an agent
-// @Summary      List monitors for an agent
-// @Description  Get a paginated list of monitors for a specific agent with optional filters
+// listMonitors retrieves a paginated list of monitors for a node
+// @Summary      List monitors for a node
+// @Description  Get a paginated list of monitors for a specific node with optional filters
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
-// @ID           getAgentMonitors
-// @Param        id         path      string  true   "Agent ID"
+// @ID           getNodeMonitors
+// @Param        id         path      string  true   "Node ID"
 // @Param        health     query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        status     query     string  false  "Comma-separated computed statuses to show: up,down,degraded,stale,unknown. total and hidden_count report what the filter hides"
@@ -126,11 +126,11 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
-// @Router       /v1/agents/{id}/monitors [get]
+// @Router       /v1/nodes/{id}/monitors [get]
 func (s *Server) listMonitors(c *gin.Context) {
-	agentID := c.Param("id")
-	if agentID == "" {
-		utils.BadRequest(c, "Agent ID is required")
+	nodeID := c.Param("id")
+	if nodeID == "" {
+		utils.BadRequest(c, "Node ID is required")
 		return
 	}
 
@@ -140,8 +140,8 @@ func (s *Server) listMonitors(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
 
-	if _, err := s.agentService.GetAgent(agentID); err != nil {
-		utils.NotFound(c, "Agent not found")
+	if _, err := s.nodeService.GetNode(nodeID); err != nil {
+		utils.NotFound(c, "Node not found")
 		return
 	}
 
@@ -151,9 +151,9 @@ func (s *Server) listMonitors(c *gin.Context) {
 	var err error
 	if len(statusSet) > 0 {
 		// Multi-status filter (down,degraded,stale,up,unknown): filter on computed health, then page.
-		all, listErr := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, 5000, 0)
+		all, listErr := s.monitorService.ListMonitors(nodeID, healthFilter, lifecycleFilter, 5000, 0)
 		if listErr != nil {
-			s.logger.Error("Failed to list monitors", "error", listErr, "agent_id", agentID)
+			s.logger.Error("Failed to list monitors", "error", listErr, "node_id", nodeID)
 			utils.InternalError(c, "Failed to list monitors", listErr)
 			return
 		}
@@ -167,15 +167,15 @@ func (s *Server) listMonitors(c *gin.Context) {
 		count = int64(len(matched))
 		monitors = matched[min(offset, len(matched)):min(offset+limit, len(matched))]
 	} else {
-		monitors, err = s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
+		monitors, err = s.monitorService.ListMonitors(nodeID, healthFilter, lifecycleFilter, limit, offset)
 		if err != nil {
-			s.logger.Error("Failed to list monitors", "error", err, "agent_id", agentID)
+			s.logger.Error("Failed to list monitors", "error", err, "node_id", nodeID)
 			utils.InternalError(c, "Failed to list monitors", err)
 			return
 		}
-		count, err = s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
+		count, err = s.monitorService.GetMonitorCount(nodeID, healthFilter, lifecycleFilter)
 		if err != nil {
-			s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
+			s.logger.Error("Failed to get monitor count", "error", err, "node_id", nodeID)
 		}
 		total = count
 	}
@@ -216,35 +216,35 @@ func (s *Server) getMonitorSummary(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor summary retrieved successfully", summary)
 }
 
-func (s *Server) monitorAgentsByID(monitors []db.Monitor) map[string]db.Agent {
-	agentIDs := make([]string, 0, len(monitors))
+func (s *Server) monitorNodesByID(monitors []db.Monitor) map[string]db.Node {
+	nodeIDs := make([]string, 0, len(monitors))
 	seen := make(map[string]struct{}, len(monitors))
 	for _, monitor := range monitors {
-		if monitor.AgentID == "" {
+		if monitor.NodeID == "" {
 			continue
 		}
-		if _, ok := seen[monitor.AgentID]; ok {
+		if _, ok := seen[monitor.NodeID]; ok {
 			continue
 		}
-		seen[monitor.AgentID] = struct{}{}
-		agentIDs = append(agentIDs, monitor.AgentID)
+		seen[monitor.NodeID] = struct{}{}
+		nodeIDs = append(nodeIDs, monitor.NodeID)
 	}
 
-	agentsByID := make(map[string]db.Agent, len(agentIDs))
-	if len(agentIDs) == 0 {
-		return agentsByID
+	nodesByID := make(map[string]db.Node, len(nodeIDs))
+	if len(nodeIDs) == 0 {
+		return nodesByID
 	}
 
-	var agents []db.Agent
-	if err := s.db.Where("id IN ?", agentIDs).Find(&agents).Error; err != nil {
-		s.logger.Error("Failed to load monitor agents", "error", err)
-		return agentsByID
+	var nodes []db.Node
+	if err := s.db.Where("id IN ?", nodeIDs).Find(&nodes).Error; err != nil {
+		s.logger.Error("Failed to load monitor nodes", "error", err)
+		return nodesByID
 	}
-	for _, agent := range agents {
-		agentsByID[agent.ID] = agent
+	for _, node := range nodes {
+		nodesByID[node.ID] = node
 	}
 
-	return agentsByID
+	return nodesByID
 }
 
 func (s *Server) coreMonitorIDsByID(monitors []db.Monitor) map[string]struct{} {
@@ -325,11 +325,11 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 	}
 	monitor.ComputedHealth = computedHealth
 	response := monitorResponse(*monitor)
-	if agent, err := s.agentService.GetAgent(monitor.AgentID); err == nil {
-		response.AgentName = agent.Name
-		response.OwnerName = agent.Name
+	if node, err := s.nodeService.GetNode(monitor.NodeID); err == nil {
+		response.NodeName = node.Name
+		response.OwnerName = node.Name
 	} else {
-		s.logger.Error("Failed to load monitor agent", "error", err, "monitor_id", monitorID, "agent_id", monitor.AgentID)
+		s.logger.Error("Failed to load monitor node", "error", err, "monitor_id", monitorID, "node_id", monitor.NodeID)
 	}
 	if _, ok := s.coreMonitorIDsByID([]db.Monitor{*monitor})[monitor.ID]; ok {
 		response.OwnerKind = "core"

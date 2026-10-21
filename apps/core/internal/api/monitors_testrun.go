@@ -53,16 +53,16 @@ func (d *dryRunRunner) run(ctx context.Context, s *Server, cfg db.CoreMonitorCon
 	if err != nil {
 		return nil, err
 	}
-	for _, table := range []string{"monitor_reports", "core_monitor_configs", "incident_events", "alert_deliveries", "incidents", "monitors", "agents"} {
+	for _, table := range []string{"monitor_reports", "core_monitor_configs", "incident_events", "alert_deliveries", "incidents", "monitors", "nodes"} {
 		if err := tmp.Exec("DELETE FROM " + table).Error; err != nil {
 			return nil, err
 		}
 	}
 	now := time.Now().UTC()
-	if err := tmp.Create(&db.Agent{ID: "dry-run-agent", MachineId: "dry-run", Name: "dry run", OS: "core", Arch: "internal", Token: "x", System: true, CreatedAt: now, LastSeen: now}).Error; err != nil {
+	if err := tmp.Create(&db.Node{ID: "dry-run-node", MachineId: "dry-run", Name: "dry run", OS: "core", Arch: "internal", Token: "x", System: true, CreatedAt: now, LastSeen: now}).Error; err != nil {
 		return nil, err
 	}
-	if err := tmp.Create(&db.Monitor{ID: "dry-run", AgentID: "dry-run-agent", Name: "dry run", Type: cfg.Kind, Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", System: true, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
+	if err := tmp.Create(&db.Monitor{ID: "dry-run", NodeID: "dry-run-node", Name: "dry run", Type: cfg.Kind, Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", System: true, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
 		return nil, err
 	}
 	cfg.MonitorID, cfg.NextRunAt, cfg.Paused = "dry-run", now, false

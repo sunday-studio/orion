@@ -12,7 +12,7 @@ import (
 
 func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	server := setupTestServer(t)
-	monitor := db.Monitor{ID: "monitor-core-worker-report", AgentID: "agent-core-worker", Name: "Core API health", Type: "http", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 30, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	monitor := db.Monitor{ID: "monitor-core-worker-report", NodeID: "node-core-worker", Name: "Core API health", Type: "http", Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", ReportingIntervalSeconds: 30, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatalf("create core monitor: %v", err)
 	}
@@ -23,8 +23,8 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	if downReportID == nil || *downReportID == "" {
 		t.Fatalf("down report id = %v, want generated id", downReportID)
 	}
-	var coreOwner db.Agent
-	if err := server.db.Where("id = ?", "agent-core-worker").First(&coreOwner).Error; err != nil {
+	var coreOwner db.Node
+	if err := server.db.Where("id = ?", "node-core-worker").First(&coreOwner).Error; err != nil {
 		t.Fatalf("find generated core owner: %v", err)
 	}
 	if coreOwner.MachineId != "core" || coreOwner.Name != "Orion Core" {
@@ -34,7 +34,7 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
 		t.Fatalf("find core incident: %v", err)
 	}
-	if incident.Status != "open" || incident.Severity != "high" || incident.AgentID != coreOwner.ID {
+	if incident.Status != "open" || incident.Severity != "high" || incident.NodeID != coreOwner.ID {
 		t.Fatalf("core incident = %+v, want open high incident owned by core", incident)
 	}
 	if incident.Title != "Core monitor down: Core API health" {
@@ -57,7 +57,7 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incidents []struct {
-				AgentName   string `json:"agent_name"`
+				NodeName    string `json:"node_name"`
 				MonitorName string `json:"monitor_name"`
 				Severity    string `json:"severity"`
 			} `json:"incidents"`
@@ -65,7 +65,7 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, listResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Incidents[0].AgentName != "Orion Core" || listed.Data.Incidents[0].MonitorName != "Core API health" || listed.Data.Incidents[0].Severity != "high" {
+	if !listed.Success || listed.Data.Count != 1 || listed.Data.Incidents[0].NodeName != "Orion Core" || listed.Data.Incidents[0].MonitorName != "Core API health" || listed.Data.Incidents[0].Severity != "high" {
 		t.Fatalf("listed core incidents = %+v, want Orion Core incident", listed)
 	}
 	upReportID, err := server.reportService.StoreMonitorReport(monitor.ID, service.MonitorReportPayload{Timestamp: time.Now().UTC().Format(time.RFC3339), Health: "up", Metrics: map[string]interface{}{"runner": "core", "status_code": 200, "duration_ms": 48}})

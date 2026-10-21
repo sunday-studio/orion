@@ -180,8 +180,8 @@ func internalEntries(now time.Time) []logstore.Entry {
 		extra                    map[string]any
 	}
 	lines := []line{
-		{"info", "agent gateway", "Agent report accepted", map[string]any{"server": "edge-01", "monitors": 5}},
-		{"warn", "agent gateway", "Slow agent report", map[string]any{"server": "edge-03", "latency_ms": 1204}},
+		{"info", "node gateway", "Node report accepted", map[string]any{"server": "edge-01", "monitors": 5}},
+		{"warn", "node gateway", "Slow node report", map[string]any{"server": "edge-03", "latency_ms": 1204}},
 		{"error", "worker", "Alert delivery retry failed", map[string]any{"channel": "oncall webhook", "attempt": 3, "error": "webhook returned status 502"}},
 		{"info", "core api", "Incident opened", map[string]any{"incident": "INC-0231"}},
 		{"warn", "scheduler", "Check delayed", map[string]any{"queue_depth": 41}},

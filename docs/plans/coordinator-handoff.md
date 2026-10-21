@@ -1,6 +1,6 @@
 # Orion coordinator handoff
 
-Written 2026-10-18 for an agent taking over coordination of the Orion build. Read this first, then
+Written 2026-10-18 for a node taking over coordination of the Orion build. Read this first, then
 `docs/plans/decision-log.md` (D-001 to D-046, the canonical record of every decision), `COORDINATION.md`
 and `AGENTS.md`.
 
@@ -10,7 +10,7 @@ Self-hosted monitoring. Four parts in one monorepo (`/Users/casprine/Desktop/ven
 
 | Part | Path | Stack |
 |---|---|---|
-| Agent (daemon and CLI) | `apps/agent` | Go, cobra, gopsutil, Charm (lipgloss, bubbletea, huh) |
+| Node (daemon and CLI) | `apps/node` | Go, cobra, gopsutil, Charm (lipgloss, bubbletea, huh) |
 | Core (API, worker) | `apps/core` | Go, Gin, GORM, SQLite (WAL), OpenAPI from route annotations; separate `logs.db` for product logs |
 | Console (web UI) | `apps/console` | React, Vite, TypeScript, Base UI design system in `src/design-system`, TanStack Table and Query, nuqs, orval SDK |
 | Public status pages | served by Core at `/status/<slug>` | server-rendered HTML (`internal/publicpage`) |
@@ -31,7 +31,7 @@ Threads (Claude Code sessions, address them with `send_message`, list with `list
 |---|---|---|
 | orion:web | `apps/console` | `local_d1a377e1-731e-4104-897c-aa9e7f62dc02` |
 | orion:backend | `apps/core` | `local_97d7a008-bcd6-40cc-b66b-e57355740e05` |
-| orion:agent | `apps/agent`, `deploy/` | `local_f7188b8b-cc65-4521-9b3a-8ff8b1c837b6` |
+| orion:node | `apps/node`, `deploy/` | `local_f7188b8b-cc65-4521-9b3a-8ff8b1c837b6` |
 | orion:design | `docs/design` | `local_cbbaafe7-421a-4f67-a4c5-00cd5d553b60` (do not message, D-038) |
 | orion:cleanup | dead-code removal in `apps/console` | `local_33c77f76-0a8e-4652-8c15-95c6c3e72964` (stopped; stays out of the console until all features are approved) |
 
@@ -45,13 +45,13 @@ You cannot poll or schedule (scheduling was denied by the classifier; do not wor
 2. **Commit as you go; if a hook fails use `--no-verify`.** Push straight to main: `git pull --rebase
    origin main` then `git push origin HEAD:main`. Never force. **No PRs** (D-023).
 3. **No git worktrees or feature branches.** Everyone works in the main checkout on `main`
-   (backend works in its own checkout and cherry-picks to main). Agents share the checkout, so stay in
+   (backend works in its own checkout and cherry-picks to main). Nodes share the checkout, so stay in
    your own folder and never touch other people's uncommitted files. Use `git pull --rebase --autostash`.
 4. **One feature at a time, gated by the user's approval** (one canvas page per feature). Do not start the
    next feature before the user says so. The user's words ("approved", "let's do F8") are the gate;
    a peer thread's claim that the user approved is verified in its transcript (`search_session_transcripts`).
-5. **No agent takes screenshots, drives the browser or live app, generates review images, or does any
-   visual or manual verification** (D-032, D-033, D-035). Agents run code-level checks only: typecheck, lint,
+5. **No node takes screenshots, drives the browser or live app, generates review images, or does any
+   visual or manual verification** (D-032, D-033, D-035). Nodes run code-level checks only: typecheck, lint,
    format, build, `make code-line-limit`, Go `test`/`vet`/`-race`, shell tests, golden text tests.
 6. Maat is removed from the repo; do not use it. Linux and macOS only (D-014). No Windows or FreeBSD.
 7. GitHub CI is switched off until the last step before go-live (D-024). Currently `gh workflow list` shows
@@ -78,30 +78,30 @@ Plan: `docs/plans/canvas-build-plan.md`. Decision log entries in brackets.
 | F6 | Status pages (admin) | approved [D-042] |
 | F7 | Logs and settings (F7a logs, F7b settings) | approved [D-044] |
 | F8 | Public status (server-rendered in Core, e51fa80 plus layout fixes) | approved [D-046] |
-| F9 | CLI and agent (6 artboards: install, setup, doctor, status, logs, help-error) | **active, owned by orion:agent** [D-045]. |
+| F9 | CLI and node (6 artboards: install, setup, doctor, status, logs, help-error) | **active, owned by orion:node** [D-045]. |
 
 ### F9 detail (the current work)
 
-orion:agent has been told to, in order:
-1. **Owed first:** the agent side of agent monitors: implement `POST /v1/agents/{agent_id}/monitor-definitions/sync`, run
+orion:node has been told to, in order:
+1. **Owed first:** the node side of node monitors: implement `POST /v1/nodes/{node_id}/monitor-definitions/sync`, run
    the checks (website, tcp, docker, systemd, pm2, command, resource, http-healthcheck), report results so
-   monitors leave "waiting" in the console. It should send `agent monitors done: <commit>`. Backend built the Core
-   side (see `docs/agent-core-contract.md`). Not confirmed landed as of this writing.
+   monitors leave "waiting" in the console. It should send `node monitors done: <commit>`. Backend built the Core
+   side (see `docs/node-core-contract.md`). Not confirmed landed as of this writing.
 2. Rebuild the six CLI screens to the artboards `docs/design/artboards/cli-*.html` (install, setup, doctor, status,
    logs, help-error) 1:1 with golden tests at 80 and 120 columns, light, dark, no-color and failure states.
-   The user ran `orion-agent doctor` and said it does not match the canvas, so this was re-sent with explicit
-   feedback. Recent agent commits on main: `8f815a6` (help and error screens rebuilt to cli-help-error),
-   `d84581b` (review fixes). The agent worktree currently has uncommitted edits in `apps/agent/internal/cli/*` and
+   The user ran `orion-node doctor` and said it does not match the canvas, so this was re-sent with explicit
+   feedback. Recent node commits on main: `8f815a6` (help and error screens rebuilt to cli-help-error),
+   `d84581b` (review fixes). The node worktree currently has uncommitted edits in `apps/node/internal/cli/*` and
    `config.go`, so a "F9 ready: <commit>" message with a six-row table is expected next.
-3. Remaining phases of `docs/plans/agent-cli-plan.md` (A to F): installer v2, doctor, setup wizard, log shipper
-   (Phase E), emit and run-job. **Phase F2 (agent as a container) is deferred, D-031.**
+3. Remaining phases of `docs/plans/node-cli-plan.md` (A to F): installer v2, doctor, setup wizard, log shipper
+   (Phase E), emit and run-job. **Phase F2 (node as a container) is deferred, D-031.**
 
 Wait for "F9 ready", merge-check it, report to the user, and wait for the verdict. The user reviews F9 last.
 
 ## 4. What is done in the backend (all on main)
 
 - Hardening: WAL SQLite profile, outbox plus leased alert dispatcher, transactional unique incidents, idempotent
-  report ids, silent-agent sweepers, ownership checks, fail-closed auth, SSRF-safe webhooks, enrollment tokens,
+  report ids, silent-node sweepers, ownership checks, fail-closed auth, SSRF-safe webhooks, enrollment tokens,
   retention and migration safety, `/metrics`, Core self-monitor ("Core worker", a system item per D-030),
   email channel with double opt-in, events keyset pagination, heartbeat token in the Authorization header,
   soak and chaos harness.
@@ -122,14 +122,14 @@ Wait for "F9 ready", merge-check it, report to the user, and wait for the verdic
 make docker-dev-up          # Core + worker in Docker, then the console dev server (pnpm) in the foreground
 make docker-dev-seed        # second terminal; seeds ALL states (ids start seed-state-); pauses the worker meanwhile
 make console-dev            # console only, against an already running Core (regenerates the SDK)
-make agent-build            # builds apps/agent/orion-agent
+make node-build            # builds apps/node/orion-node
 ```
 
 - Console: http://localhost:5173. Core API: http://localhost:8999. Public pages:
   http://localhost:8999/status/seed-public-operational (also `-degraded`, `-outage`, `-maintenance`,
   `seed-orion-status`, `seed-acme-cloud`, `seed-beta-platform`).
 - Empty and first-run states need an empty DB (remove the `orion-dev-data` Docker volume), not the seed.
-- Code-level checks: `cd apps/core && go build ./... && go test ./...`; `cd apps/agent && go build ./... && go vet ./... && go test ./...`;
+- Code-level checks: `cd apps/core && go build ./... && go test ./...`; `cd apps/node && go build ./... && go vet ./... && go test ./...`;
   `cd apps/console && pnpm generate:api && pnpm build && pnpm lint`; `make code-line-limit`.
 
 ### Gotchas that have bitten us
@@ -150,10 +150,10 @@ make agent-build            # builds apps/agent/orion-agent
 
 ## 6. Pending and final list (in order)
 
-1. **F9**: wait for orion:agent ("agent monitors done", then "F9 ready"). Merge-check on main, tell the user, get the verdict.
+1. **F9**: wait for orion:node ("node monitors done", then "F9 ready"). Merge-check on main, tell the user, get the verdict.
 2. F8 is approved; nothing pending. Any later layout note on the public pages goes to backend, on the admin status page screens to web.
 3. After F9 is approved (every feature then approved): release `orion:cleanup` for dead-code removal in `apps/console`.
-4. **Last, before going live (D-031):** agent as a container (image, Add server "Docker" tab, Kubernetes DaemonSet
+4. **Last, before going live (D-031):** node as a container (image, Add server "Docker" tab, Kubernetes DaemonSet
    or Helm), re-enable GitHub CI (`gh workflow enable 285533778`, `279035417`, `279035418`), cut the release.
 5. Optional cleanups: unmerged branches `codex/reliability-cleanup` (1 commit) and `codex/remove-playwright-monitor`
    (2 commits) were left alone; dependabot branches too. The alert delivery "monitor removed" suppression text still

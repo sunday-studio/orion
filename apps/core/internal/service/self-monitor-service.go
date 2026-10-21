@@ -147,14 +147,14 @@ func (s *SelfMonitorService) ensureWorkerMonitor() error {
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
-	owner, err := NewIncidentService(s.db, s.logger, s.cfg).ensureCoreOwnerAgent("")
+	owner, err := NewIncidentService(s.db, s.logger, s.cfg).ensureCoreOwnerNode("")
 	if err != nil {
 		return err
 	}
 	description := "Orion Core's own monitor worker. Down means checks, heartbeat monitors and alert delivery are not running."
 	return s.db.Create(&db.Monitor{
 		ID:                       coreWorkerMonitorID,
-		AgentID:                  owner.ID,
+		NodeID:                   owner.ID,
 		Name:                     coreWorkerMonitorName,
 		System:                   true,
 		Description:              &description,

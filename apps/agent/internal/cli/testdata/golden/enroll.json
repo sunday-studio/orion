@@ -1,7 +1,0 @@
-{
-  "agent_id": "string",
-  "config": "string",
-  "core_url": "string",
-  "schema_version": "number",
-  "state": "string"
-}

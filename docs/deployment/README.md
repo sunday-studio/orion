@@ -3,16 +3,16 @@
 The supported self-hosted setup is:
 
 1. deploy Core and Console together with Docker;
-2. install a Server on each monitored machine with the curlable `orion-agent` installer;
+2. install a Server on each monitored machine with the curlable `orion-node` installer;
 3. point each Server at the Core URL it can reach.
 
 - [Set up Core on a new server with Docker](docker-new-server.md)
 - [First run checklist](first-run-checklist.md)
 - [Core Docker deployment](core-docker.md)
-- [Running the Agent as a container](agent-container.md)
+- [Running the Node as a container](node-container.md)
 - [Kubernetes position](kubernetes-position.md)
-- [Server install and upgrade](agent-install-upgrade.md)
-- [Agent configuration reference](agent-config-reference.md)
+- [Server install and upgrade](node-install-upgrade.md)
+- [Node configuration reference](node-config-reference.md)
 - [Release readiness gate](release-readiness.md)
 - [SQLite backup and restore](../sqlite-backup-restore.md)
 

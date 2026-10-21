@@ -11,7 +11,7 @@ import (
 )
 
 // Chaos 7: the main database fills up. Writes must fail with an error (the API turns this into
-// a 5xx the agent retries), nothing may half-commit or corrupt, and the same calls succeed once
+// a 5xx the node retries), nothing may half-commit or corrupt, and the same calls succeed once
 // space returns. PRAGMA max_page_count reproduces SQLITE_FULL without root or a loop device.
 func TestChaosMainDatabaseDiskFullFailsCleanlyAndRecovers(t *testing.T) {
 	database := testkit.NewDB(t)
@@ -19,7 +19,7 @@ func TestChaosMainDatabaseDiskFullFailsCleanlyAndRecovers(t *testing.T) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetConnMaxLifetime(0)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	reports := NewReportService(database, utils.NewLogger(), &config.Config{})
 	payload := func(i int) MonitorReportPayload {
 		return MonitorReportPayload{Timestamp: time.Now().UTC().Format(time.RFC3339), Health: "up", Metrics: map[string]any{"blob": strings.Repeat("x", 2000), "i": i}}

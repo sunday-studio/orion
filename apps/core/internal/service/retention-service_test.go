@@ -69,7 +69,7 @@ func TestRetentionPrunesGrowthTablesButKeepsPendingAndActiveHistory(t *testing.T
 	recent := now.Add(-time.Hour)
 
 	for i, at := range []time.Time{old, recent} {
-		database.Create(&db.ServiceLogEntry{ID: fmt.Sprintf("log-%d", i), AgentID: "a", Message: "m", Fingerprint: fmt.Sprintf("fp-%d", i), OccurredAt: at, CollectedAt: at, CreatedAt: at})
+		database.Create(&db.ServiceLogEntry{ID: fmt.Sprintf("log-%d", i), NodeID: "a", Message: "m", Fingerprint: fmt.Sprintf("fp-%d", i), OccurredAt: at, CollectedAt: at, CreatedAt: at})
 		database.Create(&db.AuditEvent{ID: fmt.Sprintf("audit-%d", i), Action: "x", AffectedObjectType: "t", AffectedObjectID: "1", ActorType: "u", ActorID: "u", CreatedAt: at})
 		database.Create(&db.CoreWorkerStatus{WorkerID: fmt.Sprintf("w-%d", i), StartedAt: at, LastHeartbeatAt: at})
 	}
@@ -80,8 +80,8 @@ func TestRetentionPrunesGrowthTablesButKeepsPendingAndActiveHistory(t *testing.T
 		database.Create(&db.AlertDelivery{ID: id, IncidentID: "i", EventType: "incident_opened", Channel: "c", Type: "webhook", Status: tc.status, MaxAttempts: 3, CreatedAt: tc.at})
 		database.Create(&db.AlertDeliveryAttempt{ID: "att-" + id, AlertDeliveryID: id, AttemptNumber: 1, Status: "sent", Stage: "transport", StartedAt: tc.at, CreatedAt: tc.at})
 	}
-	database.Create(&db.Incident{ID: "inc-resolved", Status: "resolved", Severity: "high", Title: "t", AgentID: "a", MonitorID: "m-r", OpenedAt: old, LastEventAt: old, NotificationStatus: "sent"})
-	database.Create(&db.Incident{ID: "inc-open", Status: "open", Severity: "high", Title: "t", AgentID: "a", MonitorID: "m-o", OpenedAt: old, LastEventAt: old, NotificationStatus: "sent"})
+	database.Create(&db.Incident{ID: "inc-resolved", Status: "resolved", Severity: "high", Title: "t", NodeID: "a", MonitorID: "m-r", OpenedAt: old, LastEventAt: old, NotificationStatus: "sent"})
+	database.Create(&db.Incident{ID: "inc-open", Status: "open", Severity: "high", Title: "t", NodeID: "a", MonitorID: "m-o", OpenedAt: old, LastEventAt: old, NotificationStatus: "sent"})
 	database.Create(&db.IncidentEvent{ID: "ev-resolved-old", IncidentID: "inc-resolved", Type: "x", CreatedAt: old})
 	database.Create(&db.IncidentEvent{ID: "ev-open-old", IncidentID: "inc-open", Type: "x", CreatedAt: old})
 

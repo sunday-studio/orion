@@ -8,15 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// SweepSilentMonitors opens stale incidents for agent-reported monitors that
+// SweepSilentMonitors opens stale incidents for node-reported monitors that
 // stopped reporting. Unlike ReconcileStaleMonitors, which only runs when an
-// agent sends a report, this runs from the Worker so a crashed, killed or
-// unreachable agent still raises an incident. Recovery needs no sweeper work:
+// node sends a report, this runs from the Worker so a crashed, killed or
+// unreachable node still raises an incident. Recovery needs no sweeper work:
 // the next successful report resolves the incident through the normal path.
 //
 // Core-managed monitors are skipped (the Worker's own scheduler and heartbeat
-// reconciliation own them), as are agents in maintenance mode. Staleness is
-// measured on server receive time so a skewed agent clock cannot hide an outage.
+// reconciliation own them), as are nodes in maintenance mode. Staleness is
+// measured on server receive time so a skewed node clock cannot hide an outage.
 // It returns the number of monitors that were newly flagged stale.
 func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 	if now.IsZero() {
@@ -44,18 +44,18 @@ func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 		return 0, nil
 	}
 
-	agents := map[string]*db.Agent{}
+	nodes := map[string]*db.Node{}
 	flagged := 0
 	var firstErr error
 	for _, row := range rows {
 		monitor := row.Monitor
-		agent, err := s.sweepAgent(agents, monitor.AgentID)
+		node, err := s.sweepNode(nodes, monitor.NodeID)
 		if err != nil {
-			s.logger.Error("Silent monitor sweep could not load agent", "agent_id", monitor.AgentID, "error", err)
+			s.logger.Error("Silent monitor sweep could not load node", "node_id", monitor.NodeID, "error", err)
 			firstErr = errors.Join(firstErr, err)
 			continue
 		}
-		if agent == nil || agent.TokenRevokedAt != nil || agent.InMaintenance(now) {
+		if node == nil || node.TokenRevokedAt != nil || node.InMaintenance(now) {
 			continue
 		}
 
@@ -64,7 +64,7 @@ func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 			continue
 		}
 
-		if err := s.openOrUpdateIncident(*agent, monitor, "", "stale", "stale"); err != nil {
+		if err := s.openOrUpdateIncident(*node, monitor, "", "stale", "stale"); err != nil {
 			s.logger.Error("Silent monitor sweep could not open incident", "monitor_id", monitor.ID, "error", err)
 			firstErr = errors.Join(firstErr, err)
 			continue
@@ -74,21 +74,21 @@ func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 	return flagged, firstErr
 }
 
-// sweepAgent returns the agent (cached for the sweep) or nil when it no longer exists.
-func (s *IncidentService) sweepAgent(cache map[string]*db.Agent, agentID string) (*db.Agent, error) {
-	if agent, ok := cache[agentID]; ok {
-		return agent, nil
+// sweepNode returns the node (cached for the sweep) or nil when it no longer exists.
+func (s *IncidentService) sweepNode(cache map[string]*db.Node, nodeID string) (*db.Node, error) {
+	if node, ok := cache[nodeID]; ok {
+		return node, nil
 	}
-	var agent db.Agent
-	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+	var node db.Node
+	if err := s.db.Where("id = ?", nodeID).First(&node).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			cache[agentID] = nil
+			cache[nodeID] = nil
 			return nil, nil
 		}
 		return nil, err
 	}
-	cache[agentID] = &agent
-	return &agent, nil
+	cache[nodeID] = &node
+	return &node, nil
 }
 
 // sqliteTimeLayouts are the formats SQLite stores GORM timestamps in.

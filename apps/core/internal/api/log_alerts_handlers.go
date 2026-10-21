@@ -69,7 +69,7 @@ func (s *Server) deleteLogAlertRule(c *gin.Context) { s.deleteLogAlertRuleImpl(c
 
 // getIncidentLogs returns logs around an incident.
 // @Summary      Logs around an incident
-// @Description  Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the agent's service logs, plus the app's product logs when `app_id` is given or the incident came from a log alert rule. Newest first.
+// @Description  Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the app's product logs when `app_id` is given or the incident came from a log alert rule. Newest first.
 // @Tags         incidents
 // @Produce      json
 // @Security     BearerAuth

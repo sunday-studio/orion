@@ -24,7 +24,7 @@ type Server struct {
 	db                           *gorm.DB
 	logger                       *utils.Logger
 	cfg                          *config.Config
-	agentService                 *service.AgentService
+	nodeService                  *service.NodeService
 	enrollments                  *service.EnrollmentService
 	authService                  *service.AuthService
 	reportService                *service.ReportService
@@ -49,7 +49,7 @@ type Server struct {
 }
 
 func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {
-	agentService := service.NewAgentService(database, logger)
+	nodeService := service.NewNodeService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger, cfg)
 	serviceLogService := service.NewServiceLogService(database, logger)
@@ -89,7 +89,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		logger:                       logger,
 		cfg:                          cfg,
 		enrollments:                  service.NewEnrollmentService(database, logger),
-		agentService:                 agentService,
+		nodeService:                  nodeService,
 		authService:                  authService,
 		reportService:                reportService,
 		serviceLogService:            serviceLogService,
@@ -163,8 +163,8 @@ func (s *Server) setupRoutes() {
 		// Public routes
 		public := v1.Group("/")
 		{
-			public.POST("/register", s.registerAgent)
-			public.POST("/register/preflight", s.preflightAgentRegistration)
+			public.POST("/register", s.registerNode)
+			public.POST("/register/preflight", s.preflightNodeRegistration)
 			public.POST("/auth/login", s.login)
 			public.POST("/ingest/logs", s.ingestLogs)
 			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)
@@ -180,29 +180,29 @@ func (s *Server) setupRoutes() {
 		frontend.Use(s.frontendAuthMiddleware(), s.auditMiddleware())
 		s.registerSettingsRoutes(frontend)
 		{
-			frontend.GET("/agents", s.listAgents)
-			frontend.GET("/agents/summary", s.getAgentSummary)
-			frontend.GET("/agents/:id", s.getAgentDetail)
-			frontend.PATCH("/agents/:id", s.updateAgent)
-			frontend.DELETE("/agents/:id", s.decommissionAgent)
-			frontend.GET("/agents/:id/health", s.getAgentHealth)
-			frontend.GET("/agents/:id/reports", s.getAgentReports)
-			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
-			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
-			frontend.GET("/agents/:id/monitors", s.listMonitors)
-			frontend.GET("/agents/:id/discovery", s.getAgentDiscovery)
-			frontend.GET("/agents/:id/app-resources", s.getAgentAppResources)
-			frontend.GET("/agents/:id/discovery/requests", s.listAgentDiscoveryRequests)
-			frontend.POST("/agents/:agent_id/discovery/requests", s.createAgentDiscoveryRequest)
-			frontend.DELETE("/agents/:id/discovery/requests/:request_id", s.cancelAgentDiscoveryRequest)
-			frontend.POST("/agents/:agent_id/discovery/accept", s.acceptDiscoveredItems)
-			frontend.GET("/agents/:id/monitor-definitions", s.listAgentMonitorDefinitions)
-			frontend.POST("/agents/:agent_id/monitor-definitions", s.createAgentMonitorDefinition)
-			frontend.DELETE("/agents/:id/monitor-definitions/:definition_id", s.deleteAgentMonitorDefinition)
-			frontend.GET("/agents/:id/token/status", s.getAgentTokenStatus)
-			frontend.POST("/agents/:agent_id/token/rotate", s.rotateAgentToken)
-			frontend.POST("/agents/:agent_id/token/revoke", s.revokeAgentToken)
-			frontend.POST("/agents/:agent_id/token/reissue", s.reissueAgentToken)
+			frontend.GET("/nodes", s.listNodes)
+			frontend.GET("/nodes/summary", s.getNodeSummary)
+			frontend.GET("/nodes/:id", s.getNodeDetail)
+			frontend.PATCH("/nodes/:id", s.updateNode)
+			frontend.DELETE("/nodes/:id", s.decommissionNode)
+			frontend.GET("/nodes/:id/health", s.getNodeHealth)
+			frontend.GET("/nodes/:id/reports", s.getNodeReports)
+			frontend.GET("/nodes/:id/service-logs", s.listNodeServiceLogs)
+			frontend.GET("/nodes/:id/uptime", s.getNodeUptime)
+			frontend.GET("/nodes/:id/monitors", s.listMonitors)
+			frontend.GET("/nodes/:id/discovery", s.getNodeDiscovery)
+			frontend.GET("/nodes/:id/app-resources", s.getNodeAppResources)
+			frontend.GET("/nodes/:id/discovery/requests", s.listNodeDiscoveryRequests)
+			frontend.POST("/nodes/:node_id/discovery/requests", s.createNodeDiscoveryRequest)
+			frontend.DELETE("/nodes/:id/discovery/requests/:request_id", s.cancelNodeDiscoveryRequest)
+			frontend.POST("/nodes/:node_id/discovery/accept", s.acceptDiscoveredItems)
+			frontend.GET("/nodes/:id/monitor-definitions", s.listNodeMonitorDefinitions)
+			frontend.POST("/nodes/:node_id/monitor-definitions", s.createNodeMonitorDefinition)
+			frontend.DELETE("/nodes/:id/monitor-definitions/:definition_id", s.deleteNodeMonitorDefinition)
+			frontend.GET("/nodes/:id/token/status", s.getNodeTokenStatus)
+			frontend.POST("/nodes/:node_id/token/rotate", s.rotateNodeToken)
+			frontend.POST("/nodes/:node_id/token/revoke", s.revokeNodeToken)
+			frontend.POST("/nodes/:node_id/token/reissue", s.reissueNodeToken)
 			frontend.GET("/monitors", s.listAllMonitors)
 			frontend.POST("/monitors", s.createCoreMonitor)
 			frontend.POST("/monitors/bulk", s.bulkMonitorAction)
@@ -295,22 +295,22 @@ func (s *Server) setupRoutes() {
 			frontend.POST("/settings/data-lifecycle/actions/archive", s.runDataLifecycleArchive)
 		}
 
-		// Protected routes (agent-to-core)
-		protected := v1.Group("/agents")
+		// Protected routes (node-to-core)
+		protected := v1.Group("/nodes")
 		protected.Use(AuthMiddleware())
 		{
-			protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
-			protected.POST("/:agent_id/unregister-monitor", ValidateAgentToken(s.agentService, s.authService), s.unregisterMonitor)
-			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
-			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
-			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
-			protected.POST("/:agent_id/discovery", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentDiscovery)
-			protected.POST("/:agent_id/discovery/requests/pull", ValidateAgentToken(s.agentService, s.authService), s.pullAgentDiscoveryRequests)
-			protected.POST("/:agent_id/discovery/requests/:request_id/result", ValidateAgentToken(s.agentService, s.authService), s.finishAgentDiscoveryRequest)
-			protected.POST("/:agent_id/monitor-definitions/results", ValidateAgentToken(s.agentService, s.authService), s.recordAgentDefinitionResults)
-			protected.POST("/:agent_id/monitor-definitions/sync", ValidateAgentToken(s.agentService, s.authService), s.pullAgentMonitorDefinitions)
-			protected.POST("/:agent_id/token-check", ValidateAgentToken(s.agentService, s.authService), s.checkAgentToken)
-			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
+			protected.POST("/:node_id/register-monitor", ValidateNodeToken(s.nodeService, s.authService), s.registerMonitor)
+			protected.POST("/:node_id/unregister-monitor", ValidateNodeToken(s.nodeService, s.authService), s.unregisterMonitor)
+			protected.POST("/:node_id/report", ValidateNodeToken(s.nodeService, s.authService), s.receiveNodeReport)
+			protected.POST("/:node_id/logs/batch", ValidateNodeToken(s.nodeService, s.authService), s.receiveNodeLogBatch)
+			protected.POST("/:node_id/:monitor_id/report", ValidateNodeToken(s.nodeService, s.authService), s.receiveMonitorReport)
+			protected.POST("/:node_id/discovery", ValidateNodeToken(s.nodeService, s.authService), s.receiveNodeDiscovery)
+			protected.POST("/:node_id/discovery/requests/pull", ValidateNodeToken(s.nodeService, s.authService), s.pullNodeDiscoveryRequests)
+			protected.POST("/:node_id/discovery/requests/:request_id/result", ValidateNodeToken(s.nodeService, s.authService), s.finishNodeDiscoveryRequest)
+			protected.POST("/:node_id/monitor-definitions/results", ValidateNodeToken(s.nodeService, s.authService), s.recordNodeDefinitionResults)
+			protected.POST("/:node_id/monitor-definitions/sync", ValidateNodeToken(s.nodeService, s.authService), s.pullNodeMonitorDefinitions)
+			protected.POST("/:node_id/token-check", ValidateNodeToken(s.nodeService, s.authService), s.checkNodeToken)
+			protected.PUT("/:node_id/maintenance", ValidateNodeToken(s.nodeService, s.authService), s.setMaintenanceMode)
 		}
 	}
 

@@ -9,17 +9,17 @@ import (
 
 func TestUnregisterMonitorClearsStaleIncidentPathWithoutDuplicateEvent(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	now := time.Now().UTC()
-	incident := db.Incident{ID: "incident-stale-active-path", Status: "resolved", Severity: "high", Title: "Resolved stale active path", AgentID: registered.Data.AgentID, MonitorID: registeredMonitor.Data.MonitorID, OpenedAt: now.Add(-30 * time.Minute), ResolvedAt: &now, LastEventAt: now, LatestEvent: "Already resolved", NotificationStatus: "suppressed"}
+	incident := db.Incident{ID: "incident-stale-active-path", Status: "resolved", Severity: "high", Title: "Resolved stale active path", NodeID: registered.Data.NodeID, MonitorID: registeredMonitor.Data.MonitorID, OpenedAt: now.Add(-30 * time.Minute), ResolvedAt: &now, LastEventAt: now, LatestEvent: "Already resolved", NotificationStatus: "suppressed"}
 	if err := server.db.Create(&incident).Error; err != nil {
 		t.Fatalf("create resolved incident: %v", err)
 	}
 	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{"active_incident_id": incident.ID, "incident_state": "down"}).Error; err != nil {
 		t.Fatalf("set stale monitor incident path: %v", err)
 	}
-	unregisterResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/unregister-monitor", map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID}, registered.Data.Token)
+	unregisterResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/unregister-monitor", map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID}, registered.Data.Token)
 	if unregisterResp.Code != http.StatusOK {
 		t.Fatalf("unregister monitor status = %d, body = %s", unregisterResp.Code, unregisterResp.Body.String())
 	}
@@ -34,10 +34,10 @@ func TestUnregisterMonitorClearsStaleIncidentPathWithoutDuplicateEvent(t *testin
 }
 func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.AgentID, "incident-list-component", "Public API", "monitor")
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.NodeID, "incident-list-component", "Public API", "monitor")
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"status_code": 500}}, registered.Data.Token)
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
@@ -55,8 +55,8 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		Data    struct {
 			Incidents []struct {
 				Status             string `json:"status"`
-				AgentID            string `json:"agent_id"`
-				AgentName          string `json:"agent_name"`
+				NodeID             string `json:"node_id"`
+				NodeName           string `json:"node_name"`
 				MonitorName        string `json:"monitor_name"`
 				ImpactedComponents []struct {
 					ComponentID   string `json:"component_id"`
@@ -72,13 +72,13 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Incidents) != 1 {
 		t.Fatalf("incidents response = %+v, want one active incident", listed)
 	}
-	if listed.Data.Incidents[0].Status != "open" || listed.Data.Incidents[0].AgentName != "test-server" || listed.Data.Incidents[0].MonitorName != "homepage" {
+	if listed.Data.Incidents[0].Status != "open" || listed.Data.Incidents[0].NodeName != "test-server" || listed.Data.Incidents[0].MonitorName != "homepage" {
 		t.Fatalf("incident row = %+v, want open homepage on test-server", listed.Data.Incidents[0])
 	}
 	if len(listed.Data.Incidents[0].ImpactedComponents) != 1 || listed.Data.Incidents[0].ImpactedComponents[0].ComponentID != "incident-list-component" || listed.Data.Incidents[0].ImpactedComponents[0].ComponentName != "Public API" || listed.Data.Incidents[0].ImpactedComponents[0].Status != "major_outage" || listed.Data.Incidents[0].ImpactedComponents[0].Impact != "down" {
 		t.Fatalf("incident component impact = %+v, want Public API down impact", listed.Data.Incidents[0].ImpactedComponents)
 	}
-	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id="+registered.Data.AgentID, nil, "")
+	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?node_id="+registered.Data.NodeID, nil, "")
 	if filteredResp.Code != http.StatusOK {
 		t.Fatalf("filtered incidents status = %d, body = %s", filteredResp.Code, filteredResp.Body.String())
 	}
@@ -86,14 +86,14 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incidents []struct {
-				AgentID string `json:"agent_id"`
+				NodeID string `json:"node_id"`
 			} `json:"incidents"`
 			Count int64 `json:"count"`
 		} `json:"data"`
 	}
 	decodeResponse(t, filteredResp, &filtered)
-	if !filtered.Success || filtered.Data.Count != 1 || filtered.Data.Incidents[0].AgentID != registered.Data.AgentID {
-		t.Fatalf("filtered incidents response = %+v, want one incident for agent %s", filtered, registered.Data.AgentID)
+	if !filtered.Success || filtered.Data.Count != 1 || filtered.Data.Incidents[0].NodeID != registered.Data.NodeID {
+		t.Fatalf("filtered incidents response = %+v, want one incident for node %s", filtered, registered.Data.NodeID)
 	}
 	monitorFilteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?monitor_id="+registeredMonitor.Data.MonitorID, nil, "")
 	if monitorFilteredResp.Code != http.StatusOK {
@@ -111,7 +111,7 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	if monitorFiltered.Data.Count != 1 || monitorFiltered.Data.Incidents[0].MonitorName != "homepage" {
 		t.Fatalf("monitor filtered incidents = %+v, want homepage incident", monitorFiltered)
 	}
-	noMatchResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id=agent-no-match", nil, "")
+	noMatchResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?node_id=node-no-match", nil, "")
 	if noMatchResp.Code != http.StatusOK {
 		t.Fatalf("no match incidents status = %d, body = %s", noMatchResp.Code, noMatchResp.Body.String())
 	}

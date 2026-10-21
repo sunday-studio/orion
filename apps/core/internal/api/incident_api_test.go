@@ -9,23 +9,23 @@ import (
 
 func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	reportBody := map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{}, "error": map[string]string{"message": "connection refused"}}
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, reportBody, registered.Data.Token)
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
 	}
 	beforeMaintenance := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
 	assertIncidentCandidateCount(t, beforeMaintenance, 1)
-	maintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/agents/"+registered.Data.AgentID+"/maintenance", map[string]bool{"maintenance_mode": true}, registered.Data.Token)
+	maintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/nodes/"+registered.Data.NodeID+"/maintenance", map[string]bool{"maintenance_mode": true}, registered.Data.Token)
 	if maintenanceResp.Code != http.StatusOK {
 		t.Fatalf("maintenance status = %d, body = %s", maintenanceResp.Code, maintenanceResp.Body.String())
 	}
 	afterMaintenance := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
 	assertIncidentCandidateCount(t, afterMaintenance, 0)
-	disableMaintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/agents/"+registered.Data.AgentID+"/maintenance", map[string]bool{"maintenance_mode": false}, registered.Data.Token)
+	disableMaintenanceResp := performJSONRequest(t, server, http.MethodPut, "/v1/nodes/"+registered.Data.NodeID+"/maintenance", map[string]bool{"maintenance_mode": false}, registered.Data.Token)
 	if disableMaintenanceResp.Code != http.StatusOK {
 		t.Fatalf("disable maintenance status = %d, body = %s", disableMaintenanceResp.Code, disableMaintenanceResp.Body.String())
 	}
@@ -34,11 +34,11 @@ func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 }
 func TestIncidentCandidatesIncludeStaleMonitors(t *testing.T) {
 	server := setupTestServer(t)
-	agent := db.Agent{ID: "agent-stale-candidate", MachineId: "machine-stale-candidate", Name: "stale candidate", OS: "linux", Arch: "arm64", Token: "token-stale-candidate", LastSeen: time.Now()}
-	if err := server.db.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	node := db.Node{ID: "node-stale-candidate", MachineId: "machine-stale-candidate", Name: "stale candidate", OS: "linux", Arch: "arm64", Token: "token-stale-candidate", LastSeen: time.Now()}
+	if err := server.db.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
-	monitor := db.Monitor{ID: "monitor-stale-candidate", AgentID: agent.ID, Name: "stale monitor", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", ReportingIntervalSeconds: 60}
+	monitor := db.Monitor{ID: "monitor-stale-candidate", NodeID: node.ID, Name: "stale monitor", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", ReportingIntervalSeconds: 60}
 	if err := server.db.Create(&monitor).Error; err != nil {
 		t.Fatalf("create monitor: %v", err)
 	}
@@ -74,9 +74,9 @@ func TestIncidentCandidatesIncludeStaleMonitors(t *testing.T) {
 }
 func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "connection refused"}}, registered.Data.Token)
 	if downResp.Code != http.StatusOK {
 		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
@@ -123,9 +123,9 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 }
 func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "manual action test failure"}}, registered.Data.Token)
 	if downResp.Code != http.StatusOK {
 		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
@@ -275,9 +275,9 @@ func TestCoveredIncidentSuppressesFailuresUntilRecoveryOrExpiry(t *testing.T) {
 }
 func TestUnregisterMonitorResolvesActiveIncidentPath(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	downResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/"+registeredMonitor.Data.MonitorID+"/report", map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "removed monitor failure"}}, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
+	downResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/"+registeredMonitor.Data.MonitorID+"/report", map[string]interface{}{"timestamp": time.Now().UTC().Format(time.RFC3339), "health": "down", "metrics": map[string]interface{}{"failure_reason": "removed monitor failure"}}, registered.Data.Token)
 	if downResp.Code != http.StatusOK {
 		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
 	}
@@ -286,7 +286,7 @@ func TestUnregisterMonitorResolvesActiveIncidentPath(t *testing.T) {
 		t.Fatalf("find incident: %v", err)
 	}
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
-	unregisterResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/unregister-monitor", map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID}, registered.Data.Token)
+	unregisterResp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+registered.Data.NodeID+"/unregister-monitor", map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID}, registered.Data.Token)
 	if unregisterResp.Code != http.StatusOK {
 		t.Fatalf("unregister monitor status = %d, body = %s", unregisterResp.Code, unregisterResp.Body.String())
 	}

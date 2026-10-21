@@ -14,7 +14,7 @@ func TestAlertChannelRejectsUnsafeWebhookURLs(t *testing.T) {
 	for name, url := range map[string]string{
 		"cloud metadata":      "http://169.254.169.254/latest/meta-data/",
 		"metadata ipv6":       "http://[fd00:ec2::254]/",
-		"loopback ip":         "http://127.0.0.1:8999/v1/agents",
+		"loopback ip":         "http://127.0.0.1:8999/v1/nodes",
 		"localhost name":      "http://localhost/hook",
 		"private range":       "https://10.0.0.5/hook",
 		"link local":          "https://169.254.10.10/hook",

@@ -11,10 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func seedFailingMonitor(t *testing.T, server *Server, agentID string) {
+func seedFailingMonitor(t *testing.T, server *Server, nodeID string) {
 	t.Helper()
 	now := time.Now().UTC()
-	server.db.Create(&db.Monitor{ID: "mon-fail", Type: "http", Name: "api-https", AgentID: agentID, Lifecycle: "active", ComputedHealth: "down", Health: "down", ReportingIntervalSeconds: 60})
+	server.db.Create(&db.Monitor{ID: "mon-fail", Type: "http", Name: "api-https", NodeID: nodeID, Lifecycle: "active", ComputedHealth: "down", Health: "down", ReportingIntervalSeconds: 60})
 	server.db.Create(&db.MonitorReport{ID: "r-up", MonitorID: "mon-fail", Payload: `{}`, CollectedAt: now.Add(-20 * time.Minute).Format(time.RFC3339), Health: "up", CreatedAt: now.Add(-20 * time.Minute)})
 	for i := 0; i < 3; i++ {
 		at := now.Add(-time.Duration(10-i) * time.Minute)
@@ -24,8 +24,8 @@ func seedFailingMonitor(t *testing.T, server *Server, agentID string) {
 
 func TestHealthIssuesAndCandidatesCarryDetailSinceAndIncidentLink(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	seedFailingMonitor(t, server, agent.Data.AgentID)
+	node := registerTestNode(t, server)
+	seedFailingMonitor(t, server, node.Data.NodeID)
 
 	var cands struct {
 		Data struct {
@@ -74,27 +74,27 @@ func TestHealthIssuesAndCandidatesCarryDetailSinceAndIncidentLink(t *testing.T) 
 
 func TestServerThatStoppedReportingIsAHealthIssue(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	server.db.Model(&db.Agent{}).Where("id = ?", agent.Data.AgentID).Update("last_seen", time.Now().UTC().Add(-3*time.Hour))
+	node := registerTestNode(t, server)
+	server.db.Model(&db.Node{}).Where("id = ?", node.Data.NodeID).Update("last_seen", time.Now().UTC().Add(-3*time.Hour))
 	var issues struct {
 		Data HealthIssuesResponse `json:"data"`
 	}
 	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/health/issues", nil, ""), &issues)
 	found := false
 	for _, is := range issues.Data.Issues {
-		if is.Kind == "server" && is.TargetID == agent.Data.AgentID && is.Since != nil && is.Detail != "" {
+		if is.Kind == "server" && is.TargetID == node.Data.NodeID && is.Since != nil && is.Detail != "" {
 			found = true
 		}
 	}
 	if !found {
-		t.Skipf("agent liveness not reported as an issue by the health service in this setup: %+v", issues.Data.Issues)
+		t.Skipf("node liveness not reported as an issue by the health service in this setup: %+v", issues.Data.Issues)
 	}
 }
 
 func TestIncidentPublicUpdateCreatesLinkedStatusPageIncident(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
-	_, inc := declare(t, server, gin.H{"title": "api.example.com unreachable", "severity": "critical", "agent_id": agent.Data.AgentID})
+	node := registerTestNode(t, server)
+	_, inc := declare(t, server, gin.H{"title": "api.example.com unreachable", "severity": "critical", "node_id": node.Data.NodeID})
 	now := time.Now().UTC()
 	server.db.Create(&db.StatusPage{ID: "sp1", Slug: "example", Title: "Example Status", Visibility: "public", PublishedAt: &now})
 	server.db.Create(&db.StatusPageSubscriber{ID: "sub1", StatusPageID: "sp1", DestinationType: "email", DestinationHash: "h1", MaskedDestination: "a***@example.com", State: "confirmed"})
@@ -157,10 +157,10 @@ func TestIncidentPublicUpdateCreatesLinkedStatusPageIncident(t *testing.T) {
 // Review P2/P3: monitor-generated titles must not go public unreviewed; coverage cannot cycle; reposting after resolve reopens the public incident.
 func TestPublicUpdateNeedsTitleForSystemIncidentsCoverCannotCycleAndResolvedClears(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
 	server.db.Create(&db.StatusPage{ID: "sp1", Slug: "example", Title: "Example", Visibility: "public", PublishedAt: &now})
-	server.db.Create(&db.Incident{ID: "sys1", Number: 1, Status: "open", Severity: "high", Title: "db-internal-07 disk above 90%", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "sys1", Number: 1, Status: "open", Severity: "high", Title: "db-internal-07 disk above 90%", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 	path := "/v1/incidents/sys1/public-updates"
 	var targets struct {
 		Data struct {
@@ -192,7 +192,7 @@ func TestPublicUpdateNeedsTitleForSystemIncidentsCoverCannotCycleAndResolvedClea
 	}
 
 	// Cover cycles are rejected.
-	server.db.Create(&db.Incident{ID: "sys2", Number: 2, Status: "open", Severity: "low", Title: "other", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "sys2", Number: 2, Status: "open", Severity: "low", Title: "other", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 	if r := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/sys2/cover", gin.H{"covered_by": "INC-0001"}, ""); r.Code != http.StatusOK {
 		t.Fatalf("cover sys2 by sys1 = %d", r.Code)
 	}
@@ -200,7 +200,7 @@ func TestPublicUpdateNeedsTitleForSystemIncidentsCoverCannotCycleAndResolvedClea
 		t.Fatalf("cover cycle = %d, want 400", r.Code)
 	}
 	// q=0 / INC-0000 must not match unnumbered rows.
-	server.db.Create(&db.Incident{ID: "legacy", Number: 0, Status: "open", Severity: "low", Title: "legacy row", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now})
+	server.db.Create(&db.Incident{ID: "legacy", Number: 0, Status: "open", Severity: "low", Title: "legacy row", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now})
 	var list struct {
 		Data struct{ Count int64 } `json:"data"`
 	}

@@ -122,11 +122,11 @@ func TestDataLifecycleActionsFlow(t *testing.T) {
 		AlertRecoveryNotifications: true,
 		AlertTLSExpiryDays:         14,
 	})
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 
 	reportTime := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	for _, health := range []string{"up", "down"} {
 		resp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
 			"timestamp": reportTime.Format(time.RFC3339),

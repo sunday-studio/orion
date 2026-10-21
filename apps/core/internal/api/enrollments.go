@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const agentInstallerURL = "https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh"
+const nodeInstallerURL = "https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh"
 
 type EnrollmentRequest struct {
 	// Platform is the tile picked in the wizard; it only shapes the install command.
@@ -28,11 +28,11 @@ type EnrollmentResponse struct {
 	// Status: waiting (nothing seen) | claimed (token accepted, registering) | registered | reporting (first report received) | expired | cancelled.
 	Status        string     `json:"status" enums:"waiting,claimed,registered,reporting,expired,cancelled"`
 	ClaimedAt     *time.Time `json:"claimed_at,omitempty"`
-	AgentID       string     `json:"agent_id,omitempty"`
-	AgentName     string     `json:"agent_name,omitempty"`
-	AgentOS       string     `json:"agent_os,omitempty"`
-	AgentArch     string     `json:"agent_arch,omitempty"`
-	AgentVersion  string     `json:"agent_version,omitempty"`
+	NodeID        string     `json:"node_id,omitempty"`
+	NodeName      string     `json:"node_name,omitempty"`
+	NodeOS        string     `json:"node_os,omitempty"`
+	NodeArch      string     `json:"node_arch,omitempty"`
+	NodeVersion   string     `json:"node_version,omitempty"`
 	FirstReportAt *time.Time `json:"first_report_at,omitempty"`
 }
 
@@ -46,7 +46,7 @@ type EnrollmentCreatedResponse struct {
 
 func enrollmentResponse(v *service.EnrollmentView) EnrollmentResponse {
 	return EnrollmentResponse{ID: v.ID, Platform: v.Platform, ExpiresAt: v.ExpiresAt, CreatedAt: v.CreatedAt, Status: v.Status, ClaimedAt: v.ClaimedAt,
-		AgentID: v.AgentID, AgentName: v.AgentName, AgentOS: v.AgentOS, AgentArch: v.AgentArch, AgentVersion: v.AgentVersion, FirstReportAt: v.FirstReportAt}
+		NodeID: v.NodeID, NodeName: v.NodeName, NodeOS: v.NodeOS, NodeArch: v.NodeArch, NodeVersion: v.NodeVersion, FirstReportAt: v.FirstReportAt}
 }
 
 func (s *Server) coreURLFor(c *gin.Context) string {
@@ -80,7 +80,7 @@ func safeCoreURL(raw string) bool {
 
 // createEnrollment starts an Add-server session.
 // @Summary      Start an Add server session
-// @Description  Creates a one-time registration token that expires in 15 minutes. The token is returned only here. The install command registers the agent with it; poll GET /v1/enrollments/{id} until status is reporting.
+// @Description  Creates a one-time registration token that expires in 15 minutes. The token is returned only here. The install command registers the node with it; poll GET /v1/enrollments/{id} until status is reporting.
 // @Tags         enrollments
 // @Accept       json
 // @Produce      json
@@ -111,7 +111,7 @@ func (s *Server) createEnrollment(c *gin.Context) {
 		utils.ErrorResponse(c, http.StatusConflict, "Core URL is not usable in an install command; set ORION_PUBLIC_URL", nil)
 		return
 	}
-	command := "curl -fsSL " + agentInstallerURL + " | sudo ORION_ENROLLMENT_TOKEN=" + shellQuote(token) + " bash -s -- --core-url " + shellQuote(coreURL)
+	command := "curl -fsSL " + nodeInstallerURL + " | sudo ORION_ENROLLMENT_TOKEN=" + shellQuote(token) + " bash -s -- --core-url " + shellQuote(coreURL)
 	if platform == "macos" {
 		command = strings.Replace(command, "sudo ", "", 1)
 	}

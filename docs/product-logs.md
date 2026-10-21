@@ -109,7 +109,7 @@ These need an admin login, not an ingest key:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /v1/logs` | Search across apps and agent service logs. Filters: `app_id`, `source`, `severity`, `event`, `q` (full text), `from`, `to`, `trace_id`, `request_id`, `attr=key:value`. Cursor pagination. |
+| `GET /v1/logs` | Search across apps and node service logs. Filters: `app_id`, `source`, `severity`, `event`, `q` (full text), `from`, `to`, `trace_id`, `request_id`, `attr=key:value`. Cursor pagination. |
 | `GET /v1/logs/{id}` | One entry |
 | `GET /v1/logs/histogram` | Volume over time by severity |
 | `GET /v1/logs/fields?app_id=` | Attribute keys seen for an app, with types and cardinality (powers facets) |
@@ -117,7 +117,7 @@ These need an admin login, not an ingest key:
 | `GET/POST/DELETE /v1/logs/views` | Saved filter sets |
 | `/v1/apps`, `/v1/apps/{id}`, `/v1/apps/{id}/keys`, `/v1/apps/{id}/test-log` | Manage apps, keys, send a test log |
 
-Notes: `GET /v1/logs` searches product logs by default; `source=agent` lists agent service logs in the same shape (`severity`, `q`, `from`, `to`, `agent_id`). A request body may be gzip-compressed (`Content-Encoding: gzip`, as OpenTelemetry exporters send by default); the decompressed size obeys the same limits. The live stream (`GET /v1/logs/stream`) is Server-Sent Events: each `log` event carries one entry as JSON, a comment heartbeat arrives every 15 s, and reconnecting with `Last-Event-ID` replays up to 500 missed entries before going live (entries are ordered by their receive-time id, so one received at the same moment as the last replayed entry can be skipped); shutting Core down ends open streams; slow consumers lose entries rather than slowing ingest. Search `q` is a substring match over the body, event and attributes (ranked full-text search is a later improvement).
+Notes: `GET /v1/logs` searches product logs by default; `source=node` lists node service logs in the same shape (`severity`, `q`, `from`, `to`, `node_id`). A request body may be gzip-compressed (`Content-Encoding: gzip`, as OpenTelemetry exporters send by default); the decompressed size obeys the same limits. The live stream (`GET /v1/logs/stream`) is Server-Sent Events: each `log` event carries one entry as JSON, a comment heartbeat arrives every 15 s, and reconnecting with `Last-Event-ID` replays up to 500 missed entries before going live (entries are ordered by their receive-time id, so one received at the same moment as the last replayed entry can be skipped); shutting Core down ends open streams; slow consumers lose entries rather than slowing ingest. Search `q` is a substring match over the body, event and attributes (ranked full-text search is a later improvement).
 
 Operational notes: logs live in their own `logs.db` next to `orion.db` (WAL, owner-only). Ingest is asynchronous: `202` means queued in memory (up to `ORION_LOGS_QUEUE_MAX` entries) and written within about a second; a hard crash can lose entries still in the queue. Retention (default 14 days, plus an optional per-app storage cap) is pruned hourly in small batches.
 
@@ -132,4 +132,4 @@ A log alert rule watches one app and opens a normal Orion incident when its logs
 
 Create rules with `POST /v1/logs/alerts` (`name`, `app_id`, `mode`, `severity`, `event`, `q`, `threshold`, `window_seconds`); list, change or delete them under `/v1/logs/alerts`. Disabling or deleting a rule resolves its open incident. Each rule is grouped on its own, so two rules firing at once page separately.
 
-To see logs around an incident use `GET /v1/incidents/{id}/logs` (the agent's service logs, plus the app's logs when `app_id` is given or the incident came from a log alert rule): the window runs from 15 minutes before the incident opened to 5 minutes after it resolved.
+To see logs around an incident use `GET /v1/incidents/{id}/logs` (the node's service logs, plus the app's logs when `app_id` is given or the incident came from a log alert rule): the window runs from 15 minutes before the incident opened to 5 minutes after it resolved.

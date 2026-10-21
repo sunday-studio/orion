@@ -51,7 +51,7 @@ type OverviewStats struct {
 
 type OverviewService struct {
 	Name          string
-	AgentID       string
+	NodeID        string
 	Status        string // up | degraded | down | unknown
 	UptimePercent *float64
 	Days          []OverviewDay
@@ -77,8 +77,8 @@ var severityRank = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 
 func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	o := &Overview{GeneratedAt: now}
 
-	var agents []db.Agent
-	if err := b.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Find(&agents).Error; err != nil {
+	var nodes []db.Node
+	if err := b.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Find(&nodes).Error; err != nil {
 		return nil, err
 	}
 	var monitors []db.Monitor
@@ -94,10 +94,10 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 			userMonitors++
 		}
 	}
-	o.FirstRun = OverviewFirstRun{HasServers: len(agents) > 0, HasMonitors: userMonitors > 0, HasApps: apps > 0, HasAlertChannels: channels > 0}
+	o.FirstRun = OverviewFirstRun{HasServers: len(nodes) > 0, HasMonitors: userMonitors > 0, HasApps: apps > 0, HasAlertChannels: channels > 0}
 
 	// Stats from cached computed health (kept fresh by the Worker), so Overview stays cheap.
-	healthByAgent := map[string]string{}
+	healthByNode := map[string]string{}
 	for _, m := range monitors {
 		h := m.ComputedHealth
 		// Core's own monitors (system) can raise health issues for the header chip, but they
@@ -112,10 +112,10 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 		if h == "up" {
 			o.Stats.MonitorsUp++
 		}
-		healthByAgent[m.AgentID] = worseHealth(healthByAgent[m.AgentID], h)
+		healthByNode[m.NodeID] = worseHealth(healthByNode[m.NodeID], h)
 	}
-	o.Stats.ServersTotal = len(agents)
-	for _, a := range agents {
+	o.Stats.ServersTotal = len(nodes)
+	for _, a := range nodes {
 		grace := time.Duration(max(a.ReportingIntervalSeconds*3, reportingGraceSeconds)) * time.Second
 		if now.Sub(a.LastSeen) <= grace {
 			o.Stats.ServersReporting++
@@ -165,7 +165,7 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	default:
 		o.State = "ok"
 	}
-	o.Services = b.services(agents, healthByAgent, now)
+	o.Services = b.services(nodes, healthByNode, now)
 	return o, nil
 }
 
@@ -214,21 +214,21 @@ func (b *OverviewBuilder) uptime(now time.Time) *float64 {
 }
 
 // services builds the 90-day strip per server, worst first, capped for payload size.
-func (b *OverviewBuilder) services(agents []db.Agent, health map[string]string, now time.Time) []OverviewService {
+func (b *OverviewBuilder) services(nodes []db.Node, health map[string]string, now time.Time) []OverviewService {
 	rank := map[string]int{"down": 0, "degraded": 1, "stale": 2, "unknown": 3, "up": 4, "": 5}
-	sort.SliceStable(agents, func(i, j int) bool {
-		return rank[health[agents[i].ID]] < rank[health[agents[j].ID]]
+	sort.SliceStable(nodes, func(i, j int) bool {
+		return rank[health[nodes[i].ID]] < rank[health[nodes[j].ID]]
 	})
 	var out []OverviewService
-	for _, a := range agents {
+	for _, a := range nodes {
 		if len(out) >= overviewServiceLimit {
 			break
 		}
-		res, err := b.reports.getAgentUptime(a.ID, "90d", now)
+		res, err := b.reports.getNodeUptime(a.ID, "90d", now)
 		if err != nil {
 			continue
 		}
-		svc := OverviewService{Name: a.Name, AgentID: a.ID, Status: overviewStatus(health[a.ID])}
+		svc := OverviewService{Name: a.Name, NodeID: a.ID, Status: overviewStatus(health[a.ID])}
 		if res.TotalCount > 0 {
 			p := res.UptimePercent
 			svc.UptimePercent = &p

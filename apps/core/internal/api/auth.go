@@ -41,11 +41,11 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func ValidateAgentToken(agentService *service.AgentService, authService *service.AuthService) gin.HandlerFunc {
+func ValidateNodeToken(nodeService *service.NodeService, authService *service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		agentIDStr := c.Param("agent_id")
-		if agentIDStr == "" {
-			utils.BadRequest(c, "Agent ID is required")
+		nodeIDStr := c.Param("node_id")
+		if nodeIDStr == "" {
+			utils.BadRequest(c, "Node ID is required")
 			c.Abort()
 			return
 		}
@@ -57,20 +57,20 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 			return
 		}
 
-		agent, err := authService.ValidateToken(agentIDStr, token.(string))
+		node, err := authService.ValidateToken(nodeIDStr, token.(string))
 		if err != nil {
-			if errors.Is(err, service.ErrAgentTokenRevoked) {
-				utils.Unauthorized(c, "agent_token_revoked")
+			if errors.Is(err, service.ErrNodeTokenRevoked) {
+				utils.Unauthorized(c, "node_token_revoked")
 				c.Abort()
 				return
 			}
-			utils.Unauthorized(c, "Invalid token for this agent")
+			utils.Unauthorized(c, "Invalid token for this node")
 			c.Abort()
 			return
 		}
 
-		c.Set("agent", agent)
-		c.Set("agent_id", agentIDStr)
+		c.Set("node", node)
+		c.Set("node_id", nodeIDStr)
 		c.Next()
 	}
 }

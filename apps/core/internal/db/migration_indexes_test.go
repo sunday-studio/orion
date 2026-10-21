@@ -17,16 +17,16 @@ func TestActiveMonitorUniquenessMigrationDedupesAndEnforces(t *testing.T) {
 	if err := Migrate(database); err != nil {
 		t.Fatal(err)
 	}
-	database.Exec("DROP INDEX idx_monitors_agent_name_active")
+	database.Exec("DROP INDEX idx_monitors_node_name_active")
 	base := time.Now().UTC()
-	mk := func(id, agent, name, lifecycle string, age int) {
-		if err := database.Create(&Monitor{ID: id, AgentID: agent, Name: name, Type: "http", Lifecycle: lifecycle, Health: "up", CreatedAt: base.Add(time.Duration(age) * time.Minute)}).Error; err != nil {
+	mk := func(id, node, name, lifecycle string, age int) {
+		if err := database.Create(&Monitor{ID: id, NodeID: node, Name: name, Type: "http", Lifecycle: lifecycle, Health: "up", CreatedAt: base.Add(time.Duration(age) * time.Minute)}).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
 	mk("m-first", "a1", "site", "active", 0)
 	mk("m-dup", "a1", "site", "active", 1)
-	mk("m-other-agent", "a2", "site", "active", 2)
+	mk("m-other-node", "a2", "site", "active", 2)
 	mk("m-deleted", "a1", "site", "deleted", 3)
 	database.Create(&AlertDelivery{ID: "d1", IncidentID: "i", EventType: "e", Channel: "c", Type: "webhook", Status: "sent"})
 	database.Exec("PRAGMA foreign_keys=OFF")
@@ -40,19 +40,19 @@ func TestActiveMonitorUniquenessMigrationDedupesAndEnforces(t *testing.T) {
 	var first, dup, other Monitor
 	database.First(&first, "id = ?", "m-first")
 	database.First(&dup, "id = ?", "m-dup")
-	database.First(&other, "id = ?", "m-other-agent")
+	database.First(&other, "id = ?", "m-other-node")
 	if first.Lifecycle != "active" || dup.Lifecycle != "deleted" || other.Lifecycle != "active" {
-		t.Fatalf("lifecycles = %s/%s/%s, want oldest kept, duplicate deleted, other agent untouched", first.Lifecycle, dup.Lifecycle, other.Lifecycle)
+		t.Fatalf("lifecycles = %s/%s/%s, want oldest kept, duplicate deleted, other node untouched", first.Lifecycle, dup.Lifecycle, other.Lifecycle)
 	}
 	var orphans int64
 	database.Raw("SELECT COUNT(*) FROM alert_delivery_attempts WHERE id = 'orphan'").Scan(&orphans)
 	if orphans != 0 {
 		t.Fatal("orphaned delivery attempt survived the cleanup")
 	}
-	if err := database.Create(&Monitor{ID: "m-new-dup", AgentID: "a1", Name: "site", Type: "http", Lifecycle: "active", Health: "up"}).Error; err == nil {
-		t.Fatal("a second active monitor with the same (agent, name) was accepted")
+	if err := database.Create(&Monitor{ID: "m-new-dup", NodeID: "a1", Name: "site", Type: "http", Lifecycle: "active", Health: "up"}).Error; err == nil {
+		t.Fatal("a second active monitor with the same (node, name) was accepted")
 	}
-	if err := database.Create(&Monitor{ID: "m-new-ok", AgentID: "a1", Name: "site", Type: "http", Lifecycle: "deleted", Health: "up"}).Error; err != nil {
+	if err := database.Create(&Monitor{ID: "m-new-ok", NodeID: "a1", Name: "site", Type: "http", Lifecycle: "deleted", Health: "up"}).Error; err != nil {
 		t.Fatalf("a soft-deleted twin must be allowed: %v", err)
 	}
 }

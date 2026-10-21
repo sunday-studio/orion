@@ -54,7 +54,7 @@ func TestStatusPageAtomFeedIncludesOnlyPublishedPublicIncidents(t *testing.T) {
 		Status:             "open",
 		Severity:           "critical",
 		Title:              "Internal database password leaked",
-		AgentID:            "agent-secret",
+		NodeID:             "node-secret",
 		MonitorID:          "monitor-secret",
 		OpenedAt:           now,
 		LastEventAt:        now,

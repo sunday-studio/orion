@@ -28,7 +28,7 @@ func TestStatusPageSubscriberFanoutWritesSafeLedgerRowsForConfirmedMatches(t *te
 	seedStatusPageSubscriberForTest(t, server, page.ID, "disabled@example.com", statusPageSubscriberStateDisabled, "confirm-disabled", "manage-disabled", "unsubscribe-disabled", []string{apiComponent.ID})
 
 	incidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
-	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Public update without internals smtp_password=secret monitor_id=monitor-private agent_id=agent-private")
+	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Public update without internals smtp_password=secret monitor_id=monitor-private node_id=node-private")
 
 	var deliveries []db.StatusPageSubscriberDelivery
 	if err := server.db.Order("subscriber_id ASC").Find(&deliveries).Error; err != nil {
@@ -70,7 +70,7 @@ func TestStatusPageSubscriberFanoutWritesSafeLedgerRowsForConfirmedMatches(t *te
 			delivery.SafeErrorSummary,
 			delivery.ProviderMessageID,
 		}, " ")
-		for _, leaked := range []string{"smtp_password", "secret", "monitor-private", "agent-private", "all@example.com", "api@example.com"} {
+		for _, leaked := range []string{"smtp_password", "secret", "monitor-private", "node-private", "all@example.com", "api@example.com"} {
 			if strings.Contains(serialized, leaked) {
 				t.Fatalf("delivery leaked internal or destination data %q: %+v", leaked, delivery)
 			}
@@ -103,7 +103,7 @@ func TestStatusPageSubscriberFanoutSendsPublicIncidentUpdatesWithConfiguredSende
 	matchingSubscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Fanout.User@example.com", statusPageSubscriberStateConfirmed, "confirm-fanout", "manage-fanout", "unsubscribe-fanout", []string{apiComponent.ID})
 
 	incidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
-	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Customer-visible update without smtp_password=secret monitor_id=monitor-private agent_id=agent-private")
+	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Customer-visible update without smtp_password=secret monitor_id=monitor-private node_id=node-private")
 
 	if len(messages) != 1 {
 		t.Fatalf("messages len = %d, want 1", len(messages))

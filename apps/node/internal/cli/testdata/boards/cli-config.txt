@@ -1,0 +1,58 @@
+=== config show
+$ orion-node config show
+
+ ◆ Config  effective settings
+ ╭ Sources ───────────────────────────────────────────────────────────────────────────╮
+ │ file      /etc/orion/config.yaml                                                   │
+ │ drop-in   /etc/orion/config.d/10-logs.yaml                                         │
+ │ env       ORION_CORE_URL overrides core_url                                        │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Settings ──────────────────────────────────────────────────────────────────────────╮
+ │ core_url   https://core.example.com             env                                │
+ │ interval   30s                                                                     │
+ │ discovery  on · services containers ports disks logs · ignore 1                    │
+ │ monitors   5                                                                       │
+ │   ├─ nginx          systemd-service     file                                       │
+ │   ├─ api            docker-container    accepted from scan                         │
+ │   ├─ disk /var      disk-usage 85%      accepted from scan                         │
+ │   ╰─ redis          tcp :6379           file                                       │
+ │ logs       1   nginx · /var/log/nginx/error.log    drop-in                         │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+=== config edit
+$ orion-node config edit
+
+   ✓ Opened in $EDITOR
+   ✓ Valid
+
+ Review
+   @@ monitors.redis @@
+   - port: 6379
+   + port: 6380
+   @@ logs @@
+   + key_file: /etc/orion/nginx.key
+
+ ┃ Save and reload the running node?
+    Save     Edit again     Discard
+
+   ✓ Saved · daemon reloaded the config
+
+=== validate and diff
+$ orion-node config validate
+
+ ERROR  Invalid config
+   /etc/orion/config.yaml:14:3  unknown key "intervall"  did you mean interval?
+
+$ orion-node config diff
+
+ against base file only
+   - core_url: https://old.example.com
+   + core_url: https://core.example.com
+
+   ✓ 1 change from the drop-in and environment
+
+--- notes
+NOTE Show it like a tree: Settings with where each came from as a small chip: file, drop-in or env. Answers why is it set to this?
+NOTE Edit, review, save: Opens your editor, validates, shows a diff with tinted lines, then asks once. The running node reloads.
+NOTE Errors point at the line: Same code-frame error as everywhere, with a suggestion.
+NOTE Plain diff in scripts: Piped output is a normal unified diff.

@@ -32,16 +32,16 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 // TestSoak is the quick CI run by default. Scale it up through the environment, for
 // example the plan's load profile and the 72h staging soak:
 //
-//	ORION_SOAK_AGENTS=50 ORION_SOAK_MONITORS=20 ORION_SOAK_INTERVAL=30s ORION_SOAK_DURATION=72h \
+//	ORION_SOAK_NODES=50 ORION_SOAK_MONITORS=20 ORION_SOAK_INTERVAL=30s ORION_SOAK_DURATION=72h \
 //	  go test ./internal/soak -run TestSoak -timeout 80h -v
 func TestSoak(t *testing.T) {
 	cfg := Config{
-		Agents:           envInt("ORION_SOAK_AGENTS", 10),
-		MonitorsPerAgent: envInt("ORION_SOAK_MONITORS", 5),
-		ReportInterval:   envDuration("ORION_SOAK_INTERVAL", time.Second),
-		Duration:         envDuration("ORION_SOAK_DURATION", 10*time.Second),
-		Outages:          envInt("ORION_SOAK_OUTAGES", 0),
-		FastBackoff:      os.Getenv("ORION_SOAK_REAL_BACKOFF") == "",
+		Nodes:           envInt("ORION_SOAK_NODES", 10),
+		MonitorsPerNode: envInt("ORION_SOAK_MONITORS", 5),
+		ReportInterval:  envDuration("ORION_SOAK_INTERVAL", time.Second),
+		Duration:        envDuration("ORION_SOAK_DURATION", 10*time.Second),
+		Outages:         envInt("ORION_SOAK_OUTAGES", 0),
+		FastBackoff:     os.Getenv("ORION_SOAK_REAL_BACKOFF") == "",
 		// The short CI run injects many webhook failures so the retry path is always
 		// exercised; the plan's long soak uses the realistic 5%.
 		WebhookFailRate: envFloat("ORION_SOAK_WEBHOOK_FAIL_RATE", 0.35),

@@ -27,7 +27,7 @@ monitors:
       timeout: 3s
 
   - name: example-disk
-    description: Local disk pressure on the machine running orion-agent
+    description: Local disk pressure on the machine running orion-node
     type: resource-threshold
     interval: 60s
     resource:

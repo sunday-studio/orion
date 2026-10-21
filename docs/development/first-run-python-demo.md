@@ -20,7 +20,7 @@ examples/python-sleep-compose/smoke.sh
 ```
 
 The script builds and uses a local `orion-core:example-smoke` image by default, builds
-`apps/agent/orion-agent` when needed, starts the example Compose stack with an isolated project name,
+`apps/node/orion-node` when needed, starts the example Compose stack with an isolated project name,
 runs one healthy collection, toggles the Python app into failure, runs one failing collection,
 removes the failure marker, and runs one recovery collection. Use `ORION_EXAMPLE_CORE_IMAGE` only
 when intentionally testing a published or prebuilt Core image.

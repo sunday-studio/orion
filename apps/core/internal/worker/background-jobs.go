@@ -40,11 +40,11 @@ func sweepBootGrace(configured time.Duration) time.Duration {
 	}
 }
 
-// sweepSilentMonitors opens stale incidents for agent monitors that stopped reporting.
+// sweepSilentMonitors opens stale incidents for node monitors that stopped reporting.
 func (a *App) sweepSilentMonitors() {
 	// Ending expired maintenance windows is never held back by the boot grace:
-	// alerting for those agents should resume on time.
-	if ended, err := service.NewAgentService(a.db, a.logger).ExpireMaintenance(time.Now().UTC()); err != nil {
+	// alerting for those nodes should resume on time.
+	if ended, err := service.NewNodeService(a.db, a.logger).ExpireMaintenance(time.Now().UTC()); err != nil {
 		a.logger.Error("Core worker maintenance expiry failed", "error", err)
 	} else if ended > 0 {
 		a.logger.Info("Core worker ended maintenance windows", "count", ended)
@@ -59,12 +59,12 @@ func (a *App) sweepSilentMonitors() {
 	if flagged > 0 {
 		a.logger.Warn("Core worker flagged silent monitors as stale", "count", flagged)
 	}
-	offline, err := a.incidents.SweepSilentAgents(time.Now().UTC())
+	offline, err := a.incidents.SweepSilentNodes(time.Now().UTC())
 	if err != nil {
-		a.logger.Error("Core worker silent agent sweep failed", "error", err)
+		a.logger.Error("Core worker silent node sweep failed", "error", err)
 	}
 	if offline > 0 {
-		a.logger.Warn("Core worker flagged silent agents as offline", "count", offline)
+		a.logger.Warn("Core worker flagged silent nodes as offline", "count", offline)
 	}
 }
 

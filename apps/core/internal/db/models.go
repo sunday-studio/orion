@@ -103,10 +103,10 @@ type DiskStats struct {
 	UsedPercent float64 `json:"used_percent"`
 }
 
-// one agent to one machine/server
-type Agent struct {
+// one node to one machine/server
+type Node struct {
 	ID string `json:"id" gorm:"primaryKey"`
-	// System marks Core's own owner agent; it is not a user server and is hidden from counts and default lists.
+	// System marks Core's own owner node; it is not a user server and is hidden from counts and default lists.
 	System                bool       `json:"system" gorm:"not null;default:false"`
 	MachineId             string     `json:"machine_id" gorm:"uniqueIndex;not null"`
 	Name                  string     `json:"name" gorm:"not null"`
@@ -115,13 +115,13 @@ type Agent struct {
 	KernelVersion         string     `json:"kernel_version"`
 	Arch                  string     `json:"arch" gorm:"not null"`
 	Token                 string     `json:"token" gorm:"uniqueIndex;not null"`
-	TokenHash             string     `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
+	TokenHash             string     `json:"token_hash" gorm:"not null;default:'';index:idx_nodes_token_hash"`
 	TokenVersion          int        `json:"token_version" gorm:"not null;default:1"`
 	TokenRotatedAt        *time.Time `json:"token_rotated_at"`
-	TokenRevokedAt        *time.Time `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
+	TokenRevokedAt        *time.Time `json:"token_revoked_at" gorm:"index:idx_nodes_token_revoked_at"`
 	TokenRevocationReason string     `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
 	// PreviousTokenHash keeps the replaced token valid until PreviousTokenExpiresAt after a rotation,
-	// so the agent can be updated without a gap.
+	// so the node can be updated without a gap.
 	PreviousTokenHash      string     `json:"-" gorm:"not null;default:''"`
 	PreviousTokenExpiresAt *time.Time `json:"-"`
 	// Labels is a JSON array of "key=value" strings; Notes is free text for operators.
@@ -137,11 +137,11 @@ type Agent struct {
 	Meta                     string                          `json:"meta" gorm:"type:text"`
 }
 
-type AgentReport struct {
+type NodeReport struct {
 	ID            string                          `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AgentID       string                          `json:"agent_id" gorm:"index:idx_agent_reports_agent_id;not null"`
-	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_agent_reports_created_at"`
-	AgentVersion  string                          `json:"agent_version"`
+	NodeID        string                          `json:"node_id" gorm:"index:idx_node_reports_node_id;not null"`
+	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_node_reports_created_at"`
+	NodeVersion   string                          `json:"node_version"`
 	ConfigSummary string                          `json:"config_summary" gorm:"type:text"`
 	UptimeSeconds uint64                          `json:"uptime_seconds"`
 	Timestamp     string                          `json:"timestamp"`
@@ -153,9 +153,9 @@ type AgentReport struct {
 
 type ServiceLogEntry struct {
 	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AgentID     string    `json:"agent_id" gorm:"not null;index:idx_service_log_entries_agent_time;uniqueIndex:idx_service_log_entries_agent_fingerprint"`
+	NodeID      string    `json:"node_id" gorm:"not null;index:idx_service_log_entries_node_time;uniqueIndex:idx_service_log_entries_node_fingerprint"`
 	MonitorID   string    `json:"monitor_id" gorm:"not null;default:'';index:idx_service_log_entries_monitor_time"`
-	Source      string    `json:"source" gorm:"not null;default:'agent';index:idx_service_log_entries_source_time"`
+	Source      string    `json:"source" gorm:"not null;default:'node';index:idx_service_log_entries_source_time"`
 	Stream      string    `json:"stream" gorm:"not null;default:'jsonl'"`
 	Level       string    `json:"level" gorm:"not null;default:'INFO';index:idx_service_log_entries_level_time"`
 	Component   string    `json:"component" gorm:"not null;default:'';index:idx_service_log_entries_component_time"`
@@ -163,20 +163,20 @@ type ServiceLogEntry struct {
 	Message     string    `json:"message" gorm:"type:text;not null;default:''"`
 	FieldsJSON  string    `json:"fields_json" gorm:"type:text;not null;default:'{}'"`
 	Raw         string    `json:"raw" gorm:"type:text;not null;default:''"`
-	Fingerprint string    `json:"fingerprint" gorm:"not null;uniqueIndex:idx_service_log_entries_agent_fingerprint"`
-	OccurredAt  time.Time `json:"occurred_at" gorm:"not null;index:idx_service_log_entries_agent_time;index:idx_service_log_entries_monitor_time;index:idx_service_log_entries_source_time;index:idx_service_log_entries_level_time;index:idx_service_log_entries_component_time"`
+	Fingerprint string    `json:"fingerprint" gorm:"not null;uniqueIndex:idx_service_log_entries_node_fingerprint"`
+	OccurredAt  time.Time `json:"occurred_at" gorm:"not null;index:idx_service_log_entries_node_time;index:idx_service_log_entries_monitor_time;index:idx_service_log_entries_source_time;index:idx_service_log_entries_level_time;index:idx_service_log_entries_component_time"`
 	CollectedAt time.Time `json:"collected_at" gorm:"not null;index:idx_service_log_entries_collected_at"`
 	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_service_log_entries_created_at"`
 }
 
 type Monitor struct {
 	ID string `json:"id" gorm:"primaryKey"`
-	// System marks Core's self-monitoring (worker liveness, agent connectivity); hidden from counts and default lists.
+	// System marks Core's self-monitoring (worker liveness, node connectivity); hidden from counts and default lists.
 	System                   bool       `json:"system" gorm:"not null;default:false"`
 	Description              *string    `json:"description"`
 	Type                     string     `json:"type" gorm:"not null"`
 	Name                     string     `json:"name" gorm:"not null"`
-	AgentID                  string     `json:"agent_id" gorm:"index:idx_monitors_agent_id;not null"`
+	NodeID                   string     `json:"node_id" gorm:"index:idx_monitors_node_id;not null"`
 	LastSuccessfulReportAt   *time.Time `json:"last_successful_report_at"`
 	ReportingIntervalSeconds int        `json:"reporting_interval_seconds" gorm:"default:60"` // Monitor check interval
 	ComputedHealth           string     `json:"computed_health" gorm:"default:unknown"`       // Cached computed health (up | down | degraded | unknown)
@@ -205,7 +205,7 @@ type MonitorReport struct {
 	Payload     string `json:"payload" gorm:"type:text;not null"`
 	CollectedAt string `json:"collected_at" gorm:"not null"`
 	Health      string `json:"health" gorm:"not null"` // up | down
-	// ClientReportID is the agent-generated idempotency key; empty for reports without one.
+	// ClientReportID is the node-generated idempotency key; empty for reports without one.
 	ClientReportID string    `json:"-" gorm:"not null;default:''"`
 	CreatedAt      time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
@@ -277,7 +277,7 @@ type Incident struct {
 	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | covered | resolved
 	Severity           string     `json:"severity" gorm:"not null;index:idx_incidents_severity"`
 	Title              string     `json:"title" gorm:"not null"`
-	AgentID            string     `json:"agent_id" gorm:"index:idx_incidents_agent_id;not null"`
+	NodeID             string     `json:"node_id" gorm:"index:idx_incidents_node_id;not null"`
 	MonitorID          string     `json:"monitor_id" gorm:"index:idx_incidents_monitor_id;not null"`
 	ImpactedComponents string     `json:"impacted_components" gorm:"type:text;not null;default:'[]'"`
 	CoveredAt          *time.Time `json:"covered_at"`

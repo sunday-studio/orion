@@ -83,7 +83,7 @@ func (s *Server) statusPageMappedResourceStatus(mapping StatusPageComponentMappi
 			health = monitor.Health
 		}
 		return publicStatusFromHealth(health)
-	case "agent":
+	case "node":
 		return "unknown"
 	default:
 		return "unknown"

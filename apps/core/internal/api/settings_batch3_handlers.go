@@ -47,7 +47,7 @@ func (s *Server) updateGeneralSettings(c *gin.Context) { s.updateGeneralSettings
 
 // getSystemSettings Console sign-in, registration token, worker and database.
 // @Summary      Get system settings
-// @Description  Core version, the Console sign-in username and session length, the token agents register with (empty when registration is open), the worker's last heartbeat, and the database size.
+// @Description  Core version, the Console sign-in username and session length, the token nodes register with (empty when registration is open), the worker's last heartbeat, and the database size.
 // @Tags         settings
 // @Produce      json
 // @Security     BearerAuth
@@ -56,9 +56,9 @@ func (s *Server) updateGeneralSettings(c *gin.Context) { s.updateGeneralSettings
 // @Router       /v1/settings/system [get]
 func (s *Server) getSystemSettings(c *gin.Context) { s.getSystemSettingsImpl(c) }
 
-// rotateRegistrationToken New agent registration token.
+// rotateRegistrationToken New node registration token.
 // @Summary      Rotate the registration token
-// @Description  Replaces the secret new agents register with. Connected servers are not affected. Not available to API tokens.
+// @Description  Replaces the secret new nodes register with. Connected servers are not affected. Not available to API tokens.
 // @Tags         settings
 // @Produce      json
 // @Security     BearerAuth

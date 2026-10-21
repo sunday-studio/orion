@@ -10,19 +10,19 @@ import (
 	"time"
 )
 
-// D1 + D2: a silent agent raises an incident and a delivery; when it resumes the
+// D1 + D2: a silent node raises an incident and a delivery; when it resumes the
 // incident resolves and exactly one recovery delivery is sent.
-func TestScenarioD1D2SilentAgentAlertsThenRecovers(t *testing.T) {
+func TestScenarioD1D2SilentNodeAlertsThenRecovers(t *testing.T) {
 	database := testkit.NewDB(t)
 	hook := testkit.NewWebhook(t)
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops", Type: "webhook", Enabled: true, WebhookURL: hook.URL()})
 	cfg := &config.Config{AlertAllowPrivateWebhooks: true, AlertRecoveryNotifications: true}
 	reportedAt := time.Now().UTC().Add(-time.Hour)
-	a, _ := testkit.TwoAgents(t, database, reportedAt)
+	a, _ := testkit.TwoNodes(t, database, reportedAt)
 	incidents := NewIncidentService(database, utils.NewLogger(), cfg)
 	alerts := NewAlertService(database, utils.NewLogger(), cfg)
 
-	// Agent A goes silent: within window + one sweep interval an incident and a page exist.
+	// Node A goes silent: within window + one sweep interval an incident and a page exist.
 	if n, err := incidents.SweepSilentMonitors(reportedAt.Add(6*time.Minute + 30*time.Second)); err != nil || n != 2 {
 		t.Fatalf("sweep flagged %d (err %v), want both silent monitors", n, err)
 	}
@@ -35,7 +35,7 @@ func TestScenarioD1D2SilentAgentAlertsThenRecovers(t *testing.T) {
 		t.Fatalf("opened deliveries sent = %d, webhook calls = %d, want 2/2", opened, hook.Calls())
 	}
 
-	// Agent A resumes reporting: its incident resolves and one recovery page is sent.
+	// Node A resumes reporting: its incident resolves and one recovery page is sent.
 	database.Create(&db.MonitorReport{ID: "report-back", MonitorID: a.Monitor.ID, Payload: "{}", CollectedAt: time.Now().UTC().Format(time.RFC3339), Health: "up", CreatedAt: time.Now().UTC()})
 	if err := incidents.ReconcileMonitorReport(a.Monitor.ID, "report-back", MonitorReportPayload{Health: "up", Timestamp: time.Now().UTC().Format(time.RFC3339), Metrics: map[string]any{}}); err != nil {
 		t.Fatal(err)
@@ -66,16 +66,16 @@ func TestScenarioD1D2SilentAgentAlertsThenRecovers(t *testing.T) {
 func TestScenarioD3FutureDatedCollectedAtIsStillStale(t *testing.T) {
 	database := testkit.NewDB(t)
 	old := time.Now().UTC().Add(-2 * time.Hour)
-	a, _ := testkit.TwoAgents(t, database, old)
+	a, _ := testkit.TwoNodes(t, database, old)
 	database.Model(&db.MonitorReport{}).Where("monitor_id = ?", a.Monitor.ID).Update("collected_at", time.Now().UTC().Add(24*time.Hour).Format(time.RFC3339))
 
 	health, err := NewHealthService(database, utils.NewLogger()).ComputeMonitorHealth(a.Monitor.ID, DefaultHealthConfig())
 	if err != nil || health != "stale" {
 		t.Fatalf("health = %q, err = %v, want stale by server time", health, err)
 	}
-	stale, err := NewHealthService(database, utils.NewLogger()).DetectStaleMonitorsForAgent(a.Agent.ID, DefaultHealthConfig())
+	stale, err := NewHealthService(database, utils.NewLogger()).DetectStaleMonitorsForNode(a.Node.ID, DefaultHealthConfig())
 	if err != nil || len(stale) != 1 {
-		t.Fatalf("stale monitors for agent = %d, err = %v, want 1", len(stale), err)
+		t.Fatalf("stale monitors for node = %d, err = %v, want 1", len(stale), err)
 	}
 }
 
@@ -83,7 +83,7 @@ func TestScenarioD3FutureDatedCollectedAtIsStillStale(t *testing.T) {
 func TestScenarioD4LatestDownIsNotSoftenedToDegraded(t *testing.T) {
 	database := testkit.NewDB(t)
 	now := time.Now().UTC()
-	a, _ := testkit.TwoAgents(t, database, now.Add(-30*time.Minute))
+	a, _ := testkit.TwoNodes(t, database, now.Add(-30*time.Minute))
 	database.Where("monitor_id = ?", a.Monitor.ID).Delete(&db.MonitorReport{})
 	for i := 0; i < 10; i++ {
 		health := "up"

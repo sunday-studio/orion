@@ -61,11 +61,11 @@ type IngestResponse struct {
 // LogEntry is a stored log record as returned by the read API.
 type LogEntry struct {
 	ID string `json:"id"`
-	// Source is "app" for ingested product logs and "agent" for agent service logs.
-	Source        string      `json:"source" enums:"app,agent"`
+	// Source is "app" for ingested product logs and "node" for node service logs.
+	Source        string      `json:"source" enums:"app,node"`
 	AppID         string      `json:"app_id,omitempty"`
 	AppName       string      `json:"app_name,omitempty"`
-	AgentID       string      `json:"agent_id,omitempty"`
+	NodeID        string      `json:"node_id,omitempty"`
 	Timestamp     time.Time   `json:"timestamp"`
 	IngestedAt    time.Time   `json:"ingested_at"`
 	Severity      LogSeverity `json:"severity"`

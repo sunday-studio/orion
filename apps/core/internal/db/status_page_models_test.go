@@ -8,12 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t *testing.T) {
+func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingNodeReporting(t *testing.T) {
 	database := openStatusPageModelTestDatabase(t)
 	now := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
 
-	agent := Agent{
-		ID:                       "agent-publication-test",
+	node := Node{
+		ID:                       "node-publication-test",
 		MachineId:                "machine-publication-test",
 		Name:                     "Internal API Node",
 		OS:                       "darwin",
@@ -23,15 +23,15 @@ func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t 
 		CreatedAt:                now,
 		LastSeen:                 now,
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitor := Monitor{
 		ID:                       "monitor-publication-test",
 		Type:                     "http",
 		Name:                     "Internal HTTP Check",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		ReportingIntervalSeconds: 60,
 		ComputedHealth:           "up",
 		Lifecycle:                "active",
@@ -43,16 +43,16 @@ func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t 
 		t.Fatalf("create monitor: %v", err)
 	}
 
-	beforeReport := AgentReport{
-		ID:            "agent-report-before-status-page",
-		AgentID:       agent.ID,
+	beforeReport := NodeReport{
+		ID:            "node-report-before-status-page",
+		NodeID:        node.ID,
 		CreatedAt:     now,
-		AgentVersion:  "test",
+		NodeVersion:   "test",
 		ConfigSummary: "{}",
 		Timestamp:     now.Format(time.RFC3339),
 	}
 	if err := database.Create(&beforeReport).Error; err != nil {
-		t.Fatalf("create baseline agent report: %v", err)
+		t.Fatalf("create baseline node report: %v", err)
 	}
 
 	page := StatusPage{
@@ -117,7 +117,7 @@ func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t 
 		Status:             "open",
 		Severity:           "critical",
 		Title:              "Internal incident title",
-		AgentID:            agent.ID,
+		NodeID:             node.ID,
 		MonitorID:          monitor.ID,
 		OpenedAt:           now,
 		LastEventAt:        now,
@@ -161,16 +161,16 @@ func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t 
 		t.Fatalf("create public incident update: %v", err)
 	}
 
-	afterReport := AgentReport{
-		ID:            "agent-report-after-status-page",
-		AgentID:       agent.ID,
+	afterReport := NodeReport{
+		ID:            "node-report-after-status-page",
+		NodeID:        node.ID,
 		CreatedAt:     now.Add(10 * time.Minute),
-		AgentVersion:  "test",
+		NodeVersion:   "test",
 		ConfigSummary: "{}",
 		Timestamp:     now.Add(10 * time.Minute).Format(time.RFC3339),
 	}
 	if err := database.Create(&afterReport).Error; err != nil {
-		t.Fatalf("create agent report after status page publication records: %v", err)
+		t.Fatalf("create node report after status page publication records: %v", err)
 	}
 
 	assertModelCount(t, database, &StatusPage{}, 1)
@@ -179,7 +179,7 @@ func TestStatusPagePublicationModelsCanBeCreatedWithoutChangingAgentReporting(t 
 	assertModelCount(t, database, &StatusPageComponentMapping{}, 1)
 	assertModelCount(t, database, &StatusPageIncident{}, 1)
 	assertModelCount(t, database, &StatusPageIncidentUpdate{}, 1)
-	assertModelCount(t, database, &AgentReport{}, 2)
+	assertModelCount(t, database, &NodeReport{}, 2)
 
 	var loadedMapping StatusPageComponentMapping
 	if err := database.Where("component_id = ? AND resource_type = ? AND resource_id = ?", component.ID, "monitor", monitor.ID).First(&loadedMapping).Error; err != nil {

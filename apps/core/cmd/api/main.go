@@ -50,11 +50,11 @@ func main() {
 		logger.Fatal("Refusing to start", "error", err)
 	}
 	if cfg.RunsWithoutAuth() {
-		logger.Warn("INSECURE: admin API authentication is disabled via ORION_ALLOW_INSECURE_NO_AUTH; anyone who can reach this port can manage agents, alerts and incidents")
+		logger.Warn("INSECURE: admin API authentication is disabled via ORION_ALLOW_INSECURE_NO_AUTH; anyone who can reach this port can manage nodes, alerts and incidents")
 	}
 
 	if cfg.EnrollmentToken == "" {
-		logger.Warn("ORION_ENROLLMENT_TOKEN is not set: any client that can reach /v1/register can enroll an agent (registration is rate limited only)")
+		logger.Warn("ORION_ENROLLMENT_TOKEN is not set: any client that can reach /v1/register can enroll a node (registration is rate limited only)")
 	}
 
 	database, err := shared.OpenMigratedDatabase(cfg)

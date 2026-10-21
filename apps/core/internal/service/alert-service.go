@@ -28,7 +28,7 @@ type AlertRouteContext struct {
 	IncidentID  string `json:"incident_id"`
 	EventType   string `json:"event_type"`
 	Severity    string `json:"severity"`
-	AgentID     string `json:"agent_id"`
+	NodeID      string `json:"node_id"`
 	MonitorID   string `json:"monitor_id"`
 	MonitorType string `json:"monitor_type"`
 	// Labels are the key=value pairs label routes match on: the server's labels plus severity, event, monitor_type, server and monitor.

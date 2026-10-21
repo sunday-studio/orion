@@ -17,7 +17,7 @@ type incidentExtraStats struct {
 // seedIncidentExtras gives the Incidents screens realistic data: human INC numbers, responders,
 // timeline notes, an acknowledged and a covered incident, a hand-declared incident, and incident
 // candidates (failing monitors with no incident), one of them dismissed.
-func seedIncidentExtras(database *gorm.DB, allMonitors []db.Monitor, monitorToAgent map[string]db.Agent, monitorToScenario map[string]scenario, now time.Time) (incidentExtraStats, error) {
+func seedIncidentExtras(database *gorm.DB, allMonitors []db.Monitor, monitorToNode map[string]db.Node, monitorToScenario map[string]scenario, now time.Time) (incidentExtraStats, error) {
 	stats := incidentExtraStats{}
 
 	var seeded []db.Incident
@@ -85,17 +85,17 @@ func seedIncidentExtras(database *gorm.DB, allMonitors []db.Monitor, monitorToAg
 	}
 
 	// A hand-declared, server-level incident.
-	var declaredAgent db.Agent
+	var declaredNode db.Node
 	for _, m := range allMonitors {
-		a := monitorToAgent[m.ID]
-		if a.ID != "" && a.ID != "seed-agent-core" && !monitorToScenario[m.ID].noReports {
-			declaredAgent = a
+		a := monitorToNode[m.ID]
+		if a.ID != "" && a.ID != "seed-node-core" && !monitorToScenario[m.ID].noReports {
+			declaredNode = a
 			break
 		}
 	}
-	if declaredAgent.ID != "" {
+	if declaredNode.ID != "" {
 		opened := now.Add(-95 * time.Minute)
-		declared := db.Incident{ID: "seed-incident-declared-checkout", Number: next, Status: "open", Severity: "high", Title: "Checkout is slow for EU customers", AgentID: declaredAgent.ID, ImpactedComponents: "[]",
+		declared := db.Incident{ID: "seed-incident-declared-checkout", Number: next, Status: "open", Severity: "high", Title: "Checkout is slow for EU customers", NodeID: declaredNode.ID, ImpactedComponents: "[]",
 			Summary: "Support reports slow checkout from Frankfurt and Paris since the CDN change.", Source: "manual", Responder: "Dana Whitfield", ResponderAt: ptrTime(opened.Add(2 * time.Minute)),
 			OpenedAt: opened, LastEventAt: opened.Add(15 * time.Minute), LatestEvent: "Support reports slow checkout from Frankfurt and Paris since the CDN change.", NotificationStatus: "sent", CreatedAt: opened, UpdatedAt: now}
 		if err := database.Create(&declared).Error; err != nil {

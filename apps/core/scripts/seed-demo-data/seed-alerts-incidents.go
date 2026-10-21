@@ -43,7 +43,7 @@ type incidentSeedStats struct {
 	alertDeliveries int
 }
 
-func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[string]db.Agent, monitorToScenario map[string]scenario, monitorToTemplate map[string]monitorTemplate, now time.Time) (incidentSeedStats, error) {
+func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToNode map[string]db.Node, monitorToScenario map[string]scenario, monitorToTemplate map[string]monitorTemplate, now time.Time) (incidentSeedStats, error) {
 	stats := incidentSeedStats{}
 	statuses := []string{"open", "acknowledged", "resolved"}
 	alertStatuses := []string{"pending", "sent", "failed", "suppressed", "cooldown"}
@@ -59,7 +59,7 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 		if sc.noReports {
 			continue
 		}
-		agent := monitorToAgent[monitor.ID]
+		node := monitorToNode[monitor.ID]
 		status := statuses[(stats.incidents)%len(statuses)]
 		if sc.status == "down" || sc.status == "alerts" {
 			status = "open"
@@ -85,7 +85,7 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 			Status:             status,
 			Severity:           severityForHealth(health),
 			Title:              fmt.Sprintf("%s is %s", monitor.Name, health),
-			AgentID:            agent.ID,
+			NodeID:             node.ID,
 			MonitorID:          monitor.ID,
 			OpenedAt:           openedAt,
 			ResolvedAt:         resolvedAt,

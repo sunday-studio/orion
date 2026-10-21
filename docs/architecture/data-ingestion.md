@@ -15,20 +15,20 @@ sequenceDiagram
   Core->>ServerService: RegisterServer(machine_id, name, os, arch, meta)
   ServerService->>DB: create or reconnect server
   DB-->>ServerService: server id + token
-  Core-->>Server: agent_id + token
+  Core-->>Server: node_id + token
 
-  Server->>Core: POST /v1/agents/{agent_id}/register-monitor
+  Server->>Core: POST /v1/nodes/{node_id}/register-monitor
   Core->>MonitorService: RegisterMonitor(...)
   MonitorService->>DB: create, revive, or reject duplicate monitor
   Core-->>Server: monitor_id
 
-  Server->>Core: POST /v1/agents/{agent_id}/report
-  Core->>ReportService: StoreAgentReport(...)
-  ReportService->>DB: insert agent_reports
+  Server->>Core: POST /v1/nodes/{node_id}/report
+  Core->>ReportService: StoreNodeReport(...)
+  ReportService->>DB: insert node_reports
   ReportService->>DB: reconcile stale monitor incidents
   Core-->>Server: report accepted
 
-  Server->>Core: POST /v1/agents/{agent_id}/{monitor_id}/report
+  Server->>Core: POST /v1/nodes/{node_id}/{monitor_id}/report
   Core->>ReportService: StoreMonitorReport(...)
   ReportService->>DB: insert monitor_reports
   ReportService->>DB: update monitor health and last success
@@ -46,8 +46,8 @@ On first registration:
 - Server generates or reads a machine identity.
 - Server reads local system name, OS, and architecture.
 - Server sends `machine_id`, `name`, `os`, `arch`, and optional config `meta`.
-- Core creates an `agents` row with a generated `agent-*` id and token.
-- Server saves `agent_id`, `token`, `core_url`, and registration state.
+- Core creates an `nodes` row with a generated `node-*` id and token.
+- Server saves `node_id`, `token`, `core_url`, and registration state.
 
 On reconnect:
 
@@ -57,18 +57,18 @@ On reconnect:
 - Core updates changed name, OS, arch, reporting interval, and meta.
 
 After Server token lifecycle controls are implemented, revoked Servers must not receive a token
-through unauthenticated re-registration. Rotation and reissue preserve the existing `agent_id` and
+through unauthenticated re-registration. Rotation and reissue preserve the existing `node_id` and
 monitor IDs; operators apply the replacement token to local Server state instead of resetting state
-when identity continuity matters. See [agent-token-lifecycle.md](agent-token-lifecycle.md).
+when identity continuity matters. See [node-token-lifecycle.md](node-token-lifecycle.md).
 
 ```mermaid
 flowchart TD
   Register["POST /v1/register"] --> Lookup{"machine_id exists?"}
-  Lookup -- "no" --> Create["Create agents row"]
+  Lookup -- "no" --> Create["Create nodes row"]
   Create --> Token["Generate bearer token"]
-  Token --> ReturnNew["Return agent_id + token"]
+  Token --> ReturnNew["Return node_id + token"]
   Lookup -- "yes" --> Update["Update metadata + last_seen"]
-  Update --> ReturnExisting["Return existing agent_id + token"]
+  Update --> ReturnExisting["Return existing node_id + token"]
 ```
 
 ## Monitor Registration
@@ -119,7 +119,7 @@ Server collects:
 - Server version;
 - config summary with reporting interval, monitor count, and monitor type counts.
 
-Core stores system reports in `agent_reports`.
+Core stores system reports in `node_reports`.
 Core may also refresh the stored Server reporting interval from `config_summary.reporting_interval`.
 
 ```mermaid
@@ -127,9 +127,9 @@ flowchart TD
   Tick["System interval tick or startup"] --> Maintenance{"Server local maintenance?"}
   Maintenance -- "yes" --> Skip["Skip system report"]
   Maintenance -- "no" --> Collect["Collect system metrics"]
-  Collect --> Send["POST /v1/agents/{agent_id}/report"]
+  Collect --> Send["POST /v1/nodes/{node_id}/report"]
   Send --> Auth["Core validates bearer token"]
-  Auth --> Store["Insert agent_reports row"]
+  Auth --> Store["Insert node_reports row"]
   Store --> LastSeen["Update server last_seen"]
   Store --> Stale["Reconcile stale monitor incidents"]
 ```
@@ -155,7 +155,7 @@ flowchart TD
   RunCheck --> Result{"Check result"}
   Result -- "success" --> Metrics["Build metrics payload"]
   Result -- "failure" --> Error["Build error payload"]
-  Metrics --> Send["POST /v1/agents/{agent_id}/{monitor_id}/report"]
+  Metrics --> Send["POST /v1/nodes/{node_id}/{monitor_id}/report"]
   Error --> Send
   Send --> CoreAuth["Core validates bearer token"]
   CoreAuth --> Store["Insert monitor_reports row"]

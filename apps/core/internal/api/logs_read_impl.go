@@ -70,8 +70,8 @@ func (s *Server) searchLogsImpl(c *gin.Context) {
 		appIDs = []string{logstore.InternalAppID}
 	}
 
-	if source := c.Query("source"); source == "agent" && !internal {
-		s.searchAgentLogs(c, from, to)
+	if source := c.Query("source"); source == "node" && !internal {
+		s.searchNodeLogs(c, from, to)
 		return
 	}
 

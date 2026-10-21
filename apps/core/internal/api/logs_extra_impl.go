@@ -217,12 +217,12 @@ func (s *Server) deleteLogViewImpl(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "View deleted", nil)
 }
 
-// searchAgentLogs lists agent service logs in the unified LogEntry shape.
-func (s *Server) searchAgentLogs(c *gin.Context, from, to time.Time) {
+// searchNodeLogs lists node service logs in the unified LogEntry shape.
+func (s *Server) searchNodeLogs(c *gin.Context, from, to time.Time) {
 	limit := min(utils.QueryInt(c, "limit", logstore.DefaultPageSize), logstore.MaxPageSize)
 	query := s.db.Model(&db.ServiceLogEntry{})
-	if agentID := c.Query("agent_id"); agentID != "" {
-		query = query.Where("agent_id IN ?", splitList(agentID))
+	if nodeID := c.Query("node_id"); nodeID != "" {
+		query = query.Where("node_id IN ?", splitList(nodeID))
 	}
 	if severity := c.Query("severity"); severity != "" {
 		var levels []string
@@ -255,7 +255,7 @@ func (s *Server) searchAgentLogs(c *gin.Context, from, to time.Time) {
 	}
 	var rows []db.ServiceLogEntry
 	if err := query.Order("occurred_at DESC, id DESC").Limit(limit + 1).Find(&rows).Error; err != nil {
-		utils.InternalError(c, "Failed to search agent logs", err)
+		utils.InternalError(c, "Failed to search node logs", err)
 		return
 	}
 	next := ""
@@ -264,11 +264,11 @@ func (s *Server) searchAgentLogs(c *gin.Context, from, to time.Time) {
 		last := rows[len(rows)-1]
 		next = logstore.EncodeCursor(last.OccurredAt.UnixNano(), last.ID)
 	}
-	out := agentLogEntries(rows)
+	out := nodeLogEntries(rows)
 	utils.SuccessResponse(c, http.StatusOK, "Logs retrieved successfully", LogListResponse{Entries: out, NextCursor: next})
 }
 
-func agentLogEntries(rows []db.ServiceLogEntry) []LogEntry {
+func nodeLogEntries(rows []db.ServiceLogEntry) []LogEntry {
 	out := make([]LogEntry, 0, len(rows))
 	for _, r := range rows {
 		severity, number := logstore.NormalizeSeverity(strings.ToLower(r.Level))
@@ -276,10 +276,10 @@ func agentLogEntries(rows []db.ServiceLogEntry) []LogEntry {
 		_ = json.Unmarshal([]byte(r.FieldsJSON), &attrs)
 		for k, v := range map[string]string{"component": r.Component, "monitor_name": r.MonitorName, "monitor_id": r.MonitorID, "stream": r.Stream, "source": r.Source} {
 			if v != "" {
-				attrs["agent."+k] = v
+				attrs["node."+k] = v
 			}
 		}
-		out = append(out, LogEntry{ID: r.ID, Source: "agent", AgentID: r.AgentID, Timestamp: r.OccurredAt, IngestedAt: r.CollectedAt, Severity: LogSeverity(severity), SeverityValue: number, Body: r.Message, Attributes: attrs})
+		out = append(out, LogEntry{ID: r.ID, Source: "node", NodeID: r.NodeID, Timestamp: r.OccurredAt, IngestedAt: r.CollectedAt, Severity: LogSeverity(severity), SeverityValue: number, Body: r.Message, Attributes: attrs})
 	}
 	return out
 }

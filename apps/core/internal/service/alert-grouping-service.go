@@ -214,10 +214,10 @@ func alertGroupKey(event AlertRouteContext) string {
 	if monitorType == "" {
 		monitorType = "unknown"
 	}
-	key := fmt.Sprintf("agent:%s|monitor_type:%s|severity:%s", event.AgentID, monitorType, event.Severity)
+	key := fmt.Sprintf("node:%s|monitor_type:%s|severity:%s", event.NodeID, monitorType, event.Severity)
 	if monitorType == "log-alert" {
-		// Every log alert rule is a Core-owned monitor of the same owner agent. Grouping
-		// them by agent would let one firing rule swallow the page of an unrelated rule
+		// Every log alert rule is a Core-owned monitor of the same owner node. Grouping
+		// them by node would let one firing rule swallow the page of an unrelated rule
 		// (or app), so each rule is its own group.
 		key += "|monitor:" + event.MonitorID
 	}
@@ -229,5 +229,5 @@ func alertGroupSummary(event AlertRouteContext, count int) string {
 	if monitorType == "" {
 		monitorType = "unknown monitor"
 	}
-	return fmt.Sprintf("%d %s %s incident(s) on agent %s", count, event.Severity, monitorType, event.AgentID)
+	return fmt.Sprintf("%d %s %s incident(s) on node %s", count, event.Severity, monitorType, event.NodeID)
 }

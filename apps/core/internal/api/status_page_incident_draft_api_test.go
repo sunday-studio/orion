@@ -15,7 +15,7 @@ func TestStatusPageIncidentDraftFromInternalIncidentUsesSafePublicCopy(t *testin
 	server := setupTestServer(t)
 	now := time.Now().UTC()
 	fixtures := createStatusPageSuggestionFixtures(t, server, now)
-	incident := db.Incident{ID: "incident-public-draft-source", Status: "open", Severity: "critical", Title: "private checkout host db.internal.example failed", AgentID: "unmapped-agent-for-public-draft", MonitorID: fixtures.Monitor.ID, OpenedAt: now, LastEventAt: now, LatestEvent: "raw report payload token=super-secret host=db.internal.example monitor-private-suggestions", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
+	incident := db.Incident{ID: "incident-public-draft-source", Status: "open", Severity: "critical", Title: "private checkout host db.internal.example failed", NodeID: "unmapped-node-for-public-draft", MonitorID: fixtures.Monitor.ID, OpenedAt: now, LastEventAt: now, LatestEvent: "raw report payload token=super-secret host=db.internal.example monitor-private-suggestions", NotificationStatus: "pending", CreatedAt: now, UpdatedAt: now}
 	if err := server.db.Create(&incident).Error; err != nil {
 		t.Fatalf("create incident: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestStatusPageIncidentDraftFromInternalIncidentUsesSafePublicCopy(t *testin
 		} `json:"data"`
 	}
 	decodeResponse(t, previewResp, &preview)
-	assertSafePublicDraftCopy(t, preview.Data.Draft, []string{incident.Title, incident.LatestEvent, fixtures.Agent.Name, fixtures.Agent.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.Agent.ID, "db.internal.example", "super-secret", "report-public-draft-secret", fixtures.HiddenComponent.PublicName})
+	assertSafePublicDraftCopy(t, preview.Data.Draft, []string{incident.Title, incident.LatestEvent, fixtures.Node.Name, fixtures.Node.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, fixtures.Node.ID, "db.internal.example", "super-secret", "report-public-draft-secret", fixtures.HiddenComponent.PublicName})
 	if preview.Data.Draft.PublicStatus != "investigating" || preview.Data.Draft.Severity != "critical" {
 		t.Fatalf("draft status/severity = %+v, want investigating critical", preview.Data.Draft)
 	}
@@ -51,7 +51,7 @@ func TestStatusPageIncidentDraftFromInternalIncidentUsesSafePublicCopy(t *testin
 		} `json:"data"`
 	}
 	decodeResponse(t, createResp, &created)
-	assertSafePublicDraftCopy(t, created.Data.Draft, []string{incident.Title, incident.LatestEvent, fixtures.Agent.Name, fixtures.Agent.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, "db.internal.example", "super-secret"})
+	assertSafePublicDraftCopy(t, created.Data.Draft, []string{incident.Title, incident.LatestEvent, fixtures.Node.Name, fixtures.Node.Token, fixtures.Monitor.Name, fixtures.Monitor.ID, "db.internal.example", "super-secret"})
 	if created.Data.Incident.InternalIncidentID != incident.ID || created.Data.Incident.Visibility != statusPageIncidentVisibilityDraft {
 		t.Fatalf("created incident = %+v, want linked draft", created.Data.Incident)
 	}

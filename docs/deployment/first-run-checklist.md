@@ -55,7 +55,7 @@ http://100.x.y.z:8999
 - [ ] Install with a minimal config:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
   --core-url http://orion-core.local:8999
 ```
 
@@ -64,11 +64,11 @@ Use the Core URL this Server host can reach.
 - [ ] Or install with the sample config:
 
 ```sh
-curl -fsSL -o orion-agent-config.yaml \
-  https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-config.yaml
+curl -fsSL -o orion-node-config.yaml \
+  https://github.com/sunday-studio/orion/releases/latest/download/orion-node-config.yaml
 
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --config ./orion-agent-config.yaml
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
+  --config ./orion-node-config.yaml
 ```
 
 - [ ] Confirm the Server service is running.
@@ -91,15 +91,15 @@ sudo test -f /usr/local/var/lib/orion/state.db
 Linux:
 
 ```sh
-sudo test -f /var/log/orion/agent.log
-orion-agent logs --lines 20
+sudo test -f /var/log/orion/node.log
+orion-node logs --lines 20
 ```
 
 macOS:
 
 ```sh
-sudo test -f /usr/local/var/log/orion/agent.log
-orion-agent logs --lines 20
+sudo test -f /usr/local/var/log/orion/node.log
+orion-node logs --lines 20
 ```
 
 - [ ] Confirm the Server appears in the Console Servers view.

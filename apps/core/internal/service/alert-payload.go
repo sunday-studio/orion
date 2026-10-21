@@ -17,7 +17,7 @@ type AlertPayload struct {
 	EventType   string               `json:"event_type"`
 	DeliveredAt time.Time            `json:"delivered_at"`
 	Incident    AlertPayloadIncident `json:"incident"`
-	Agent       *AlertPayloadAgent   `json:"agent,omitempty"`
+	Node        *AlertPayloadNode    `json:"node,omitempty"`
 	Monitor     *AlertPayloadMonitor `json:"monitor,omitempty"`
 	Summary     AlertPayloadSummary  `json:"summary"`
 	Test        bool                 `json:"test,omitempty"`
@@ -28,7 +28,7 @@ type AlertPayloadIncident struct {
 	Status      string     `json:"status"`
 	Severity    string     `json:"severity"`
 	Title       string     `json:"title"`
-	AgentID     string     `json:"agent_id,omitempty"`
+	NodeID      string     `json:"node_id,omitempty"`
 	MonitorID   string     `json:"monitor_id,omitempty"`
 	OpenedAt    time.Time  `json:"opened_at"`
 	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
@@ -36,7 +36,7 @@ type AlertPayloadIncident struct {
 	LatestEvent string     `json:"latest_event,omitempty"`
 }
 
-type AlertPayloadAgent struct {
+type AlertPayloadNode struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
 }
@@ -70,7 +70,7 @@ func (s *AlertService) buildAlertPayload(incident db.Incident, eventType string,
 			Status:      incident.Status,
 			Severity:    incident.Severity,
 			Title:       incident.Title,
-			AgentID:     incident.AgentID,
+			NodeID:      incident.NodeID,
 			MonitorID:   incident.MonitorID,
 			OpenedAt:    incident.OpenedAt,
 			ResolvedAt:  incident.ResolvedAt,
@@ -93,12 +93,12 @@ func (s *AlertService) buildAlertPayload(incident db.Incident, eventType string,
 		}
 	}
 
-	if strings.TrimSpace(incident.AgentID) != "" {
-		var agent db.Agent
-		if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err == nil {
-			payload.Agent = &AlertPayloadAgent{
-				ID:   agent.ID,
-				Name: agent.Name,
+	if strings.TrimSpace(incident.NodeID) != "" {
+		var node db.Node
+		if err := s.db.Where("id = ?", incident.NodeID).First(&node).Error; err == nil {
+			payload.Node = &AlertPayloadNode{
+				ID:   node.ID,
+				Name: node.Name,
 			}
 		}
 	}

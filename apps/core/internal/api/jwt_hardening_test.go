@@ -14,7 +14,7 @@ func TestFrontendAuthRejectsWeakTokens(t *testing.T) {
 	const secret = "secret-secret-secret-secret-1234"
 	server := setupTestServerWithConfig(t, &config.Config{AdminUsername: "admin", AdminPassword: "pw", JWTSecret: secret, FrontendAuthOn: true})
 	get := func(token string) int {
-		req := httptest.NewRequest(http.MethodGet, "/v1/agents", nil)
+		req := httptest.NewRequest(http.MethodGet, "/v1/nodes", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		return rawRequest(server, req).Code
 	}

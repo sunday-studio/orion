@@ -50,7 +50,7 @@ func addChecks(server *Server, monitorID string, healths ...string) {
 
 func TestMonitorListRowsFiltersAndExtras(t *testing.T) {
 	server := setupTestServer(t)
-	registerTestAgent(t, server)
+	registerTestNode(t, server)
 	down := createHTTPMonitor(t, server, "api-https", gin.H{"runbook_url": "https://wiki.example.com/runbooks/api"})
 	up := createHTTPMonitor(t, server, "web-https", nil)
 	paused := createHTTPMonitor(t, server, "old-check", nil)
@@ -109,8 +109,8 @@ func TestMonitorListRowsFiltersAndExtras(t *testing.T) {
 	if l := get("?q=pg-"); l.Data.Count != 1 || l.Data.Monitors[0].Name != "pg-tcp" {
 		t.Fatalf("q filter = %+v", l.Data)
 	}
-	if l := get("?agent_id=nope"); l.Data.Count != 0 {
-		t.Fatalf("agent filter = %d", l.Data.Count)
+	if l := get("?node_id=nope"); l.Data.Count != 0 {
+		t.Fatalf("node filter = %d", l.Data.Count)
 	}
 	var sum struct {
 		Data service.MonitorSummary `json:"data"`
@@ -126,7 +126,7 @@ func TestMonitorListRowsFiltersAndExtras(t *testing.T) {
 
 func TestMonitorDetailSummaryResponseTimesAvailabilityAndHistoryRows(t *testing.T) {
 	server := setupTestServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	hb := createHTTPMonitor(t, server, "nightly-backup", gin.H{"kind": "heartbeat", "interval_seconds": 86400, "config": gin.H{"grace_seconds": 600}})
 	if hb.Data.Config.HeartbeatToken == "" {
 		t.Fatal("no heartbeat token")
@@ -135,7 +135,7 @@ func TestMonitorDetailSummaryResponseTimesAvailabilityAndHistoryRows(t *testing.
 	id := m.Data.Monitor.ID
 	server.db.Model(&db.Monitor{}).Where("id = ?", id).Updates(map[string]any{"reporting_interval_seconds": 3600})
 	addChecks(server, id, "up", "up", "down", "down")
-	server.db.Create(&db.Incident{ID: "i1", Number: 1, Status: "open", Severity: "high", Title: "api down", AgentID: agent.Data.AgentID, MonitorID: id, OpenedAt: time.Now().UTC().Add(-30 * time.Minute), LastEventAt: time.Now().UTC(), Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "i1", Number: 1, Status: "open", Severity: "high", Title: "api down", NodeID: node.Data.NodeID, MonitorID: id, OpenedAt: time.Now().UTC().Add(-30 * time.Minute), LastEventAt: time.Now().UTC(), Source: "monitor"})
 
 	var detail struct {
 		Data struct {
@@ -194,7 +194,7 @@ func TestMonitorDetailSummaryResponseTimesAvailabilityAndHistoryRows(t *testing.
 
 func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 	server := setupTestServer(t)
-	registerTestAgent(t, server)
+	registerTestNode(t, server)
 	m := createHTTPMonitor(t, server, "api-https", gin.H{"runbook_url": "https://wiki.example.com/r"})
 	id := m.Data.Monitor.ID
 	addChecks(server, id, "up", "down")
@@ -215,7 +215,7 @@ func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 	}
 
 	// Default delete removes history and keeps incidents.
-	server.db.Create(&db.Incident{ID: "i1", Number: 1, Status: "open", Severity: "low", Title: "x", AgentID: "a", MonitorID: id, OpenedAt: time.Now().UTC(), LastEventAt: time.Now().UTC(), Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "i1", Number: 1, Status: "open", Severity: "low", Title: "x", NodeID: "a", MonitorID: id, OpenedAt: time.Now().UTC(), LastEventAt: time.Now().UTC(), Source: "monitor"})
 	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+id+"?keep_history=false", nil, ""); r.Code != http.StatusOK {
 		t.Fatalf("delete = %d", r.Code)
 	}
@@ -255,7 +255,7 @@ func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 // Review P1: list enrichment must not scan a monitor's whole history.
 func TestMonitorListStaysFastWithLargeHistory(t *testing.T) {
 	server := setupTestServer(t)
-	registerTestAgent(t, server)
+	registerTestNode(t, server)
 	ids := []string{}
 	for i := 0; i < 5; i++ {
 		m := createHTTPMonitor(t, server, fmt.Sprintf("big-%d", i), nil)

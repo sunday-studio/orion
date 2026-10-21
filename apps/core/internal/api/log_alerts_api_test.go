@@ -70,10 +70,10 @@ func TestDisablingARuleResolvesItsIncident(t *testing.T) {
 	appID, _ := createAppWithKey(t, server, "disable-app")
 	now := time.Now().UTC()
 	server.db.Create(&db.LogAlertRule{ID: "r1", Name: "burst", AppID: appID, Mode: "threshold", WindowSeconds: 300, Enabled: true, State: "firing", MonitorID: "monitor-log-alert-r1", CreatedAt: now, UpdatedAt: now})
-	owner := db.Agent{ID: "agent-core", MachineId: "core", Name: "Orion Core", OS: "core", Arch: "internal", Token: "t", LastSeen: now}
+	owner := db.Node{ID: "node-core", MachineId: "core", Name: "Orion Core", OS: "core", Arch: "internal", Token: "t", LastSeen: now}
 	server.db.Create(&owner)
-	server.db.Create(&db.Monitor{ID: "monitor-log-alert-r1", AgentID: owner.ID, Name: "Log alert: burst", Type: "log-alert", Lifecycle: "active", Health: "down", ActiveIncidentID: "inc-1", IncidentState: "down", ReportingIntervalSeconds: 600, CreatedAt: now})
-	server.db.Create(&db.Incident{ID: "inc-1", Status: "open", Severity: "high", Title: "t", AgentID: owner.ID, MonitorID: "monitor-log-alert-r1", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
+	server.db.Create(&db.Monitor{ID: "monitor-log-alert-r1", NodeID: owner.ID, Name: "Log alert: burst", Type: "log-alert", Lifecycle: "active", Health: "down", ActiveIncidentID: "inc-1", IncidentState: "down", ReportingIntervalSeconds: 600, CreatedAt: now})
+	server.db.Create(&db.Incident{ID: "inc-1", Status: "open", Severity: "high", Title: "t", NodeID: owner.ID, MonitorID: "monitor-log-alert-r1", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
 
 	resp := performJSONRequest(t, server, http.MethodPatch, "/v1/logs/alerts/r1", gin.H{"enabled": false}, "")
 	if resp.Code != http.StatusOK || !strings.Contains(resp.Body.String(), `"state":"ok"`) {
@@ -89,10 +89,10 @@ func TestDisablingARuleResolvesItsIncident(t *testing.T) {
 func TestIncidentLogsReturnsTheWindowAroundAnIncident(t *testing.T) {
 	server := setupLogsServer(t, nil)
 	appID, key := createAppWithKey(t, server, "linked")
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	opened := time.Now().UTC().Add(-10 * time.Minute)
 	resolved := opened.Add(5 * time.Minute)
-	server.db.Create(&db.Incident{ID: "inc-x", Status: "resolved", Severity: "high", Title: "api down", AgentID: agent.Data.AgentID, MonitorID: "m-x", OpenedAt: opened, ResolvedAt: &resolved, LastEventAt: resolved, NotificationStatus: "sent"})
+	server.db.Create(&db.Incident{ID: "inc-x", Status: "resolved", Severity: "high", Title: "api down", NodeID: node.Data.NodeID, MonitorID: "m-x", OpenedAt: opened, ResolvedAt: &resolved, LastEventAt: resolved, NotificationStatus: "sent"})
 
 	ts := func(d time.Duration) string { return opened.Add(d).Format(time.RFC3339Nano) }
 	ingest(server, key, "application/x-ndjson", strings.Join([]string{
@@ -103,14 +103,14 @@ func TestIncidentLogsReturnsTheWindowAroundAnIncident(t *testing.T) {
 		`{"body":"way after","timestamp":"` + ts(30*time.Minute) + `"}`,
 	}, "\n"))
 	server.logs.store.Flush(3 * time.Second)
-	server.db.Create(&db.ServiceLogEntry{ID: "sl-1", AgentID: agent.Data.AgentID, Level: "ERROR", Message: "agent saw trouble", Fingerprint: "f1", OccurredAt: opened.Add(time.Minute), CollectedAt: opened})
+	server.db.Create(&db.ServiceLogEntry{ID: "sl-1", NodeID: node.Data.NodeID, Level: "ERROR", Message: "node saw trouble", Fingerprint: "f1", OccurredAt: opened.Add(time.Minute), CollectedAt: opened})
 
 	resp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/inc-x/logs?app_id="+appID, nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("status = %d body = %s", resp.Code, resp.Body.String())
 	}
 	body := resp.Body.String()
-	for _, want := range []string{"before the incident", "during", "just after", "agent saw trouble"} {
+	for _, want := range []string{"before the incident", "during", "just after", "node saw trouble"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("incident logs missing %q", want)
 		}
@@ -133,11 +133,11 @@ func TestDeletingAnAppResolvesAndRemovesItsFiringRules(t *testing.T) {
 	server := setupLogsServer(t, nil)
 	appID, _ := createAppWithKey(t, server, "doomed")
 	now := time.Now().UTC()
-	owner := db.Agent{ID: "agent-core", MachineId: "core", Name: "Orion Core", OS: "core", Arch: "internal", Token: "t", LastSeen: now}
+	owner := db.Node{ID: "node-core", MachineId: "core", Name: "Orion Core", OS: "core", Arch: "internal", Token: "t", LastSeen: now}
 	server.db.Create(&owner)
 	server.db.Create(&db.LogAlertRule{ID: "r-doomed", Name: "burst", AppID: appID, Mode: "threshold", WindowSeconds: 300, Enabled: true, State: "firing", MonitorID: "monitor-log-alert-r-doomed", CreatedAt: now, UpdatedAt: now})
-	server.db.Create(&db.Monitor{ID: "monitor-log-alert-r-doomed", AgentID: owner.ID, Name: "Log alert: burst", Type: "log-alert", Lifecycle: "active", Health: "down", ActiveIncidentID: "inc-doomed", IncidentState: "down", ReportingIntervalSeconds: 600, CreatedAt: now})
-	server.db.Create(&db.Incident{ID: "inc-doomed", Status: "open", Severity: "high", Title: "t", AgentID: owner.ID, MonitorID: "monitor-log-alert-r-doomed", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
+	server.db.Create(&db.Monitor{ID: "monitor-log-alert-r-doomed", NodeID: owner.ID, Name: "Log alert: burst", Type: "log-alert", Lifecycle: "active", Health: "down", ActiveIncidentID: "inc-doomed", IncidentState: "down", ReportingIntervalSeconds: 600, CreatedAt: now})
+	server.db.Create(&db.Incident{ID: "inc-doomed", Status: "open", Severity: "high", Title: "t", NodeID: owner.ID, MonitorID: "monitor-log-alert-r-doomed", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
 
 	resp := performJSONRequest(t, server, http.MethodDelete, "/v1/apps/"+appID, nil, "")
 	if resp.Code != http.StatusOK {

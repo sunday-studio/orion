@@ -15,7 +15,7 @@ import (
 // Worker re-claims the check exactly once and the dead Worker cannot complete it.
 func TestChaosWorkerKilledMidCheckLeaseExpiresAndIsReclaimedOnce(t *testing.T) {
 	database := testkit.NewDB(t)
-	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	a, _ := testkit.TwoNodes(t, database, time.Now().UTC())
 	database.Create(&db.CoreMonitorConfig{MonitorID: a.Monitor.ID, Kind: "http", ConfigJSON: "{}", SecretRefJSON: "{}", IntervalSeconds: 60, TimeoutSeconds: 10, NextRunAt: time.Now().UTC().Add(-time.Minute)})
 	scheduler := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	start := time.Now().UTC()
@@ -46,22 +46,22 @@ func TestChaosWorkerKilledMidCheckLeaseExpiresAndIsReclaimedOnce(t *testing.T) {
 	}
 }
 
-// Chaos 6: an agent clock ten minutes off, either way, does not change health.
-func TestChaosAgentClockSkewDoesNotChangeHealth(t *testing.T) {
+// Chaos 6: a node clock ten minutes off, either way, does not change health.
+func TestChaosNodeClockSkewDoesNotChangeHealth(t *testing.T) {
 	for name, skew := range map[string]time.Duration{"clock behind": -10 * time.Minute, "clock ahead": 10 * time.Minute} {
 		t.Run(name, func(t *testing.T) {
 			database := testkit.NewDB(t)
 			now := time.Now().UTC()
-			a, _ := testkit.TwoAgents(t, database, now)
+			a, _ := testkit.TwoNodes(t, database, now)
 			database.Where("monitor_id = ?", a.Monitor.ID).Delete(&db.MonitorReport{})
-			// Fresh on Core's clock, but the agent stamped it ten minutes off.
+			// Fresh on Core's clock, but the node stamped it ten minutes off.
 			database.Create(&db.MonitorReport{ID: "skewed", MonitorID: a.Monitor.ID, Payload: "{}", CollectedAt: now.Add(skew).Format(time.RFC3339), Health: "up", CreatedAt: now})
 
 			health, err := NewHealthService(database, utils.NewLogger()).ComputeMonitorHealth(a.Monitor.ID, DefaultHealthConfig())
 			if err != nil || health != "up" {
 				t.Fatalf("health = %q err = %v, want up: the report arrived just now", health, err)
 			}
-			stale, _ := NewHealthService(database, utils.NewLogger()).DetectStaleMonitorsForAgent(a.Agent.ID, DefaultHealthConfig())
+			stale, _ := NewHealthService(database, utils.NewLogger()).DetectStaleMonitorsForNode(a.Node.ID, DefaultHealthConfig())
 			if len(stale) != 0 {
 				t.Fatalf("skewed but fresh report flagged stale: %v", stale)
 			}
@@ -84,8 +84,8 @@ func TestChaosWebhookReceiverDownThenUpDrainsBacklogInOrderWithoutDuplicates(t *
 		id := fmt.Sprintf("incident-%02d", i)
 		order = append(order, id)
 		createTestIncident(t, database, id)
-		// Distinct agents, so alert grouping does not fold the backlog into one page.
-		database.Model(&db.Incident{}).Where("id = ?", id).Update("agent_id", "agent-"+id)
+		// Distinct nodes, so alert grouping does not fold the backlog into one page.
+		database.Model(&db.Incident{}).Where("id = ?", id).Update("node_id", "node-"+id)
 		if err := svc.QueueIncidentNotifications(id, "incident_opened"); err != nil {
 			t.Fatal(err)
 		}

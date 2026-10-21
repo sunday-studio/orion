@@ -38,7 +38,7 @@ Setting up a fresh server and want to build Core from source? See
 can reach:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
   --core-url https://core.your-domain.tld
 ```
 

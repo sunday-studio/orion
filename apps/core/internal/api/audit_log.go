@@ -113,8 +113,8 @@ func (s *Server) auditTargetLabel(object, id string) string {
 		if s.db.Select("name").Where("id = ?", id).Limit(1).Find(&m).RowsAffected > 0 {
 			label = m.Name
 		}
-	case "agent":
-		var a db.Agent
+	case "node":
+		var a db.Node
 		if s.db.Select("name").Where("id = ?", id).Limit(1).Find(&a).RowsAffected > 0 {
 			label = a.Name
 		}
@@ -159,10 +159,10 @@ func (s *Server) auditTargetLabel(object, id string) string {
 
 // auditTexts maps stored action keys (including those written by services) to the phrase shown to people.
 var auditTexts = map[string]string{
-	"agent_token_rotated":             "Rotated server token",
-	"agent_token_revoked":             "Revoked server token",
-	"agent_token_reissued":            "Reissued server token",
-	"agent_decommissioned":            "Removed server",
+	"node_token_rotated":              "Rotated server token",
+	"node_token_revoked":              "Revoked server token",
+	"node_token_reissued":             "Reissued server token",
+	"node_decommissioned":             "Removed server",
 	"data_lifecycle_settings_updated": "Updated data lifecycle settings",
 	"data_lifecycle_rollup_run":       "Ran rollup",
 	"data_lifecycle_archive_run":      "Ran archive",

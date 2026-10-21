@@ -136,9 +136,9 @@ func TestUnsavedWebhookTestRunStoresNothing(t *testing.T) {
 func TestDeliveryListFiltersAndDetail(t *testing.T) {
 	hook := testkit.NewWebhook(t)
 	server := alertServer(t)
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	server.db.Create(&db.Incident{ID: "inc1", Number: 231, Status: "open", Severity: "critical", Title: "api.example.com unreachable", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	server.db.Create(&db.Incident{ID: "inc1", Number: 231, Status: "open", Severity: "critical", Title: "api.example.com unreachable", NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 	server.db.Create(&db.AlertChannel{ID: "ch1", Name: "oncall webhook", Type: "webhook", Enabled: true, WebhookURL: hook.URL(), SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents())})
 	server.db.Create(&db.AlertChannel{ID: "ch2", Name: "ops-team", Type: "email", Enabled: true, SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents())})
 	server.db.Create(&db.AlertRoute{ID: "rule1", Name: "Critical down", Enabled: true, Priority: 1, ChannelIDs: `["ch1"]`})
@@ -235,10 +235,10 @@ func TestEmailChannelTestResultDigestAndSubjectPrefix(t *testing.T) {
 	}
 
 	// Digest: a non-critical alert is held to the next 15 minute mark; a critical one is sent at once.
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
 	for n, inc := range []struct{ id, sev string }{{"i-low", "low"}, {"i-crit", "critical"}} {
-		server.db.Create(&db.Incident{ID: inc.id, Number: n + 1, Status: "open", Severity: inc.sev, Title: inc.id, AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+		server.db.Create(&db.Incident{ID: inc.id, Number: n + 1, Status: "open", Severity: inc.sev, Title: inc.id, NodeID: node.Data.NodeID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
 		server.db.Create(&db.AlertDelivery{ID: "d-" + inc.id, IncidentID: inc.id, EventType: "incident_opened", Channel: "ops-team", Type: "email", Status: "pending", MaxAttempts: 8, CreatedAt: now})
 	}
 	if _, err := service.NewAlertService(server.db, server.logger, server.cfg).ProcessDueDeliveries(10); err != nil {

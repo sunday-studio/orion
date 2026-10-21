@@ -1,0 +1,13 @@
+$ orion-node discover --dismissed
+
+ ╭ Dismissed ────────────────────────────────────────────────────────────────────── 2 ╮
+ │   ID                       WHEN                                                    │
+ │   docker:legacy-cron       12 Oct                         restore                  │
+ │   port:8081                9 Oct                          restore                  │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+$ orion-node discover ignore port:5432
+   ✓ Will not suggest port:5432 again  saved to discovery.ignore
+
+$ orion-node discover restore port:8081
+   ✓ port:8081 is a suggestion again

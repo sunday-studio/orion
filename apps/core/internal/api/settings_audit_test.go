@@ -65,11 +65,11 @@ func TestDataLifecycleSettingsAuditEventRecordsActorAndSafeMetadata(t *testing.T
 func TestDataLifecycleActionAuditEventsAppearInLogs(t *testing.T) {
 	server := setupStatusPageAuthTestServer(t)
 	token := loginStatusPageTestAdmin(t, server)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 
 	reportTime := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
-	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportPath := "/v1/nodes/" + registered.Data.NodeID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	for _, health := range []string{"up", "down"} {
 		resp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
 			"timestamp": reportTime.Format(time.RFC3339),
@@ -134,7 +134,7 @@ func TestDataLifecycleActionAuditEventsAppearInLogs(t *testing.T) {
 	var archiveMetadata struct {
 		ActionType              string `json:"action_type"`
 		ResultStatus            string `json:"result_status"`
-		AgentReportsArchived    int    `json:"agent_reports_archived"`
+		NodeReportsArchived     int    `json:"node_reports_archived"`
 		MonitorReportsArchived  int    `json:"monitor_reports_archived"`
 		SkippedBecauseNoReports bool   `json:"skipped_because_no_reports"`
 	}

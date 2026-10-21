@@ -13,10 +13,10 @@ import (
 func BenchmarkStoreMonitorReport(b *testing.B) {
 	database := testkit.NewDB(b)
 	now := time.Now().UTC()
-	agent := db.Agent{ID: "a", MachineId: "m", Name: "a", OS: "linux", Arch: "amd64", Token: "t", LastSeen: now}
-	database.Create(&agent)
+	node := db.Node{ID: "a", MachineId: "m", Name: "a", OS: "linux", Arch: "amd64", Token: "t", LastSeen: now}
+	database.Create(&node)
 	for i := 0; i < 1000; i++ {
-		database.Create(&db.Monitor{ID: fmt.Sprintf("m%04d", i), AgentID: "a", Name: fmt.Sprintf("n%04d", i), Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 30, CreatedAt: now})
+		database.Create(&db.Monitor{ID: fmt.Sprintf("m%04d", i), NodeID: "a", Name: fmt.Sprintf("n%04d", i), Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 30, CreatedAt: now})
 	}
 	svc := NewReportService(database, utils.NewLogger(), &config.Config{})
 	b.ResetTimer()

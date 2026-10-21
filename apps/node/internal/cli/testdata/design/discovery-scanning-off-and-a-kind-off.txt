@@ -1,0 +1,18 @@
+$ orion-node discover
+
+ ╭ Scanning is off ───────────────────────────────────────────────────────────────────╮
+ │ discovery.enabled is false, so nothing is looked at.                               │
+ │ Host metrics, manual config and Create monitor still work.                         │
+ │                                                                                    │
+ │  orion-node config edit   set discovery.enabled: true                             │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+$ orion-node discover
+
+ ╭ Services ─────────────────────────────────────────────────────────────────────── 2 ╮
+ │  ◉ nginx             Check it is running                                 high      │
+ │  ◉ postgresql        Check it is running                                 high      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Containers ────────────────────────────────────────────────────────────────────────╮
+ │ Not scanned · turned off in discovery.kinds                                        │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯

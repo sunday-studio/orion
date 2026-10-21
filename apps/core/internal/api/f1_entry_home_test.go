@@ -68,11 +68,11 @@ func TestEnrollmentSessionLifecycle(t *testing.T) {
 		t.Fatalf("second machine must be refused, got %d", code)
 	}
 	st := status()
-	if st.Status != "registered" || st.AgentName != "edge-05" || st.AgentOS != "linux" || st.AgentArch != "amd64" || st.AgentID == "" {
+	if st.Status != "registered" || st.NodeName != "edge-05" || st.NodeOS != "linux" || st.NodeArch != "amd64" || st.NodeID == "" {
 		t.Fatalf("after register = %+v", st)
 	}
-	server.db.Create(&db.AgentReport{ID: "r1", AgentID: st.AgentID, AgentVersion: "0.9.2", CreatedAt: time.Now().UTC()})
-	if st := status(); st.Status != "reporting" || st.FirstReportAt == nil || st.AgentVersion != "0.9.2" {
+	server.db.Create(&db.NodeReport{ID: "r1", NodeID: st.NodeID, NodeVersion: "0.9.2", CreatedAt: time.Now().UTC()})
+	if st := status(); st.Status != "reporting" || st.FirstReportAt == nil || st.NodeVersion != "0.9.2" {
 		t.Fatalf("after first report = %+v", st)
 	}
 	// The shared token keeps working alongside session tokens.
@@ -115,12 +115,12 @@ func TestOverviewSearchAndMe(t *testing.T) {
 		t.Fatalf("empty overview = %+v", empty.Data)
 	}
 
-	agent := registerTestAgent(t, server)
+	node := registerTestNode(t, server)
 	now := time.Now().UTC()
-	server.db.Create(&db.Incident{ID: "inc-1", Status: "open", Severity: "critical", Title: "api.example.com is down", AgentID: agent.Data.AgentID, MonitorID: "m1", OpenedAt: now.Add(-30 * time.Minute), LastEventAt: now, LatestEvent: "3 checks failed", NotificationStatus: "sent"})
-	server.db.Create(&db.Incident{ID: "inc-2", Status: "resolved", Severity: "low", Title: "old blip", AgentID: agent.Data.AgentID, MonitorID: "m1", OpenedAt: now.Add(-3 * time.Hour), ResolvedAt: ptrTime(now.Add(-2 * time.Hour)), LastEventAt: now})
+	server.db.Create(&db.Incident{ID: "inc-1", Status: "open", Severity: "critical", Title: "api.example.com is down", NodeID: node.Data.NodeID, MonitorID: "m1", OpenedAt: now.Add(-30 * time.Minute), LastEventAt: now, LatestEvent: "3 checks failed", NotificationStatus: "sent"})
+	server.db.Create(&db.Incident{ID: "inc-2", Status: "resolved", Severity: "low", Title: "old blip", NodeID: node.Data.NodeID, MonitorID: "m1", OpenedAt: now.Add(-3 * time.Hour), ResolvedAt: ptrTime(now.Add(-2 * time.Hour)), LastEventAt: now})
 	server.db.Create(&db.AlertDelivery{ID: "d1", IncidentID: "inc-1", EventType: "incident_opened", Channel: "c", Type: "webhook", Status: "sent", CreatedAt: now.Add(-29 * time.Minute)})
-	server.db.Create(&db.Monitor{ID: "mon-1", Type: "http", Name: "api-https", AgentID: agent.Data.AgentID, Lifecycle: "active", ComputedHealth: "down", Health: "down"})
+	server.db.Create(&db.Monitor{ID: "mon-1", Type: "http", Name: "api-https", NodeID: node.Data.NodeID, Lifecycle: "active", ComputedHealth: "down", Health: "down"})
 
 	var ov struct{ Data OverviewResponse }
 	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/overview", nil, ""), &ov)

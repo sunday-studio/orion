@@ -21,13 +21,13 @@ type componentSpec struct {
 }
 
 // acmeComponents covers every component state: operational, degraded, partial/major outage,
-// maintenance, unknown (manual), computed from mapped monitors and agents, aggregate of two, and hidden.
+// maintenance, unknown (manual), computed from mapped monitors and nodes, aggregate of two, and hidden.
 func acmeComponents() []componentSpec {
 	return []componentSpec{
 		{key: "api", name: "API", section: "core", mode: "aggregate", mappings: [][2]string{{"monitor", coreMonitorID("http-up")}, {"monitor", coreMonitorID("http-down")}}},
 		{key: "dashboard", name: "Dashboard", section: "core", mode: "single_resource", mappings: [][2]string{{"monitor", coreMonitorID("http-up")}}},
 		{key: "webhooks", name: "Webhooks", section: "core", mode: "manual", manual: "degraded", reason: "Delivery delays of up to 5 minutes."},
-		{key: "database", name: "Database", section: "infra", mode: "single_resource", mappings: [][2]string{{"monitor", agentMonitorID("db-down", "pg")}}},
+		{key: "database", name: "Database", section: "infra", mode: "single_resource", mappings: [][2]string{{"monitor", nodeMonitorID("db-down", "pg")}}},
 		{key: "storage", name: "File storage", section: "infra", mode: "manual", manual: "partial_outage", reason: "Uploads fail for some regions."},
 		{key: "jobs", name: "Background jobs", section: "infra", mode: "manual", manual: "maintenance", reason: "Scheduled maintenance in progress."},
 		{key: "payments", name: "Payments provider", section: "third", mode: "manual", manual: "major_outage", reason: "Provider outage, see incident."},

@@ -190,7 +190,7 @@ func validStatusPageComponentStatus(value string) bool {
 
 func validStatusPageResourceType(value string) bool {
 	switch value {
-	case "agent", "monitor":
+	case "node", "monitor":
 		return true
 	default:
 		return false

@@ -12,14 +12,14 @@
   monitor execution health.
 - **Console** is the web UI for incidents, servers, monitors, alerts, logs and settings.
 
-> **Terminology.** Product copy says *Server*. The historical `agent` name remains in compatibility
-> surfaces: the `orion-agent` binary, install assets, `/v1/agents` routes, SDK symbols and SQLite
+> **Terminology.** Product copy says *Server*. The historical `node` name remains in compatibility
+> surfaces: the `orion-node` binary, install assets, `/v1/nodes` routes, SDK symbols and SQLite
 > tables. See the [Server terminology decision](architecture/server-terminology.md).
 
 ## What it can watch
 
 HTTP health checks, websites, TCP ports, resource thresholds, Docker containers, systemd services, PM2
-processes, commands and internal services. See [Server monitors](architecture/agent-monitors.md) for
+processes, commands and internal services. See [Server monitors](architecture/node-monitors.md) for
 config details.
 
 ## Go deeper

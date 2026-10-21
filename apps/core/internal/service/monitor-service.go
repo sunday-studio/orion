@@ -11,7 +11,7 @@ import (
 )
 
 type RegisterMonitorRequest struct {
-	AgentID                  string    `json:"agent_id,omitempty"`
+	NodeID                   string    `json:"node_id,omitempty"`
 	Name                     string    `json:"name" binding:"required"`
 	Description              *string   `json:"description" binding:"required"`
 	Type                     string    `json:"type" binding:"required"`
@@ -21,7 +21,7 @@ type RegisterMonitorRequest struct {
 }
 
 type UnregisterMonitorRequest struct {
-	AgentID   string `json:"agent_id,omitempty"`
+	NodeID    string `json:"node_id,omitempty"`
 	MonitorID string `json:"monitor_id" binding:"required"`
 }
 
@@ -45,11 +45,11 @@ type ListAllMonitorsOpts struct {
 	Lifecycle    string
 	StaleOnly    bool
 	HasIncidents bool
-	// IncludeSystem adds Core's self-monitors (worker liveness, agent connectivity).
+	// IncludeSystem adds Core's self-monitors (worker liveness, node connectivity).
 	IncludeSystem bool
 	// Statuses keeps only monitors whose computed health is in the set (up, down, degraded, stale, unknown).
 	Statuses map[string]bool
-	AgentID  string
+	NodeID   string
 	// Paused filters Core-managed monitors by paused state when set.
 	Paused *bool
 	Sort   string
@@ -85,9 +85,9 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 
 	// Prefer the live row; only fall back to reviving a soft-deleted one (newest
 	// first). Picking by id alone could revive a deleted twin while a live monitor of
-	// the same name exists, which the unique (agent_id, name) index rejects.
+	// the same name exists, which the unique (node_id, name) index rejects.
 	err := s.db.
-		Where("agent_id = ? AND name = ?", req.AgentID, req.Name).
+		Where("node_id = ? AND name = ?", req.NodeID, req.Name).
 		Order("CASE WHEN lifecycle = 'deleted' THEN 1 ELSE 0 END, created_at DESC, id DESC").
 		First(&monitor).Error
 
@@ -159,14 +159,14 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 	}
 }
 
-// ErrMonitorNotOwned is returned when a monitor does not exist or belongs to another agent.
-var ErrMonitorNotOwned = errors.New("monitor not found for agent")
+// ErrMonitorNotOwned is returned when a monitor does not exist or belongs to another node.
+var ErrMonitorNotOwned = errors.New("monitor not found for node")
 
 func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
 	now := time.Now()
 
 	result := s.db.Model(&db.Monitor{}).
-		Where("agent_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.AgentID, req.MonitorID, time.Time{}).
+		Where("node_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.NodeID, req.MonitorID, time.Time{}).
 		Updates(map[string]any{
 			"lifecycle":  "deleted",
 			"health":     "unknown",
@@ -176,17 +176,17 @@ func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*Unre
 	if result.Error != nil {
 		s.logger.Error(
 			"Failed to unregister monitor",
-			"agent_id", req.AgentID,
+			"node_id", req.NodeID,
 			"monitor_id", req.MonitorID,
 			"error", result.Error,
 		)
 		return nil, result.Error
 	}
 	if result.RowsAffected == 0 {
-		// Unregistering an already-deleted monitor the agent owns stays idempotent;
-		// anything else (unknown id, another agent's monitor) is rejected.
+		// Unregistering an already-deleted monitor the node owns stays idempotent;
+		// anything else (unknown id, another node's monitor) is rejected.
 		var owned int64
-		if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).Count(&owned).Error; err != nil {
+		if err := s.db.Model(&db.Monitor{}).Where("node_id = ? AND id = ?", req.NodeID, req.MonitorID).Count(&owned).Error; err != nil {
 			return nil, err
 		}
 		if owned == 0 {
@@ -208,7 +208,7 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 
 	monitor := db.Monitor{
 		ID:                       monitorID,
-		AgentID:                  req.AgentID,
+		NodeID:                   req.NodeID,
 		Description:              req.Description,
 		Type:                     req.Type,
 		Name:                     req.Name,
@@ -231,8 +231,8 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 	}, nil
 }
 
-func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
-	monitors, _, err := s.listAgentMonitors(agentID, healthFilter, lifecycleFilter)
+func (s *MonitorService) ListMonitors(nodeID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
+	monitors, _, err := s.listNodeMonitors(nodeID, healthFilter, lifecycleFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -306,16 +306,16 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 	return &monitors[0], nil
 }
 
-func (s *MonitorService) GetMonitorCount(agentID string, healthFilter string, lifecycleFilter string) (int64, error) {
-	_, count, err := s.listAgentMonitors(agentID, healthFilter, lifecycleFilter)
+func (s *MonitorService) GetMonitorCount(nodeID string, healthFilter string, lifecycleFilter string) (int64, error) {
+	_, count, err := s.listNodeMonitors(nodeID, healthFilter, lifecycleFilter)
 	return count, err
 }
 
-func (s *MonitorService) listAgentMonitors(agentID string, healthFilter string, lifecycleFilter string) ([]db.Monitor, int64, error) {
+func (s *MonitorService) listNodeMonitors(nodeID string, healthFilter string, lifecycleFilter string) ([]db.Monitor, int64, error) {
 	var monitors []db.Monitor
-	query := s.applyMonitorListFilters(s.db, agentID, lifecycleFilter).Order("created_at DESC")
+	query := s.applyMonitorListFilters(s.db, nodeID, lifecycleFilter).Order("created_at DESC")
 	if err := query.Find(&monitors).Error; err != nil {
-		s.logger.Error("Failed to list monitors", "agent_id", agentID, "error", err)
+		s.logger.Error("Failed to list monitors", "node_id", nodeID, "error", err)
 		return nil, 0, err
 	}
 
@@ -325,12 +325,12 @@ func (s *MonitorService) listAgentMonitors(agentID string, healthFilter string, 
 	}
 	monitors = filterMonitorsByComputedHealth(monitors, healthFilter)
 
-	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
+	s.logger.Debug("Retrieved monitors", "node_id", nodeID, "count", len(monitors))
 	return monitors, int64(len(monitors)), nil
 }
 
-func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, lifecycleFilter string) *gorm.DB {
-	query = query.Where("agent_id = ?", agentID)
+func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, nodeID string, lifecycleFilter string) *gorm.DB {
+	query = query.Where("node_id = ?", nodeID)
 
 	if lifecycleFilter != "" {
 		return query.Where("lifecycle = ?", lifecycleFilter)
@@ -343,8 +343,8 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	if !opts.IncludeSystem {
 		query = query.Where("system = ?", false)
 	}
-	if opts.AgentID != "" {
-		query = query.Where("agent_id = ?", opts.AgentID)
+	if opts.NodeID != "" {
+		query = query.Where("node_id = ?", opts.NodeID)
 	}
 	if opts.Paused != nil {
 		pausedIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id").Where("paused = ?", true)
@@ -359,33 +359,33 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	if opts.Search != "" {
 		like := "%" + opts.Search + "%"
 		query = query.Where(
-			"name LIKE ? OR type LIKE ? OR id LIKE ? OR agent_id IN (?)",
+			"name LIKE ? OR type LIKE ? OR id LIKE ? OR node_id IN (?)",
 			like,
 			like,
 			like,
-			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
+			s.db.Model(&db.Node{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
 		)
 	}
 
 	if opts.OwnerName != "" {
 		like := "%" + opts.OwnerName + "%"
 		query = query.Where(
-			"agent_id IN (?)",
-			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ? OR id LIKE ?", like, like, like),
+			"node_id IN (?)",
+			s.db.Model(&db.Node{}).Select("id").Where("name LIKE ? OR machine_id LIKE ? OR id LIKE ?", like, like, like),
 		)
 	}
 
 	switch normalizeMonitorOwnerFilter(opts.OwnerKind) {
 	case "core":
 		query = query.Where("id IN (?)", coreMonitorIDs)
-	case "agent":
+	case "node":
 		query = query.Where("id NOT IN (?)", coreMonitorIDs)
 	}
 
 	switch normalizeMonitorOwnerFilter(opts.Source) {
 	case "core":
 		query = query.Where("id IN (?)", coreMonitorIDs)
-	case "agent":
+	case "node":
 		query = query.Where("id NOT IN (?)", coreMonitorIDs)
 	}
 
@@ -424,8 +424,8 @@ func normalizeMonitorOwnerFilter(owner string) string {
 	switch strings.ToLower(strings.TrimSpace(owner)) {
 	case "core", "core-worker", "core_monitor", "core-monitor":
 		return "core"
-	case "agent", "agent-monitor", "agent_monitor":
-		return "agent"
+	case "node", "node-monitor", "node_monitor":
+		return "node"
 	default:
 		return ""
 	}

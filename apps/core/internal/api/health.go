@@ -11,27 +11,27 @@ import (
 
 // getSystemHealth retrieves overall system health summary
 // @Summary      Get system health summary
-// @Description  Get overall system health summary including agent and monitor counts
+// @Description  Get overall system health summary including node and monitor counts
 // @Tags         health
 // @Accept       json
 // @Produce      json
 // @ID           getHealthSummary
-// @Success      200  {object}  utils.APIResponse{data=object{overall_health=string,agents=object{total=int},monitors=object{total=int,up=int,down=int,degraded=int,unknown=int,stale=int}}}
+// @Success      200  {object}  utils.APIResponse{data=object{overall_health=string,nodes=object{total=int},monitors=object{total=int,up=int,down=int,degraded=int,unknown=int,stale=int}}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/summary [get]
 func (s *Server) getSystemHealth(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
 
-	// Get all active agents
-	var agents []db.Agent
-	if err := s.db.Where("(deleted_at IS NULL OR deleted_at = ?) AND system = ?", time.Time{}, false).Find(&agents).Error; err != nil {
-		s.logger.Error("Failed to get agents", "error", err)
+	// Get all active nodes
+	var nodes []db.Node
+	if err := s.db.Where("(deleted_at IS NULL OR deleted_at = ?) AND system = ?", time.Time{}, false).Find(&nodes).Error; err != nil {
+		s.logger.Error("Failed to get nodes", "error", err)
 		utils.InternalError(c, "Failed to get system health", err)
 		return
 	}
 
-	totalAgents := len(agents)
+	totalNodes := len(nodes)
 	totalMonitors := 0
 	upCount := 0
 	downCount := 0
@@ -124,8 +124,8 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 
 	utils.SuccessResponse(c, 200, "System health retrieved successfully", gin.H{
 		"overall_health": overallHealth,
-		"agents": gin.H{
-			"total": totalAgents,
+		"nodes": gin.H{
+			"total": totalNodes,
 		},
 		"monitors": gin.H{
 			"total":    totalMonitors,
@@ -223,9 +223,9 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 		}
 
 		if computedHealth == "down" || computedHealth == "degraded" {
-			// Get agent info
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			// Get node info
+			var node db.Node
+			if err := s.db.Where("id = ?", monitor.NodeID).First(&node).Error; err != nil {
 				continue
 			}
 
@@ -234,8 +234,8 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 				"monitor_name": monitor.Name,
 				"monitor_type": monitor.Type,
 				"health":       computedHealth,
-				"agent_id":     monitor.AgentID,
-				"agent_name":   agent.Name,
+				"node_id":      monitor.NodeID,
+				"node_name":    node.Name,
 			})
 		}
 	}
@@ -246,8 +246,8 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 		s.logger.Error("Failed to detect stale monitors", "error", err)
 	} else {
 		for _, monitor := range staleMonitors {
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			var node db.Node
+			if err := s.db.Where("id = ?", monitor.NodeID).First(&node).Error; err != nil {
 				continue
 			}
 
@@ -257,8 +257,8 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 				"monitor_type": monitor.Type,
 				"health":       "stale",
 				"issue_type":   "stale_data",
-				"agent_id":     monitor.AgentID,
-				"agent_name":   agent.Name,
+				"node_id":      monitor.NodeID,
+				"node_name":    node.Name,
 			})
 		}
 	}
@@ -303,12 +303,12 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 		}
 
 		if computedHealth == "down" || computedHealth == "degraded" {
-			// Get agent info
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			// Get node info
+			var node db.Node
+			if err := s.db.Where("id = ?", monitor.NodeID).First(&node).Error; err != nil {
 				continue
 			}
-			if agent.InMaintenance(time.Now().UTC()) {
+			if node.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 
@@ -338,8 +338,8 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 					"monitor_type": monitor.Type,
 					"health":       computedHealth,
 					"severity":     severity,
-					"agent_id":     monitor.AgentID,
-					"agent_name":   agent.Name,
+					"node_id":      monitor.NodeID,
+					"node_name":    node.Name,
 					"down_count":   downCount,
 				})
 				candidateMonitorIDs[monitor.ID] = struct{}{}
@@ -356,11 +356,11 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 				continue
 			}
 
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			var node db.Node
+			if err := s.db.Where("id = ?", monitor.NodeID).First(&node).Error; err != nil {
 				continue
 			}
-			if agent.InMaintenance(time.Now().UTC()) {
+			if node.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 
@@ -371,8 +371,8 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 				"health":       "stale",
 				"issue_type":   "stale_data",
 				"severity":     "high",
-				"agent_id":     monitor.AgentID,
-				"agent_name":   agent.Name,
+				"node_id":      monitor.NodeID,
+				"node_name":    node.Name,
 				"down_count":   0,
 			})
 			candidateMonitorIDs[monitor.ID] = struct{}{}

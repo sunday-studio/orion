@@ -14,7 +14,7 @@ This is the map of the documentation in this repository. The public documentatio
 - [Deployment guide](deployment/README.md) and [first run checklist](deployment/first-run-checklist.md)
 - [Core Docker deployment](deployment/core-docker.md)
 - [Core security defaults](deployment/core-security-defaults.md)
-- [Server install and upgrade](deployment/agent-install-upgrade.md)
+- [Server install and upgrade](deployment/node-install-upgrade.md)
 - [Server CLI cheat sheet](deployment/server-cli-cheatsheet.md)
 - [SQLite backup and restore](sqlite-backup-restore.md)
 - [Send logs from your apps](product-logs.md)
@@ -28,7 +28,7 @@ This is the map of the documentation in this repository. The public documentatio
 - [Data ingestion](architecture/data-ingestion.md)
 - [Persistence and lifecycle](architecture/persistence-and-lifecycle.md)
 - [Incident reconciliation](architecture/incident-reconciliation-flow.md)
-- [Server monitors](architecture/agent-monitors.md)
+- [Server monitors](architecture/node-monitors.md)
 
 ## Build and contribute
 

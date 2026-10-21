@@ -10,8 +10,8 @@ import (
 
 func TestStatusPageAdminAPIFlow(t *testing.T) {
 	server := setupTestServer(t)
-	registered := registerTestAgent(t, server)
-	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	registered := registerTestNode(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.NodeID, registered.Data.Token)
 	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{"health": "down", "computed_health": "down"}).Error; err != nil {
 		t.Fatalf("update monitor health: %v", err)
 	}

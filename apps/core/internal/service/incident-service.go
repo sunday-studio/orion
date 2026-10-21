@@ -14,7 +14,7 @@ const (
 	activeIncidentLookupSlowThreshold = 50 * time.Millisecond
 	incidentReconcileSlowThreshold    = 100 * time.Millisecond
 	coreMonitorRunner                 = "core"
-	coreOwnerAgentID                  = "agent_core"
+	coreOwnerNodeID                   = "node_core"
 	coreOwnerMachineID                = "core"
 	coreOwnerName                     = "Orion Core"
 )
@@ -76,7 +76,7 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return nil
 	}
 
-	agent, monitor, err := s.reportOwner(monitor, payload)
+	node, monitor, err := s.reportOwner(monitor, payload)
 	if err != nil {
 		reconcileErr = err
 		return err
@@ -109,8 +109,8 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return reconcileErr
 	}
 
-	if agent.InMaintenance(time.Now().UTC()) || StatusPageMaintenanceHolds(s.db, monitor.ID, agent.ID, time.Now().UTC()) {
-		s.logger.Info("Incident suppressed during maintenance", "monitor_id", monitorID, "agent_id", agent.ID)
+	if node.InMaintenance(time.Now().UTC()) || StatusPageMaintenanceHolds(s.db, monitor.ID, node.ID, time.Now().UTC()) {
+		s.logger.Info("Incident suppressed during maintenance", "monitor_id", monitorID, "node_id", node.ID)
 		reconcileErr = s.updateMonitorIncidentState(monitor.ID, monitor.ActiveIncidentID, nextIncidentState)
 		return reconcileErr
 	}
@@ -138,12 +138,12 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 	}
 
 	if tlsExpiring {
-		reconcileErr = s.openOrUpdateIncident(agent, monitor, monitorReportID, "degraded", nextIncidentState)
+		reconcileErr = s.openOrUpdateIncident(node, monitor, monitorReportID, "degraded", nextIncidentState)
 		return reconcileErr
 	}
 
 	if reportedHealth == "down" || reportedHealth == "degraded" || reportedHealth == "stale" {
-		reconcileErr = s.openOrUpdateIncident(agent, monitor, monitorReportID, reportedHealth, nextIncidentState)
+		reconcileErr = s.openOrUpdateIncident(node, monitor, monitorReportID, reportedHealth, nextIncidentState)
 		return reconcileErr
 	}
 
@@ -295,39 +295,39 @@ func (s *IncidentService) currentSuccessStreak(monitorID string) (int, *time.Tim
 	return streak, firstSuccessAt, latestSuccessAt, nil
 }
 
-func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
+func (s *IncidentService) ReconcileStaleMonitors(nodeID string) error {
 	startedAt := time.Now()
 	var reconcileErr error
 	defer func() {
 		duration := time.Since(startedAt)
 		s.diagnostics.RecordIncidentReconciliation(duration, reconcileErr)
 		if duration > incidentReconcileSlowThreshold {
-			s.diagnostics.RecordSlowOperation("incident_reconciliation", "stale_monitors:"+agentID, duration)
-			s.logger.Warn("Slow stale monitor reconciliation", "agent_id", agentID, "duration_ms", duration.Milliseconds())
+			s.diagnostics.RecordSlowOperation("incident_reconciliation", "stale_monitors:"+nodeID, duration)
+			s.logger.Warn("Slow stale monitor reconciliation", "node_id", nodeID, "duration_ms", duration.Milliseconds())
 		}
 	}()
 
-	var agent db.Agent
-	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+	var node db.Node
+	if err := s.db.Where("id = ?", nodeID).First(&node).Error; err != nil {
 		reconcileErr = err
 		return err
 	}
-	if agent.InMaintenance(time.Now().UTC()) {
+	if node.InMaintenance(time.Now().UTC()) {
 		return nil
 	}
 
 	healthService := NewHealthService(s.db, s.logger)
-	staleMonitors, err := healthService.DetectStaleMonitorsForAgent(agentID, DefaultHealthConfig())
+	staleMonitors, err := healthService.DetectStaleMonitorsForNode(nodeID, DefaultHealthConfig())
 	if err != nil {
 		reconcileErr = err
 		return err
 	}
 
 	for _, monitor := range staleMonitors {
-		if monitor.AgentID != agentID {
+		if monitor.NodeID != nodeID {
 			continue
 		}
-		if err := s.openOrUpdateIncident(agent, monitor, "", "stale", "stale"); err != nil {
+		if err := s.openOrUpdateIncident(node, monitor, "", "stale", "stale"); err != nil {
 			reconcileErr = err
 			return err
 		}

@@ -13,21 +13,21 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type AgentReportPayload struct {
+type NodeReportPayload struct {
 	UptimeSeconds uint64         `json:"uptime_seconds"`
 	Timestamp     string         `json:"timestamp"`
-	AgentVersion  string         `json:"agent_version,omitempty"`
+	NodeVersion   string         `json:"node_version,omitempty"`
 	ConfigSummary any            `json:"config_summary,omitempty"`
 	CPU           db.CPUStats    `json:"cpu"`
 	Memory        db.MemoryStats `json:"memory"`
 	Disk          db.DiskStats   `json:"disk"`
 	Location      db.GeoLocation `json:"location,omitempty"`
-	// AppResources is the agent's passive per-app measurements; Core stores the latest.
+	// AppResources is the node's passive per-app measurements; Core stores the latest.
 	AppResources json.RawMessage `json:"app_resources,omitempty" swaggertype:"object"`
 }
 
 type MonitorReportPayload struct {
-	// ReportID is an optional agent-generated idempotency key (UUID). Replaying a
+	// ReportID is an optional node-generated idempotency key (UUID). Replaying a
 	// report with the same ID for the same monitor stores nothing new.
 	ReportID  string `json:"report_id,omitempty"`
 	Timestamp string `json:"timestamp" binding:"required"`
@@ -80,7 +80,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	}
 
 	// The report row, the monitor's health columns and the incident reconcile
-	// commit together. A failure rolls everything back, so the agent's retry
+	// commit together. A failure rolls everything back, so the node's retry
 	// starts clean instead of finding a stored report whose incident was never
 	// opened; a replay of an already-committed report is a no-op.
 	storedID := monitorReportID
@@ -139,8 +139,8 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	return &storedID, nil
 }
 
-func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayload) (*string, error) {
-	agentReportID := utils.GenerateID("agent_report")
+func (s *ReportService) StoreNodeReport(nodeID string, payload NodeReportPayload) (*string, error) {
+	nodeReportID := utils.GenerateID("node_report")
 	configSummary := ""
 	if payload.ConfigSummary != nil {
 		configSummaryBytes, err := json.Marshal(payload.ConfigSummary)
@@ -150,10 +150,10 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 		configSummary = string(configSummaryBytes)
 	}
 
-	agentReport := db.AgentReport{
-		ID:            agentReportID,
-		AgentID:       agentID,
-		AgentVersion:  payload.AgentVersion,
+	nodeReport := db.NodeReport{
+		ID:            nodeReportID,
+		NodeID:        nodeID,
+		NodeVersion:   payload.NodeVersion,
 		ConfigSummary: configSummary,
 		UptimeSeconds: payload.UptimeSeconds,
 		Timestamp:     payload.Timestamp,
@@ -165,29 +165,29 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 	}
 
 	writeStarted := time.Now()
-	if err := s.db.Create(&agentReport).Omit("Agent").Error; err != nil {
-		s.diagnostics.RecordReportWrite("agent", time.Since(writeStarted), err)
-		s.logger.Error("Failed to store agent report", "error", err)
+	if err := s.db.Create(&nodeReport).Omit("Node").Error; err != nil {
+		s.diagnostics.RecordReportWrite("node", time.Since(writeStarted), err)
+		s.logger.Error("Failed to store node report", "error", err)
 		return nil, err
 	}
-	s.diagnostics.RecordReportWrite("agent", time.Since(writeStarted), nil)
+	s.diagnostics.RecordReportWrite("node", time.Since(writeStarted), nil)
 
 	if intervalSeconds := reportingIntervalSeconds(payload.ConfigSummary); intervalSeconds > 0 {
-		if err := s.db.Model(&db.Agent{}).
-			Where("id = ?", agentID).
+		if err := s.db.Model(&db.Node{}).
+			Where("id = ?", nodeID).
 			Update("reporting_interval_seconds", intervalSeconds).Error; err != nil {
-			s.logger.Error("Failed to update agent reporting interval", "agent_id", agentID, "error", err)
+			s.logger.Error("Failed to update node reporting interval", "node_id", nodeID, "error", err)
 		}
 	}
 
-	s.logger.Info("Agent report stored successfully", "agent_report_id", agentReport.ID)
+	s.logger.Info("Node report stored successfully", "node_report_id", nodeReport.ID)
 	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
 	incidentService.SetDiagnostics(s.diagnostics)
-	if err := incidentService.ReconcileStaleMonitors(agentID); err != nil {
-		s.logger.Error("Failed to reconcile stale monitor incidents after agent report", "agent_id", agentID, "error", err)
+	if err := incidentService.ReconcileStaleMonitors(nodeID); err != nil {
+		s.logger.Error("Failed to reconcile stale monitor incidents after node report", "node_id", nodeID, "error", err)
 		return nil, err
 	}
-	return &agentReportID, nil
+	return &nodeReportID, nil
 }
 
 func reportingIntervalSeconds(configSummary any) int {
@@ -214,10 +214,10 @@ func reportingIntervalSeconds(configSummary any) int {
 	return int(duration.Seconds())
 }
 
-func (s *ReportService) GetAgentReportsById(agentID string, limit int, offset int) ([]db.AgentReport, error) {
-	var reports []db.AgentReport
+func (s *ReportService) GetNodeReportsById(nodeID string, limit int, offset int) ([]db.NodeReport, error) {
+	var reports []db.NodeReport
 
-	query := s.db.Where("agent_id = ?", agentID).Order("created_at DESC")
+	query := s.db.Where("node_id = ?", nodeID).Order("created_at DESC")
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -228,19 +228,19 @@ func (s *ReportService) GetAgentReportsById(agentID string, limit int, offset in
 	}
 
 	if err := query.Find(&reports).Error; err != nil {
-		s.logger.Error("Failed to retrieve reports", "agent_id", agentID, "error", err)
+		s.logger.Error("Failed to retrieve reports", "node_id", nodeID, "error", err)
 		return nil, err
 	}
 
-	s.logger.Debug("Retrieved reports", "agent_id", agentID, "count", len(reports))
+	s.logger.Debug("Retrieved reports", "node_id", nodeID, "count", len(reports))
 	return reports, nil
 }
 
-func (s *ReportService) GetAgentReportCountById(agentID string) (int64, error) {
+func (s *ReportService) GetNodeReportCountById(nodeID string) (int64, error) {
 	var count int64
 
-	if err := s.db.Model(&db.AgentReport{}).Where("agent_id = ?", agentID).Count(&count).Error; err != nil {
-		s.logger.Error("Failed to count reports", "agent_id", agentID, "error", err)
+	if err := s.db.Model(&db.NodeReport{}).Where("node_id = ?", nodeID).Count(&count).Error; err != nil {
+		s.logger.Error("Failed to count reports", "node_id", nodeID, "error", err)
 		return 0, err
 	}
 
@@ -404,15 +404,15 @@ func (s *ReportService) getMonitorUptime(monitorID string, period string, now ti
 	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}, nil
 }
 
-// GetAgentUptime aggregates uptime from the agent's active monitors.
-func (s *ReportService) GetAgentUptime(agentID string, period string) (*UptimeResult, error) {
-	return s.getAgentUptime(agentID, period, time.Now().UTC())
+// GetNodeUptime aggregates uptime from the node's active monitors.
+func (s *ReportService) GetNodeUptime(nodeID string, period string) (*UptimeResult, error) {
+	return s.getNodeUptime(nodeID, period, time.Now().UTC())
 }
 
-func (s *ReportService) getAgentUptime(agentID string, period string, now time.Time) (*UptimeResult, error) {
+func (s *ReportService) getNodeUptime(nodeID string, period string, now time.Time) (*UptimeResult, error) {
 	var monitorIDs []string
-	if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND lifecycle = ?", agentID, "active").Pluck("id", &monitorIDs).Error; err != nil {
-		s.logger.Error("Failed to list monitors for agent uptime", "agent_id", agentID, "error", err)
+	if err := s.db.Model(&db.Monitor{}).Where("node_id = ? AND lifecycle = ?", nodeID, "active").Pluck("id", &monitorIDs).Error; err != nil {
+		s.logger.Error("Failed to list monitors for node uptime", "node_id", nodeID, "error", err)
 		return nil, err
 	}
 
@@ -429,13 +429,13 @@ func (s *ReportService) getAgentUptime(agentID string, period string, now time.T
 		}
 
 		for _, bucket := range res.DailyBuckets {
-			agentBucket := dailyByDate[bucket.Date]
-			if agentBucket == nil {
-				agentBucket = &UptimeDayBucket{Date: bucket.Date}
-				dailyByDate[bucket.Date] = agentBucket
+			nodeBucket := dailyByDate[bucket.Date]
+			if nodeBucket == nil {
+				nodeBucket = &UptimeDayBucket{Date: bucket.Date}
+				dailyByDate[bucket.Date] = nodeBucket
 			}
-			agentBucket.Up += bucket.Up
-			agentBucket.Total += bucket.Total
+			nodeBucket.Up += bucket.Up
+			nodeBucket.Total += bucket.Total
 			totalUp += bucket.Up
 			totalCount += bucket.Total
 		}

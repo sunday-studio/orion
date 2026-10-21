@@ -223,37 +223,37 @@ func (s *Server) handleIncidentActionError(c *gin.Context, err error, message st
 	}
 }
 func (s *Server) writeIncidentActionResponse(c *gin.Context, message string, incident db.Incident) {
-	var agent db.Agent
-	if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err != nil {
-		agent = db.Agent{ID: incident.AgentID, Name: incident.AgentID}
+	var node db.Node
+	if err := s.db.Where("id = ?", incident.NodeID).First(&node).Error; err != nil {
+		node = db.Node{ID: incident.NodeID, Name: incident.NodeID}
 	}
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
 		monitor = db.Monitor{ID: incident.MonitorID, Name: incident.MonitorID}
 	}
-	utils.SuccessResponse(c, http.StatusOK, message, gin.H{"incident": incidentResponse(incident, agent, monitor)})
+	utils.SuccessResponse(c, http.StatusOK, message, gin.H{"incident": incidentResponse(incident, node, monitor)})
 }
-func (s *Server) loadIncidentContext(c *gin.Context) (db.Incident, db.Agent, db.Monitor, bool) {
+func (s *Server) loadIncidentContext(c *gin.Context) (db.Incident, db.Node, db.Monitor, bool) {
 	incidentID := c.Param("id")
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.NotFound(c, "Incident not found")
-			return db.Incident{}, db.Agent{}, db.Monitor{}, false
+			return db.Incident{}, db.Node{}, db.Monitor{}, false
 		}
 		s.logger.Error("Failed to get incident", "incident_id", incidentID, "error", err)
 		utils.InternalError(c, "Failed to get incident", err)
-		return db.Incident{}, db.Agent{}, db.Monitor{}, false
+		return db.Incident{}, db.Node{}, db.Monitor{}, false
 	}
-	var agent db.Agent
-	if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err != nil {
-		agent = db.Agent{ID: incident.AgentID, Name: incident.AgentID}
+	var node db.Node
+	if err := s.db.Where("id = ?", incident.NodeID).First(&node).Error; err != nil {
+		node = db.Node{ID: incident.NodeID, Name: incident.NodeID}
 	}
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
 		monitor = db.Monitor{ID: incident.MonitorID, Name: incident.MonitorID}
 	}
-	return incident, agent, monitor, true
+	return incident, node, monitor, true
 }
 func (s *Server) incidentEvents(incidentID string) ([]db.IncidentEvent, error) {
 	var events []db.IncidentEvent

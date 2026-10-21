@@ -15,19 +15,19 @@ func (s *AlertService) LoadAlertRouteContext(incidentID string, eventType string
 
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
-		monitor = db.Monitor{ID: incident.MonitorID, AgentID: incident.AgentID}
+		monitor = db.Monitor{ID: incident.MonitorID, NodeID: incident.NodeID}
 	}
 
-	var agent db.Agent
-	s.db.Select("name", "labels").Where("id = ?", incident.AgentID).Limit(1).Find(&agent)
+	var node db.Node
+	s.db.Select("name", "labels").Where("id = ?", incident.NodeID).Limit(1).Find(&node)
 	return &AlertRouteContext{
 		IncidentID:  incident.ID,
 		EventType:   eventType,
 		Severity:    incident.Severity,
-		AgentID:     incident.AgentID,
+		NodeID:      incident.NodeID,
 		MonitorID:   incident.MonitorID,
 		MonitorType: monitor.Type,
-		Labels:      eventLabels(agent, monitor, incident.Severity, eventType),
+		Labels:      eventLabels(node, monitor, incident.Severity, eventType),
 	}, nil
 }
 
@@ -193,11 +193,11 @@ func routeMatchesEvent(route db.AlertRoute, event AlertRouteContext) (bool, []st
 	} else if len(decodeStringList(route.Severities)) > 0 {
 		reasons = append(reasons, "severity matched")
 	}
-	if !filterMatches(route.AgentIDs, event.AgentID) {
-		reasons = append(reasons, "agent did not match")
+	if !filterMatches(route.NodeIDs, event.NodeID) {
+		reasons = append(reasons, "node did not match")
 		matched = false
-	} else if len(decodeStringList(route.AgentIDs)) > 0 {
-		reasons = append(reasons, "agent matched")
+	} else if len(decodeStringList(route.NodeIDs)) > 0 {
+		reasons = append(reasons, "node matched")
 	}
 	if !filterMatches(route.MonitorIDs, event.MonitorID) {
 		reasons = append(reasons, "monitor did not match")

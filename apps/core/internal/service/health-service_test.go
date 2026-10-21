@@ -8,16 +8,16 @@ import (
 	"orion/core/internal/utils"
 )
 
-func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
+func TestComputeNodeHealthWithoutMonitors(t *testing.T) {
 	tests := []struct {
 		name   string
-		agent  db.Agent
+		node   db.Node
 		expect string
 	}{
 		{
-			name: "fresh agent is up without monitors",
-			agent: db.Agent{
-				ID:        "agent-fresh",
+			name: "fresh node is up without monitors",
+			node: db.Node{
+				ID:        "node-fresh",
 				MachineId: "fresh-machine",
 				Name:      "fresh",
 				OS:        "linux",
@@ -28,9 +28,9 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 			expect: "up",
 		},
 		{
-			name: "stale agent is stale without monitors",
-			agent: db.Agent{
-				ID:        "agent-stale",
+			name: "stale node is stale without monitors",
+			node: db.Node{
+				ID:        "node-stale",
 				MachineId: "stale-machine",
 				Name:      "stale",
 				OS:        "linux",
@@ -41,9 +41,9 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 			expect: "stale",
 		},
 		{
-			name: "agent stale window follows reporting interval",
-			agent: db.Agent{
-				ID:                       "agent-slow",
+			name: "node stale window follows reporting interval",
+			node: db.Node{
+				ID:                       "node-slow",
 				MachineId:                "slow-machine",
 				Name:                     "slow",
 				OS:                       "linux",
@@ -55,9 +55,9 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 			expect: "up",
 		},
 		{
-			name: "maintenance agent reports maintenance",
-			agent: db.Agent{
-				ID:              "agent-maintenance",
+			name: "maintenance node reports maintenance",
+			node: db.Node{
+				ID:              "node-maintenance",
 				MachineId:       "maintenance-machine",
 				Name:            "maintenance",
 				OS:              "linux",
@@ -73,18 +73,18 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			database := setupHealthTestDB(t)
-			if err := database.Create(&tt.agent).Error; err != nil {
-				t.Fatalf("create agent: %v", err)
+			if err := database.Create(&tt.node).Error; err != nil {
+				t.Fatalf("create node: %v", err)
 			}
 
 			service := NewHealthService(database, utils.NewLogger())
-			got, upCount, downCount, degradedCount, err := service.ComputeAgentHealth(tt.agent.ID, DefaultHealthConfig())
+			got, upCount, downCount, degradedCount, err := service.ComputeNodeHealth(tt.node.ID, DefaultHealthConfig())
 			if err != nil {
-				t.Fatalf("ComputeAgentHealth() error = %v", err)
+				t.Fatalf("ComputeNodeHealth() error = %v", err)
 			}
 
 			if got != tt.expect {
-				t.Fatalf("ComputeAgentHealth() = %q, want %q", got, tt.expect)
+				t.Fatalf("ComputeNodeHealth() = %q, want %q", got, tt.expect)
 			}
 			if upCount != 0 || downCount != 0 || degradedCount != 0 {
 				t.Fatalf("counts = up:%d down:%d degraded:%d, want all zero", upCount, downCount, degradedCount)
@@ -93,10 +93,10 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 	}
 }
 
-func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) {
+func TestComputeNodeHealthCountsStoredMonitorHealthForStaleNode(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-stale-with-monitors",
+	node := db.Node{
+		ID:        "node-stale-with-monitors",
 		MachineId: "stale-with-monitors-machine",
 		Name:      "stale with monitors",
 		OS:        "linux",
@@ -104,14 +104,14 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 		Token:     "stale-with-monitors-token",
 		LastSeen:  time.Now().Add(-30 * time.Minute),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitors := []db.Monitor{
 		{
 			ID:        "monitor-up",
-			AgentID:   agent.ID,
+			NodeID:    node.ID,
 			Name:      "up",
 			Type:      "http",
 			Lifecycle: "active",
@@ -119,7 +119,7 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 		},
 		{
 			ID:        "monitor-down",
-			AgentID:   agent.ID,
+			NodeID:    node.ID,
 			Name:      "down",
 			Type:      "http",
 			Lifecycle: "active",
@@ -127,7 +127,7 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 		},
 		{
 			ID:        "monitor-degraded",
-			AgentID:   agent.ID,
+			NodeID:    node.ID,
 			Name:      "degraded",
 			Type:      "http",
 			Lifecycle: "active",
@@ -139,23 +139,23 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 	}
 
 	service := NewHealthService(database, utils.NewLogger())
-	got, upCount, downCount, degradedCount, err := service.ComputeAgentHealth(agent.ID, DefaultHealthConfig())
+	got, upCount, downCount, degradedCount, err := service.ComputeNodeHealth(node.ID, DefaultHealthConfig())
 	if err != nil {
-		t.Fatalf("ComputeAgentHealth() error = %v", err)
+		t.Fatalf("ComputeNodeHealth() error = %v", err)
 	}
 
 	if got != "stale" {
-		t.Fatalf("ComputeAgentHealth() = %q, want stale", got)
+		t.Fatalf("ComputeNodeHealth() = %q, want stale", got)
 	}
 	if upCount != 1 || downCount != 1 || degradedCount != 1 {
 		t.Fatalf("counts = up:%d down:%d degraded:%d, want 1/1/1", upCount, downCount, degradedCount)
 	}
 }
 
-func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *testing.T) {
+func TestComputeNodeHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-live-partial-failure",
+	node := db.Node{
+		ID:        "node-live-partial-failure",
 		MachineId: "live-partial-failure-machine",
 		Name:      "live partial failure",
 		OS:        "linux",
@@ -163,14 +163,14 @@ func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *t
 		Token:     "live-partial-failure-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitors := []db.Monitor{
-		{ID: "monitor-live-up-1", AgentID: agent.ID, Name: "up one", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
-		{ID: "monitor-live-up-2", AgentID: agent.ID, Name: "up two", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
-		{ID: "monitor-live-down", AgentID: agent.ID, Name: "down", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+		{ID: "monitor-live-up-1", NodeID: node.ID, Name: "up one", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
+		{ID: "monitor-live-up-2", NodeID: node.ID, Name: "up two", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
+		{ID: "monitor-live-down", NodeID: node.ID, Name: "down", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
 	}
 	if err := database.Create(&monitors).Error; err != nil {
 		t.Fatalf("create monitors: %v", err)
@@ -187,13 +187,13 @@ func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *t
 	}
 
 	service := NewHealthService(database, utils.NewLogger())
-	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
+	snapshot, err := service.ComputeNodeHealthSnapshot(node.ID, DefaultHealthConfig())
 	if err != nil {
-		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
+		t.Fatalf("ComputeNodeHealthSnapshot() error = %v", err)
 	}
 
-	if snapshot.AgentHealth != "up" {
-		t.Fatalf("agent health = %q, want up", snapshot.AgentHealth)
+	if snapshot.NodeHealth != "up" {
+		t.Fatalf("node health = %q, want up", snapshot.NodeHealth)
 	}
 	if snapshot.MonitorHealth != "degraded" || snapshot.OverallHealth != "degraded" {
 		t.Fatalf("snapshot = %+v, want degraded monitor and overall health", snapshot)
@@ -203,10 +203,10 @@ func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *t
 	}
 }
 
-func TestComputeAgentHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
+func TestComputeNodeHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-live-all-down",
+	node := db.Node{
+		ID:        "node-live-all-down",
 		MachineId: "live-all-down-machine",
 		Name:      "live all down",
 		OS:        "linux",
@@ -214,13 +214,13 @@ func TestComputeAgentHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
 		Token:     "live-all-down-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitors := []db.Monitor{
-		{ID: "monitor-all-down-1", AgentID: agent.ID, Name: "down one", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
-		{ID: "monitor-all-down-2", AgentID: agent.ID, Name: "down two", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+		{ID: "monitor-all-down-1", NodeID: node.ID, Name: "down one", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+		{ID: "monitor-all-down-2", NodeID: node.ID, Name: "down two", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
 	}
 	if err := database.Create(&monitors).Error; err != nil {
 		t.Fatalf("create monitors: %v", err)
@@ -236,20 +236,20 @@ func TestComputeAgentHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
 	}
 
 	service := NewHealthService(database, utils.NewLogger())
-	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
+	snapshot, err := service.ComputeNodeHealthSnapshot(node.ID, DefaultHealthConfig())
 	if err != nil {
-		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
+		t.Fatalf("ComputeNodeHealthSnapshot() error = %v", err)
 	}
 
-	if snapshot.AgentHealth != "up" || snapshot.MonitorHealth != "down" || snapshot.OverallHealth != "down" {
-		t.Fatalf("snapshot = %+v, want live agent with down monitor rollup", snapshot)
+	if snapshot.NodeHealth != "up" || snapshot.MonitorHealth != "down" || snapshot.OverallHealth != "down" {
+		t.Fatalf("snapshot = %+v, want live node with down monitor rollup", snapshot)
 	}
 }
 
 func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-monitor-stale-window",
+	node := db.Node{
+		ID:        "node-monitor-stale-window",
 		MachineId: "monitor-stale-window-machine",
 		Name:      "monitor stale window",
 		OS:        "linux",
@@ -257,14 +257,14 @@ func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 		Token:     "monitor-stale-window-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitors := []db.Monitor{
 		{
 			ID:                       "monitor-fast",
-			AgentID:                  agent.ID,
+			NodeID:                   node.ID,
 			Name:                     "fast",
 			Type:                     "http",
 			Lifecycle:                "active",
@@ -273,7 +273,7 @@ func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 		},
 		{
 			ID:                       "monitor-slow",
-			AgentID:                  agent.ID,
+			NodeID:                   node.ID,
 			Name:                     "slow",
 			Type:                     "http",
 			Lifecycle:                "active",
@@ -321,8 +321,8 @@ func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 
 func TestComputeMonitorHealthReturnsStaleForExpiredReport(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-computed-stale",
+	node := db.Node{
+		ID:        "node-computed-stale",
 		MachineId: "computed-stale-machine",
 		Name:      "computed stale",
 		OS:        "linux",
@@ -330,13 +330,13 @@ func TestComputeMonitorHealthReturnsStaleForExpiredReport(t *testing.T) {
 		Token:     "computed-stale-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitor := db.Monitor{
 		ID:                       "monitor-computed-stale",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		Name:                     "computed stale",
 		Type:                     "http",
 		Lifecycle:                "active",
@@ -372,8 +372,8 @@ func TestComputeMonitorHealthReturnsStaleForExpiredReport(t *testing.T) {
 
 func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-no-report",
+	node := db.Node{
+		ID:        "node-no-report",
 		MachineId: "no-report-machine",
 		Name:      "no report",
 		OS:        "linux",
@@ -381,13 +381,13 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 		Token:     "no-report-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	freshMonitor := db.Monitor{
 		ID:                       "monitor-no-report-fresh",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		Name:                     "fresh no report",
 		Type:                     "http",
 		Lifecycle:                "active",
@@ -397,7 +397,7 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 	}
 	staleMonitor := db.Monitor{
 		ID:                       "monitor-no-report-stale",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		Name:                     "stale no report",
 		Type:                     "http",
 		Lifecycle:                "active",
@@ -437,8 +437,8 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 
 func TestComputeMonitorHealthDetectsFlappingTransitions(t *testing.T) {
 	database := setupHealthTestDB(t)
-	agent := db.Agent{
-		ID:        "agent-flapping",
+	node := db.Node{
+		ID:        "node-flapping",
 		MachineId: "flapping-machine",
 		Name:      "flapping",
 		OS:        "linux",
@@ -446,13 +446,13 @@ func TestComputeMonitorHealthDetectsFlappingTransitions(t *testing.T) {
 		Token:     "flapping-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 
 	monitor := db.Monitor{
 		ID:                       "monitor-flapping",
-		AgentID:                  agent.ID,
+		NodeID:                   node.ID,
 		Name:                     "flapping",
 		Type:                     "http",
 		Lifecycle:                "active",

@@ -1,0 +1,91 @@
+=== start
+$ orion-node start
+
+ ◆ Start
+ ╭ Preflight ──────────────────────────────────────────────────────────────────── 3 ✓ ╮
+ │ ✓ Config valid                                                                     │
+ │ ✓ State database                                                                   │
+ │ ✓ Permissions                                                                      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Service ───────────────────────────────────────────────────────────────────────────╮
+ │ ✓ Failure state reset                                                              │
+ │ ✓ Started                      systemd · pid 2114                          1.2 s   │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ ╭────────────────────────────────────────────────────────────────────────────────────╮
+ │ ● running   first report due in 30 s                                               │
+ │                                                                                    │
+ │ ▸ orion-node status                                                               │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+=== start  ·  preflight fails
+$ orion-node start
+
+ PREFLIGHT
+   ✓ Config valid
+   ✗ State database is not writable
+     │ /var/lib/orion/state.db is owned by root
+     │ Fix  sudo chown -R orion /var/lib/orion
+   ✓ Permissions
+
+ RECENT SERVICE LOG
+   14:21:08 error state: open /var/lib/orion/state.db: permission denied
+   14:21:08 error node: exiting
+
+ ERROR  Start preflight failed
+   The service was not touched.
+$ echo $?
+1
+
+=== stop and restart
+$ orion-node stop
+
+ ┃ Stop the node on edge-05?
+ ┃ Monitoring and log shipping pause until you start it again.
+    Stop    Cancel      skip the prompt with --yes
+
+   ✓ Stopped
+
+$ orion-node restart
+
+   ✓ Stopped
+   ✓ Started
+   ✓ Healthy                      reporting again                                  6 s
+
+=== run
+$ orion-node run --once
+
+ ◆ Run  foreground, one cycle
+
+   ✓ Config loaded 5 monitors
+   ✓ State database ready
+   ✓ Registered
+   ✓ One collection cycle complete                                               1.4 s
+
+$ orion-node run
+
+ ERROR  Core rejected this server's credentials
+   Reporting stopped. Identity and monitors are kept.
+   Fix  orion-node token apply   with a replacement token from the Console
+
+=== service install and uninstall
+$ orion-node service install
+
+ The installer sets everything up in one step:
+
+   ▸ curl -fsSL …/orion-node-installer.sh | bash -s -- \
+         --core-url <url> --enrollment-token <token>
+
+ Per-user install without root: add --user     Preview: add --dry-run
+
+$ orion-node service uninstall
+
+   ▸ curl -fsSL …/orion-node-installer.sh | bash -s -- uninstall
+ Add --purge to remove config and state too.
+
+--- notes
+NOTE Preflight before touching anything: Start checks config, state and permissions first. A failure stops before the service is changed and shows the fix and the last service log lines.
+NOTE Confirm only what interrupts: Stop asks once on a terminal (Huh confirm); restart and start never ask. --yes and non-TTY skip the prompt.
+NOTE Run is for debugging: Foreground node for containers and checks; --once runs one cycle and exits. A rejected credential ends with the recovery command.
+NOTE Install hints are copyable: service install and uninstall print the installer line in a block; they never change the system themselves.
+NOTE Exit codes: Failures exit 1. A command that needs root exits 3 and says to re-run with sudo.

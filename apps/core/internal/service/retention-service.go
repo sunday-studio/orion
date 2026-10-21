@@ -20,7 +20,7 @@ type RetentionResult struct {
 	AlertDeliveries       int64 `json:"alert_deliveries"`
 	IncidentEvents        int64 `json:"incident_events"`
 	AuditEvents           int64 `json:"audit_events"`
-	DecommissionedAgents  int64 `json:"decommissioned_agents"`
+	DecommissionedNodes   int64 `json:"decommissioned_nodes"`
 	DeletedMonitors       int64 `json:"deleted_monitors"`
 	WorkerStatuses        int64 `json:"worker_statuses"`
 }
@@ -75,8 +75,8 @@ func (s *RetentionService) Run(now time.Time) (*RetentionResult, error) {
 				"created_at < ? AND incident_id IN (SELECT id FROM incidents WHERE status = 'resolved')",
 				cutoff(settings.IncidentEventRetentionDays))
 		}},
-		{"decommissioned_agents", &result.DecommissionedAgents, func() (int64, error) {
-			return PurgeDecommissionedAgents(s.db, s.logger, now)
+		{"decommissioned_nodes", &result.DecommissionedNodes, func() (int64, error) {
+			return PurgeDecommissionedNodes(s.db, s.logger, now)
 		}},
 		{"deleted_monitors", &result.DeletedMonitors, func() (int64, error) {
 			return PurgeDeletedMonitors(s.db, s.logger, now)

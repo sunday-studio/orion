@@ -159,12 +159,12 @@ func TestIngestFormatsLimitsAndErrors(t *testing.T) {
 		key, ct, body string
 		want          int
 	}{
-		"no key":            {"", "application/json", `{"body":"x"}`, http.StatusUnauthorized},
-		"wrong key":         {"orion_ik_" + strings.Repeat("0", 40), "application/json", `{"body":"x"}`, http.StatusUnauthorized},
-		"agent style token": {"tok_abc", "application/json", `{"body":"x"}`, http.StatusUnauthorized},
-		"bad content type":  {key, "text/plain", `hello`, http.StatusUnsupportedMediaType},
-		"not json":          {key, "application/json", `{broken`, http.StatusBadRequest},
-		"empty":             {key, "application/json", ``, http.StatusBadRequest},
+		"no key":           {"", "application/json", `{"body":"x"}`, http.StatusUnauthorized},
+		"wrong key":        {"orion_ik_" + strings.Repeat("0", 40), "application/json", `{"body":"x"}`, http.StatusUnauthorized},
+		"node style token": {"tok_abc", "application/json", `{"body":"x"}`, http.StatusUnauthorized},
+		"bad content type": {key, "text/plain", `hello`, http.StatusUnsupportedMediaType},
+		"not json":         {key, "application/json", `{broken`, http.StatusBadRequest},
+		"empty":            {key, "application/json", ``, http.StatusBadRequest},
 	}
 	for name, tc := range cases {
 		if got := ingest(server, tc.key, tc.ct, tc.body).Code; got != tc.want {
@@ -238,10 +238,10 @@ func TestIngestKeysAreIsolatedWriteOnlyAndRevocable(t *testing.T) {
 	if resp := performJSONRequest(t, server, http.MethodGet, "/v1/apps", nil, ""); resp.Code != http.StatusUnauthorized {
 		t.Errorf("GET /v1/apps without login status = %d, want 401", resp.Code)
 	}
-	// An agent token cannot ingest as an app.
-	agent := registerTestAgent(t, server)
-	if got := ingest(server, agent.Data.Token, "application/json", `{"body":"x"}`).Code; got != http.StatusUnauthorized {
-		t.Errorf("agent token ingest status = %d, want 401", got)
+	// A node token cannot ingest as an app.
+	node := registerTestNode(t, server)
+	if got := ingest(server, node.Data.Token, "application/json", `{"body":"x"}`).Code; got != http.StatusUnauthorized {
+		t.Errorf("node token ingest status = %d, want 401", got)
 	}
 
 	// Listing keys never reveals the secret; revoking is immediate.

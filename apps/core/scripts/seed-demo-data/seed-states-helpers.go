@@ -93,22 +93,22 @@ func showcaseRollups(database *gorm.DB, monitorID string, now time.Time, downByD
 	return database.Create(&rows).Error
 }
 
-func agentStats(cpu, mem, disk float64) (db.CPUStats, db.MemoryStats, db.DiskStats) {
+func nodeStats(cpu, mem, disk float64) (db.CPUStats, db.MemoryStats, db.DiskStats) {
 	const gb = 1024 * 1024 * 1024
 	return db.CPUStats{Cores: 8, UsagePercent: cpu, Load1: cpu / 20, Load5: cpu / 24, Load15: cpu / 28},
 		db.MemoryStats{TotalBytes: 16 * gb, UsedBytes: uint64(mem / 100 * 16 * gb), FreeBytes: uint64((100 - mem) / 100 * 16 * gb), AvailableBytes: uint64((100 - mem) / 100 * 16 * gb), UsedPercent: mem},
 		db.DiskStats{TotalBytes: 512 * gb, UsedBytes: uint64(disk / 100 * 512 * gb), FreeBytes: uint64((100 - disk) / 100 * 512 * gb), UsedPercent: disk}
 }
 
-// showcaseAgentReports writes 12 recent system reports (newest first) with a gentle CPU wave.
-func showcaseAgentReports(agent db.Agent, cpu, mem, disk float64, uptime uint64, now time.Time, lastReportAgo time.Duration) []db.AgentReport {
-	reports := make([]db.AgentReport, 0, 12)
+// showcaseNodeReports writes 12 recent system reports (newest first) with a gentle CPU wave.
+func showcaseNodeReports(node db.Node, cpu, mem, disk float64, uptime uint64, now time.Time, lastReportAgo time.Duration) []db.NodeReport {
+	reports := make([]db.NodeReport, 0, 12)
 	for i := 0; i < 12; i++ {
 		at := now.Add(-lastReportAgo - time.Duration(i)*time.Hour)
 		c := clamp(cpu+float64((i*7)%11)-5, 1, 100)
-		cs, ms, ds := agentStats(c, mem, disk)
-		reports = append(reports, db.AgentReport{ID: fmt.Sprintf("seed-state-agent-report-%s-%02d", agent.ID, i), AgentID: agent.ID, CreatedAt: at, AgentVersion: "0.9.4",
-			ConfigSummary: "{}", UptimeSeconds: uptime - uint64(i)*3600, Timestamp: at.Format(time.RFC3339), CPU: datatypes.NewJSONType(cs), Memory: datatypes.NewJSONType(ms), Disk: datatypes.NewJSONType(ds), Location: agent.Location})
+		cs, ms, ds := nodeStats(c, mem, disk)
+		reports = append(reports, db.NodeReport{ID: fmt.Sprintf("seed-state-node-report-%s-%02d", node.ID, i), NodeID: node.ID, CreatedAt: at, NodeVersion: "0.9.4",
+			ConfigSummary: "{}", UptimeSeconds: uptime - uint64(i)*3600, Timestamp: at.Format(time.RFC3339), CPU: datatypes.NewJSONType(cs), Memory: datatypes.NewJSONType(ms), Disk: datatypes.NewJSONType(ds), Location: node.Location})
 	}
 	return reports
 }

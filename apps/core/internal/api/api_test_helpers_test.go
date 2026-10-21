@@ -41,11 +41,11 @@ func setupTestServerWithConfig(t *testing.T, cfg *config.Config) *Server {
 	return NewServer(database, utils.NewLogger(), cfg)
 }
 
-func registerTestAgent(t *testing.T, server *Server) struct {
+func registerTestNode(t *testing.T, server *Server) struct {
 	Success bool `json:"success"`
 	Data    struct {
-		AgentID string `json:"agent_id"`
-		Token   string `json:"token"`
+		NodeID string `json:"node_id"`
+		Token  string `json:"token"`
 	} `json:"data"`
 } {
 	t.Helper()
@@ -65,19 +65,19 @@ func registerTestAgent(t *testing.T, server *Server) struct {
 	var registered struct {
 		Success bool `json:"success"`
 		Data    struct {
-			AgentID string `json:"agent_id"`
-			Token   string `json:"token"`
+			NodeID string `json:"node_id"`
+			Token  string `json:"token"`
 		} `json:"data"`
 	}
 	decodeResponse(t, registerResp, &registered)
-	if !registered.Success || registered.Data.AgentID == "" || registered.Data.Token == "" {
-		t.Fatalf("registration response missing agent identity: %+v", registered)
+	if !registered.Success || registered.Data.NodeID == "" || registered.Data.Token == "" {
+		t.Fatalf("registration response missing node identity: %+v", registered)
 	}
 
 	return registered
 }
 
-func registerTestMonitor(t *testing.T, server *Server, agentID string, token string) struct {
+func registerTestMonitor(t *testing.T, server *Server, nodeID string, token string) struct {
 	Success bool `json:"success"`
 	Data    struct {
 		MonitorID string `json:"monitor_id"`
@@ -87,14 +87,14 @@ func registerTestMonitor(t *testing.T, server *Server, agentID string, token str
 
 	description := "Checks the homepage"
 	registerMonitorBody := map[string]interface{}{
-		"agent_id":                   agentID,
+		"node_id":                    nodeID,
 		"name":                       "homepage",
 		"description":                description,
 		"type":                       "http-healthcheck",
 		"last_checked":               time.Now().UTC().Format(time.RFC3339),
 		"reporting_interval_seconds": 30,
 	}
-	registerMonitorPath := "/v1/agents/" + agentID + "/register-monitor"
+	registerMonitorPath := "/v1/nodes/" + nodeID + "/register-monitor"
 	registerMonitorResp := performJSONRequest(t, server, http.MethodPost, registerMonitorPath, registerMonitorBody, token)
 	if registerMonitorResp.Code != http.StatusOK {
 		t.Fatalf("register monitor status = %d, body = %s", registerMonitorResp.Code, registerMonitorResp.Body.String())
@@ -178,7 +178,7 @@ func seedCoreNoiseMonitor(t *testing.T, server *Server, monitorID string, confir
 	now := time.Now().UTC()
 	monitor := db.Monitor{
 		ID:                       monitorID,
-		AgentID:                  "agent-core-worker",
+		NodeID:                   "node-core-worker",
 		Name:                     monitorID,
 		Type:                     "http",
 		Lifecycle:                "active",
@@ -273,11 +273,11 @@ func assertIncidentEventCount(t *testing.T, server *Server, incidentID string, e
 	}
 }
 
-func assertFrontendResponseDoesNotExposeAgentSecrets(t *testing.T, body string, token string) {
+func assertFrontendResponseDoesNotExposeNodeSecrets(t *testing.T, body string, token string) {
 	t.Helper()
 
 	if strings.Contains(body, token) {
-		t.Fatalf("frontend response exposed agent token: %s", body)
+		t.Fatalf("frontend response exposed node token: %s", body)
 	}
 	if strings.Contains(body, `"token"`) {
 		t.Fatalf("frontend response exposed token field: %s", body)

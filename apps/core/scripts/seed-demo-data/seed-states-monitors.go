@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// agentMonitorSpec is a monitor reported by an agent on a showcase server.
-type agentMonitorSpec struct {
+// nodeMonitorSpec is a monitor reported by a node on a showcase server.
+type nodeMonitorSpec struct {
 	server, key, name, typ string
 	health                 string // up | degraded | down | stale | unknown
 	checks                 []check
@@ -76,7 +76,7 @@ func staleChecks(agoDays int) []check {
 	return out
 }
 
-var agentMonitorSpecs = []agentMonitorSpec{
+var nodeMonitorSpecs = []nodeMonitorSpec{
 	{server: "web-up", key: "site", name: "web-prod-01 Website", typ: "website", health: "up", runbook: "https://wiki.example.com/runbooks/website", checks: spike(steady(24, 60, 140, 200), 5, 2900)},
 	{server: "web-up", key: "tcp", name: "web-prod-01 TLS port", typ: "tcp", health: "up", checks: steady(12, 60, 18, 0)},
 	{server: "web-up", key: "nginx", name: "nginx container", typ: "docker-container", health: "up", checks: steady(12, 60, 9, 0)},
@@ -154,9 +154,9 @@ func maintenanceWindow(kind string, now time.Time) (*time.Time, *time.Time, stri
 	return nil, nil, ""
 }
 
-func baseMonitor(id, name, typ, agentID, health string, interval int, checks []check, now time.Time) db.Monitor {
+func baseMonitor(id, name, typ, nodeID, health string, interval int, checks []check, now time.Time) db.Monitor {
 	created := now.AddDate(0, 0, -60)
-	m := db.Monitor{ID: id, Type: typ, Name: name, AgentID: agentID, ReportingIntervalSeconds: interval, ComputedHealth: health, LastHealthComputation: ptrTime(now.Add(-time.Minute)),
+	m := db.Monitor{ID: id, Type: typ, Name: name, NodeID: nodeID, ReportingIntervalSeconds: interval, ComputedHealth: health, LastHealthComputation: ptrTime(now.Add(-time.Minute)),
 		Lifecycle: "active", Health: health, IncidentState: incidentState(health), LastSuccessfulReportAt: lastCheckAt(now, checks), CreatedAt: created, UpdatedAt: now}
 	if len(checks) == 0 {
 		m.CreatedAt, m.UpdatedAt = now.Add(-10*time.Minute), now.Add(-10*time.Minute)
@@ -165,7 +165,7 @@ func baseMonitor(id, name, typ, agentID, health string, interval int, checks []c
 	return m
 }
 
-func seedShowcaseMonitors(database *gorm.DB, agents map[string]db.Agent, now time.Time) ([]db.Monitor, error) {
+func seedShowcaseMonitors(database *gorm.DB, nodes map[string]db.Node, now time.Time) ([]db.Monitor, error) {
 	var created []db.Monitor
 	save := func(m db.Monitor, runner string, checks []check) error {
 		if err := database.Create(&m).Error; err != nil {
@@ -182,12 +182,12 @@ func seedShowcaseMonitors(database *gorm.DB, agents map[string]db.Agent, now tim
 		}
 		return showcaseRollups(database, m.ID, now, rollupFailures(m.ID, m.Health))
 	}
-	for _, spec := range agentMonitorSpecs {
-		agent := agents[spec.server]
-		m := baseMonitor("seed-state-monitor-"+spec.server+"-"+spec.key, spec.name, spec.typ, agent.ID, spec.health, showcaseIntervalSeconds, spec.checks, now)
+	for _, spec := range nodeMonitorSpecs {
+		node := nodes[spec.server]
+		m := baseMonitor("seed-state-monitor-"+spec.server+"-"+spec.key, spec.name, spec.typ, node.ID, spec.health, showcaseIntervalSeconds, spec.checks, now)
 		m.RunbookURL = spec.runbook
 		m.MaintenanceStartsAt, m.MaintenanceEndsAt, m.MaintenanceReason = maintenanceWindow(spec.maintenance, now)
-		if err := save(m, "agent", spec.checks); err != nil {
+		if err := save(m, "node", spec.checks); err != nil {
 			return nil, err
 		}
 	}
@@ -195,14 +195,14 @@ func seedShowcaseMonitors(database *gorm.DB, agents map[string]db.Agent, now tim
 		if !spec.removed {
 			continue
 		}
-		deleted := baseMonitor("seed-state-monitor-removed-"+spec.key, "old-worker-07 Worker", "pm2", showcaseAgentID(spec.key), "unknown", showcaseIntervalSeconds, nil, now)
+		deleted := baseMonitor("seed-state-monitor-removed-"+spec.key, "old-worker-07 Worker", "pm2", showcaseNodeID(spec.key), "unknown", showcaseIntervalSeconds, nil, now)
 		deleted.Lifecycle, deleted.DeletedAt = "deleted", now.AddDate(0, 0, -20)
 		if err := database.Create(&deleted).Error; err != nil {
 			return nil, err
 		}
 	}
 	for _, spec := range coreMonitorSpecs {
-		m := baseMonitor("seed-state-core-"+spec.key, spec.name, spec.kind, "seed-agent-core", spec.health, spec.intervalSec, spec.checks, now)
+		m := baseMonitor("seed-state-core-"+spec.key, spec.name, spec.kind, "seed-node-core", spec.health, spec.intervalSec, spec.checks, now)
 		m.RunbookURL = spec.runbook
 		m.MaintenanceStartsAt, m.MaintenanceEndsAt, m.MaintenanceReason = maintenanceWindow(spec.maintenance, now)
 		if spec.health == "stale" {
@@ -236,16 +236,16 @@ func seedShowcaseMonitors(database *gorm.DB, agents map[string]db.Agent, now tim
 			return nil, err
 		}
 	}
-	return created, seedAgentMonitorDefinitions(database, now)
+	return created, seedNodeMonitorDefinitions(database, now)
 }
 
-// seedAgentMonitorDefinitions covers the Agent monitor setup states: reporting and waiting.
-func seedAgentMonitorDefinitions(database *gorm.DB, now time.Time) error {
-	defs := []db.AgentMonitorDefinition{
-		{ID: "seed-state-def-disk", AgentID: showcaseAgentID("web-up"), Name: "Disk /", CheckType: "disk", Params: mustJSON(map[string]any{"path": "/", "max_used_percent": 90}), IntervalSeconds: 60, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -30)},
-		{ID: "seed-state-def-mem", AgentID: showcaseAgentID("api-degraded"), Name: "Memory", CheckType: "memory", Params: mustJSON(map[string]any{"max_used_percent": 90}), IntervalSeconds: 30, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -10)},
-		{ID: "seed-state-def-port", AgentID: showcaseAgentID("db-down"), Name: "Postgres port", CheckType: "port", Params: mustJSON(map[string]any{"host": "127.0.0.1", "port": 5432}), IntervalSeconds: 30, FailAfter: 2, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -45)},
-		{ID: "seed-state-def-proc", AgentID: showcaseAgentID("web-up"), Name: "nginx process", CheckType: "process", Params: mustJSON(map[string]any{"name": "nginx", "min_count": 1}), IntervalSeconds: 30, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.Add(-4 * time.Minute)},
+// seedNodeMonitorDefinitions covers the Node monitor setup states: reporting and waiting.
+func seedNodeMonitorDefinitions(database *gorm.DB, now time.Time) error {
+	defs := []db.NodeMonitorDefinition{
+		{ID: "seed-state-def-disk", NodeID: showcaseNodeID("web-up"), Name: "Disk /", CheckType: "disk", Params: mustJSON(map[string]any{"path": "/", "max_used_percent": 90}), IntervalSeconds: 60, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -30)},
+		{ID: "seed-state-def-mem", NodeID: showcaseNodeID("api-degraded"), Name: "Memory", CheckType: "memory", Params: mustJSON(map[string]any{"max_used_percent": 90}), IntervalSeconds: 30, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -10)},
+		{ID: "seed-state-def-port", NodeID: showcaseNodeID("db-down"), Name: "Postgres port", CheckType: "port", Params: mustJSON(map[string]any{"host": "127.0.0.1", "port": 5432}), IntervalSeconds: 30, FailAfter: 2, CreatedBy: "admin", CreatedAt: now.AddDate(0, 0, -45)},
+		{ID: "seed-state-def-proc", NodeID: showcaseNodeID("web-up"), Name: "nginx process", CheckType: "process", Params: mustJSON(map[string]any{"name": "nginx", "min_count": 1}), IntervalSeconds: 30, FailAfter: 3, CreatedBy: "admin", CreatedAt: now.Add(-4 * time.Minute)},
 	}
 	return database.Create(&defs).Error
 }

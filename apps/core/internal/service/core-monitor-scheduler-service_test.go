@@ -15,8 +15,8 @@ import (
 func TestClaimDueCoreMonitorConfigsClaimsDueConfigOnce(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-due", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-due", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-due",
 		Kind:            "http",
@@ -59,8 +59,8 @@ func TestClaimDueCoreMonitorConfigsClaimsDueConfigOnce(t *testing.T) {
 func TestClaimDueCoreMonitorConfigsRecoversOverdueUnleasedConfig(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-overdue", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-overdue", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-overdue",
 		Kind:            "http",
@@ -87,8 +87,8 @@ func TestClaimDueCoreMonitorConfigsReclaimsExpiredLease(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
 	expiredAt := now.Add(-time.Second)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-expired", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-expired", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-expired",
 		Kind:            "http",
@@ -116,9 +116,9 @@ func TestClaimDueCoreMonitorConfigsReclaimsExpiredLease(t *testing.T) {
 func TestClaimDueCoreMonitorConfigsSkipsPausedAndInactiveMonitors(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
 
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-paused", "agent-core", "active")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-paused", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-paused",
 		Kind:            "http",
@@ -128,7 +128,7 @@ func TestClaimDueCoreMonitorConfigsSkipsPausedAndInactiveMonitors(t *testing.T) 
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-disabled", "agent-core", "disabled")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-disabled", "node-core", "disabled")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-disabled",
 		Kind:            "http",
@@ -153,8 +153,8 @@ func TestClaimDueCoreMonitorConfigsSkipsPausedAndInactiveMonitors(t *testing.T) 
 func TestClaimDueCoreMonitorConfigsClaimsResumedMonitor(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-resumed", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-resumed", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-resumed",
 		Kind:            "http",
@@ -198,8 +198,8 @@ func TestClaimDueCoreMonitorConfigsClaimsResumedMonitor(t *testing.T) {
 func TestClaimDueCoreMonitorConfigsSkipsHeartbeatMonitors(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-heartbeat", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-heartbeat", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-heartbeat",
 		Kind:            "heartbeat",
@@ -225,8 +225,8 @@ func TestCompleteCoreMonitorCheckSchedulesNextRunAndClearsLease(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
 	finishedAt := now.Add(15 * time.Second)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-complete", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-complete", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-complete",
 		Kind:            "http",
@@ -271,8 +271,8 @@ func TestCompleteCoreMonitorCheckRejectsExpiredLease(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
 	expiredAt := now.Add(-time.Second)
-	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
-	insertCoreMonitorSchedulerMonitor(t, database, "monitor-expired-complete", "agent-core", "active")
+	insertCoreMonitorSchedulerNode(t, database, "node-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-expired-complete", "node-core", "active")
 	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-expired-complete",
 		Kind:            "http",
@@ -307,29 +307,29 @@ func openCoreMonitorSchedulerTestDatabase(t *testing.T) *gorm.DB {
 	return database
 }
 
-func insertCoreMonitorSchedulerAgent(t *testing.T, database *gorm.DB, agentID string) {
+func insertCoreMonitorSchedulerNode(t *testing.T, database *gorm.DB, nodeID string) {
 	t.Helper()
 
-	agent := db.Agent{
-		ID:        agentID,
-		MachineId: agentID + "-machine",
-		Name:      agentID,
+	node := db.Node{
+		ID:        nodeID,
+		MachineId: nodeID + "-machine",
+		Name:      nodeID,
 		OS:        "linux",
 		Arch:      "arm64",
-		Token:     agentID + "-token",
+		Token:     nodeID + "-token",
 		LastSeen:  time.Now(),
 	}
-	if err := database.Create(&agent).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+	if err := database.Create(&node).Error; err != nil {
+		t.Fatalf("create node: %v", err)
 	}
 }
 
-func insertCoreMonitorSchedulerMonitor(t *testing.T, database *gorm.DB, monitorID string, agentID string, lifecycle string) {
+func insertCoreMonitorSchedulerMonitor(t *testing.T, database *gorm.DB, monitorID string, nodeID string, lifecycle string) {
 	t.Helper()
 
 	monitor := db.Monitor{
 		ID:                       monitorID,
-		AgentID:                  agentID,
+		NodeID:                   nodeID,
 		Name:                     monitorID,
 		Type:                     "http",
 		Lifecycle:                lifecycle,

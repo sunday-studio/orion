@@ -115,14 +115,14 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 	record := CoreManagedMonitorRecord{}
 
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		owner, err := NewIncidentService(tx, s.logger, nil).ensureCoreOwnerAgent("agent-core-worker")
+		owner, err := NewIncidentService(tx, s.logger, nil).ensureCoreOwnerNode("node-core-worker")
 		if err != nil {
 			return err
 		}
 
 		monitor := db.Monitor{
 			ID:                       utils.GenerateID("monitor"),
-			AgentID:                  owner.ID,
+			NodeID:                   owner.ID,
 			Description:              req.Description,
 			Type:                     monitorType,
 			Name:                     name,

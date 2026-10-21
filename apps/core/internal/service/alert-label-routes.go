@@ -51,8 +51,8 @@ func DecodeMatchers(raw string) []LabelMatcher {
 	return out
 }
 
-func eventLabels(agent db.Agent, monitor db.Monitor, severity, eventType string) []string {
-	labels := append([]string{}, DecodeAgentLabels(agent.Labels)...)
+func eventLabels(node db.Node, monitor db.Monitor, severity, eventType string) []string {
+	labels := append([]string{}, DecodeNodeLabels(node.Labels)...)
 	add := func(k, v string) {
 		if strings.TrimSpace(v) != "" {
 			labels = append(labels, k+"="+v)
@@ -61,7 +61,7 @@ func eventLabels(agent db.Agent, monitor db.Monitor, severity, eventType string)
 	add("severity", severity)
 	add("event", eventType)
 	add("monitor_type", monitor.Type)
-	add("server", agent.Name)
+	add("server", node.Name)
 	add("monitor", monitor.Name)
 	return labels
 }

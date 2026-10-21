@@ -181,21 +181,21 @@ func TestAlertServiceSuppressesRetiredDueDeliveries(t *testing.T) {
 func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
-	if err := database.Create(&db.Agent{
-		ID:        "agent-1",
+	if err := database.Create(&db.Node{
+		ID:        "node-1",
 		MachineId: "machine-1",
 		Name:      "Edge Server",
 		OS:        "linux",
 		Arch:      "amd64",
 		Token:     "token-1",
 	}).Error; err != nil {
-		t.Fatalf("create agent: %v", err)
+		t.Fatalf("create node: %v", err)
 	}
 	if err := database.Create(&db.Monitor{
 		ID:             "monitor-incident-1",
 		Type:           "http",
 		Name:           "Homepage",
-		AgentID:        "agent-1",
+		NodeID:         "node-1",
 		Lifecycle:      "active",
 		Health:         "down",
 		ComputedHealth: "down",
@@ -232,8 +232,8 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 	if payload.Incident.ID != "incident-1" || payload.Incident.Title != "homepage is down" {
 		t.Fatalf("payload incident = %+v, want incident context", payload.Incident)
 	}
-	if payload.Agent == nil || payload.Agent.Name != "Edge Server" {
-		t.Fatalf("payload agent = %+v, want Edge Server", payload.Agent)
+	if payload.Node == nil || payload.Node.Name != "Edge Server" {
+		t.Fatalf("payload node = %+v, want Edge Server", payload.Node)
 	}
 	if payload.Monitor == nil || payload.Monitor.Name != "Homepage" || payload.Monitor.Type != "http" {
 		t.Fatalf("payload monitor = %+v, want Homepage http", payload.Monitor)
@@ -361,7 +361,7 @@ func createTestIncident(t *testing.T, database *gorm.DB, incidentID string) {
 		Status:             "open",
 		Severity:           "high",
 		Title:              "homepage is down",
-		AgentID:            "agent-1",
+		NodeID:             "node-1",
 		MonitorID:          "monitor-" + incidentID,
 		OpenedAt:           now,
 		LastEventAt:        now,

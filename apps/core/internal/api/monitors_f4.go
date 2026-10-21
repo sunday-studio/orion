@@ -25,7 +25,7 @@ func (s *Server) enrichMonitorRows(rows []MonitorResponse, monitors []db.Monitor
 	for _, c := range cfgRows {
 		configs[c.MonitorID] = c
 	}
-	agents := s.monitorAgentsByID(monitors)
+	nodes := s.monitorNodesByID(monitors)
 	recent := s.recentMonitorChecks(ids)
 	for i := range rows {
 		m := monitors[i]
@@ -40,7 +40,7 @@ func (s *Server) enrichMonitorRows(rows []MonitorResponse, monitors []db.Monitor
 				r.IntervalSeconds = cfg.IntervalSeconds
 			}
 		}
-		r.Target = monitorTargetLabel(m, cfg, isCore, agents[m.AgentID].Name)
+		r.Target = monitorTargetLabel(m, cfg, isCore, nodes[m.NodeID].Name)
 		checks := recent[m.ID]
 		r.RecentChecks = checkStates(checks)
 		r.Maintenance = maintenanceInfo(m, time.Now().UTC())
@@ -101,12 +101,12 @@ func failureFromChecks(newestFirst []recentCheck) (since *time.Time, detail stri
 	return since, detail
 }
 
-func monitorTargetLabel(m db.Monitor, cfg db.CoreMonitorConfig, isCore bool, agentName string) string {
+func monitorTargetLabel(m db.Monitor, cfg db.CoreMonitorConfig, isCore bool, nodeName string) string {
 	if !isCore {
-		if agentName != "" {
-			return "Agent, " + m.Type + " on " + agentName
+		if nodeName != "" {
+			return "Node, " + m.Type + " on " + nodeName
 		}
-		return "Agent, " + m.Type
+		return "Node, " + m.Type
 	}
 	switch cfg.Kind {
 	case "heartbeat":

@@ -13,13 +13,13 @@ names the owner, risk, and follow-up ticket.
 
 | Area | Blocking gate | Evidence | Local command | CI coverage |
 | --- | --- | --- | --- | --- |
-| Server daemon | Server tests pass for the changed branch. | Test output or CI job URL. | `make agent-test` | `Server tests` |
+| Server daemon | Server tests pass for the changed branch. | Test output or CI job URL. | `make node-test` | `Server tests` |
 | Core API and worker | Core tests pass and Core binaries build. | Test/build output or CI job URL. | `make core-test && make core-build && make core-worker-build` | `Core tests` |
 | Console | Generated SDK, TypeScript, and Vite build pass. | Build output or CI job URL. | `make console-build` | `Console build` |
 | Browser smoke | Console browser smoke passes when Console, Core API, or generated API client changes. | Playwright output or CI job URL. | `cd apps/console && pnpm run test:e2e` | `Console E2E` |
 | Generated contracts | OpenAPI and generated Console SDK have no drift after regeneration. | Clean `git diff` output. | `make generated-contracts-check` | `Generated contracts` |
 | Deployment assets | Shell scripts parse and Docker Compose renders with required secrets. | Command output or CI job URL. | `make repository-smoke` | `Repository smoke` |
-| Release packaging | Core image and Server binary workflows remain manual, versioned, and same-tag compatible. | Reviewer checklist and workflow diff. | Inspect `.github/workflows/core-image.yml` and `.github/workflows/agent-binaries.yml` | Manual PR review |
+| Release packaging | Core image and Server binary workflows remain manual, versioned, and same-tag compatible. | Reviewer checklist and workflow diff. | Inspect `.github/workflows/core-image.yml` and `.github/workflows/node-binaries.yml` | Manual PR review |
 | Documentation | Deployment, release, and PR checklist changes stay consistent with supported self-hosted flow. | PR checklist and changed docs. | Inspect `docs/deployment/` and `README.md` links | Manual PR review |
 
 Run the local release gate before opening a release-candidate PR. This includes Server tests, Core
