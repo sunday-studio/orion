@@ -8,6 +8,7 @@ The supported self-hosted setup is:
 
 - [First run checklist](first-run-checklist.md)
 - [Core Docker deployment](core-docker.md)
+- [Running the Agent as a container](agent-container.md)
 - [Kubernetes position](kubernetes-position.md)
 - [Server install and upgrade](agent-install-upgrade.md)
 - [Agent configuration reference](agent-config-reference.md)
