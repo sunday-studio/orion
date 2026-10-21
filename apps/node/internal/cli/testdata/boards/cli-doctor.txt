@@ -14,13 +14,13 @@ $ orion-node doctor
  ╰────────────────────────────────────────────────────────────────────────────────────╯
  ╭ Discovery ──────────────────────────────────────────────────────────────────── 1 ! ╮
  │ ✓ Last scan                    14:30 · found 7 things                              │
- │ ! Docker is not readable by the node                                              │
+ │ ! Docker is not readable by the node                                               │
  │      │ Containers are not scanned, so none can be suggested.                       │
  │      │ Fix  sudo usermod -aG docker orion   (this access is powerful)              │
  ╰────────────────────────────────────────────────────────────────────────────────────╯
  ╭ Logs ───────────────────────────────────────────────────────────────────────── 1 ! ╮
  │ ! Log key for nginx is missing                                                     │
- │      │ Fix  orion-node setup --logs nginx                                         │
+ │      │ Fix  orion-node setup --logs nginx                                          │
  │ ⠹ Spool writable…                                                                  │
  ╰────────────────────────────────────────────────────────────────────────────────────╯
 

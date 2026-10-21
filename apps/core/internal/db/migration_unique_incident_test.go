@@ -67,10 +67,11 @@ func TestMaintenanceMigrationGivesLegacyMaintenanceAnEnd(t *testing.T) {
 	}
 	database.Create(&Node{ID: "legacy", MachineId: "m1", Name: "legacy", OS: "linux", Arch: "amd64", Token: "t1", MaintenanceMode: true})
 	database.Create(&Node{ID: "idle", MachineId: "m2", Name: "idle", OS: "linux", Arch: "amd64", Token: "t2"})
-	sql, _ := os.ReadFile("migrations/000034_node_maintenance_until.up.sql")
+	sql, _ := os.ReadFile("migrations/000034_agent_maintenance_until.up.sql")
 	// Re-run only the backfill UPDATE (the ALTER already ran with Migrate).
-	update := string(sql)[strings.Index(string(sql), "UPDATE nodes"):]
-	if err := database.Exec(update).Error; err != nil {
+	// Migration 34 predates the rename, so its statement names the old table.
+	update := string(sql)[strings.Index(string(sql), "UPDATE agents"):]
+	if err := database.Exec(strings.ReplaceAll(update, "agent", "node")).Error; err != nil {
 		t.Fatal(err)
 	}
 	var legacy, idle Node

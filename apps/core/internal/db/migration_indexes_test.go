@@ -2,6 +2,7 @@ package db
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,8 +33,9 @@ func TestActiveMonitorUniquenessMigrationDedupesAndEnforces(t *testing.T) {
 	database.Exec("PRAGMA foreign_keys=OFF")
 	database.Exec("INSERT INTO alert_delivery_attempts (id, alert_delivery_id, attempt_number, status, stage, started_at) VALUES ('orphan','gone',1,'sent','transport',CURRENT_TIMESTAMP)")
 
+	// Migration 33 was written before the rename; run its statements against the renamed schema.
 	sql, _ := os.ReadFile("migrations/000033_indexes_and_active_monitor_uniqueness.up.sql")
-	if err := database.Exec(string(sql)).Error; err != nil {
+	if err := database.Exec(strings.ReplaceAll(string(sql), "agent", "node")).Error; err != nil {
 		t.Fatalf("apply migration: %v", err)
 	}
 
