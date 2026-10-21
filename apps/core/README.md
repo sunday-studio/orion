@@ -22,6 +22,8 @@ Useful environment variables:
 
 - `ORION_DATA_DIR`: SQLite data directory.
 - `ORION_PORT`: HTTP listen port.
+- `ORION_LISTEN_HOST`: address to bind (default: every interface; for example `127.0.0.1` for a local
+  Core). Without authentication Core always binds to loopback.
 - `ORION_CORS_ORIGINS`: comma-separated browser origins for development.
 - `ORION_WORKER_ID`: Core monitor worker diagnostics identity.
 - `ORION_WORKER_HEARTBEAT_SECONDS`: worker heartbeat interval.

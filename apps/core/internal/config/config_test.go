@@ -350,3 +350,24 @@ func TestLoadReadsAllowInsecureNoAuth(t *testing.T) {
 		t.Fatal("AllowInsecureNoAuth = false, want true from env")
 	}
 }
+
+func TestListenAddressBindsLoopbackWithoutAuthAndHonoursTheHostWithAuth(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{"no auth ignores the host", Config{Port: "8999", ListenHost: "0.0.0.0"}, "127.0.0.1:8999"},
+		{"auth, default host", Config{Port: "8999", FrontendAuthOn: true}, ":8999"},
+		{"auth, loopback host", Config{Port: "8999", FrontendAuthOn: true, ListenHost: "127.0.0.1"}, "127.0.0.1:8999"},
+	}
+	for _, c := range cases {
+		if got := c.cfg.ListenAddress(); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+	t.Setenv("ORION_LISTEN_HOST", "127.0.0.1")
+	if cfg := Load(); cfg.ListenHost != "127.0.0.1" {
+		t.Errorf("ORION_LISTEN_HOST not read: %q", cfg.ListenHost)
+	}
+}

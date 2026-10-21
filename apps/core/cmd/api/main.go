@@ -86,9 +86,8 @@ func main() {
 	selfMonitor := service.NewSelfMonitorService(database, logger, cfg, server.RuntimeDiagnostics())
 	go selfMonitor.Run(ctx)
 
-	listenAddr := ":" + cfg.Port
+	listenAddr := cfg.ListenAddress()
 	if cfg.RunsWithoutAuth() {
-		listenAddr = "127.0.0.1:" + cfg.Port
 		logger.Warn("INSECURE: binding to loopback only because admin authentication is disabled", "address", listenAddr)
 	}
 
