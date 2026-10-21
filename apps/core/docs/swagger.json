@@ -2901,6 +2901,59 @@
                 }
             }
         },
+        "/v1/agents/{id}/app-resources": {
+            "get": {
+                "description": "The latest passive measurements the agent reported: CPU, memory, disk and network per process group, systemd unit and container, plus storage sizes for tracked paths, Docker volumes, images and build cache. app_resources is null until the agent has reported some. Core keeps only the latest report; fields the agent could not measure are absent.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "What apps cost on a server",
+                "operationId": "getAgentAppResources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "app_resources": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.AgentAppResourcesView"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{id}/discovery": {
             "get": {
                 "description": "The latest read-only scan the agent reported: things that could be monitored, which are already monitored, which are new, and kinds that could not be scanned with the exact fix. discovery is null until the agent has reported one.",
@@ -23405,6 +23458,29 @@
                 }
             }
         },
+        "orion_core_internal_service.AgentAppResourcesView": {
+            "type": "object",
+            "properties": {
+                "interval_seconds": {
+                    "type": "number"
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reported_at": {
+                    "type": "string"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AppResourceSeries"
+                    }
+                }
+            }
+        },
         "orion_core_internal_service.AgentDiscoveryInput": {
             "type": "object",
             "properties": {
@@ -23619,6 +23695,14 @@
                 "agent_version": {
                     "type": "string"
                 },
+                "app_resources": {
+                    "description": "AppResources is the agent's passive per-app measurements; Core stores the latest.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/orion_core_internal_service.AppResourcesInput"
+                        }
+                    ]
+                },
                 "config_summary": {},
                 "cpu": {
                     "$ref": "#/definitions/orion_core_internal_db.CPUStats"
@@ -23799,6 +23883,75 @@
                 },
                 "severity": {
                     "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AppResourceSeries": {
+            "type": "object",
+            "properties": {
+                "cpu_percent": {
+                    "type": "number"
+                },
+                "io_read_bytes_per_sec": {
+                    "type": "number"
+                },
+                "io_write_bytes_per_sec": {
+                    "type": "number"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "process",
+                        "unit",
+                        "container",
+                        "path",
+                        "volume",
+                        "docker"
+                    ]
+                },
+                "memory_bytes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "net_rx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "net_tx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "pids": {
+                    "type": "integer"
+                },
+                "storage_bytes": {
+                    "type": "integer"
+                },
+                "storage_capped": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "orion_core_internal_service.AppResourcesInput": {
+            "type": "object",
+            "properties": {
+                "interval_seconds": {
+                    "type": "number"
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AppResourceSeries"
+                    }
                 }
             }
         },

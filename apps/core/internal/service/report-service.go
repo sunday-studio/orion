@@ -22,6 +22,8 @@ type AgentReportPayload struct {
 	Memory        db.MemoryStats `json:"memory"`
 	Disk          db.DiskStats   `json:"disk"`
 	Location      db.GeoLocation `json:"location,omitempty"`
+	// AppResources is the agent's passive per-app measurements; Core stores the latest.
+	AppResources *AppResourcesInput `json:"app_resources,omitempty"`
 }
 
 type MonitorReportPayload struct {

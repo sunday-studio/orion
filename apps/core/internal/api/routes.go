@@ -191,6 +191,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
 			frontend.GET("/agents/:id/discovery", s.getAgentDiscovery)
+			frontend.GET("/agents/:id/app-resources", s.getAgentAppResources)
 			frontend.GET("/agents/:id/discovery/requests", s.listAgentDiscoveryRequests)
 			frontend.POST("/agents/:agent_id/discovery/requests", s.createAgentDiscoveryRequest)
 			frontend.DELETE("/agents/:id/discovery/requests/:request_id", s.cancelAgentDiscoveryRequest)

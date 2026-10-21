@@ -83,6 +83,11 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 		return
 	}
 
+	// App measurements are a bonus on the report: failing to store them never fails it.
+	if err := s.agentService.StoreAppResources(agentID.(string), payloadData.AppResources); err != nil {
+		s.logger.Warn("Could not store app resources", "error", err, "agent_id", agentID)
+	}
+
 	// Update agent last-seen timestamp
 	if err := s.agentService.UpdateLastSeen(agentID.(string)); err != nil {
 		s.logger.Error("Failed to update agent last-seen", "error", err, "agent_id", agentID)
