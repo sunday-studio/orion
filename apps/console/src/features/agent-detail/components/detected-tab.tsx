@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Button,
@@ -21,7 +21,7 @@ import {
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 import { bytes } from "../app-resources-model";
-import { canAccept, groupItems, kindTitle } from "../detected-model";
+import { canAccept, groupItems, isKindProblem, kindTitle } from "../detected-model";
 import { useDiscoveryRequest } from "./detected-actions";
 import { DetectedAdded } from "./detected-added";
 import { DetectedBlocked } from "./detected-blocked";
@@ -54,6 +54,7 @@ export const DetectedTab = ({
   const discovery = query.data?.discovery;
   const items = useMemo(() => discovery?.items ?? [], [discovery]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const seen = useRef(new Set<string>());
   const [reviewing, setReviewing] = useState(false);
   const [dismissingAll, setDismissingAll] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -68,7 +69,13 @@ export const DetectedTab = ({
         setReviewing(false);
         const skipped = result.skipped?.length ?? 0;
         toast.add({
-          title: `Requested ${result.created?.length ?? 0} monitors${skipped > 0 ? `, ${skipped} skipped` : ""}`,
+          title: [
+            `Requested ${result.created?.length ?? 0} monitors`,
+            result.tracking ? "tracking storage" : "",
+            skipped > 0 ? `${skipped} skipped` : "",
+          ]
+            .filter(Boolean)
+            .join(", "),
         });
       },
       onError: (failure) => toast.add({ title: (failure as Error).message || "Unable to accept" }),
@@ -77,13 +84,16 @@ export const DetectedTab = ({
 
   // High-confidence suggestions are ticked by default.
   useEffect(() => {
-    setSelected(
-      new Set(
-        items
-          .filter((item) => canAccept(item) && item.confidence === "high")
-          .map((item) => item.id ?? ""),
-      ),
-    );
+    setSelected((current) => {
+      const ids = new Set(items.map((item) => item.id ?? ""));
+      const kept = [...current].filter((id) => ids.has(id));
+      const fresh = items
+        .filter((item) => canAccept(item) && item.confidence === "high")
+        .map((item) => item.id ?? "")
+        .filter((id) => !seen.current.has(id));
+      items.forEach((item) => seen.current.add(item.id ?? ""));
+      return new Set([...kept, ...fresh]);
+    });
   }, [items]);
 
   // What is waiting for the agent, so rows and switches show Pending instead of a result.
@@ -165,9 +175,7 @@ export const DetectedTab = ({
       />
     );
 
-  const problems = (discovery.kinds ?? []).filter(
-    (kind) => kind.state && !["ok", "off", "disabled", "empty", "none"].includes(kind.state),
-  );
+  const problems = (discovery.kinds ?? []).filter(isKindProblem);
   const scanningOff = discovery.enabled === false;
 
   return (

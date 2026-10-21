@@ -11,7 +11,7 @@ const num = (value?: number) =>
 export const bytes = (value?: number) => {
   const v = num(value);
   if (v === undefined) return undefined;
-  if (v >= 1024 ** 3) return `${(v / 1024 ** 3).toFixed(v >= 10 * 1024 ** 3 ? 1 : 1)} GB`;
+  if (v >= 1024 ** 3) return `${(v / 1024 ** 3).toFixed(1)} GB`;
   if (v >= 1024 ** 2) return `${Math.round(v / 1024 ** 2)} MB`;
   if (v >= 1024) return `${Math.round(v / 1024)} KB`;
   return `${Math.round(v)} B`;

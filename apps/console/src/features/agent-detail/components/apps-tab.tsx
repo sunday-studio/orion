@@ -17,6 +17,7 @@ import {
 import { useGetAgentAppResources, useGetAgentDiscovery } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 import { type Sort, isStale, minutesAgo, partition } from "../app-resources-model";
+import { isKindProblem } from "../detected-model";
 import { useDiscoveryRequest } from "./detected-actions";
 import { DockerDisk, DockerVolumes, TopApps, TrackedPaths } from "./apps-lists";
 import { TrackStorageDialog } from "./track-storage-dialog";
@@ -129,8 +130,7 @@ export const AppsTab = ({
 
   const stale = isStale(data.reported_at, data.interval_seconds);
   const dockerBlocked = (discovery?.kinds ?? []).find(
-    (kind) =>
-      kind.kind === "container" && kind.state && !["ok", "off", "disabled"].includes(kind.state),
+    (kind) => kind.kind === "container" && isKindProblem(kind),
   );
   const notices = [
     stale && (

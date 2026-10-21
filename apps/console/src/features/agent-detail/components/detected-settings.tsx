@@ -1,6 +1,6 @@
 import { FieldPanel, RaisedCard, StatusBadge, Switch } from "@/design-system";
 import type { ServiceAgentDiscoveryKind } from "@/orion-sdk";
-import { kindTitle } from "../detected-model";
+import { kindScan, kindTitle } from "../detected-model";
 
 const DETAIL: Record<string, string> = {
   service: "systemd units",
@@ -12,15 +12,14 @@ const DETAIL: Record<string, string> = {
   storage: "Data directories",
 };
 
-const isOff = (kind: ServiceAgentDiscoveryKind) =>
-  kind.state === "off" || kind.state === "disabled";
+const isOff = (kind: ServiceAgentDiscoveryKind) => kindScan(kind) === "off";
 
 const stateBadge = (kind: ServiceAgentDiscoveryKind) => {
-  if (isOff(kind)) return { tone: "stale" as const, text: "Not scanned" };
-  if (kind.state === "ok" || !kind.state) return { tone: "up" as const, text: "Scanned" };
-  if (kind.state === "empty" || kind.state === "none")
-    return { tone: "unknown" as const, text: "Nothing to scan" };
-  return { tone: "degraded" as const, text: "Limited" };
+  const scan = kindScan(kind);
+  if (scan === "off") return { tone: "stale" as const, text: "Not scanned" };
+  if (scan === "absent") return { tone: "unknown" as const, text: "Nothing to scan" };
+  if (scan === "problem") return { tone: "degraded" as const, text: "Limited" };
+  return { tone: "up" as const, text: "Scanned" };
 };
 
 const Row = ({ children }: { children: React.ReactNode }) => (
