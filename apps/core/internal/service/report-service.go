@@ -236,17 +236,6 @@ func (s *ReportService) GetNodeReportsById(nodeID string, limit int, offset int)
 	return reports, nil
 }
 
-func (s *ReportService) GetNodeReportCountById(nodeID string) (int64, error) {
-	var count int64
-
-	if err := s.db.Model(&db.NodeReport{}).Where("node_id = ?", nodeID).Count(&count).Error; err != nil {
-		s.logger.Error("Failed to count reports", "node_id", nodeID, "error", err)
-		return 0, err
-	}
-
-	return count, nil
-}
-
 func (s *ReportService) GetMonitorReports(monitorID string, limit int, offset int) ([]db.MonitorReport, error) {
 	var reports []db.MonitorReport
 

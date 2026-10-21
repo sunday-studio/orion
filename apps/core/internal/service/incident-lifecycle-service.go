@@ -66,10 +66,6 @@ func (s *IncidentService) ResolveIncident(incidentID string, metadata IncidentLi
 	return incident, nil
 }
 
-func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Time, note string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
-	return s.CoverIncidentBy(incidentID, coveredUntil, note, "", metadata)
-}
-
 // CoverIncidentBy covers an incident because another incident already explains it. A covering
 // incident must exist, differ from the covered one, and must not itself be covered by it
 // (directly or through a chain), so coverage never forms a cycle.

@@ -7,7 +7,7 @@ Date: 2026-05-27
 
 ## Context
 
-Status page subscriptions need confirmation, preference, unsubscribe, and fan-out emails. Orion internal alerting is moving to generic webhooks only, so public subscriber mail has a separate trust boundary: it sends customer-facing status updates and must not expose internal alert rules, operator destinations, or webhook secrets.
+Status page subscriptions need confirmation, preference, unsubscribe, and fan-out emails. Internal alerting uses webhooks and confirmed email recipients, so public subscriber mail has a separate trust boundary: it sends customer-facing status updates and must not expose internal alert rules, operator destinations, or webhook secrets.
 
 ## Decision
 

@@ -102,14 +102,6 @@ var nodeMonitorSpecs = []nodeMonitorSpec{
 	{server: "token-revoked", key: "app", name: "Legacy app health", typ: "http-healthcheck", health: "up", checks: steady(12, 60, 260, 200)},
 }
 
-func upHealthCfg(kind string, extra map[string]any) map[string]any {
-	cfg := map[string]any{"url": "https://" + kind + ".example.com/health", "method": "GET", "expected_status": 200}
-	for k, v := range extra {
-		cfg[k] = v
-	}
-	return cfg
-}
-
 var coreMonitorSpecs = []coreMonitorSpec{
 	{key: "http-up", name: "Marketing site", kind: "http", config: map[string]any{"url": "https://www.example.com/", "method": "GET", "expected_status": 200}, intervalSec: 60, timeoutSec: 10, health: "up", runbook: "https://wiki.example.com/runbooks/marketing", checks: spike(steady(24, 60, 210, 200), 3, 3400)},
 	{key: "http-down", name: "Checkout API", kind: "http", config: map[string]any{"url": "https://api.example.com/v1/checkout/health", "method": "GET", "expected_status": 200}, intervalSec: 60, timeoutSec: 10, health: "down", runbook: "https://wiki.example.com/runbooks/checkout", checks: append(timeouts(downSince(4, 503, ""), 1, 2), steady(20, 60, 190, 200)...)},
