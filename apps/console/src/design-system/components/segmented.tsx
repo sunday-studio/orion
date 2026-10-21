@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { useId } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 
 /** Spring used for shared-layout moves: smooth, no bounce (see docs/web/motion.md). */
@@ -51,9 +51,26 @@ export const Segmented = ({
    */
   surface?: "page" | "card" | "field";
 }) => {
-  const layoutId = useId();
+  const reduce = useReducedMotion();
+  const tray = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ x: number; width: number }>();
+  // The thumb only moves and resizes horizontally: it is measured from the active button.
+  useLayoutEffect(() => {
+    const node = tray.current;
+    if (!node) return;
+    const measure = () => {
+      const active = node.querySelector<HTMLElement>("[data-active='true']");
+      if (active) setThumb({ x: active.offsetLeft, width: active.offsetWidth });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    node.querySelectorAll("button").forEach((button) => observer.observe(button));
+    return () => observer.disconnect();
+  }, [value, options]);
   return (
     <div
+      ref={tray}
       role={role}
       aria-label={ariaLabel}
       className={cn(
@@ -64,12 +81,22 @@ export const Segmented = ({
         className,
       )}
     >
+      {thumb && (
+        <motion.span
+          aria-hidden
+          initial={false}
+          animate={{ x: thumb.x, width: thumb.width }}
+          transition={reduce ? { duration: 0 } : layoutSpring}
+          className="pointer-events-none absolute bottom-[3px] left-0 top-[3px] rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.07)]"
+        />
+      )}
       {options.map((option) => {
         const active = option.value === value;
         return (
           <button
             key={option.value}
             type="button"
+            data-active={active}
             role={role === "radiogroup" ? "radio" : undefined}
             aria-checked={role === "radiogroup" ? active : undefined}
             aria-pressed={role === "group" ? active : undefined}
@@ -82,7 +109,6 @@ export const Segmented = ({
               active ? "text-ink" : "text-mid hover:text-ink",
             )}
           >
-            {active && <SegmentThumb layoutId={layoutId} />}
             <span className="relative">{option.label}</span>
           </button>
         );
