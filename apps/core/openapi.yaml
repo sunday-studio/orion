@@ -61,6 +61,15 @@ definitions:
     required:
     - name
     type: object
+  internal_api.AcceptDiscoveredRequest:
+    properties:
+      item_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - item_ids
+    type: object
   internal_api.AgentConfigSummaryResponse:
     properties:
       monitor_count:
@@ -101,12 +110,16 @@ definitions:
     properties:
       check_type:
         description: 'CheckType: disk (params path, threshold_percent), memory (threshold_percent),
-          process (process_name), port (port).'
+          process (process_name), port (port), systemd (unit), docker (container),
+          pm2 (app).'
         enum:
         - disk
         - memory
         - process
         - port
+        - systemd
+        - docker
+        - pm2
         type: string
       fail_after:
         type: integer
@@ -127,8 +140,16 @@ definitions:
         type: string
       created_at:
         type: string
+      delivered_at:
+        description: DeliveredAt is when the agent first fetched this definition (Requested
+          becomes Applied).
+        type: string
       fail_after:
         type: integer
+      failure_reason:
+        description: FailureReason is why the agent could not run this check, in its
+          own words (state failed).
+        type: string
       first_report_at:
         type: string
       id:
@@ -147,6 +168,7 @@ definitions:
           reported under this name, then reporting.
         enum:
         - waiting
+        - failed
         - reporting
         type: string
     type: object
@@ -1091,6 +1113,30 @@ definitions:
     required:
     - severity
     - title
+    type: object
+  internal_api.DefinitionResultsRequest:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.DefinitionResult'
+        type: array
+    required:
+    - results
+    type: object
+  internal_api.DiscoveryRequestResult:
+    properties:
+      result:
+        description: Result is the agent's own words (a reason when it failed), shown
+          verbatim in the Console.
+        type: string
+      status:
+        enum:
+        - applied
+        - failed
+        - unsupported
+        type: string
+    required:
+    - status
     type: object
   internal_api.DisplayProfile:
     properties:
@@ -4502,8 +4548,47 @@ definitions:
       used_percent:
         type: number
     type: object
+  orion_core_internal_service.AcceptResult:
+    properties:
+      created:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AcceptedItem'
+        type: array
+      skipped:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.AcceptSkip'
+        type: array
+      tracking:
+        allOf:
+        - $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryRequestView'
+        description: Tracking is the storage request that was queued for the agent,
+          when storage rows were selected.
+    type: object
+  orion_core_internal_service.AcceptSkip:
+    properties:
+      item_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  orion_core_internal_service.AcceptedItem:
+    properties:
+      definition_id:
+        type: string
+      item_id:
+        type: string
+      name:
+        type: string
+    type: object
   orion_core_internal_service.AgentDiscoveryInput:
     properties:
+      capabilities:
+        description: |-
+          Capabilities lists what this agent can do for the Console: "requests" (takes queued
+          discovery requests), "log_key_fetch" (can receive a log key from Core).
+        items:
+          type: string
+        type: array
       enabled:
         type: boolean
       items:
@@ -4560,8 +4645,67 @@ definitions:
       why:
         type: string
     type: object
+  orion_core_internal_service.AgentDiscoveryRequestInput:
+    properties:
+      payload:
+        additionalProperties: {}
+        type: object
+      type:
+        enum:
+        - rescan
+        - dismiss
+        - restore
+        - ignore
+        - unignore
+        - set_scanning
+        - set_kind
+        - track_storage
+        - create_log_source
+        type: string
+    required:
+    - type
+    type: object
+  orion_core_internal_service.AgentDiscoveryRequestView:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      delivered_at:
+        type: string
+      expires_at:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: string
+      payload:
+        additionalProperties: {}
+        type: object
+      result:
+        type: string
+      status:
+        enum:
+        - queued
+        - delivered
+        - applied
+        - failed
+        - expired
+        - unsupported
+        - cancelled
+        type: string
+      type:
+        type: string
+    type: object
   orion_core_internal_service.AgentDiscoveryView:
     properties:
+      capabilities:
+        description: |-
+          Capabilities lists what this agent can do for the Console: "requests" (takes queued
+          discovery requests), "log_key_fetch" (can receive a log key from Core).
+        items:
+          type: string
+        type: array
       enabled:
         type: boolean
       items:
@@ -4830,6 +4974,15 @@ definitions:
         type: integer
       monitors_removed:
         type: integer
+    type: object
+  orion_core_internal_service.DefinitionResult:
+    properties:
+      definition_id:
+        type: string
+      ok:
+        type: boolean
+      reason:
+        type: string
     type: object
   orion_core_internal_service.MonitorReportPayload:
     properties:
@@ -6180,6 +6333,181 @@ paths:
       summary: 'Agent: report what was found on the host'
       tags:
       - agents
+  /v1/agents/{agent_id}/discovery/accept:
+    post:
+      consumes:
+      - application/json
+      description: 'Creates a monitor definition (Managed in Console) for each selected
+        service, container, pm2 app, port or disk from the agent''s latest scan, with
+        the defaults interval 30 s and fail after 2. Storage rows are queued as one
+        track_storage request. Log files are skipped: they need a log key. Core does
+        not run anything; the agent fetches the definitions at its next sync and reports
+        under the same names.'
+      operationId: acceptDiscoveredItems
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Suggestions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AcceptDiscoveredRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/orion_core_internal_service.AcceptResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Accept detected suggestions
+      tags:
+      - agents
+  /v1/agents/{agent_id}/discovery/requests:
+    post:
+      consumes:
+      - application/json
+      description: 'The Console never changes the host. A request is queued here and
+        the agent applies it at its next check-in (about every minute), then reports
+        the outcome. Types: rescan, dismiss, restore, ignore, unignore (payload.ids),
+        set_scanning (payload.enabled), set_kind (payload.kind, payload.enabled),
+        track_storage (payload.paths). An agent that has not said it can take requests
+        gets the request stored as unsupported. Requests expire after 24 hours.'
+      operationId: createAgentDiscoveryRequest
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryRequestInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    request:
+                      $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryRequestView'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Ask the agent to do something about discovery
+      tags:
+      - agents
+  /v1/agents/{agent_id}/discovery/requests/{request_id}/result:
+    post:
+      consumes:
+      - application/json
+      operationId: finishAgentDiscoveryRequest
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Outcome
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.DiscoveryRequestResult'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Agent: report the outcome of a discovery request'
+      tags:
+      - agents
+  /v1/agents/{agent_id}/discovery/requests/pull:
+    post:
+      description: Agent-to-Core. Returns the requests the Console queued and marks
+        them delivered. One delivered but never finished is offered again after five
+        minutes.
+      operationId: pullAgentDiscoveryRequests
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    requests:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryRequestView'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Agent: collect queued discovery requests'
+      tags:
+      - agents
   /v1/agents/{agent_id}/logs/batch:
     post:
       consumes:
@@ -6320,6 +6648,41 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Create an agent monitor definition
+      tags:
+      - agents
+  /v1/agents/{agent_id}/monitor-definitions/results:
+    post:
+      consumes:
+      - application/json
+      description: Agent-to-Core. For each definition the agent could not run it sends
+        ok=false and the reason in its own words; ok=true clears an earlier failure.
+      operationId: recordAgentDefinitionResults
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Results
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.DefinitionResultsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Agent: report which monitor definitions could not run'
       tags:
       - agents
   /v1/agents/{agent_id}/monitor-definitions/sync:
@@ -6831,6 +7194,71 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: What the agent found on its host
+      tags:
+      - agents
+  /v1/agents/{id}/discovery/requests:
+    get:
+      operationId: listAgentDiscoveryRequests
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    requests:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.AgentDiscoveryRequestView'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Requests sent to the agent about discovery
+      tags:
+      - agents
+  /v1/agents/{id}/discovery/requests/{request_id}:
+    delete:
+      operationId: cancelAgentDiscoveryRequest
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Cancel a request the agent has not picked up
       tags:
       - agents
   /v1/agents/{id}/health:

@@ -48,6 +48,9 @@ type AgentDiscoveryInput struct {
 	Enabled   bool                 `json:"enabled"`
 	Kinds     []AgentDiscoveryKind `json:"kinds"`
 	Items     []AgentDiscoveryItem `json:"items"`
+	// Capabilities lists what this agent can do for the Console: "requests" (takes queued
+	// discovery requests), "log_key_fetch" (can receive a log key from Core).
+	Capabilities []string `json:"capabilities"`
 }
 
 // AgentDiscoveryView is the stored scan with the numbers a panel needs.
@@ -99,6 +102,12 @@ func validateDiscovery(in AgentDiscoveryInput) (AgentDiscoveryInput, error) {
 			return in, fmt.Errorf("%w: every kind needs kind and state", ErrDiscoveryInvalid)
 		}
 	}
+	if len(in.Capabilities) > 20 {
+		return in, fmt.Errorf("%w: at most 20 capabilities", ErrDiscoveryInvalid)
+	}
+	for i := range in.Capabilities {
+		in.Capabilities[i] = clipText(in.Capabilities[i])
+	}
 	if in.ScannedAt.IsZero() || in.ScannedAt.After(time.Now().Add(5*time.Minute)) {
 		in.ScannedAt = time.Now().UTC()
 	}
@@ -113,8 +122,12 @@ func (s *AgentService) SaveAgentDiscovery(agentID string, in AgentDiscoveryInput
 	}
 	kinds, _ := json.Marshal(in.Kinds)
 	items, _ := json.Marshal(in.Items)
+	if in.Capabilities == nil {
+		in.Capabilities = []string{}
+	}
+	caps, _ := json.Marshal(in.Capabilities)
 	scanned := in.ScannedAt.UTC()
-	row := db.AgentDiscovery{AgentID: agentID, ScannedAt: &scanned, Enabled: in.Enabled, Kinds: string(kinds), Items: string(items), ReceivedAt: time.Now().UTC()}
+	row := db.AgentDiscovery{AgentID: agentID, ScannedAt: &scanned, Enabled: in.Enabled, Kinds: string(kinds), Items: string(items), Capabilities: string(caps), ReceivedAt: time.Now().UTC()}
 	return s.db.Save(&row).Error
 }
 
@@ -134,6 +147,10 @@ func (s *AgentService) GetAgentDiscovery(agentID string) (*AgentDiscoveryView, e
 	}
 	_ = json.Unmarshal([]byte(row.Kinds), &v.Kinds)
 	_ = json.Unmarshal([]byte(row.Items), &v.Items)
+	_ = json.Unmarshal([]byte(row.Capabilities), &v.Capabilities)
+	if v.Capabilities == nil {
+		v.Capabilities = []string{}
+	}
 	if v.Kinds == nil {
 		v.Kinds = []AgentDiscoveryKind{}
 	}

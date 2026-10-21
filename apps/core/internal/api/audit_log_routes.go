@@ -4,6 +4,9 @@ package api
 var auditRoutes = map[string]auditRoute{
 	"PATCH /v1/agents/:id":                                         {Action: "server_edited", Text: "Edited server", Object: "agent", Param: "id"},
 	"POST /v1/agents/:agent_id/monitor-definitions":                {Action: "agent_monitor_added", Text: "Added agent monitor", Object: "agent", Param: "agent_id"},
+	"POST /v1/agents/:agent_id/discovery/requests":                 {Action: "agent_discovery_requested", Text: "Asked the agent about its scan", Object: "agent", Param: "agent_id"},
+	"DELETE /v1/agents/:id/discovery/requests/:request_id":         {Action: "agent_discovery_request_cancelled", Text: "Cancelled a request to the agent", Object: "agent", Param: "id"},
+	"POST /v1/agents/:agent_id/discovery/accept":                   {Action: "agent_discovery_accepted", Text: "Accepted detected suggestions", Object: "agent", Param: "agent_id"},
 	"DELETE /v1/agents/:id/monitor-definitions/:definition_id":     {Action: "agent_monitor_removed", Text: "Removed agent monitor", Object: "agent", Param: "id"},
 	"POST /v1/alerts/channels":                                     {Action: "alert_channel_created", Text: "Created alert channel", Object: "alert_channel", Param: ""},
 	"PATCH /v1/alerts/channels/:id":                                {Action: "alert_channel_updated", Text: "Edited alert channel", Object: "alert_channel", Param: "id"},

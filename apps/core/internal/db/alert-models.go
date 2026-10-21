@@ -150,17 +150,39 @@ type AgentMonitorDefinition struct {
 	FailAfter       int       `gorm:"not null;default:3"`
 	CreatedBy       string    `gorm:"not null;default:''"`
 	CreatedAt       time.Time `gorm:"not null"`
+	// DeliveredAt is when the agent first pulled this definition; FailureReason is why the agent
+	// could not run it (verbatim from the agent), empty when it can.
+	DeliveredAt   *time.Time
+	FailureReason string `gorm:"not null;default:''"`
 }
 
 // AgentDiscovery is the latest read-only scan an agent made of its own host: what it found that could
 // be monitored and how scanning each kind went. One row per agent, replaced on every report.
 type AgentDiscovery struct {
-	AgentID    string `gorm:"primaryKey"`
-	ScannedAt  *time.Time
-	Enabled    bool      `gorm:"not null"` // no gorm default: a first report of false must store false
-	Kinds      string    `gorm:"type:text;not null;default:'[]'"`
-	Items      string    `gorm:"type:text;not null;default:'[]'"`
-	ReceivedAt time.Time `gorm:"not null"`
+	AgentID   string `gorm:"primaryKey"`
+	ScannedAt *time.Time
+	Enabled   bool   `gorm:"not null"` // no gorm default: a first report of false must store false
+	Kinds     string `gorm:"type:text;not null;default:'[]'"`
+	Items     string `gorm:"type:text;not null;default:'[]'"`
+	// Capabilities lists what this agent can do for the Console ("requests", "log_key_fetch").
+	Capabilities string    `gorm:"type:text;not null;default:'[]'"`
+	ReceivedAt   time.Time `gorm:"not null"`
+}
+
+// AgentDiscoveryRequest is something the Console asked the agent to do about discovery (rescan,
+// dismiss, set a scan switch, ...). Core queues it; the agent pulls it, applies it and reports back.
+type AgentDiscoveryRequest struct {
+	ID          string    `gorm:"primaryKey"`
+	AgentID     string    `gorm:"not null;index:idx_agent_discovery_requests_agent"`
+	Type        string    `gorm:"not null"`
+	Payload     string    `gorm:"type:text;not null;default:'{}'"`
+	Status      string    `gorm:"not null"`                      // queued | delivered | applied | failed | expired | unsupported | cancelled
+	Result      string    `gorm:"type:text;not null;default:''"` // the agent's words, verbatim
+	CreatedBy   string    `gorm:"not null;default:''"`
+	CreatedAt   time.Time `gorm:"not null;index:idx_agent_discovery_requests_agent"`
+	DeliveredAt *time.Time
+	FinishedAt  *time.Time
+	ExpiresAt   time.Time `gorm:"not null"`
 }
 
 // AlertLabelRoute picks channels by label (the Routes tab): matchers are ANDed; routes are tried in

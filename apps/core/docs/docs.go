@@ -1540,6 +1540,269 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{agent_id}/discovery/accept": {
+            "post": {
+                "description": "Creates a monitor definition (Managed in Console) for each selected service, container, pm2 app, port or disk from the agent's latest scan, with the defaults interval 30 s and fail after 2. Storage rows are queued as one track_storage request. Log files are skipped: they need a log key. Core does not run anything; the agent fetches the definitions at its next sync and reports under the same names.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Accept detected suggestions",
+                "operationId": "acceptDiscoveredItems",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Suggestions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.AcceptDiscoveredRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/orion_core_internal_service.AcceptResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/discovery/requests": {
+            "post": {
+                "description": "The Console never changes the host. A request is queued here and the agent applies it at its next check-in (about every minute), then reports the outcome. Types: rescan, dismiss, restore, ignore, unignore (payload.ids), set_scanning (payload.enabled), set_kind (payload.kind, payload.enabled), track_storage (payload.paths). An agent that has not said it can take requests gets the request stored as unsupported. Requests expire after 24 hours.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Ask the agent to do something about discovery",
+                "operationId": "createAgentDiscoveryRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "request": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryRequestView"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/discovery/requests/pull": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Agent-to-Core. Returns the requests the Console queued and marks them delivered. One delivered but never finished is offered again after five minutes.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Agent: collect queued discovery requests",
+                "operationId": "pullAgentDiscoveryRequests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "requests": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryRequestView"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/discovery/requests/{request_id}/result": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Agent: report the outcome of a discovery request",
+                "operationId": "finishAgentDiscoveryRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Outcome",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.DiscoveryRequestResult"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/logs/batch": {
             "post": {
                 "security": [
@@ -1752,6 +2015,59 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/monitor-definitions/results": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Agent-to-Core. For each definition the agent could not run it sends ok=false and the reason in its own words; ok=true clears an earlier failure.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Agent: report which monitor definitions could not run",
+                "operationId": "recordAgentDefinitionResults",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Results",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.DefinitionResultsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -2637,6 +2953,109 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{id}/discovery/requests": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Requests sent to the agent about discovery",
+                "operationId": "listAgentDiscoveryRequests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "requests": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryRequestView"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{id}/discovery/requests/{request_id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Cancel a request the agent has not picked up",
+                "operationId": "cancelAgentDiscoveryRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -16407,6 +16826,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AcceptDiscoveredRequest": {
+            "type": "object",
+            "required": [
+                "item_ids"
+            ],
+            "properties": {
+                "item_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "internal_api.AgentConfigSummaryResponse": {
             "type": "object",
             "properties": {
@@ -16470,13 +16903,16 @@ const docTemplate = `{
             ],
             "properties": {
                 "check_type": {
-                    "description": "CheckType: disk (params path, threshold_percent), memory (threshold_percent), process (process_name), port (port).",
+                    "description": "CheckType: disk (params path, threshold_percent), memory (threshold_percent), process (process_name), port (port), systemd (unit), docker (container), pm2 (app).",
                     "type": "string",
                     "enum": [
                         "disk",
                         "memory",
                         "process",
-                        "port"
+                        "port",
+                        "systemd",
+                        "docker",
+                        "pm2"
                     ]
                 },
                 "fail_after": {
@@ -16503,8 +16939,16 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "delivered_at": {
+                    "description": "DeliveredAt is when the agent first fetched this definition (Requested becomes Applied).",
+                    "type": "string"
+                },
                 "fail_after": {
                     "type": "integer"
+                },
+                "failure_reason": {
+                    "description": "FailureReason is why the agent could not run this check, in its own words (state failed).",
+                    "type": "string"
                 },
                 "first_report_at": {
                     "type": "string"
@@ -16530,6 +16974,7 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "waiting",
+                        "failed",
                         "reporting"
                     ]
                 }
@@ -17913,6 +18358,40 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.DefinitionResultsRequest": {
+            "type": "object",
+            "required": [
+                "results"
+            ],
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.DefinitionResult"
+                    }
+                }
+            }
+        },
+        "internal_api.DiscoveryRequestResult": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "result": {
+                    "description": "Result is the agent's own words (a reason when it failed), shown verbatim in the Console.",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "applied",
+                        "failed",
+                        "unsupported"
+                    ]
                 }
             }
         },
@@ -22882,9 +23361,66 @@ const docTemplate = `{
                 }
             }
         },
+        "orion_core_internal_service.AcceptResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AcceptedItem"
+                    }
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.AcceptSkip"
+                    }
+                },
+                "tracking": {
+                    "description": "Tracking is the storage request that was queued for the agent, when storage rows were selected.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/orion_core_internal_service.AgentDiscoveryRequestView"
+                        }
+                    ]
+                }
+            }
+        },
+        "orion_core_internal_service.AcceptSkip": {
+            "type": "object",
+            "properties": {
+                "item_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AcceptedItem": {
+            "type": "object",
+            "properties": {
+                "definition_id": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "orion_core_internal_service.AgentDiscoveryInput": {
             "type": "object",
             "properties": {
+                "capabilities": {
+                    "description": "Capabilities lists what this agent can do for the Console: \"requests\" (takes queued\ndiscovery requests), \"log_key_fetch\" (can receive a log key from Core).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -22967,9 +23503,87 @@ const docTemplate = `{
                 }
             }
         },
+        "orion_core_internal_service.AgentDiscoveryRequestInput": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "rescan",
+                        "dismiss",
+                        "restore",
+                        "ignore",
+                        "unignore",
+                        "set_scanning",
+                        "set_kind",
+                        "track_storage",
+                        "create_log_source"
+                    ]
+                }
+            }
+        },
+        "orion_core_internal_service.AgentDiscoveryRequestView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "delivered_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "result": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "queued",
+                        "delivered",
+                        "applied",
+                        "failed",
+                        "expired",
+                        "unsupported",
+                        "cancelled"
+                    ]
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "orion_core_internal_service.AgentDiscoveryView": {
             "type": "object",
             "properties": {
+                "capabilities": {
+                    "description": "Capabilities lists what this agent can do for the Console: \"requests\" (takes queued\ndiscovery requests), \"log_key_fetch\" (can receive a log key from Core).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -23369,6 +23983,20 @@ const docTemplate = `{
                 },
                 "monitors_removed": {
                     "type": "integer"
+                }
+            }
+        },
+        "orion_core_internal_service.DefinitionResult": {
+            "type": "object",
+            "properties": {
+                "definition_id": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
                 }
             }
         },
