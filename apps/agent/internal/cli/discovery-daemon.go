@@ -182,6 +182,11 @@ func (s *scanner) View() (control.Discovery, error) {
 	return d, nil
 }
 
+// notDismissedError says a restore found nothing to restore.
+type notDismissedError struct{ id string }
+
+func (e notDismissedError) Error() string { return e.id + " is not dismissed" }
+
 // Action applies a person's choice about a suggestion.
 func (s *scanner) Action(a control.DiscoveryAction) error {
 	switch a.Action {
@@ -193,7 +198,7 @@ func (s *scanner) Action(a control.DiscoveryAction) error {
 			}
 			for _, it := range items {
 				if it.ID == a.ID && !it.Dismissed {
-					return fmt.Errorf("%s is not dismissed", a.ID)
+					return notDismissedError{id: a.ID}
 				}
 			}
 		}

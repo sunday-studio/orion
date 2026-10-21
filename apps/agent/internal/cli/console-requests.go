@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +29,8 @@ type requestApplier struct {
 	reload     func() error // validates and reloads the config file
 	pull       func(st *config.InternalState) ([]transport.PulledRequest, error)
 	report     func(st *config.InternalState, id, status, text string) error
+
+	reloadPending bool // the file changed but the daemon has not confirmed a reload yet
 
 	unsupportedUntil time.Time // an older Core: stop asking for a while
 }
@@ -132,6 +135,14 @@ func (a *requestApplier) handle(ctx context.Context, r transport.PulledRequest) 
 		if len(paths) == 0 {
 			return "", errors.New("track_storage needs at least one path")
 		}
+		if len(paths) > maxRequestPaths {
+			return "", fmt.Errorf("track_storage takes at most %d paths", maxRequestPaths)
+		}
+		for _, p := range paths {
+			if err := validateStoragePath(p); err != nil {
+				return "", err
+			}
+		}
 		return a.editConfig(fmt.Sprintf("Tracking %d path(s) for storage size", len(paths)),
 			func() (bool, error) { return editStoragePaths(a.configPath, paths) })
 	}
@@ -143,9 +154,14 @@ func (a *requestApplier) dismissOrRestore(r transport.PulledRequest) (string, er
 	if len(ids) == 0 {
 		return "", fmt.Errorf("%s needs at least one id", r.Type)
 	}
+	if len(ids) > maxRequestIDs {
+		return "", fmt.Errorf("%s takes at most %d ids", r.Type, maxRequestIDs)
+	}
 	var failed []string
 	for _, id := range ids {
-		if err := a.scan.Action(control.DiscoveryAction{Action: r.Type, ID: id}); err != nil {
+		// A repeat (Core redelivers an unconfirmed request) finds it already so, which is success.
+		var already notDismissedError
+		if err := a.scan.Action(control.DiscoveryAction{Action: r.Type, ID: id}); err != nil && !errors.As(err, &already) {
 			failed = append(failed, err.Error())
 		}
 	}
@@ -160,6 +176,9 @@ func (a *requestApplier) editIgnore(r transport.PulledRequest) (string, error) {
 	ids := stringsOf(r.Payload["ids"])
 	if len(ids) == 0 {
 		return "", fmt.Errorf("%s needs at least one id", r.Type)
+	}
+	if len(ids) > maxRequestIDs {
+		return "", fmt.Errorf("%s takes at most %d ids", r.Type, maxRequestIDs)
 	}
 	add := r.Type == "ignore"
 	return a.editConfig(fmt.Sprintf("%s %d item(s) in discovery.ignore", map[bool]string{true: "Added", false: "Removed"}[add], len(ids)),
@@ -186,16 +205,42 @@ func (a *requestApplier) editConfig(done string, edit func() (bool, error)) (str
 	if err != nil {
 		return "", fmt.Errorf("could not edit %s: %w", a.configPath, err)
 	}
-	if !changed {
+	if !changed && !a.reloadPending {
 		return done + " (already so)", nil
 	}
+	// A repeat after an earlier delivery changed the file but failed to reload still reloads.
+	a.reloadPending = true
 	a.scan.rescanOnConfig.Store(true)
 	if a.reload != nil {
 		if err := a.reload(); err != nil {
 			return "", fmt.Errorf("edited %s but %w", a.configPath, err)
 		}
 	}
+	a.reloadPending = false
 	return done, nil
+}
+
+const (
+	maxRequestIDs   = 100
+	maxRequestPaths = 20
+	maxPathLen      = 1024
+)
+
+// validateStoragePath accepts only a clean absolute path below the root. Core
+// checks the same, but the agent walks these paths, so it does not rely on that.
+func validateStoragePath(p string) error {
+	switch {
+	case len(p) > maxPathLen:
+		return fmt.Errorf("a storage path is longer than %d characters", maxPathLen)
+	case !filepath.IsAbs(p) || filepath.Clean(p) != p || p == "/":
+		return fmt.Errorf("storage path %q must be a clean absolute path other than /", p)
+	}
+	for _, r := range p {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("storage path %q has a control character", p)
+		}
+	}
+	return nil
 }
 
 func stringsOf(v any) []string {

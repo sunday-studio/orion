@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,5 +100,48 @@ func TestPollAnswersEveryPulledRequestAndSkipsWhenNotEnrolled(t *testing.T) {
 	}
 	if len(*results) != 0 {
 		t.Fatalf("an agent that is not enrolled has nobody to ask: %+v", *results)
+	}
+}
+
+func TestTrackStorageRefusesUnsafePathsAndRepeatsAreSafe(t *testing.T) {
+	a, _, _, reloads, cfgPath := newApplierFixture(t, "")
+	ctx := context.Background()
+	for _, bad := range []string{"../etc", "relative/dir", "/", "/var/../etc", "/var/lib/", "/tmp/a\nb", "/" + strings.Repeat("a", 2000)} {
+		status, text := a.apply(ctx, transport.PulledRequest{ID: "x", Type: "track_storage", Payload: map[string]any{"paths": []any{bad}}})
+		if status != "failed" || !strings.Contains(text, "storage path") {
+			t.Errorf("%q = %s %q", bad, status, text)
+		}
+	}
+	if got, _ := os.ReadFile(cfgPath); strings.Contains(string(got), "etc") || *reloads != 0 {
+		t.Fatalf("a refused path must not reach the file: %q reloads=%d", got, *reloads)
+	}
+
+	dismiss := transport.PulledRequest{ID: "d", Type: "dismiss", Payload: map[string]any{"ids": []any{"service:nginx"}}}
+	restore := transport.PulledRequest{ID: "r", Type: "restore", Payload: map[string]any{"ids": []any{"service:nginx"}}}
+	a.scan.Rescan(ctx)
+	for i, r := range []transport.PulledRequest{dismiss, dismiss, restore, restore} {
+		if status, text := a.apply(ctx, r); status != "applied" {
+			t.Fatalf("delivery %d of %s = %s %q: a repeat must succeed", i, r.Type, status, text)
+		}
+	}
+}
+
+func TestAnUnchangedRepeatStillReloadsWhenTheFirstReloadFailed(t *testing.T) {
+	a, _, _, reloads, _ := newApplierFixture(t, "")
+	fail := true
+	a.reload = func() error {
+		*reloads++
+		if fail {
+			return errors.New("new config is invalid")
+		}
+		return nil
+	}
+	req := transport.PulledRequest{ID: "1", Type: "set_scanning", Payload: map[string]any{"enabled": false}}
+	if status, _ := a.apply(context.Background(), req); status != "failed" {
+		t.Fatalf("first delivery = %s", status)
+	}
+	fail = false
+	if status, text := a.apply(context.Background(), req); status != "applied" || strings.Contains(text, "already") || *reloads != 2 {
+		t.Fatalf("the repeat must reload what the first delivery wrote: %s %q reloads=%d", status, text, *reloads)
 	}
 }
