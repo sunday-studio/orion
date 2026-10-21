@@ -36,7 +36,7 @@ const whole = (value?: number) => (typeof value === "number" ? `${Math.round(val
 const CHECKS = [
   ["Is the server running?", "Power, network, provider status"],
   ["Can it reach Core?", `curl -I ${window.location.origin}/v1/health`],
-  ["Is the node running?", "systemctl status orion-node"],
+  ["Is the Node running?", "systemctl status orion-node"],
   ["Is the token still valid?", "Revoked tokens stop reporting"],
 ] as const;
 
@@ -73,8 +73,8 @@ export const ServerOverviewTab = ({ node, latest, onOpenMonitors }: Props) => {
         >
           <span className="flex items-center gap-2.5">
             <Dot color="#a1a1aa" />
-            {node.name} has not reported since {lastSeen ?? "an unknown time"}. Its {total}{" "}
-            monitors show Unknown.
+            {node.name} has not reported since {lastSeen ?? "an unknown time"}. Its {total} monitors
+            show Unknown.
           </span>
           <Button
             size="sm"

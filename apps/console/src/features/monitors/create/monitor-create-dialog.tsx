@@ -158,14 +158,14 @@ export const MonitorCreateDialog = ({
             <AnimatedHeight>
               {kind === "node" ? (
                 <Callout tone="warn" className="leading-[1.5]">
-                  Node monitors run on a server through its node. Pick the server and what to
-                  check on the{" "}
+                  Node monitors run on a server through its Node. Pick the server and what to check
+                  on the{" "}
                   <Link
                     className="underline"
                     to="/monitors/new/node"
                     onClick={() => onOpenChange(false)}
                   >
-                    node monitor page
+                    Node monitor page
                   </Link>
                   .
                 </Callout>

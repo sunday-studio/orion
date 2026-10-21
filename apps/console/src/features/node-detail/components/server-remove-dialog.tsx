@@ -62,11 +62,7 @@ export const ServerRemoveDialog = ({
   node: ServerRow;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const monitors = useGetNodeMonitors(
-    node.id ?? "",
-    { limit: 100 },
-    { query: { enabled: open } },
-  );
+  const monitors = useGetNodeMonitors(node.id ?? "", { limit: 100 }, { query: { enabled: open } });
   const list = monitors.data?.monitors ?? [];
   const total = monitors.data?.count ?? list.length;
   const [keepHistory, setKeepHistory] = useState(true);

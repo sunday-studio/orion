@@ -93,7 +93,7 @@ export const AppsTab = ({
           {expected ? (
             <StateRow
               label="No data yet"
-              badge="Waiting for the node"
+              badge="Waiting for the Node"
               tone="degraded"
               words="The first report is on its way"
             />
@@ -102,7 +102,7 @@ export const AppsTab = ({
               label="Not sending"
               badge="Not sending app usage"
               tone="unknown"
-              words="Update the node, or turn it on in its config (app_resources)"
+              words="Update the Node, or turn it on in its config (app_resources)"
               action={
                 <Menu>
                   <MenuTrigger
@@ -185,7 +185,7 @@ export const AppsTab = ({
         <EmptyState
           className="rounded-xl border-solid bg-card"
           title="No apps measured yet"
-          description="Processes, services and containers appear after the node's next report."
+          description="Processes, services and containers appear after the Node's next report."
         />
       )}
       <TrackedPaths rows={groups.paths} canTrack={canAct} onTrack={() => setTracking(true)} />

@@ -99,7 +99,7 @@ export const DetectedSettings = ({
       </RaisedCard>
       {!canAct && (
         <p className="mt-2 text-[13px] text-mid">
-          This node cannot take requests from the Console. Update the node, or on the server run{" "}
+          This Node cannot take requests from the Console. Update the Node, or on the server run{" "}
           <code>orion-node discover --rescan</code>.
         </p>
       )}

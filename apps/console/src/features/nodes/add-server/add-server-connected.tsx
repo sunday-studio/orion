@@ -26,7 +26,7 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
     <>
       <PageHeader
         title={`${name} is connected`}
-        description="The node registered and sent its first report."
+        description="The Node registered and sent its first report."
       />
       <div className="mt-3 flex flex-col gap-3">
         <FieldPanel title="Server" aside="Just registered">
@@ -50,7 +50,7 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
           <RaisedCard>
             <Row
               title="Add default monitors"
-              detail="Disk, memory, CPU and the node itself"
+              detail="Disk, memory, CPU and the Node itself"
               action={
                 <Button
                   size="sm"

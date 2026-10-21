@@ -163,7 +163,7 @@ export const SecurityTab = () => {
         open={rotating}
         onOpenChange={setRotating}
         title="Rotate the registration token"
-        description="New nodes need the new token. Servers that are already connected keep working."
+        description="New Nodes need the new token. Servers that are already connected keep working."
         confirmLabel="Rotate token"
         onConfirm={() => rotate.mutate()}
       />
