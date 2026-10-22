@@ -27,7 +27,7 @@ It checks Docker, creates an `orion` folder with `docker-compose.yml` and a `.en
 |---|---|
 | `--public-url <url>` | The address people and servers use to reach Core, such as `https://orion.example.com`. Default: this server's IP and port. |
 | `--dir <path>` | Install folder. Default `./orion`. |
-| `--version <version>` | Pin the Core image, for example `0.2.0`. |
+| `--version <version>` | Pin the Core image, for example `0.2.1`. |
 | `--port <port>` | The port on this server. Default `8999`. |
 
 Open the printed address from your own computer. If it does not load, allow TCP port `8999` through the server's firewall or cloud security group.
@@ -50,7 +50,7 @@ ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=<12+ characters>
 ORION_JWT_SECRET=<32+ characters>
 ORION_PUBLIC_URL=http://<server-ip>:8999
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.0
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.1
 ```
 
 </CodeTabs>

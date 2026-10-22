@@ -29,7 +29,7 @@ x-hardened: &hardened
 services:
   orion-core:
     <<: *hardened
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.0}
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
     restart: unless-stopped
     mem_limit: ${ORION_CORE_MEMORY_LIMIT:-512m}
     cpus: ${ORION_CORE_CPUS:-1.0}
@@ -95,7 +95,7 @@ services:
 
   orion-core-worker:
     <<: *hardened
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.0}
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
     restart: unless-stopped
     mem_limit: ${ORION_WORKER_MEMORY_LIMIT:-512m}
     cpus: ${ORION_WORKER_CPUS:-1.0}

@@ -12,14 +12,14 @@
 #   --dir <path>          Install folder (ORION_DIR, default ./orion)
 #   --public-url <url>    Address people and servers reach Core on, for example https://orion.example.com
 #                         (ORION_PUBLIC_URL). Default: http://<this server's IP>:<port>
-#   --version <version>   Core image tag, for example 0.2.0 (ORION_VERSION, default below)
+#   --version <version>   Core image tag, for example 0.2.1 (ORION_VERSION, default below)
 #   --port <port>         Port on this machine (ORION_HTTP_PORT, default 8999)
 #   --ref <git ref>       Where to download compose files from (ORION_REF, default main)
 #   --no-start            Write the files and stop before starting Core
 #   -h, --help            Show this help
 set -euo pipefail
 
-DEFAULT_VERSION="0.2.0"
+DEFAULT_VERSION="0.2.1"
 REPO="sunday-studio/orion"
 
 DIR="${ORION_DIR:-./orion}"
