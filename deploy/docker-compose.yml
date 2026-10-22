@@ -2,7 +2,7 @@
 name: orion
 
 x-core: &core
-  image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
+  image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.2}
   restart: unless-stopped
   env_file:
     - path: .env
