@@ -30,9 +30,10 @@ Collect the answers before running anything:
 
 - **Where will Core run?** This machine, or another one reached over SSH? It needs Linux or macOS, Docker with
   the Compose plugin, `curl` and `openssl`.
-- **What address will people and servers use to reach Core?** For a local trial, `http://localhost:8999` is
-  fine. For real use, a domain with HTTPS behind a reverse proxy (see
-  [Core security defaults](deployment/core-security-defaults.md)).
+- **What address will people and servers use to reach Core?** Either the server's IP and port
+  (`http://<server-ip>:8999`) or a domain with HTTPS behind a reverse proxy (see
+  [Core security defaults](deployment/core-security-defaults.md)). Orion runs on a server, not on a laptop:
+  never use `localhost` as the public address.
 - **Which servers should be watched?** A list of hosts you may reach, or "none for now" (Core can still check
   public URLs).
 - **How should alerts arrive?** A webhook URL (Slack, Discord, any HTTPS endpoint), email (needs SMTP
@@ -59,7 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scr
   bash -s -- --dir ./orion --public-url <ADDRESS-FROM-STEP-0>
 ```
 
-Omit `--public-url` for a local trial. The script checks Docker, downloads `docker-compose.yml` and
+Omit `--public-url` to use the server's detected IP address. The script checks Docker, downloads `docker-compose.yml` and
 `.env.example`, writes `.env` with freshly generated secrets, pulls the image, starts Core and its worker, waits
 for health, and prints the Console address and login.
 

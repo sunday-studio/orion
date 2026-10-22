@@ -10,7 +10,8 @@
 #
 # Options (or the matching environment variable):
 #   --dir <path>          Install folder (ORION_DIR, default ./orion)
-#   --public-url <url>    Address people and servers reach Core on (ORION_PUBLIC_URL)
+#   --public-url <url>    Address people and servers reach Core on, for example https://orion.example.com
+#                         (ORION_PUBLIC_URL). Default: http://<this server's IP>:<port>
 #   --version <version>   Core image tag, for example 0.2.0 (ORION_VERSION, default below)
 #   --port <port>         Port on this machine (ORION_HTTP_PORT, default 8999)
 #   --ref <git ref>       Where to download compose files from (ORION_REF, default main)
@@ -31,6 +32,15 @@ START=true
 die() { printf 'error: %s\n' "$1" >&2; [ -n "${2:-}" ] && printf '  fix: %s\n' "$2" >&2; exit 1; }
 info() { printf '  %s\n' "$*"; }
 usage() { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; }
+
+# The address this server answers on, used when --public-url is not given.
+detect_address() {
+  local ip=""
+  if command -v hostname >/dev/null 2>&1; then ip="$(hostname -I 2>/dev/null | awk '{print $1}')"; fi
+  if [ -z "$ip" ] && command -v ipconfig >/dev/null 2>&1; then ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"; fi
+  if [ -z "$ip" ] && command -v ip >/dev/null 2>&1; then ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -n1)"; fi
+  printf '%s' "$ip"
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -54,6 +64,16 @@ docker info >/dev/null 2>&1 || die "cannot talk to the Docker daemon" "start Doc
 command -v curl >/dev/null 2>&1 || die "curl is not installed" "install curl"
 command -v openssl >/dev/null 2>&1 || die "openssl is not installed" "install openssl (used only to generate secrets)"
 info "ok  docker, compose, curl and openssl found"
+
+# ---------------------------------------------------------------- address
+if [ -z "$PUBLIC_URL" ]; then
+  ADDRESS="$(detect_address)"
+  [ -n "$ADDRESS" ] || die "could not work out this server's address" "re-run with --public-url http://<server-ip>:${PORT} or your domain"
+  PUBLIC_URL="http://${ADDRESS}:${PORT}"
+  info "ok  using ${PUBLIC_URL} (pass --public-url to use a domain)"
+else
+  info "ok  using ${PUBLIC_URL}"
+fi
 
 # ---------------------------------------------------------------- files
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${REF}/deploy"
@@ -79,7 +99,7 @@ else
     echo "ORION_ENROLLMENT_TOKEN=${ENROLLMENT_TOKEN}"
     echo "ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:${VERSION}"
     echo "ORION_HTTP_PORT=${PORT}"
-    [ -n "$PUBLIC_URL" ] && echo "ORION_PUBLIC_URL=${PUBLIC_URL}"
+    echo "ORION_PUBLIC_URL=${PUBLIC_URL}"
   } > .env
   chmod 600 .env
   CREATED_ENV=true
@@ -105,13 +125,16 @@ printf '\n'
 [ "${HEALTHY:-false}" = true ] || die "Core did not become healthy within two minutes" "run: cd $(pwd) && docker compose logs orion-core"
 
 # ---------------------------------------------------------------- summary
-URL="$(env_value ORION_PUBLIC_URL)"; URL="${URL:-http://localhost:${PORT_NOW}}"
+URL="$(env_value ORION_PUBLIC_URL)"; URL="${URL:-$PUBLIC_URL}"
 printf '\nOrion Core is running.\n\n'
 printf '  Console   %s\n' "$URL"
 printf '  Login     %s  /  %s\n' "$(env_value ORION_ADMIN_USERNAME)" "$(env_value ORION_ADMIN_PASSWORD)"
 printf '  Folder    %s\n' "$(pwd)"
 [ "$CREATED_ENV" = true ] && printf '\nThe password is stored in %s/.env. Change it by editing .env and running: docker compose up -d\n' "$(pwd)"
 TOKEN="$(env_value ORION_ENROLLMENT_TOKEN)"
+printf '\nOpen the Console from your own computer at the address above. If it does not load, allow TCP port %s\n' "$PORT_NOW"
+printf 'through this server'"'"'s firewall or security group. For HTTPS on a domain, put a reverse proxy in front of Core and set\n'
+printf 'ORION_PUBLIC_URL in %s/.env (see docs/getting-started.md).\n' "$(pwd)"
 printf '\nNext: connect a server. In the Console choose Servers, then Add server, and run the command it shows on\n'
 printf 'the machine you want to watch (Linux or macOS). Or run this there, with a Core address it can reach:\n\n'
 printf '  curl -fsSL https://github.com/%s/releases/latest/download/orion-node-installer.sh | \\\n' "$REPO"
