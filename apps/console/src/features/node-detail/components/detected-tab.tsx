@@ -188,10 +188,12 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
           <Button
             size="sm"
             variant="secondary"
-            disabled={!canAct || requests.pending || scanningOff}
+            disabled={
+              !canAct || requests.pending || scanningOff || open.some((r) => r.type === "rescan")
+            }
             onClick={() => requests.send("rescan")}
           >
-            Rescan now
+            {open.some((r) => r.type === "rescan") ? "Rescan requested" : "Rescan now"}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setShowSettings((value) => !value)}>
             {showSettings ? "Hide scan settings" : "Scan settings"}
@@ -203,6 +205,8 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
           key={kind.kind}
           kind={kind}
           canAct={canAct}
+          rescanPending={open.some((r) => r.type === "rescan")}
+          skipPending={pendingSwitches.includes(kind.kind ?? "")}
           onRescan={() => requests.send("rescan")}
           onSkip={() => requests.send("set_kind", { kind: kind.kind, enabled: false })}
         />

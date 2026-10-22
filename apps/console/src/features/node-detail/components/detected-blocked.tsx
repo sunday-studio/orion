@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button, Callout, CodeBlock, useToast } from "@/design-system";
 import type { ServiceNodeDiscoveryKind } from "@/orion-sdk";
 import { kindTitle } from "../detected-model";
@@ -6,15 +7,21 @@ import { kindTitle } from "../detected-model";
 export const DetectedBlocked = ({
   kind,
   canAct,
+  rescanPending,
+  skipPending,
   onRescan,
   onSkip,
 }: {
   kind: ServiceNodeDiscoveryKind;
   canAct: boolean;
+  /** A rescan or a change for this kind is already waiting for the Node. */
+  rescanPending?: boolean;
+  skipPending?: boolean;
   onRescan: () => void;
   onSkip: () => void;
 }) => {
   const toast = useToast();
+  const [copied, setCopied] = useState(false);
   return (
     <Callout tone="warn" lead={kind.message || `${kindTitle(kind.kind)} could not be read.`}>
       {kind.why && <span className="block">{kind.why}</span>}
@@ -28,15 +35,29 @@ export const DetectedBlocked = ({
               onClick={() => {
                 void navigator.clipboard.writeText(kind.fix ?? "");
                 toast.add({ title: "Command copied" });
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 2000);
               }}
             >
-              Copy command
+              {copied ? "Copied" : "Copy command"}
             </Button>
-            <Button size="sm" variant="secondary" disabled={!canAct} onClick={onRescan}>
-              I ran it, rescan
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!canAct || rescanPending}
+              onClick={onRescan}
+            >
+              {rescanPending ? "Rescan requested" : "I ran it, rescan"}
             </Button>
-            <Button size="sm" variant="secondary" disabled={!canAct} onClick={onSkip}>
-              Skip {kindTitle(kind.kind).toLowerCase()}
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!canAct || skipPending}
+              onClick={onSkip}
+            >
+              {skipPending
+                ? `Skipping ${kindTitle(kind.kind).toLowerCase()}`
+                : `Skip ${kindTitle(kind.kind).toLowerCase()}`}
             </Button>
           </span>
         </>

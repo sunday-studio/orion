@@ -7,6 +7,16 @@ import {
 } from "@/orion-sdk";
 import { useToast } from "@/design-system";
 
+const queued: Record<string, string> = {
+  rescan: "Rescan requested. The Node checks in about every minute.",
+  set_kind: "Change requested. The Node applies it at its next check-in.",
+  set_scanning: "Change requested. The Node applies it at its next check-in.",
+  dismiss: "Dismiss requested",
+  restore: "Restore requested",
+  ignore: "Never suggest requested",
+  track_storage: "Tracking requested. The Node reports a size in a few minutes.",
+};
+
 /** Queues an action for the node (rescan, dismiss, ...) and refreshes the request list. */
 export const useDiscoveryRequest = (nodeId: string) => {
   const toast = useToast();
@@ -19,7 +29,13 @@ export const useDiscoveryRequest = (nodeId: string) => {
   };
   const create = useCreateNodeDiscoveryRequest({
     mutation: {
-      onSuccess: refresh,
+      onSuccess: (_result, variables) => {
+        refresh();
+        toast.add({
+          title:
+            queued[variables.data.type] ?? "Requested. The Node applies it at its next check-in.",
+        });
+      },
       onError: (failure) =>
         toast.add({ title: (failure as Error).message || "Unable to queue the request" }),
     },
