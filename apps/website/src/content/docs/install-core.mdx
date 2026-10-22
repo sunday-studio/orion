@@ -1,9 +1,9 @@
 ---
 title: Install Core
-description: "Run Core and its worker with Docker Compose, then turn on authentication so only you can sign in."
+description: "Run Core and its worker with Docker Compose on your server, then connect it to a domain and HTTPS."
 group: Guides
 order: 3
-readTime: 4 min read
+readTime: 5 min read
 note: Docker and Compose required
 ---
 import Callout from "../../components/docs/callout.astro";
@@ -11,49 +11,51 @@ import CodeTabs from "../../components/docs/code-tabs.astro";
 import Steps from "../../components/docs/steps.astro";
 import Step from "../../components/docs/step.astro";
 
-<Callout title="Where to run it.">Anywhere your servers can reach: a small VPS, a home server, or a machine on your Tailscale network.</Callout>
+<Callout title="Where to run it.">On a server your other machines can reach: a small VPS, a home server, or a machine on your Tailscale network. It needs Docker with the Compose plugin, `curl` and `openssl`.</Callout>
 
-## Run with Compose
+## Run the setup script
 
-Core ships as one image, run as two services that share a single volume: `orion-core` for the API and Console, and `orion-core-worker` for monitor checks and alert delivery.
-
-<CodeTabs labels={["Run", ".env", "compose.yaml"]}>
+Core ships as one image, run as two services that share a single volume: `orion-core` for the API, the Console and public status pages, and `orion-core-worker` for monitor checks and alert delivery. The script does the setup for you.
 
 ```sh
-# download the sample, then start both services
-curl -fsSL -o orion-compose.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
-docker compose -f orion-compose.yaml up -d
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
+```
+
+It checks Docker, creates an `orion` folder with `docker-compose.yml` and a `.env` that holds freshly generated secrets, starts both services, waits until Core is healthy and prints the Console address and your login. It never overwrites an existing `.env`.
+
+| Option | What it does |
+|---|---|
+| `--public-url <url>` | The address people and servers use to reach Core, such as `https://orion.example.com`. Default: this server's IP and port. |
+| `--dir <path>` | Install folder. Default `./orion`. |
+| `--version <version>` | Pin the Core image, for example `0.2.0`. |
+| `--port <port>` | The port on this server. Default `8999`. |
+
+Open the printed address from your own computer. If it does not load, allow TCP port `8999` through the server's firewall or cloud security group.
+
+## Or set it up by hand
+
+<CodeTabs labels={["Run", ".env"]}>
+
+```sh
+mkdir orion && cd orion
+curl -fsSLO https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/.env.example -o .env
+# edit .env, then:
+docker compose up -d
+docker compose ps
 ```
 
 ```sh
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
-ORION_HTTP_PORT=8999
-ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=<12+ characters>
 ORION_JWT_SECRET=<32+ characters>
-```
-
-```yaml
-services:
-  orion-core:
-    image: ghcr.io/sunday-studio/orion-core:latest
-    ports:
-      - "8999:8999"
-    volumes:
-      - orion-data:/data
-  orion-core-worker:
-    command: ["./orion-core-worker"]
-    volumes:
-      - orion-data:/data
-volumes:
-  orion-data:
+ORION_PUBLIC_URL=http://<server-ip>:8999
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.0
 ```
 
 </CodeTabs>
 
-Core listens on port `8999` by default. Open `http://localhost:8999` once both containers are healthy.
+The compose file in the repository, [`deploy/docker-compose.yml`](https://github.com/sunday-studio/orion/blob/main/deploy/docker-compose.yml), is the one to use. It runs both services read-only with dropped capabilities and resource limits, waits for Core to be healthy before starting the worker, and passes every setting through from `.env`. A trimmed copy that leaves out the worker, the secrets or the data directory will not work.
 
 ## Required settings
 
@@ -61,26 +63,33 @@ Authentication is on by default. Core refuses to start unless these are set.
 
 | Variable | What it does |
 |---|---|
-| `ORION_ADMIN_USERNAME` | The admin username for the Console. |
 | `ORION_ADMIN_PASSWORD` | The admin password. At least 12 characters. |
 | `ORION_JWT_SECRET` | Signs sessions. At least 32 characters. |
-| `ORION_HTTP_PORT` | The port Core listens on. Defaults to `8999`. |
+| `ORION_ADMIN_USERNAME` | The admin username. Defaults to `admin`. |
+| `ORION_PUBLIC_URL` | Set this to your server's address or domain. It is used in the install commands the Console shows, in emails and in status page links. |
+| `ORION_ENROLLMENT_TOKEN` | Optional but recommended. When set, a server can only register with this value or a one-time token from the Console. |
+
+Everything else is optional and documented in [`.env.example`](https://github.com/sunday-studio/orion/blob/main/deploy/.env.example) and the [environment reference](https://github.com/sunday-studio/orion/blob/main/docs/deployment/core-environment.md).
 
 <Callout type="warn" title="Do not reuse a password.">Generate both secrets, for example with `openssl rand -hex 32`, and keep the `.env` file out of version control.</Callout>
+
+## Use a domain and HTTPS
+
+Put a reverse proxy in front of Core, point your domain at the server, set `ORION_PUBLIC_URL` to the public address and `ORION_TRUSTED_PROXIES` to the proxy's address, then run `docker compose up -d` again. A Caddy example is in [`deploy/examples/reverse-proxy`](https://github.com/sunday-studio/orion/tree/main/deploy/examples/reverse-proxy).
 
 ## Verify it is running
 
 <Steps>
-<Step title="Check the health endpoint">It returns `ok` when the API is up.</Step>
-<Step title="Sign in to the Console">Use the admin username and password you set.</Step>
-<Step title="Confirm the worker is alive">The diagnostics endpoint reports whether monitor checks are running.</Step>
+<Step title="Check both services">`docker compose ps` in the `orion` folder shows `orion-core` and `orion-core-worker` as healthy.</Step>
+<Step title="Check the health endpoint">It returns a healthy status when the API and database are up.</Step>
+<Step title="Sign in to the Console">Use the admin username and the password in `.env`.</Step>
 </Steps>
 
 ```sh
-curl http://localhost:8999/health
-curl http://localhost:8999/v1/diagnostics/core-worker
+# on the server
+curl http://127.0.0.1:8999/health
 ```
 
 ## Upgrading
 
-Pull the new image and recreate both services. Core applies migrations when it starts and copies the database to `backups/` first, so you can roll back. See [Backups and restore](/docs/backups/).
+Back up first, see [Backups and restore](/docs/backups/). Then set `ORION_CORE_IMAGE` to the new version in `.env` and run `docker compose pull && docker compose up -d`. Core applies migrations when it starts and copies the database to `backups/` first, so you can roll back. Moving from a version before 0.2.0? Read the [upgrade notes](https://github.com/sunday-studio/orion/blob/main/docs/deployment/upgrade-notes-0.2.0.md): the agent is now called the Node, installed servers re-run the installer once.

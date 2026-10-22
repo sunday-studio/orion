@@ -8,6 +8,8 @@
 
 **Self-hosted monitoring, incident response and logs for personal projects and small teams.**
 
+**[Documentation](https://orion.thesunday.studio/docs/)** · [Quickstart](https://orion.thesunday.studio/docs/quickstart/) · [Set up with an AI assistant](https://orion.thesunday.studio/docs/ai-setup/) · [orion.thesunday.studio](https://orion.thesunday.studio)
+
 Run Orion on a machine you own. When something breaks you hear it first, and every byte stays on your
 server. There is no hosted version and no account to create.
 
@@ -54,8 +56,8 @@ Postgres, Kubernetes or a hosted observability stack first.
 
 ## Get started
 
-About ten minutes on a Linux or macOS machine with Docker. The full steps, with every command, are in
-[Getting started](docs/getting-started.md).
+About ten minutes, on the server that will host Core (any Linux machine with Docker). The full steps, with
+every command, are in the **[Quickstart](https://orion.thesunday.studio/docs/quickstart/)** on the documentation site.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
@@ -94,16 +96,20 @@ https://raw.githubusercontent.com/sunday-studio/orion/main/docs/ai-setup.md and 
 Ask me the questions it lists first, and ask before you change anything on a machine.
 ```
 
-The instructions the assistant follows are in [docs/ai-setup.md](docs/ai-setup.md): what to ask, the exact
+The guide is on the [documentation site](https://orion.thesunday.studio/docs/ai-setup/), and the instructions the assistant follows are in [docs/ai-setup.md](docs/ai-setup.md): what to ask, the exact
 commands, how to check every step, and when to stop.
 
 ## Documentation
 
-The full map is in [docs/README.md](docs/README.md). The most useful pages:
+**The documentation site is at [orion.thesunday.studio/docs](https://orion.thesunday.studio/docs/).** Start there: the quickstart, installing Core, adding a
+server, sending logs, backups, the CLI and the API.
+
+The in-repo reference, including deployment details and design notes, has its own map in
+[docs/README.md](docs/README.md). The most useful pages:
 
 | | |
 |---|---|
-| **Start** | [Getting started](docs/getting-started.md) · [How Orion works](docs/how-it-works.md) |
+| **Start** | [Quickstart](https://orion.thesunday.studio/docs/quickstart/) · [Set up with AI](https://orion.thesunday.studio/docs/ai-setup/) · [Getting started](docs/getting-started.md) · [How Orion works](docs/how-it-works.md) |
 | **Run it** | [Deployment guide](docs/deployment/README.md) · [Core Docker deployment](docs/deployment/core-docker.md) · [Core security defaults](docs/deployment/core-security-defaults.md) · [Install and manage a Node](docs/deployment/node-install-upgrade.md) · [Server CLI cheat sheet](docs/deployment/server-cli-cheatsheet.md) |
 | **Your data** | [Send logs from your apps](docs/product-logs.md) · [SQLite backup and restore](docs/sqlite-backup-restore.md) |
 | **Build** | [Local development](docs/development/local-development.md) · [Architecture](docs/architecture/system-overview.md) · [System design](docs/system-design.md) |

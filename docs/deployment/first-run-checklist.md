@@ -11,11 +11,11 @@ healthy service, a forced failing service, Console verification, and reset comma
 - [ ] Download the Docker Compose sample:
 
 ```sh
-curl -fsSL -o orion-compose.yaml \
+curl -fsSL -o docker-compose.yml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
 ```
 
-- [ ] Create `.env` next to `orion-compose.yaml` and set real values for:
+- [ ] Create `.env` next to `docker-compose.yml` and set real values for:
 
 ```txt
 ORION_REQUIRE_FRONTEND_AUTH=true
@@ -30,7 +30,7 @@ Do not use the placeholder values shown in examples.
 - [ ] Start Core:
 
 ```sh
-docker compose -f orion-compose.yaml up -d
+docker compose up -d
 ```
 
 - [ ] Check health:
@@ -39,7 +39,7 @@ docker compose -f orion-compose.yaml up -d
 curl http://localhost:8999/health
 ```
 
-- [ ] Open `http://localhost:8999` and sign in with the configured admin credentials.
+- [ ] Open your server address (`http://<server-ip>:8999`, or your domain) and sign in with the configured admin credentials.
 - [ ] Confirm the `orion-data` Docker volume exists and is included in backups.
 
 ## Server
@@ -47,7 +47,7 @@ curl http://localhost:8999/health
 - [ ] Pick a Core URL the Server machine can reach, such as:
 
 ```txt
-http://orion-core.local:8999
+https://orion.example.com
 http://192.168.x.y:8999
 http://100.x.y.z:8999
 ```
@@ -57,7 +57,7 @@ http://100.x.y.z:8999
 
 ```sh
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh \
-  | sudo ORION_ENROLLMENT_TOKEN='orn_enr_...' bash -s -- --core-url http://orion-core.local:8999
+  | sudo ORION_ENROLLMENT_TOKEN='orn_enr_...' bash -s -- --core-url https://orion.example.com
 ```
 
 Use the Core URL this Server host can reach. The expected output is in
@@ -113,10 +113,10 @@ orion-node logs --lines 20
 - [ ] Run a SQLite backup after the first successful report. Core has two databases, `orion.db` and `logs.db`:
 
 ```sh
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
+docker compose exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker compose exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
+docker cp "$(docker compose ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
+docker cp "$(docker compose ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
 ```
 
 - [ ] Store the backups somewhere outside the Docker volume. Restore steps are in

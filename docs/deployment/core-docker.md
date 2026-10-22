@@ -35,7 +35,7 @@ command with `./orion-core-worker` to run the monitor worker.
 Download the sample Compose file:
 
 ```sh
-curl -fsSL -o orion-compose.yaml \
+curl -fsSL -o docker-compose.yml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
 ```
 
@@ -102,10 +102,10 @@ Start Core after creating the `.env` file. Compose starts two services:
 - `orion-core-worker`: Core-managed monitor worker heartbeat and check execution.
 
 ```sh
-docker compose -f orion-compose.yaml up -d
+docker compose up -d
 ```
 
-Core listens on `http://localhost:8999`.
+Core listens on port `8999` of the server.
 Worker state is exposed through the API diagnostics route:
 
 ```sh
@@ -222,20 +222,20 @@ The Compose file lives at `deploy/docker-compose.yml`; every setting is document
 Start or update Core:
 
 ```sh
-docker compose -f orion-compose.yaml pull
-docker compose -f orion-compose.yaml up -d
+docker compose pull
+docker compose up -d
 ```
 
 To inspect the resolved Compose file without starting Core:
 
 ```sh
-docker compose -f orion-compose.yaml config
+docker compose config
 ```
 
 Stop Core:
 
 ```sh
-docker compose -f orion-compose.yaml down
+docker compose down
 ```
 
 ## Data
@@ -259,7 +259,7 @@ Servers need a stable `core_url` that points at this Core deployment.
 
 Common examples:
 
-- `http://orion-core.local:8999`;
+- `https://orion.example.com`;
 - `http://192.168.x.y:8999`;
 - `http://100.x.y.z:8999` for Tailscale;
 - `https://orion.example.com` if placed behind a reverse proxy.

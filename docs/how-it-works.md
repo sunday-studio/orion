@@ -12,9 +12,8 @@
   monitor execution health.
 - **Console** is the web UI for incidents, servers, monitors, alerts, logs and settings.
 
-> **Terminology.** Product copy says *Server*. The historical `node` name remains in compatibility
-> surfaces: the `orion-node` binary, install assets, `/v1/nodes` routes, SDK symbols and SQLite
-> tables. See the [Server terminology decision](architecture/server-terminology.md).
+> **Terminology.** Product copy says *Server* for a machine Orion watches and *Node* for the program installed on it
+> (`orion-node`, `/v1/nodes`). See the [Server terminology decision](architecture/server-terminology.md).
 
 ## What it can watch
 

@@ -21,10 +21,10 @@ sqlite3 "$ORION_DATA_DIR/logs.db" ".backup '$ORION_DATA_DIR/logs-backup.db'"
 For Docker Compose (use `-f deploy/docker-compose.yml` instead if you run from a checkout of this repository):
 
 ```sh
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
+docker compose exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker compose exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
+docker cp "$(docker compose ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
+docker cp "$(docker compose ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
 ```
 
 Store the copies somewhere outside the Docker volume, and delete `orion-backup.db` and `logs-backup.db` from
@@ -39,7 +39,7 @@ migrations; see [Migrations](#migrations).
 Stop Core and the Worker before replacing a database:
 
 ```sh
-docker compose -f orion-compose.yaml down
+docker compose down
 ```
 
 Put the backup files in place inside the volume. With Docker, a throwaway container does it (the volume is
@@ -51,7 +51,7 @@ docker run --rm -v <project>_orion-data:/data -v "$PWD":/backup alpine sh -c '
   cp /backup/orion-backup.db /data/orion.db &&
   cp /backup/logs-backup.db /data/logs.db &&
   chown 10001:10001 /data/orion.db /data/logs.db'
-docker compose -f orion-compose.yaml up -d
+docker compose up -d
 ```
 
 Omit the `logs.db` lines if you only restore `orion.db`. For a local binary run, stop the process, remove the

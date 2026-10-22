@@ -19,7 +19,7 @@
 #   -h, --help            Show this help
 set -euo pipefail
 
-DEFAULT_VERSION="latest"
+DEFAULT_VERSION="0.2.0"
 REPO="sunday-studio/orion"
 
 DIR="${ORION_DIR:-./orion}"
