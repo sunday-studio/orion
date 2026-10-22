@@ -1,7 +1,7 @@
 # Orion Core + monitor worker. Quick start (details: docs/getting-started.md):
 #
 #   cp .env.example .env        # then set ORION_ADMIN_PASSWORD and ORION_JWT_SECRET
-#   docker compose up -d        # reads .env from this folder; Console on http://localhost:8999
+#   docker compose up -d        # reads .env from this folder; Console on http://<server-ip>:8999
 #
 # Or run deploy/scripts/setup-core.sh, which creates .env with generated secrets and starts Core.
 # Every setting is documented in .env.example. Data lives in the `orion-data` volume (SQLite);
@@ -86,6 +86,7 @@ services:
       ORION_ENABLE_SWAGGER: ${ORION_ENABLE_SWAGGER:-false}
       ORION_DB_LOG_LEVEL: ${ORION_DB_LOG_LEVEL:-warn}
     healthcheck:
+      # Runs inside the container, so localhost here is the container itself.
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
       interval: 30s
       timeout: 5s

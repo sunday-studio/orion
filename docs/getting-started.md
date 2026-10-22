@@ -22,24 +22,27 @@ You need:
 
 ## 1. Start Core
 
-One command creates a folder, writes the settings with generated secrets, starts Core and waits until it
-is healthy:
+Run this **on the server that will host Core** (a VPS, a home server or any Linux machine you control). One
+command creates a folder, writes the settings with generated secrets, starts Core and waits until it is
+healthy:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
 ```
 
-Add `--public-url https://orion.example.com` if Core will be reached at a domain, and `--dir /opt/orion`
-to choose the folder. The script ends by printing the Console address and your login, for example:
+The script works out the server's address and uses it as Core's public address. Add
+`--public-url https://orion.example.com` if you reach Core through a domain, and `--dir /opt/orion` to
+choose the folder. It ends by printing the Console address and your login, for example:
 
 ```text
 Orion Core is running.
 
-  Console   http://localhost:8999
+  Console   http://203.0.113.10:8999
   Login     admin  /  <generated password>
 ```
 
-Open that address and sign in. You land on the first-run screen ("Nothing is monitored yet").
+Open that address from your own computer and sign in. If it does not load, allow TCP port `8999` through the
+server's firewall or cloud security group. You land on the first-run screen ("Nothing is monitored yet").
 
 The password is stored in `orion/.env`. To change anything, edit that file and run
 `docker compose up -d` in the `orion` folder.
@@ -52,9 +55,10 @@ curl -fsSLO https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/do
 curl -fsSL  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/.env.example -o .env
 ```
 
-Edit `.env` and set `ORION_ADMIN_PASSWORD` (for example `openssl rand -base64 24 | tr -d '/+='`) and
-`ORION_JWT_SECRET` (`openssl rand -hex 32`). Optionally pin `ORION_CORE_IMAGE` to a release such as
-`ghcr.io/sunday-studio/orion-core:0.2.0`. Then:
+Edit `.env` and set `ORION_ADMIN_PASSWORD` (for example `openssl rand -base64 24 | tr -d '/+='`),
+`ORION_JWT_SECRET` (`openssl rand -hex 32`) and `ORION_PUBLIC_URL` (`http://<server-ip>:8999`, or your
+domain). Optionally pin `ORION_CORE_IMAGE` to a release such as `ghcr.io/sunday-studio/orion-core:0.2.0`.
+Then:
 
 ```sh
 docker compose up -d
@@ -111,7 +115,7 @@ In **Alerts**, open **Channels**, add a **Webhook** (Slack, Discord or any URL) 
 (email needs the SMTP settings in `.env`), and use **Send test** to confirm it works.
 
 To see a real incident, point an HTTP monitor at an address that fails (for example
-`http://localhost:9`), wait for it to turn red, and watch the incident open in **Incidents** and the
+`https://does-not-exist.invalid`), wait for it to turn red, and watch the incident open in **Incidents** and the
 notification arrive. Delete the monitor when you are done.
 
 ## 5. Optional next steps
