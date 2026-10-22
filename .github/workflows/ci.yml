@@ -227,7 +227,7 @@ jobs:
       - name: Lint Core
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.6.2
+          version: v2.15.0
           working-directory: apps/core
           args: --config ../../.golangci.yml --new-from-merge-base=origin/main ./...
 

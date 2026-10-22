@@ -12,7 +12,7 @@ RUN cd apps/console && pnpm generate:api
 RUN cd apps/console && pnpm run build
 
 # Build Go binary and carry frontend dist for runtime serving
-FROM golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS core
+FROM golang:1.26.10-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS core
 WORKDIR /app
 RUN apk add --no-cache build-base
 COPY apps/core/go.mod apps/core/go.sum apps/core/
@@ -25,7 +25,7 @@ RUN cd apps/core && go build -ldflags "-X orion/core/internal/buildinfo.Version=
 
 # Minimal runtime. Starts as root only long enough to fix ownership of an existing
 # /data volume (see docker-entrypoint.sh), then drops to the unprivileged orion user.
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+FROM alpine:3.23@sha256:21f3e19bafab57a9ff7aa9dd571dac72f868370472c10f450cc0416cc1aca553
 RUN apk add --no-cache ca-certificates sqlite su-exec \
     && addgroup -S -g 10001 orion \
     && adduser -S -u 10001 -G orion -h /app orion
