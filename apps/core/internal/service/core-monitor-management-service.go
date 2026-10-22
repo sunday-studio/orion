@@ -339,10 +339,6 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 	return &record, nil
 }
 
-func (s *CoreMonitorManagementService) PauseCoreMonitor(monitorID string) (*CoreManagedMonitorRecord, error) {
-	return s.setCoreMonitorPaused(monitorID, true, "")
-}
-
 // PauseCoreMonitorBy pauses and records who did it.
 func (s *CoreMonitorManagementService) PauseCoreMonitorBy(monitorID string, actor string) (*CoreManagedMonitorRecord, error) {
 	return s.setCoreMonitorPaused(monitorID, true, actor)

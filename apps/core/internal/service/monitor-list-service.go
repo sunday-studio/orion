@@ -5,12 +5,7 @@ import (
 	"strings"
 )
 
-func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor, int64, error) {
-	monitors, count, _, err := s.ListAllMonitorsPage(opts)
-	return monitors, count, err
-}
-
-// ListAllMonitorsPage is ListAllMonitors that also returns total: how many monitors match every
+// ListAllMonitorsPage lists monitors and also returns total: how many monitors match every
 // filter except Statuses, so a screen can say "20 healthy monitors are hidden".
 func (s *MonitorService) ListAllMonitorsPage(opts ListAllMonitorsOpts) ([]db.Monitor, int64, int64, error) {
 	var monitors []db.Monitor
