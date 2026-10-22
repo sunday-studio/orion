@@ -14,8 +14,8 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7
-	gorm.io/driver/sqlite v1.5.6
-	gorm.io/gorm v1.30.0
+	gorm.io/driver/sqlite v1.6.0
+	gorm.io/gorm v1.31.2
 )
 
 require (
