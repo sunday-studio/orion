@@ -143,4 +143,4 @@ if [ -n "$TOKEN" ]; then
 else
   printf '    bash -s -- --core-url %s   # add a one-time token from Console > Add server\n\n' "$URL"
 fi
-printf 'Docs: https://github.com/%s/blob/%s/docs/getting-started.md\n' "$REPO" "$REF"
+printf 'Docs: https://orion.thesunday.studio/docs/\n'
