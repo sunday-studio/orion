@@ -73,6 +73,9 @@ export const MonitorBulkBar = ({
     }
     setApplying(false);
     setTiming(false);
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
+    if (failed === 0) onClear();
     const skipped = ids.length - changed - failed;
     toast.add({
       title: `Changed ${changed} ${changed === 1 ? "monitor" : "monitors"}`,
