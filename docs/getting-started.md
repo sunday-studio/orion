@@ -65,8 +65,9 @@ docker compose up -d
 docker compose ps        # both services should say "healthy" within a minute
 ```
 
-Every setting, including email alerts, status page mail and tuning, is documented inside `.env.example`
-and in the [environment reference](deployment/core-environment.md).
+Everything else is optional and most of it can be changed in the Console under Settings. To set an option in
+`.env` instead, add the line from the [environment reference](deployment/core-environment.md); both
+services read `.env` directly.
 
 **Using a domain and HTTPS.** Put a reverse proxy in front of Core (a Caddy example is in
 [`deploy/examples/reverse-proxy`](../deploy/examples/reverse-proxy)), set `ORION_PUBLIC_URL` to the

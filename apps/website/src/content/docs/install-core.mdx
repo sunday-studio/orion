@@ -62,21 +62,17 @@ ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.1
 ```
 
 ```yaml
-# Orion Core + monitor worker. Quick start (details: docs/getting-started.md):
-#
-#   cp .env.example .env        # then set ORION_ADMIN_PASSWORD and ORION_JWT_SECRET
-#   docker compose up -d        # reads .env from this folder; Console on http://<server-ip>:8999
-#
-# Or run deploy/scripts/setup-core.sh, which creates .env with generated secrets and starts Core.
-# Every setting is documented in .env.example. Data lives in the `orion-data` volume (SQLite);
-# see docs/sqlite-backup-restore.md before upgrading.
+# Orion Core. Setup: docs/getting-started.md. Settings: .env (see .env.example).
 name: orion
 
-# Hardened profile: non-root user (the entrypoint starts as root only to chown an
-# older root-owned volume, then drops privileges), read-only root filesystem,
-# no capabilities beyond that one-time chown/drop, resource limits and a 30s grace
-# period for in-flight work. Pin ORION_CORE_IMAGE to a release tag or digest in production.
-x-hardened: &hardened
+x-core: &core
+  image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - orion-data:/data
   read_only: true
   tmpfs:
     - /tmp
@@ -92,65 +88,14 @@ x-hardened: &hardened
 
 services:
   orion-core:
-    <<: *hardened
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
-    restart: unless-stopped
-    mem_limit: ${ORION_CORE_MEMORY_LIMIT:-512m}
-    cpus: ${ORION_CORE_CPUS:-1.0}
-    pids_limit: 256
+    <<: *core
     ports:
       - "${ORION_HTTP_PORT:-8999}:8999"
-    volumes:
-      - orion-data:/data
     environment:
-      ORION_DATA_DIR: /data
-      ORION_PORT: "8999"
-      ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: ${ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS:-3600}
       ORION_REQUIRE_FRONTEND_AUTH: "true"
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD in .env (copy .env.example)}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET in .env (copy .env.example)}
-      ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS: ${ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS:-false}
-      # Console "Test now" runs checks inside this process, so it needs the same target policy as the Worker.
-      ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
-      ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
-      ORION_PUBLIC_URL: ${ORION_PUBLIC_URL:-}
-      ORION_ALERT_SMTP_HOST: ${ORION_ALERT_SMTP_HOST:-}
-      ORION_ALERT_SMTP_PORT: ${ORION_ALERT_SMTP_PORT:-587}
-      ORION_ALERT_SMTP_USERNAME: ${ORION_ALERT_SMTP_USERNAME:-}
-      ORION_ALERT_SMTP_PASSWORD: ${ORION_ALERT_SMTP_PASSWORD:-}
-      ORION_ALERT_SMTP_FROM: ${ORION_ALERT_SMTP_FROM:-}
-      ORION_ALERT_SMTP_TLS: ${ORION_ALERT_SMTP_TLS:-starttls}
-      ORION_ALERT_EMAIL_SECRET: ${ORION_ALERT_EMAIL_SECRET:-}
-      ORION_ALERT_COOLDOWN_SECONDS: ${ORION_ALERT_COOLDOWN_SECONDS:-300}
-      ORION_ALERT_RECOVERY_NOTIFICATIONS: ${ORION_ALERT_RECOVERY_NOTIFICATIONS:-true}
-      ORION_METRICS_TOKEN: ${ORION_METRICS_TOKEN:-}
-      ORION_LOGS_QUEUE_MAX: ${ORION_LOGS_QUEUE_MAX:-50000}
-      ORION_LOGS_APP_RATE_PER_SECOND: ${ORION_LOGS_APP_RATE_PER_SECOND:-1000}
-      ORION_ENROLLMENT_TOKEN: ${ORION_ENROLLMENT_TOKEN:-}
-      ORION_DEADMAN_URL: ${ORION_DEADMAN_URL:-}
-      ORION_TRUSTED_PROXIES: ${ORION_TRUSTED_PROXIES:-}
-      ORION_PUBLIC_STATUS_MAIL_ENABLED: ${ORION_PUBLIC_STATUS_MAIL_ENABLED:-false}
-      ORION_PUBLIC_STATUS_MAIL_HOST: ${ORION_PUBLIC_STATUS_MAIL_HOST:-}
-      ORION_PUBLIC_STATUS_MAIL_PORT: ${ORION_PUBLIC_STATUS_MAIL_PORT:-587}
-      ORION_PUBLIC_STATUS_MAIL_USERNAME: ${ORION_PUBLIC_STATUS_MAIL_USERNAME:-}
-      ORION_PUBLIC_STATUS_MAIL_PASSWORD: ${ORION_PUBLIC_STATUS_MAIL_PASSWORD:-}
-      ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL: ${ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL:-}
-      ORION_PUBLIC_STATUS_MAIL_FROM_NAME: ${ORION_PUBLIC_STATUS_MAIL_FROM_NAME:-Orion Status}
-      ORION_PUBLIC_STATUS_MAIL_REPLY_TO: ${ORION_PUBLIC_STATUS_MAIL_REPLY_TO:-}
-      ORION_PUBLIC_STATUS_URL_ORIGIN: ${ORION_PUBLIC_STATUS_URL_ORIGIN:-}
-      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-}
-      ORION_STATUS_PAGES_CNAME_TARGET: ${ORION_STATUS_PAGES_CNAME_TARGET:-}
-      ORION_SESSION_HOURS: ${ORION_SESSION_HOURS:-12}
-      ORION_LOGIN_RATE_LIMIT_ATTEMPTS: ${ORION_LOGIN_RATE_LIMIT_ATTEMPTS:-5}
-      ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS: ${ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS:-60}
-      ORION_REGISTER_RATE_LIMIT_PER_MINUTE: ${ORION_REGISTER_RATE_LIMIT_PER_MINUTE:-30}
-      ORION_INTERNAL_LOG_RETENTION_DAYS: ${ORION_INTERNAL_LOG_RETENTION_DAYS:-7}
-      ORION_INTERNAL_LOG_MAX_STORAGE_MB: ${ORION_INTERNAL_LOG_MAX_STORAGE_MB:-200}
-      ORION_ENABLE_SWAGGER: ${ORION_ENABLE_SWAGGER:-false}
-      ORION_DB_LOG_LEVEL: ${ORION_DB_LOG_LEVEL:-warn}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD in .env}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET in .env}
     healthcheck:
-      # Runs inside the container, so localhost here is the container itself.
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
       interval: 30s
       timeout: 5s
@@ -158,43 +103,12 @@ services:
       start_period: 10s
 
   orion-core-worker:
-    <<: *hardened
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.1}
-    restart: unless-stopped
-    mem_limit: ${ORION_WORKER_MEMORY_LIMIT:-512m}
-    cpus: ${ORION_WORKER_CPUS:-1.0}
-    pids_limit: 256
+    <<: *core
     command: ["./orion-core-worker"]
     depends_on:
       orion-core:
         condition: service_healthy
-    volumes:
-      - orion-data:/data
-    environment:
-      ORION_DATA_DIR: /data
-      ORION_WORKER_ID: ${ORION_WORKER_ID:-core-monitor-worker}
-      ORION_WORKER_HEARTBEAT_SECONDS: ${ORION_WORKER_HEARTBEAT_SECONDS:-15}
-      ORION_WORKER_STALE_SECONDS: ${ORION_WORKER_STALE_SECONDS:-60}
-      ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
-      ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
-      ORION_WORKER_CONCURRENCY: ${ORION_WORKER_CONCURRENCY:-16}
-      ORION_ALERT_TLS_EXPIRY_DAYS: ${ORION_ALERT_TLS_EXPIRY_DAYS:-14}
-      ORION_DB_LOG_LEVEL: ${ORION_DB_LOG_LEVEL:-warn}
-      ORION_LOGS_QUEUE_MAX: ${ORION_LOGS_QUEUE_MAX:-50000}
-      ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS: ${ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS:-false}
-      ORION_PUBLIC_URL: ${ORION_PUBLIC_URL:-}
-      ORION_ALERT_SMTP_HOST: ${ORION_ALERT_SMTP_HOST:-}
-      ORION_ALERT_SMTP_PORT: ${ORION_ALERT_SMTP_PORT:-587}
-      ORION_ALERT_SMTP_USERNAME: ${ORION_ALERT_SMTP_USERNAME:-}
-      ORION_ALERT_SMTP_PASSWORD: ${ORION_ALERT_SMTP_PASSWORD:-}
-      ORION_ALERT_SMTP_FROM: ${ORION_ALERT_SMTP_FROM:-}
-      ORION_ALERT_SMTP_TLS: ${ORION_ALERT_SMTP_TLS:-starttls}
-      ORION_ALERT_EMAIL_SECRET: ${ORION_ALERT_EMAIL_SECRET:-}
-      ORION_ALERT_COOLDOWN_SECONDS: ${ORION_ALERT_COOLDOWN_SECONDS:-300}
-      ORION_ALERT_RECOVERY_NOTIFICATIONS: ${ORION_ALERT_RECOVERY_NOTIFICATIONS:-true}
-      # The Worker serves no admin routes and needs no admin password or JWT secret.
     healthcheck:
-      # Through the entrypoint so the check runs as the orion user that owns /data.
       test: ["CMD", "docker-entrypoint.sh", "./orion-core-worker", "healthcheck"]
       interval: 30s
       timeout: 5s
@@ -207,7 +121,7 @@ volumes:
 
 </CodeTabs>
 
-The `docker-compose.yml` tab is the file in the repository, [`deploy/docker-compose.yml`](https://github.com/sunday-studio/orion/blob/main/deploy/docker-compose.yml), unchanged. It runs both services read-only with dropped capabilities and resource limits, waits for Core to be healthy before starting the worker, and passes every setting through from `.env`. A trimmed copy that leaves out the worker, the secrets or the data directory will not work.
+The `docker-compose.yml` tab is the file in the repository, [`deploy/docker-compose.yml`](https://github.com/sunday-studio/orion/blob/main/deploy/docker-compose.yml), unchanged. It runs both services read-only with dropped capabilities, waits for Core to be healthy before starting the worker, and reads every setting from `.env`, so an optional setting is just one more line there. Leaving out the worker or the two secrets will not work.
 
 Day to day:
 
@@ -217,8 +131,6 @@ Day to day:
 | `docker compose logs -f orion-core` | Follows the Core log. Use `orion-core-worker` for the worker. |
 | `docker compose restart` | Restarts both services after you change `.env`. |
 | `docker compose down` | Stops them. The data stays in the `orion-data` volume. |
-
-Only want to try Orion on one machine? The [Quickstart](/docs/quickstart/) uses a smaller sample file.
 
 ## Required settings (Docker Compose)
 
@@ -232,7 +144,7 @@ The setup script fills these in for you. With Docker Compose, put them in `.env`
 | `ORION_PUBLIC_URL` | Set this to your server's address or domain. It is used in the install commands the Console shows, in emails and in status page links. |
 | `ORION_ENROLLMENT_TOKEN` | Optional but recommended. When set, a server can only register with this value or a one-time token from the Console. |
 
-Everything else is optional and documented in [`.env.example`](https://github.com/sunday-studio/orion/blob/main/deploy/.env.example) and the [environment reference](https://github.com/sunday-studio/orion/blob/main/docs/deployment/core-environment.md).
+Everything else is optional, and most of it can be changed in the Console under Settings. To set one in `.env` instead, see the [environment reference](https://github.com/sunday-studio/orion/blob/main/docs/deployment/core-environment.md).
 
 <Callout type="warn" title="Do not reuse a password.">Generate both secrets, for example with `openssl rand -hex 32`, and keep the `.env` file out of version control.</Callout>
 

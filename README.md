@@ -70,7 +70,7 @@ your login. Then:
    or macOS host you want to watch.
 2. **Add a monitor and an alert channel**, then send a test message.
 
-Every setting lives in [`deploy/.env.example`](deploy/.env.example); the compose file is
+The settings are in [`deploy/.env.example`](deploy/.env.example); the compose file is
 [`deploy/docker-compose.yml`](deploy/docker-compose.yml). Building Core from source on a new server:
 [Set up Core with Docker](docs/deployment/docker-new-server.md).
 
