@@ -32,7 +32,7 @@ export const DetectedItem = ({
 }) => {
   const monitored = item.status === "monitored";
   return (
-    <div className="grid min-h-[46px] grid-cols-[20px_minmax(0,1fr)_230px_40px] items-center gap-3 border-t border-line-soft px-3.5 py-1.5 text-[13px] first:border-t-0">
+    <div className="grid min-h-[46px] grid-cols-[20px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-line-soft px-3.5 py-1.5 text-[13px] first:border-t-0">
       {selectable ? (
         <Checkbox aria-label={`Select ${item.name}`} checked={checked} onCheckedChange={onToggle} />
       ) : (
@@ -92,7 +92,7 @@ export const DetectedItem = ({
       ) : size && onViewApps ? (
         <button
           type="button"
-          className="text-left text-[13px] text-brand hover:underline"
+          className="whitespace-nowrap text-left text-[13px] text-brand hover:underline"
           onClick={onViewApps}
         >
           View in Apps
