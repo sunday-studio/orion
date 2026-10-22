@@ -1,6 +1,6 @@
 ---
-interface Props { labels: string[] }
-const { labels } = Astro.props;
+interface Props { labels: string[]; copyLabels?: string[] }
+const { labels, copyLabels } = Astro.props;
 const g = globalThis as { __orionTabs?: number };
 g.__orionTabs = (g.__orionTabs ?? 0) + 1;
 const uid = `tabs${g.__orionTabs}`;
@@ -9,7 +9,7 @@ const uid = `tabs${g.__orionTabs}`;
   {labels.map((_, n) => <input type="radio" name={uid} id={`${uid}-${n}`} class="rx" data-index={n} checked={n === 0} />)}
   <div class="ch">
     <div class="ct">{labels.map((l, n) => <label for={`${uid}-${n}`}>{l}</label>)}</div>
-    <button type="button" class="cp2" data-copy><span class="c0">Copy</span><span class="c1">Copied</span></button>
+    <button type="button" class="cp2" data-copy data-labels={copyLabels ? JSON.stringify(copyLabels) : undefined}><span class="c0">{copyLabels?.[0] ?? "Copy"}</span><span class="c1">Copied</span></button>
   </div>
   <div class="panes"><slot /></div>
 </div>
