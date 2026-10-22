@@ -162,14 +162,15 @@ flowchart TD
   Sent -- "no" --> MarkFailed["Mark failed"]
 ```
 
-Supported internal alert destination:
+Supported internal alert destinations:
 
-- generic webhook only.
+- generic webhook;
+- email, to recipients who confirmed their address through a signed link (needs `ORION_ALERT_SMTP_*`, see [Core environment variables](../deployment/core-environment.md)).
 
 Configured behavior:
 
 - rules own trigger, filter, suppression, grouping, cooldown, recovery, and destination selection behavior;
-- rules can target one or more generic webhook destinations;
+- rules can target one or more webhook or email destinations;
 - disabled rules do not create delivery rows;
 - suppressing rules create suppressed delivery rows;
 - unmatched events do not create webhook delivery rows;

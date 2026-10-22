@@ -110,11 +110,14 @@ orion-node logs --lines 20
 
 ## Backup
 
-- [ ] Run a SQLite backup after the first successful report:
+- [ ] Run a SQLite backup after the first successful report. Core has two databases, `orion.db` and `logs.db`:
 
 ```sh
 docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
 docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
+docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
 ```
 
-- [ ] Store the backup somewhere outside the Docker volume.
+- [ ] Store the backups somewhere outside the Docker volume. Restore steps are in
+      [SQLite backup and restore](../sqlite-backup-restore.md).

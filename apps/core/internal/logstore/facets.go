@@ -2,8 +2,6 @@ package logstore
 
 import (
 	"fmt"
-	"sort"
-	"strings"
 )
 
 // Count is one facet value and how many entries carry it.
@@ -106,14 +104,4 @@ func (s *Store) FieldValues(q Query, field string, limit int) ([]Count, error) {
 		out = append(out, Count{Value: r.V, Count: r.N})
 	}
 	return out, nil
-}
-
-// SortCounts orders counts by size, then value, in place.
-func SortCounts(c []Count) {
-	sort.Slice(c, func(i, j int) bool {
-		if c[i].Count != c[j].Count {
-			return c[i].Count > c[j].Count
-		}
-		return strings.Compare(c[i].Value, c[j].Value) < 0
-	})
 }

@@ -55,7 +55,7 @@ Scope notes:
 
 | Path | Evidence | Why uncertain |
 |---|---|---|
-| `docs/plans/agent-health-debugging-next-release.md`, `colleague-feedback-action-plan.md`, `core-codebase-cleanup-proposal.md`, `incident-detail-information-architecture.md`, `status-page-public-design-breakdown.md`, `settings-pr-closeout-checklist.md` | No inbound links; dated May 2026; likely superseded | Historical decision records. AGENTS.md says completed plans belong in `docs/milestones/`; the owner should decide archive vs delete |
+| `docs/plans/incident-detail-information-architecture.md` | No inbound links; dated May 2026; mostly implemented | Kept as a historical record. `agent-health-debugging-next-release.md`, `colleague-feedback-action-plan.md`, `core-codebase-cleanup-proposal.md`, `status-page-public-design-breakdown.md`, `settings-pr-closeout-checklist.md`, `alert-webhook-rules-cleanup.md`, `agent-cli-handoff.md` and `rename-agent-to-node.py` were deleted for the 0.2.0 release (shipped or superseded); `docs/architecture/alert-chat-destinations.md` went with them. |
 | `docs/ci.md`, `docs/deployment/upgrade-notes-backend-hardening.md`, `docs/web/design-system.md`, `docs/web/web-status-map.md` | No inbound links | Current reference docs that just lack an index entry; link them instead |
 | `apps/agent/**` | Not audited | Blocked on `orion:agent` merge |
 | Unused exported Go types/consts, struct fields, unused config keys in Core | Not covered by tools run | Needs a second pass |

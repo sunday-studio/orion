@@ -200,13 +200,6 @@ func alertRuleResponse(rule db.AlertRoute) AlertRuleResponse {
 	base := alertRouteFields(rule)
 	return AlertRuleResponse{ID: base.ID, Name: base.Name, Enabled: base.Enabled, Priority: base.Priority, EventTypes: base.EventTypes, Severities: base.Severities, NodeIDs: base.NodeIDs, MonitorIDs: base.MonitorIDs, MonitorTypes: base.MonitorTypes, ChannelIDs: base.ChannelIDs, Suppress: base.Suppress, GroupingPolicy: base.GroupingPolicy, GroupingDelaySeconds: base.GroupingDelaySeconds, CreatedAt: base.CreatedAt, UpdatedAt: base.UpdatedAt}
 }
-func alertRuleResponses(rules []db.AlertRoute) []AlertRuleResponse {
-	responses := make([]AlertRuleResponse, 0, len(rules))
-	for _, rule := range rules {
-		responses = append(responses, alertRuleResponse(rule))
-	}
-	return responses
-}
 func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRouteDryRunResponse {
 	evaluations := make([]AlertRouteEvaluationResponse, 0, len(result.RouteEvaluations))
 	for _, evaluation := range result.RouteEvaluations {

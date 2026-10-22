@@ -117,10 +117,6 @@ func decodeJSONObjects(configJSON, secretsJSON string) (map[string]interface{}, 
 	return config, secrets, nil
 }
 
-func (s *CoreMonitorManagementService) DeleteCoreMonitor(monitorID string) error {
-	return s.DeleteCoreMonitorWith(monitorID, true)
-}
-
 // DeleteCoreMonitorWith deletes a monitor. With keepHistory the reports stay for
 // deletedMonitorHistoryDays and retention purges them; without it everything goes now.
 // Incidents are never deleted.
