@@ -1,14 +1,14 @@
 {
   // Cloudflare Workers static assets: serves the built site from dist/ with no Worker code.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "orion-website",
+  "name": "orion",
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   }
-  // Custom domain: add it in the Cloudflare dashboard (Workers & Pages > orion-website > Settings > Domains),
+  // Custom domain: add it in the Cloudflare dashboard (Workers & Pages > orion > Settings > Domains),
   // or add: "routes": [{ "pattern": "orion.thesunday.studio", "custom_domain": true }]
   // The zone must already be on your Cloudflare account.
 }
