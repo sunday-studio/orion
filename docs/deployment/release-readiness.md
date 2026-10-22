@@ -58,9 +58,9 @@ These warnings are classified for the current release gate:
 | --- | --- | --- | --- |
 | `github.com/shoenig/go-m1cpu` emits Darwin CGO variable-length-array warnings during Server tests. | Advisory | The Server tests pass and the warning comes from a third-party dependency compile step. | It becomes a compile failure, appears on Linux release builds, or masks a failing Server test. |
 | `swag` warns that it failed to evaluate Go runtime constant `mProfCycleWrap` while parsing dependencies. | Advisory | OpenAPI generation completes and the generated contract drift check passes. | OpenAPI generation fails, route documentation is missing, or generated contract files drift unexpectedly. |
-| Orval prints `import.meta` target warnings while generating the Console SDK. | Advisory | SDK generation and the Vite production build pass after generation. | Generated SDK output changes in a way that breaks TypeScript, runtime API base URL handling, or browser smoke. |
-| Vite warns that the main Console chunk is larger than 500 kB. | Conditional | The production build succeeds and the first release has no documented bundle-size budget. | Console load time becomes a release criterion, browser smoke exposes load failures, or a reviewer sets a bundle budget for the release. |
-| `pnpm install` warns that dependency build scripts were ignored. | Advisory | The frozen install, SDK generation, and production build pass in the isolated worktree. | A package requires an ignored build script for the build, tests, or browser smoke to pass. |
+| Orval prints `import.meta` target warnings while generating the Console SDK. | Advisory | SDK generation and the Vite production build pass after generation. | Generated SDK output changes in a way that breaks TypeScript, or runtime API base URL handling. |
+| Vite warns that the main Console chunk is larger than 500 kB. | Conditional | The production build succeeds and the first release has no documented bundle-size budget. | Console load time becomes a release criterion, or a reviewer sets a bundle budget for the release. |
+| `pnpm install` warns that dependency build scripts were ignored. | Advisory | The frozen install, SDK generation, and production build pass in the isolated worktree. | A package requires an ignored build script for the build or tests to pass. |
 
 ## Manual Release Checks
 
