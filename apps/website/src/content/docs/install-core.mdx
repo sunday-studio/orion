@@ -13,9 +13,15 @@ import Step from "../../components/docs/step.astro";
 
 <Callout title="Where to run it.">On a server your other machines can reach: a small VPS, a home server, or a machine on your Tailscale network. It needs Docker with the Compose plugin, `curl` and `openssl`.</Callout>
 
-## Run the setup script
+Core ships as one image, run as two services that share a single volume: `orion-core` for the API, the Console and public status pages, and `orion-core-worker` for monitor checks and alert delivery. There are two ways to install it. They are separate: pick one.
 
-Core ships as one image, run as two services that share a single volume: `orion-core` for the API, the Console and public status pages, and `orion-core-worker` for monitor checks and alert delivery. The script does the setup for you.
+| | Setup script | Docker Compose |
+|---|---|---|
+| Best for | The fastest start on a fresh server | Seeing and owning every file |
+| Secrets | Generated for you | You write `.env` |
+| You run | One command | A few commands and an edited `.env` |
+
+## Option 1: Setup script
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
@@ -30,11 +36,11 @@ It checks Docker, creates an `orion` folder with `docker-compose.yml` and a `.en
 | `--version <version>` | Pin the Core image, for example `0.2.1`. |
 | `--port <port>` | The port on this server. Default `8999`. |
 
-Open the printed address from your own computer. If it does not load, allow TCP port `8999` through the server's firewall or cloud security group.
+Open the printed address from your own computer. If it does not load, allow TCP port `8999` through the server's firewall or cloud security group. Prefer to manage the files yourself? Use [Option 2](#option-2-docker-compose) instead.
 
-## Run with Docker Compose
+## Option 2: Docker Compose
 
-The script above is a shortcut for this. Use Compose directly when you want to see and own every file. It runs the two services, `orion-core` and `orion-core-worker`, on one shared volume.
+Download the compose file and an example `.env`, fill in your secrets and start both services yourself. Nothing here needs the setup script.
 
 <CodeTabs labels={["Run", ".env", "docker-compose.yml"]} copyLabels={["Copy commands", "Copy variables", "Copy file"]}>
 
@@ -214,9 +220,9 @@ Day to day:
 
 Only want to try Orion on one machine? The [Quickstart](/docs/quickstart/) uses a smaller sample file.
 
-## Required settings
+## Required settings (Docker Compose)
 
-Authentication is on by default. Core refuses to start unless these are set.
+The setup script fills these in for you. With Docker Compose, put them in `.env`. Authentication is on by default, and Core refuses to start unless the first two are set.
 
 | Variable | What it does |
 |---|---|
@@ -231,6 +237,8 @@ Everything else is optional and documented in [`.env.example`](https://github.co
 <Callout type="warn" title="Do not reuse a password.">Generate both secrets, for example with `openssl rand -hex 32`, and keep the `.env` file out of version control.</Callout>
 
 ## Use a domain and HTTPS
+
+This applies to both options.
 
 Put a reverse proxy in front of Core, point your domain at the server, set `ORION_PUBLIC_URL` to the public address and `ORION_TRUSTED_PROXIES` to the proxy's address, then run `docker compose up -d` again. A Caddy example is in [`deploy/examples/reverse-proxy`](https://github.com/sunday-studio/orion/tree/main/deploy/examples/reverse-proxy).
 
