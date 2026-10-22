@@ -24,8 +24,7 @@ apps/node/tmp/
 
 # core
 apps/core/.env
-apps/core/web/index.html
-apps/core/web/assets/
+apps/core/web/
 *.test
 *.out
 *.cpu
