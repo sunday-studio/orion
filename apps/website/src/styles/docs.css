@@ -21,8 +21,9 @@
 .callout{display:flex;gap:12px;padding:14px 16px;border-radius:12px;margin:20px 0;font-size:14.5px;line-height:1.6}
 .callout svg{flex:none;margin-top:3px}
 .callout b{font-weight:500}
+.callout code{font:12.5px "IBM Plex Mono",monospace;color:inherit;background:rgb(0 0 0 / 0.05);border-radius:4px;padding:1px 5px}
 .callout.note{background:#f0f9f4;border:1px solid #d3eee0;color:#14573a}
-.callout.warn{background:var(--color-card)beb;border:1px solid #fde9b0;color:#92400e}
+.callout.warn{background:#fffbeb;border:1px solid #fde9b0;color:#92400e}
 .code{margin:18px 0;border-radius:12px;background:#142a23;overflow:hidden;box-shadow:0 1px 2px rgba(24,24,27,.08)}
 .ch{display:flex;justify-content:space-between;align-items:center;padding:0 10px 0 6px;border-bottom:1px solid rgba(255,255,255,.08);height:40px}
 .ct{display:flex;gap:2px}
@@ -32,7 +33,7 @@
 .cp2:hover{background:rgba(255,255,255,.08)}
 .art table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
 .art th{text-align:left;font-weight:400;font-size:12px;color:var(--color-faint);padding:8px 12px 8px 0;border-bottom:1px solid var(--color-line)}
-.art td{padding:12px 12px 12px 0;border-bottom:1px solid var(--color-tray);vertical-align:top;color:#52525b}
+.art td{padding:12px 12px 12px 0;border-bottom:1px solid var(--color-tray);vertical-align:top;color:var(--color-body)}
 .art tr:hover td{background:var(--color-sub)}
 .steps{margin:18px 0;position:relative}
 .step{display:grid;grid-template-columns:32px 1fr;gap:14px;padding-bottom:22px;position:relative}
@@ -75,7 +76,7 @@
 .sx:checked + .done{border-color:#bde5cf;background:#f0f9f4}
 .sx:checked + .done .bx{background:var(--color-accent);border-color:var(--color-accent)}
 .sx:checked + .done .bx svg{opacity:1}
-.sx:checked + .done span.t{color:#14573a}
+.sx:checked + .done span.t{color:var(--color-good-deep)}
 .prog{display:flex;flex-direction:column;gap:10px;margin-top:4px}
 .pi{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--color-muted)}
 .pb{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--color-line-hover);display:grid;place-items:center;color:#fff;transition:all .2s}
@@ -107,7 +108,7 @@
 .cmd table{margin:10px 0 0}
 .flt{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border:1px solid var(--color-line-strong);border-radius:10px;background:var(--color-field);color:var(--color-faint);font-size:14px;margin:22px 0 6px;box-shadow:inset 0 1px 2px rgba(24,24,27,.05)}
 .chp{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
-.chp a{padding:3px 10px;border:1px solid var(--color-line);border-radius:6px;font:12.5px "IBM Plex Mono",monospace;color:#52525b;transition:all .12s}
+.chp a{padding:3px 10px;border:1px solid var(--color-line);border-radius:6px;font:12.5px "IBM Plex Mono",monospace;color:var(--color-body);transition:all .12s}
 .chp a:hover{border-color:var(--color-accent);color: var(--color-accent-text)}
 .dh{padding:72px 48px 0;text-align:center}
 .dh h1{font-size:60px;letter-spacing:-.04em;font-weight:300;line-height:1.02;margin-top:14px}
@@ -115,7 +116,7 @@
 .bigs:hover{background:var(--color-card);border-color:var(--color-line-hover);box-shadow:0 8px 24px -12px rgba(24,24,27,.2)}
 .bigs .kb{margin-left:auto}
 .chips{display:flex;gap:8px;justify-content:center;margin-top:16px;font-size:13px;color:var(--color-muted);align-items:center}
-.chips a{padding:3px 10px;border:1px solid var(--color-line);border-radius:6px;transition:all .12s;color:#52525b}
+.chips a{padding:3px 10px;border:1px solid var(--color-line);border-radius:6px;transition:all .12s;color:var(--color-body)}
 .chips a:hover{border-color:var(--color-accent);color: var(--color-accent-text)}
 .qg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:72px 48px 0}
 .qc{position:relative;display:flex;flex-direction:column;gap:4px;padding:20px;border:1px solid var(--color-line);border-radius:14px;background:var(--color-card);box-shadow:0 1px 2px rgba(24,24,27,.05);transition:all .2s;min-height:190px}
@@ -195,6 +196,8 @@
   .bg.a { background: rgb(245 158 11 / 0.18); color: #fcd34d; }
   .bg.r { background: rgb(229 72 77 / 0.2); color: #fda4af; }
   .bg.z { background: var(--color-tray); color: var(--color-muted); }
+  .mth { background: rgb(59 130 246 / 0.2); color: #93c5fd; }
+  .callout code { background: rgb(255 255 255 / 0.08); }
   .done, .sx:checked + .done { background: var(--color-sub); }
   .sx:checked + .done { border-color: rgb(31 122 80 / 0.5); }
   .qi { background: rgb(31 122 80 / 0.18); }
