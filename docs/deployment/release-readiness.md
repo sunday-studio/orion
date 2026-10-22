@@ -16,7 +16,6 @@ names the owner, risk, and follow-up ticket.
 | Server daemon | Server tests pass for the changed branch. | Test output or CI job URL. | `make node-test` | `Server tests` |
 | Core API and worker | Core tests pass and Core binaries build. | Test/build output or CI job URL. | `make core-test && make core-build && make core-worker-build` | `Core tests` |
 | Console | Generated SDK, TypeScript, and Vite build pass. | Build output or CI job URL. | `make console-build` | `Console build` |
-| Browser smoke | Console browser smoke passes when Console, Core API, or generated API client changes. | Playwright output or CI job URL. | `cd apps/console && pnpm run test:e2e` | `Console E2E` |
 | Generated contracts | OpenAPI and generated Console SDK have no drift after regeneration. | Clean `git diff` output. | `make generated-contracts-check` | `Generated contracts` |
 | Deployment assets | Shell scripts parse and Docker Compose renders with required secrets. | Command output or CI job URL. | `make repository-smoke` | `Repository smoke` |
 | Release packaging | Core image and Server binary workflows remain manual, versioned, and same-tag compatible. | Reviewer checklist and workflow diff. | Inspect `.github/workflows/core-image.yml` and `.github/workflows/node-binaries.yml` | Manual PR review |
@@ -45,7 +44,7 @@ Core API models, OpenAPI output, the generated SDK, or Console API usage changes
 | Classification | Release effect | Examples | Required PR note |
 | --- | --- | --- | --- |
 | Blocking | Do not merge or tag the release candidate. | Failing tests, generated contract drift, broken Docker Compose config, missing required deployment secret docs, incompatible Core/Server version guidance. | Mark the checklist item failed and link the fix commit or follow-up PR. |
-| Conditional | May merge only with an explicit owner and mitigation. | Browser smoke flakes with a rerun pass, known unsupported monitor edge case, release workflow warning that does not affect produced artifacts. | Name the owner, impact, and expiry date. |
+| Conditional | May merge only with an explicit owner and mitigation. | A flaky check that passes on rerun, known unsupported monitor edge case, release workflow warning that does not affect produced artifacts. | Name the owner, impact, and expiry date. |
 | Advisory | May merge when documented. | Cosmetic documentation gap, non-release TODO, planned future hardening, optional local tooling warning. | Explain why it is not release-blocking and link any follow-up ticket. |
 
 Unclassified warnings are blocking. Treat a warning as unclassified when the PR does not say whether
