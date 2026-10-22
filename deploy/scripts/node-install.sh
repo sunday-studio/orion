@@ -389,6 +389,7 @@ initialize_state() {
     fi
     if ! "$INSTALL_DIR/orion-node" enroll --config "$INSTALLED_CONFIG_PATH" --state "$state_path" \
         --core-url "$core_url" --token-file "$TOKEN_FILE"; then
+      # node-bootstrap.sh matches the words "enrollment failed" below to name the failing step.
       printf '     error: enrollment failed. Create a new token in Console > Add server and re-run the install command.\n' >&2
       exit 1
     fi

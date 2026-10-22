@@ -152,8 +152,10 @@ fail_step() { # name reason fix code detail...
 # the finished steps, the step that broke with its reason, a fix and the help link.
 # The lower-level transcript is kept in a file for anyone who needs all of it.
 install_failed() { # log
-  local log="$1" keep="${TMPDIR:-/tmp}/orion-node-install.log" name="Installed" fix reason
-  cp "$log" "$keep" 2>/dev/null || keep="$log"
+  local log="$1" keep name="Installed" fix reason
+  # mktemp gives an unpredictable 0600 file: this usually runs as root in a shared /tmp.
+  keep="$(mktemp "${TMPDIR:-/tmp}/orion-node-install.XXXXXX" 2>/dev/null)" || keep=""
+  if [ -n "$keep" ] && cp "$log" "$keep" 2>/dev/null; then :; else keep="$log"; fi
   local -a detail=()
   local line
   while IFS= read -r line; do detail+=("$line"); done < <(
@@ -163,8 +165,15 @@ install_failed() { # log
       infail && /^ +fix:/ {next}
       infail && /^ +[^ ]/ {sub(/^ +/,""); print; next}
       {infail=0}' | head -6)
-  reason="${detail[0]:-installation failed}"; detail=("${detail[@]:1}")
-  if grep -q '^\[06\]\|Enrollment' "$log" 2>/dev/null && grep -q 'enrollment failed' "$log"; then
+  if [ "${#detail[@]}" -eq 0 ]; then
+    # No [fail] marker: show the last lines so the cause is visible without opening the file.
+    while IFS= read -r line; do detail+=("$line"); done < <(sed "s/${ESC}\[[0-9;]*m//g" "$log" | grep -v '^[[:space:]]*$' | tail -3)
+    reason="installation failed"
+  else
+    reason="${detail[0]}"; detail=("${detail[@]:1}")
+  fi
+  # node-install.sh prints "enrollment failed" when `orion-node enroll` fails; keep the two in step.
+  if grep -q 'enrollment failed' "$log" 2>/dev/null; then
     name="Enrolled"; fix="create a new token in Console > Add server and run the new command"
   else
     fix="fix the reported step and re-run the same command"
