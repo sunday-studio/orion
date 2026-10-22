@@ -53,7 +53,7 @@ To watch containers, the `orion` user needs permission to read `/var/run/docker.
 
 ```sh
 orion-node update
-orion-node update --version 0.2.0
+orion-node update --version 0.2.1
 ```
 
 To remove a server, run the installer with `uninstall`. Add `--purge` to delete its config and state too:

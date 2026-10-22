@@ -57,7 +57,7 @@ curl -fsSL  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/.e
 
 Edit `.env` and set `ORION_ADMIN_PASSWORD` (for example `openssl rand -base64 24 | tr -d '/+='`),
 `ORION_JWT_SECRET` (`openssl rand -hex 32`) and `ORION_PUBLIC_URL` (`http://<server-ip>:8999`, or your
-domain). Optionally pin `ORION_CORE_IMAGE` to a release such as `ghcr.io/sunday-studio/orion-core:0.2.0`.
+domain). Optionally pin `ORION_CORE_IMAGE` to a release such as `ghcr.io/sunday-studio/orion-core:0.2.1`.
 Then:
 
 ```sh
@@ -124,7 +124,7 @@ notification arrive. Delete the monitor when you are done.
 - **Send logs from your own apps:** [Product logs](product-logs.md).
 - **Back up the database:** [SQLite backup and restore](sqlite-backup-restore.md).
 - **Upgrade:** pull the new image and run `docker compose up -d`; read the
-  [upgrade notes](deployment/upgrade-notes-node-rename.md) first when moving from a version before 0.2.0.
+  [upgrade notes](deployment/upgrade-notes-0.2.0.md) first when moving from a version before 0.2.0.
 - **Remove a server:** `orion-node` uninstall steps are in
   [Node install and upgrade](deployment/node-install-upgrade.md).
 
