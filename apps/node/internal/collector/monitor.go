@@ -13,7 +13,7 @@ type MonitorResult struct {
 	Error     *MonitorError `json:"error,omitempty"`
 }
 
-func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) (*MonitorResult, error) {
+func collectMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) (*MonitorResult, error) {
 	defaultTimeout := 10 * time.Second
 
 	switch userMonitorConfig.Type {

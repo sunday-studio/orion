@@ -264,6 +264,7 @@ defaults to 2000; excess output is counted in the final entry.
 
 - Core verifies the monitor belongs to the authenticated server.
 - Reports store health, metrics, error payload, and collection time.
+- Every monitor report's `metrics` carries `duration_ms`, the whole milliseconds the Node spent running the check (at least 1). Core charts it as the monitor's response time. A check that reports its own `duration_ms` (command monitors) keeps it. Core stores the error payload instead of `metrics` for a failed check, so failed checks have no duration.
 - Successful reports update last-success timestamps.
 - Node-authenticated report routes are for Node-owned monitors.
 - Core monitor worker reports use the same `monitor_reports` table and incident reconciliation service, but are authorized through an internal worker path or direct shared service access, not through a Node token.
