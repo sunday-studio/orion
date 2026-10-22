@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example v0.1.0"
+        description: "Release version, for example 0.2.0"
         required: true
         type: string
       prerelease:
@@ -127,4 +127,3 @@ jobs:
             dist/SHA256SUMS
             dist/SHA256SUMS.sig
             dist/SHA256SUMS.pem
-            dist/orion-node-sbom.spdx.json
