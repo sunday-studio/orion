@@ -5,54 +5,6 @@
 
 @font-face {
   font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Thin.woff2") format("woff2");
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Thin-Italic.woff2") format("woff2");
-  font-weight: 100;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Ultra-Light.woff2") format("woff2");
-  font-weight: 200;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Ultra-Light-Italic.woff2") format("woff2");
-  font-weight: 200;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Light.woff2") format("woff2");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
-  src: url("/fonts/GT-America-Standard-Light-Italic.woff2") format("woff2");
-  font-weight: 300;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GT America Standard";
   src: url("/fonts/GT-America-Standard-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
