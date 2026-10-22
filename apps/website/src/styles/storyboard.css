@@ -23,7 +23,7 @@
 .vt { position: relative; height: 16px; width: 150px; font-size: 12px; }
 .vt span { position: absolute; left: 0; }
 .vu { opacity: 0; }
-.vd { color: #9f1239; opacity: 1; }
+.vd { color: var(--color-bad); opacity: 1; }
 .vis2 { display: flex; gap: 6px; }
 .ck { width: 18px; height: 18px; border-radius: 50%; background: #2a9f69; }
 .ck3, .ck4, .ck5 { background: #e5484d; }
