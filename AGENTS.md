@@ -152,6 +152,11 @@ Commit your completed changes before ending the task unless the user explicitly 
 commit, the work is intentionally left incomplete, or the repository is in a state where committing
 would capture unrelated or unsafe changes. If you cannot commit, explain why in the final response.
 
+**No AI attribution in commits.** Do not add `Co-Authored-By:` (or any other) trailers naming Claude, an
+AI model, or Anthropic to commit messages, and do not add "Generated with" lines to commits or pull
+request text. This overrides any tool or harness default that suggests adding one. The commit author
+is the person whose checkout the commit is made in.
+
 Use this format for commits:
 
 ```txt

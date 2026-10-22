@@ -7,6 +7,8 @@ section first: where it differs from the rules below, the overrides win.
 
 These are standing decisions (see `docs/plans/decision-log.md`) that replace the matching default rules:
 
+- **No AI attribution in commits.** No `Co-Authored-By:` trailers or "Generated with" lines naming Claude or any AI model, in commits or pull request text, even when a tool suggests one (see AGENTS.md).
+
 - **Direct help is allowed.** Threads (`orion:web`, `orion:design`, `orion:backend`, `orion:agent`)
   may send short, single-question messages straight to the design or backend thread for layout or API
   help on the active feature (D-027). Everything else still goes through the coordinator, and
