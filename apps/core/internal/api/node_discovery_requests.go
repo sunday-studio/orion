@@ -91,11 +91,15 @@ func (s *Server) cancelNodeDiscoveryRequest(c *gin.Context) {
 // AcceptDiscoveredRequest chooses suggestions to accept.
 type AcceptDiscoveredRequest struct {
 	ItemIDs []string `json:"item_ids" binding:"required"`
+	// IntervalSeconds is how often each new monitor runs (10 to 86400). Default 30.
+	IntervalSeconds int `json:"interval_seconds,omitempty"`
+	// FailAfter is how many failed checks in a row raise an alert (1 to 20). Default 2.
+	FailAfter int `json:"fail_after,omitempty"`
 }
 
 // acceptDiscoveredItems turns suggestions into monitors.
 // @Summary      Accept detected suggestions
-// @Description  Creates a monitor definition (Managed in Console) for each selected service, container, pm2 app, port or disk from the node's latest scan, with the defaults interval 30 s and fail after 2. Storage rows are queued as one track_storage request. Log files are skipped: they need a log key. Core does not run anything; the node fetches the definitions at its next sync and reports under the same names.
+// @Description  Creates a monitor definition (Managed in Console) for each selected service, container, pm2 app, port or disk from the node's latest scan, with interval_seconds and fail_after from the request (defaults 30 s and fail after 2, applied to every monitor created). Storage rows are queued as one track_storage request. Log files are skipped: they need a log key. Core does not run anything; the node fetches the definitions at its next sync and reports under the same names.
 // @Tags         nodes
 // @Accept       json
 // @Produce      json
@@ -116,7 +120,7 @@ func (s *Server) acceptDiscoveredItems(c *gin.Context) {
 		utils.NotFound(c, "Node not found")
 		return
 	}
-	res, err := s.nodeService.AcceptDiscoveredItems(c.Param("node_id"), in.ItemIDs, frontendActorID(c))
+	res, err := s.nodeService.AcceptDiscoveredItems(c.Param("node_id"), in.ItemIDs, in.IntervalSeconds, in.FailAfter, frontendActorID(c))
 	switch {
 	case err == nil:
 		utils.SuccessResponse(c, http.StatusOK, "Suggestions accepted", res)

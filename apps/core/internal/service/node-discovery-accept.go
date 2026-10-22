@@ -60,9 +60,15 @@ func definitionFor(it NodeDiscoveryItem) (NodeMonitorDefinitionInput, error) {
 // AcceptDiscoveredItems turns suggestions from the node's latest scan into monitor definitions
 // (Managed in Console). Storage rows become one track_storage request. Nothing is run by Core:
 // the node fetches the definitions on its next sync and reports under the same names.
-func (s *NodeService) AcceptDiscoveredItems(nodeID string, itemIDs []string, actor string) (*AcceptResult, error) {
+func (s *NodeService) AcceptDiscoveredItems(nodeID string, itemIDs []string, intervalSeconds, failAfter int, actor string) (*AcceptResult, error) {
 	if len(itemIDs) == 0 || len(itemIDs) > maxRequestIDs {
 		return nil, fmt.Errorf("%w: choose between 1 and %d suggestions", ErrRequestInvalid, maxRequestIDs)
+	}
+	// Zero keeps the defaults (30 s, fail after 2); anything given is checked like a new definition.
+	if intervalSeconds != 0 || failAfter != 0 {
+		if _, _, err := validateTiming(firstNonZero(intervalSeconds, acceptInterval), firstNonZero(failAfter, acceptFailAfter), 0, 0); err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrRequestInvalid, strings.TrimPrefix(err.Error(), ErrDefinitionInvalid.Error()+": "))
+		}
 	}
 	view, err := s.GetNodeDiscovery(nodeID)
 	if err != nil {
@@ -106,6 +112,7 @@ func (s *NodeService) AcceptDiscoveredItems(nodeID string, itemIDs []string, act
 			res.Skipped = append(res.Skipped, AcceptSkip{id, err.Error()})
 			continue
 		}
+		in.IntervalSeconds, in.FailAfter = firstNonZero(intervalSeconds, in.IntervalSeconds), firstNonZero(failAfter, in.FailAfter)
 		def, err := s.CreateMonitorDefinition(nodeID, in, actor)
 		switch {
 		case err == nil:
@@ -129,6 +136,13 @@ func (s *NodeService) AcceptDiscoveredItems(nodeID string, itemIDs []string, act
 		}
 	}
 	return res, nil
+}
+
+func firstNonZero(v, def int) int {
+	if v != 0 {
+		return v
+	}
+	return def
 }
 
 func toAny(in []string) []any {

@@ -43,22 +43,32 @@ type NodeMonitorDefinitionView struct {
 	ParamsParsed  map[string]any
 }
 
+// validateTiming checks how often a definition runs and how many failures raise an alert.
+// Zero means "use the default".
+func validateTiming(interval, failAfter, defInterval, defFailAfter int) (int, int, error) {
+	if interval == 0 {
+		interval = defInterval
+	}
+	if interval < 10 || interval > 86400 {
+		return 0, 0, fmt.Errorf("%w: interval must be between 10 seconds and 24 hours", ErrDefinitionInvalid)
+	}
+	if failAfter == 0 {
+		failAfter = defFailAfter
+	}
+	if failAfter < 1 || failAfter > 20 {
+		return 0, 0, fmt.Errorf("%w: fail_after must be between 1 and 20", ErrDefinitionInvalid)
+	}
+	return interval, failAfter, nil
+}
+
 func validateDefinition(in NodeMonitorDefinitionInput) (NodeMonitorDefinitionInput, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	if in.Name == "" || len(in.Name) > 100 {
 		return in, fmt.Errorf("%w: name is required (max 100 characters)", ErrDefinitionInvalid)
 	}
-	if in.IntervalSeconds == 0 {
-		in.IntervalSeconds = 30
-	}
-	if in.IntervalSeconds < 10 || in.IntervalSeconds > 86400 {
-		return in, fmt.Errorf("%w: interval must be between 10 seconds and 24 hours", ErrDefinitionInvalid)
-	}
-	if in.FailAfter == 0 {
-		in.FailAfter = 3
-	}
-	if in.FailAfter < 1 || in.FailAfter > 20 {
-		return in, fmt.Errorf("%w: fail_after must be between 1 and 20", ErrDefinitionInvalid)
+	var err error
+	if in.IntervalSeconds, in.FailAfter, err = validateTiming(in.IntervalSeconds, in.FailAfter, 30, 3); err != nil {
+		return in, err
 	}
 	params := map[string]any{}
 	number := func(key string, def, min, max float64) (float64, error) {
@@ -157,6 +167,60 @@ func (s *NodeService) CreateMonitorDefinition(nodeID string, in NodeMonitorDefin
 		return nil, err
 	}
 	return &def, nil
+}
+
+// UpdateMonitorDefinitions changes how often the given definitions run and how many failures
+// raise an alert, all or nothing. The definition ids and names stay, so the monitor keeps its
+// history; the node sees the new timing at its next sync. Zero leaves a value as it is.
+func (s *NodeService) UpdateMonitorDefinitions(nodeID string, ids []string, intervalSeconds, failAfter int) ([]db.NodeMonitorDefinition, error) {
+	if len(ids) == 0 || len(ids) > maxDefinitionsPerNode {
+		return nil, fmt.Errorf("%w: choose between 1 and %d monitors", ErrDefinitionInvalid, maxDefinitionsPerNode)
+	}
+	if intervalSeconds == 0 && failAfter == 0 {
+		return nil, fmt.Errorf("%w: give interval_seconds or fail_after", ErrDefinitionInvalid)
+	}
+	if intervalSeconds != 0 || failAfter != 0 {
+		// Validate only what was given; the placeholder keeps the other value in range.
+		iv, fa := intervalSeconds, failAfter
+		if iv == 0 {
+			iv = 30
+		}
+		if fa == 0 {
+			fa = 1
+		}
+		if _, _, err := validateTiming(iv, fa, 0, 0); err != nil {
+			return nil, err
+		}
+	}
+	var out []db.NodeMonitorDefinition
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		seen := map[string]bool{}
+		for _, id := range ids {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			var def db.NodeMonitorDefinition
+			if err := tx.Where("id = ? AND node_id = ?", id, nodeID).First(&def).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrDefinitionNotFound
+				}
+				return err
+			}
+			if intervalSeconds != 0 {
+				def.IntervalSeconds = intervalSeconds
+			}
+			if failAfter != 0 {
+				def.FailAfter = failAfter
+			}
+			if err := tx.Model(&db.NodeMonitorDefinition{}).Where("id = ?", def.ID).Updates(map[string]any{"interval_seconds": def.IntervalSeconds, "fail_after": def.FailAfter}).Error; err != nil {
+				return err
+			}
+			out = append(out, def)
+		}
+		return nil
+	})
+	return out, err
 }
 
 func (s *NodeService) DeleteMonitorDefinition(nodeID, definitionID string) error {

@@ -8,6 +8,8 @@ var auditRoutes = map[string]auditRoute{
 	"DELETE /v1/nodes/:id/discovery/requests/:request_id":          {Action: "node_discovery_request_cancelled", Text: "Cancelled a request to the node", Object: "node", Param: "id"},
 	"POST /v1/nodes/:node_id/discovery/accept":                     {Action: "node_discovery_accepted", Text: "Accepted detected suggestions", Object: "node", Param: "node_id"},
 	"DELETE /v1/nodes/:id/monitor-definitions/:definition_id":      {Action: "node_monitor_removed", Text: "Removed node monitor", Object: "node", Param: "id"},
+	"PATCH /v1/nodes/:id/monitor-definitions/:definition_id":       {Action: "node_monitor_edited", Text: "Changed node monitor timing", Object: "node", Param: "id"},
+	"PATCH /v1/nodes/:id/monitor-definitions":                      {Action: "node_monitor_edited", Text: "Changed node monitor timing", Object: "node", Param: "id"},
 	"POST /v1/alerts/channels":                                     {Action: "alert_channel_created", Text: "Created alert channel", Object: "alert_channel", Param: ""},
 	"PATCH /v1/alerts/channels/:id":                                {Action: "alert_channel_updated", Text: "Edited alert channel", Object: "alert_channel", Param: "id"},
 	"DELETE /v1/alerts/channels/:id":                               {Action: "alert_channel_deleted", Text: "Deleted alert channel", Object: "alert_channel", Param: "id"},

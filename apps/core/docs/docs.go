@@ -10544,6 +10544,78 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "patch": {
+                "description": "Applies interval_seconds and/or fail_after to every listed definition, all or nothing: if one id is unknown or a value is out of range nothing changes.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "nodes"
+                ],
+                "summary": "Update several node monitor definitions",
+                "operationId": "bulkUpdateNodeMonitorDefinitions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Definitions and timing",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.BulkUpdateNodeMonitorDefinitionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "definitions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.NodeMonitorDefinitionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/nodes/{id}/monitor-definitions/{definition_id}": {
@@ -10575,6 +10647,85 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Changes interval_seconds and/or fail_after of a Console-managed node monitor. The definition keeps its id and name, so the monitor keeps its history; the node picks up the new values at its next sync (within about a minute).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "nodes"
+                ],
+                "summary": "Update a node monitor definition",
+                "operationId": "updateNodeMonitorDefinition",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Definition ID",
+                        "name": "definition_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Timing",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.UpdateNodeMonitorDefinitionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "definitions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.NodeMonitorDefinitionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -11076,7 +11227,7 @@ const docTemplate = `{
         },
         "/v1/nodes/{node_id}/discovery/accept": {
             "post": {
-                "description": "Creates a monitor definition (Managed in Console) for each selected service, container, pm2 app, port or disk from the node's latest scan, with the defaults interval 30 s and fail after 2. Storage rows are queued as one track_storage request. Log files are skipped: they need a log key. Core does not run anything; the node fetches the definitions at its next sync and reports under the same names.",
+                "description": "Creates a monitor definition (Managed in Console) for each selected service, container, pm2 app, port or disk from the node's latest scan, with interval_seconds and fail_after from the request (defaults 30 s and fail after 2, applied to every monitor created). Storage rows are queued as one track_storage request. Log files are skipped: they need a log key. Core does not run anything; the node fetches the definitions at its next sync and reports under the same names.",
                 "consumes": [
                     "application/json"
                 ],
@@ -16926,6 +17077,14 @@ const docTemplate = `{
                 "item_ids"
             ],
             "properties": {
+                "fail_after": {
+                    "description": "FailAfter is how many failed checks in a row raise an alert (1 to 20). Default 2.",
+                    "type": "integer"
+                },
+                "interval_seconds": {
+                    "description": "IntervalSeconds is how often each new monitor runs (10 to 86400). Default 30.",
+                    "type": "integer"
+                },
                 "item_ids": {
                     "type": "array",
                     "items": {
@@ -17933,6 +18092,28 @@ const docTemplate = `{
                 },
                 "ok": {
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_api.BulkUpdateNodeMonitorDefinitionsRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "fail_after": {
+                    "description": "FailAfter is how many failed checks in a row raise an alert (1 to 20).",
+                    "type": "integer"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "interval_seconds": {
+                    "description": "IntervalSeconds is how often the check runs (10 to 86400).",
+                    "type": "integer"
                 }
             }
         },
@@ -22814,6 +22995,19 @@ const docTemplate = `{
                     "additionalProperties": true
                 },
                 "timeout_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.UpdateNodeMonitorDefinitionRequest": {
+            "type": "object",
+            "properties": {
+                "fail_after": {
+                    "description": "FailAfter is how many failed checks in a row raise an alert (1 to 20).",
+                    "type": "integer"
+                },
+                "interval_seconds": {
+                    "description": "IntervalSeconds is how often the check runs (10 to 86400).",
                     "type": "integer"
                 }
             }

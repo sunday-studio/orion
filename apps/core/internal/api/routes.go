@@ -199,6 +199,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/nodes/:id/monitor-definitions", s.listNodeMonitorDefinitions)
 			frontend.POST("/nodes/:node_id/monitor-definitions", s.createNodeMonitorDefinition)
 			frontend.DELETE("/nodes/:id/monitor-definitions/:definition_id", s.deleteNodeMonitorDefinition)
+			frontend.PATCH("/nodes/:id/monitor-definitions/:definition_id", s.updateNodeMonitorDefinition)
+			frontend.PATCH("/nodes/:id/monitor-definitions", s.bulkUpdateNodeMonitorDefinitions)
 			frontend.GET("/nodes/:id/token/status", s.getNodeTokenStatus)
 			frontend.POST("/nodes/:node_id/token/rotate", s.rotateNodeToken)
 			frontend.POST("/nodes/:node_id/token/revoke", s.revokeNodeToken)
