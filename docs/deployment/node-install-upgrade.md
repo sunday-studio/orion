@@ -186,7 +186,7 @@ orion-node update
 
 It downloads the matching release, verifies its checksum, swaps the binary, restarts the service and
 waits until the Node reports healthy. Config and state are kept, so the machine keeps its identity;
-do not delete `state.db`. `orion-node update --version v0.3.0` installs a specific release.
+do not delete `state.db`. `orion-node update --version 0.3.0` installs a specific release.
 
 **Undo it:**
 

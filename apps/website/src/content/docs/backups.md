@@ -17,7 +17,7 @@ sqlite3 "$ORION_DATA_DIR/orion.db" ".backup '$ORION_DATA_DIR/orion-$(date +%Y%m%
 With Docker Compose:
 
 ```sh
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker compose exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
 ```
 
 ## Restore

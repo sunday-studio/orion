@@ -1,0 +1,35 @@
+---
+title: Set up with an AI assistant
+description: "Let an AI assistant install Core, connect your servers and send a test alert, asking before it changes anything."
+group: Start
+order: 3
+readTime: 3 min read
+---
+import Callout from "../../components/docs/callout.astro";
+
+You can hand the whole setup to an AI assistant. It asks you a few questions, then installs and verifies Core on your server, connects the servers you want to watch and sends a test alert. It asks before it changes any machine.
+
+[Open Claude with the setup prompt](https://claude.ai/new?q=Set%20up%20Orion%20%28self-hosted%20monitoring%29%20for%20me%20end%20to%20end.%20Read%20https%3A%2F%2Fraw.githubusercontent.com%2Fsunday-studio%2Forion%2Fmain%2Fdocs%2Fai-setup.md%20and%20follow%20it%20step%20by%20step.%20Ask%20me%20the%20questions%20it%20lists%20first%2C%20and%20ask%20before%20you%20change%20anything%20on%20a%20machine.)
+
+## With Claude Code or another assistant that runs commands
+
+Paste this into the assistant, in a session that can reach your server:
+
+```text
+Set up Orion (self-hosted monitoring) for me end to end. Read
+https://raw.githubusercontent.com/sunday-studio/orion/main/docs/ai-setup.md and follow it step by step.
+Ask me the questions it lists first, and ask before you change anything on a machine.
+```
+
+## What the assistant does
+
+1. Asks where Core will run, the address people and servers will use (a server IP or a domain), which servers to watch and how you want alerts.
+2. Checks the machine for Docker, Compose, `curl` and `openssl`.
+3. Runs the setup script and verifies that both services are healthy.
+4. Installs the Node on each server you approve and checks it with `orion-node doctor`.
+5. Helps you add a first monitor and an alert channel, and sends a test.
+6. Tells you the address, where the password is stored and how to back up and upgrade.
+
+<Callout type="warn" title="What it will not do.">It will not install anything or open a port without your yes, will not guess a domain, and stops on the first failed check or checksum instead of working around it.</Callout>
+
+The instructions the assistant follows are public: [docs/ai-setup.md](https://github.com/sunday-studio/orion/blob/main/docs/ai-setup.md).

@@ -12,10 +12,10 @@ columns, and while Core also copies `orion.db` to `/data/backups` before it migr
 yourself is the one you can restore from anywhere.
 
 ```sh
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
-docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
-docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
+docker compose exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker compose exec orion-core sqlite3 /data/logs.db ".backup '/data/logs-backup.db'"
+docker cp "$(docker compose ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
+docker cp "$(docker compose ps -q orion-core):/data/logs-backup.db" ./logs-backup.db
 ```
 
 Details and the restore steps are in [SQLite backup and restore](../sqlite-backup-restore.md).
@@ -25,7 +25,7 @@ Details and the restore steps are in [SQLite backup and restore](../sqlite-backu
 Set the image to the new tag and restart both services:
 
 ```sh
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.0 docker compose -f orion-compose.yaml up -d
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:0.2.0 docker compose up -d
 ```
 
 On first start Core:

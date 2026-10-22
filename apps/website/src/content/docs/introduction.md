@@ -31,3 +31,7 @@ Orion is not a hosted service, a metrics or tracing backend, or a full observabi
 ## Next
 
 Follow the [Quickstart](/docs/quickstart/) to have Core running and a first server connected in about ten minutes.
+
+## Start here
+
+The [quickstart](/docs/quickstart/) takes about ten minutes. Prefer to hand it off? [Let an AI assistant set it up](/docs/ai-setup/).

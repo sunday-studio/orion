@@ -17,11 +17,13 @@ A **server** is a machine you want Orion to watch. You add it in the Console, th
 The command from the Console looks like this:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | bash -s -- \
-  --core-url http://orion-core.local:8999
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | \
+  ORION_ENROLLMENT_TOKEN=<token> bash -s -- --core-url https://orion.example.com
 ```
 
-The installer downloads the Node, verifies it, writes a config, registers the machine with Core and starts the service. If your Core requires an enrollment secret, pass the token the Console gives you. The server appears under **Servers** within a minute.
+Use the address of your own Core. The machine you install on must be able to reach it. The installer prints its plan, downloads the Node, verifies every file against signed checksums, writes a config, registers the machine with Core and starts the service. The token is the one-time value from the Console, or `ORION_ENROLLMENT_TOKEN` from Core's `.env`. The server appears under **Servers** within a minute.
+
+Add `--dry-run` to preview without changing anything, or `--user` to install for the current user without root.
 
 ## Paths
 
@@ -51,8 +53,17 @@ To watch containers, the `orion` user needs permission to read `/var/run/docker.
 
 ```sh
 orion-node update
-orion-node update --version 0.1.1
+orion-node update --version 0.2.0
 ```
+
+To remove a server, run the installer with `uninstall`. Add `--purge` to delete its config and state too:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | \
+  sudo bash -s -- uninstall --yes
+```
+
+The server stays listed in the Console until you remove it there.
 
 ## Recover a token
 
