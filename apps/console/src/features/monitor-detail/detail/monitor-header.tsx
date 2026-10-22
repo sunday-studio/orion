@@ -83,6 +83,15 @@ export const MonitorHeader = ({
           )}
         </div>
       )}
+      {!core && (
+        <div className="flex items-center gap-1.5">
+          <Link to={`/monitors/${monitor.id}/edit`}>
+            <Button size="sm" variant="secondary">
+              Configure
+            </Button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 };

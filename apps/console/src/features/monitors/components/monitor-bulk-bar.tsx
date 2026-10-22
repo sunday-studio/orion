@@ -1,10 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, ConfirmDialog, FloatingBar, useToast } from "@/design-system";
+import { MonitorIntervalDialog } from "./monitor-interval-dialog";
 import {
   type ApiBulkMonitorRequest,
+  bulkUpdateNodeMonitorDefinitions,
   getGetMonitorSummaryQueryKey,
   getGetMonitorsQueryKey,
+  getListNodeMonitorDefinitionsQueryKey,
+  listNodeMonitorDefinitions,
   useBulkMonitorAction,
 } from "@/orion-sdk";
 
@@ -20,10 +24,13 @@ const VERB: Record<string, string> = {
 
 export const MonitorBulkBar = ({
   ids,
+  nodeIds,
   onClear,
   onSucceeded,
 }: {
   ids: readonly string[];
+  /** Monitor id to the server it runs on, for monitors that run through a Node. */
+  nodeIds: Record<string, string>;
   onClear: () => void;
   /** Ids that succeeded, so the page can unselect them after a partial failure. */
   onSucceeded: (ids: readonly string[]) => void;
@@ -32,6 +39,54 @@ export const MonitorBulkBar = ({
   const toast = useToast();
   const bulk = useBulkMonitorAction();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [timing, setTiming] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const nodeMonitors = ids.filter((id) => nodeIds[id]);
+
+  // Node monitors managed by Orion have a definition; change them one server at a time.
+  const changeTiming = async (interval: number, failAfter?: number) => {
+    setApplying(true);
+    let changed = 0;
+    let failed = 0;
+    const byNode = new Map<string, string[]>();
+    for (const id of nodeMonitors)
+      byNode.set(nodeIds[id], [...(byNode.get(nodeIds[id]) ?? []), id]);
+    for (const [nodeId, monitorIds] of byNode) {
+      try {
+        const list = await listNodeMonitorDefinitions(nodeId);
+        const definitionIds = (list.definitions ?? [])
+          .filter((definition) => monitorIds.includes(definition.monitor_id ?? ""))
+          .map((definition) => definition.id ?? "");
+        if (definitionIds.length === 0) continue;
+        await bulkUpdateNodeMonitorDefinitions(nodeId, {
+          ids: definitionIds,
+          interval_seconds: interval,
+          ...(failAfter ? { fail_after: failAfter } : {}),
+        });
+        changed += definitionIds.length;
+        void queryClient.invalidateQueries({
+          queryKey: getListNodeMonitorDefinitionsQueryKey(nodeId),
+        });
+      } catch {
+        failed += monitorIds.length;
+      }
+    }
+    setApplying(false);
+    setTiming(false);
+    const skipped = ids.length - changed - failed;
+    toast.add({
+      title: `Changed ${changed} ${changed === 1 ? "monitor" : "monitors"}`,
+      description:
+        [
+          skipped > 0
+            ? `${skipped} skipped: only monitors on a server that Orion manages can change here.`
+            : "",
+          failed > 0 ? `${failed} failed.` : "",
+        ]
+          .filter(Boolean)
+          .join(" ") || "The Node applies it at its next sync, about a minute.",
+    });
+  };
 
   const run = async (action: Action, target: readonly string[] = ids) => {
     let failedIds = [...target];
@@ -104,6 +159,15 @@ export const MonitorBulkBar = ({
       </Button>
       <Button
         size="sm"
+        variant="secondary"
+        disabled={nodeMonitors.length === 0}
+        title={nodeMonitors.length === 0 ? "Select monitors that run on a server" : undefined}
+        onClick={() => setTiming(true)}
+      >
+        Change interval
+      </Button>
+      <Button
+        size="sm"
         variant="destructive"
         disabled={bulk.isPending}
         onClick={() => setConfirmDelete(true)}
@@ -113,6 +177,13 @@ export const MonitorBulkBar = ({
       <Button size="sm" variant="ghost" onClick={onClear}>
         Clear
       </Button>
+      <MonitorIntervalDialog
+        open={timing}
+        count={nodeMonitors.length}
+        pending={applying}
+        onOpenChange={setTiming}
+        onApply={(interval, failAfter) => void changeTiming(interval, failAfter)}
+      />
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}

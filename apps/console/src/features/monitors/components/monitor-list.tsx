@@ -260,6 +260,11 @@ export const MonitorList = ({
       {selected.size > 0 && (
         <MonitorBulkBar
           ids={[...selected]}
+          nodeIds={Object.fromEntries(
+            monitors
+              .filter((m) => m.id && m.node_id && selected.has(m.id))
+              .map((m) => [m.id ?? "", m.node_id ?? ""]),
+          )}
           onClear={() => setSelected(new Set())}
           onSucceeded={(done) =>
             setSelected((current) => new Set([...current].filter((id) => !done.includes(id))))

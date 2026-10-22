@@ -27,6 +27,7 @@ import {
   useGetMonitor,
   useUpdateCoreMonitor,
 } from "@/orion-sdk";
+import { NodeMonitorTiming } from "./node-monitor-timing";
 import { DeleteMonitorDialog } from "../detail/delete-monitor-dialog";
 import { useMonitorActions } from "../detail/use-monitor-actions";
 
@@ -95,10 +96,10 @@ export const MonitorEditPage = () => {
             </Button>
           </Link>
         </div>
-        <Callout tone="warn">
-          This monitor runs on a server through its Node, so it is configured there and cannot be
-          changed from Core.
-        </Callout>
+        <NodeMonitorTiming
+          nodeId={monitor.node_id ?? monitor.owner_id ?? ""}
+          monitorId={monitorId}
+        />
       </div>
     );
   }

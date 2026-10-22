@@ -50,6 +50,8 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const seen = useRef(new Set<string>());
   const [reviewing, setReviewing] = useState(false);
+  const [interval, setInterval] = useState("60");
+  const [failAfter, setFailAfter] = useState("2");
   const [dismissingAll, setDismissingAll] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const canAct = Boolean(discovery?.capabilities?.includes("requests"));
@@ -308,9 +310,20 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
         items={chosen}
         skippedLogs={skippedLogs}
         pending={accept.isPending}
+        interval={interval}
+        failAfter={failAfter}
+        onInterval={setInterval}
+        onFailAfter={setFailAfter}
         onOpenChange={setReviewing}
         onConfirm={() =>
-          accept.mutate({ nodeId, data: { item_ids: chosen.map((item) => item.id ?? "") } })
+          accept.mutate({
+            nodeId,
+            data: {
+              item_ids: chosen.map((item) => item.id ?? ""),
+              interval_seconds: Number(interval),
+              fail_after: Number(failAfter),
+            },
+          })
         }
       />
       <ConfirmDialog

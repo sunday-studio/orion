@@ -7,8 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
   RaisedCard,
+  Select,
 } from "@/design-system";
 import type { ServiceNodeDiscoveryItem } from "@/orion-sdk";
+import { FAIL_AFTER, INTERVALS } from "@/features/monitors/node-timing";
 import { acceptWhat } from "../detected-model";
 
 /** Review before accepting: exactly what will be created. */
@@ -17,6 +19,10 @@ export const DetectedReviewDialog = ({
   items,
   skippedLogs,
   pending,
+  interval,
+  failAfter,
+  onInterval,
+  onFailAfter,
   onOpenChange,
   onConfirm,
 }: {
@@ -24,6 +30,10 @@ export const DetectedReviewDialog = ({
   items: ServiceNodeDiscoveryItem[];
   skippedLogs: ServiceNodeDiscoveryItem[];
   pending: boolean;
+  interval: string;
+  failAfter: string;
+  onInterval: (value: string) => void;
+  onFailAfter: (value: string) => void;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }) => {
@@ -47,9 +57,33 @@ export const DetectedReviewDialog = ({
             {storage.length > 0 && " Directories are only tracked for size, with no alerts."}
           </DialogDescription>
         </DialogHeader>
+        {monitors.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-[12.5px] font-medium">
+              Check
+              <Select
+                aria-label="Check frequency"
+                className="w-full"
+                options={INTERVALS}
+                value={interval}
+                onValueChange={onInterval}
+              />
+            </label>
+            <label className="grid gap-1.5 text-[12.5px] font-medium">
+              Down after
+              <Select
+                aria-label="Failed checks before down"
+                className="w-full"
+                options={FAIL_AFTER}
+                value={failAfter}
+                onValueChange={onFailAfter}
+              />
+            </label>
+          </div>
+        )}
         <RaisedCard className="max-h-[320px] overflow-y-auto">
           {items.map((item) => {
-            const words = acceptWhat(item);
+            const words = acceptWhat(item, failAfter);
             return (
               <div
                 key={item.id}
