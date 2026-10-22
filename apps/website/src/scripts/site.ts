@@ -29,6 +29,17 @@ function enhanceCodeBlocks() {
 
 function enhanceTabCopy() {
   document.querySelectorAll<HTMLElement>(".code[data-tabs] [data-copy]").forEach((btn) => {
+    // Some tab groups name what each tab copies, for example "Copy variables".
+    const names: string[] | undefined = btn.dataset.labels ? JSON.parse(btn.dataset.labels) : undefined;
+    if (names) {
+      const root = btn.closest<HTMLElement>(".code");
+      root?.querySelectorAll<HTMLInputElement>("input[type=radio]").forEach((radio) =>
+        radio.addEventListener("change", () => {
+          const text = btn.querySelector<HTMLElement>(".c0");
+          if (text) text.textContent = names[Number(radio.dataset.index)] ?? "Copy";
+        }),
+      );
+    }
     btn.addEventListener("click", () => {
       const root = btn.closest<HTMLElement>(".code");
       const checked = root?.querySelector<HTMLInputElement>("input[type=radio]:checked");
