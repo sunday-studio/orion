@@ -7,6 +7,7 @@ import {
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { MonitorCreateDialog } from "@/features/monitors/create/monitor-create-dialog";
+import { MonitorImportDialog } from "@/features/monitors/import/monitor-import-dialog";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
@@ -38,6 +39,7 @@ export const MonitorsPage = () => {
     token: string;
   }>();
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const queryClient = useQueryClient();
   const summary = useGetMonitorSummary();
   const servers = useGetNodeSummary();
@@ -113,9 +115,14 @@ export const MonitorsPage = () => {
             : undefined
         }
         actions={
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus /> Create monitor
-          </Button>
+          <>
+            <Button size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus /> Create monitor
+            </Button>
+          </>
         }
       />
       {createFeedback && (
@@ -149,6 +156,7 @@ export const MonitorsPage = () => {
       ) : (
         <MonitorList workerDiagnostics={workerDiagnostics} />
       )}
+      <MonitorImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <MonitorCreateDialog
         open={createOpen}
         error={coreMonitorMutationErrorMessage(
