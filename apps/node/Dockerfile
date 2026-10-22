@@ -1,6 +1,6 @@
 # Orion Node as a container. Build from the repository root:
 #   docker build -f apps/node/Dockerfile -t orion-node .
-FROM golang:1.26-alpine@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca AS build
+FROM golang:1.26-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS build
 WORKDIR /src
 COPY apps/node/go.mod apps/node/go.sum apps/node/
 RUN cd apps/node && go mod download
