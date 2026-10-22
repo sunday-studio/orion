@@ -47,10 +47,28 @@ export const MonitorImportDialog = ({
     () => new Set((existing.data?.monitors ?? []).map((m) => (m.name ?? "").toLowerCase())),
     [existing.data],
   );
-  const rows = parsed?.rows ?? [];
-  const isDuplicate = (row: ImportRow) => skipExisting && names.has(row.name.toLowerCase());
-  const ready = rows.filter((row) => row.request && !isDuplicate(row));
-  const finished = Object.keys(outcomes).length > 0 && !running;
+  const rows = useMemo(() => parsed?.rows ?? [], [parsed]);
+  // A name that appears twice in the pasted list: only its first row is created.
+  const repeated = useMemo(() => {
+    const seen = new Set<string>();
+    const dupes = new Set<number>();
+    for (const row of rows) {
+      const key = row.name.toLowerCase();
+      if (!row.request) continue;
+      if (seen.has(key)) dupes.add(row.index);
+      seen.add(key);
+    }
+    return dupes;
+  }, [rows]);
+  const lookupReady = existing.isSuccess;
+  const hasMore = (existing.data?.count ?? 0) > (existing.data?.monitors?.length ?? 0);
+  const isDuplicate = (row: ImportRow) =>
+    repeated.has(row.index) || (skipExisting && names.has(row.name.toLowerCase()));
+  const todo = rows.filter(
+    (row) => row.request && !isDuplicate(row) && outcomes[row.index]?.state !== "created",
+  );
+  const failedCount = Object.values(outcomes).filter((o) => o.state === "failed").length;
+  const finished = Object.keys(outcomes).length > 0 && !running && failedCount === 0;
 
   const reset = () => {
     setText("");
@@ -60,11 +78,14 @@ export const MonitorImportDialog = ({
 
   const run = async () => {
     setRunning(true);
-    const next: Record<number, Outcome> = {};
+    const next: Record<number, Outcome> = { ...outcomes };
     for (const row of rows) {
-      if (!row.request) continue;
+      if (!row.request || next[row.index]?.state === "created") continue;
       if (isDuplicate(row)) {
-        next[row.index] = { state: "skipped", message: "Already exists" };
+        next[row.index] = {
+          state: "skipped",
+          message: repeated.has(row.index) ? "Repeated in this list" : "Already exists",
+        };
         continue;
       }
       try {
@@ -80,7 +101,10 @@ export const MonitorImportDialog = ({
     void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
     const created = Object.values(next).filter((o) => o.state === "created").length;
-    toast.add({ title: `Imported ${created} ${created === 1 ? "monitor" : "monitors"}` });
+    const failed = Object.values(next).filter((o) => o.state === "failed").length;
+    toast.add({
+      title: `Imported ${created} ${created === 1 ? "monitor" : "monitors"}${failed > 0 ? `, ${failed} failed` : ""}`,
+    });
   };
 
   const badge = (row: ImportRow) => {
@@ -88,7 +112,11 @@ export const MonitorImportDialog = ({
     if (outcome?.state === "created") return <StatusBadge status="up">Created</StatusBadge>;
     if (outcome?.state === "failed") return <StatusBadge status="down">Failed</StatusBadge>;
     if (outcome?.state === "skipped" || (row.request && isDuplicate(row)))
-      return <StatusBadge status="stale">Already exists</StatusBadge>;
+      return (
+        <StatusBadge status="stale">
+          {repeated.has(row.index) ? "Repeated" : "Already exists"}
+        </StatusBadge>
+      );
     if (row.error) return <StatusBadge status="down">Invalid</StatusBadge>;
     return (
       <StatusBadge status="unknown" shape="none">
@@ -101,6 +129,7 @@ export const MonitorImportDialog = ({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        if (!next && running) return;
         onOpenChange(next);
         if (!next) reset();
       }}
@@ -160,6 +189,17 @@ export const MonitorImportDialog = ({
               </span>
             </div>
             {parsed?.fatal && <Callout tone="down">{parsed.fatal}</Callout>}
+            {rows.length > 0 && existing.isError && (
+              <Callout tone="warn">
+                Could not load your existing monitors, so duplicates cannot be checked yet.
+              </Callout>
+            )}
+            {rows.length > 0 && hasMore && skipExisting && (
+              <Callout tone="warn">
+                You have more than {existing.data?.monitors?.length} monitors, so only the first
+                ones are checked for duplicates.
+              </Callout>
+            )}
             {rows.length > 0 && (
               <>
                 <RaisedCard className="max-h-[260px] overflow-y-auto">
@@ -192,14 +232,26 @@ export const MonitorImportDialog = ({
               </>
             )}
             <DialogFooter>
-              <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="secondary"
+                disabled={running}
+                onClick={() => {
+                  onOpenChange(false);
+                  reset();
+                }}
+              >
                 {finished ? "Close" : "Cancel"}
               </Button>
               {!finished && (
-                <Button disabled={ready.length === 0 || running} onClick={() => void run()}>
+                <Button
+                  disabled={todo.length === 0 || running || !lookupReady}
+                  onClick={() => void run()}
+                >
                   {running
                     ? "Importing..."
-                    : `Import ${ready.length} ${ready.length === 1 ? "monitor" : "monitors"}`}
+                    : failedCount > 0
+                      ? `Retry ${failedCount} failed`
+                      : `Import ${todo.length} ${todo.length === 1 ? "monitor" : "monitors"}`}
                 </Button>
               )}
             </DialogFooter>

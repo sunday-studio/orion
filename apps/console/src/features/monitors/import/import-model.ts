@@ -91,7 +91,7 @@ const rowFromEntry = (entry: unknown, index: number): ImportRow => {
 
   if (kind === "http") {
     const url = normalizeUrl(String(item.url ?? ""));
-    if (!url) return bad("Needs a valid website address in url.", { kind });
+    if (!url) return bad("Needs a public website address in url, like example.com.", { kind });
     const name = String(item.name ?? "").trim() || hostnameOf(url);
     const status = asInt(item.expected_status, 200);
     if (Number.isNaN(status)) return bad("expected_status must be a whole number.", { name, kind });
