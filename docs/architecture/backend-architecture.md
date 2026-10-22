@@ -11,7 +11,7 @@ Terminology: the code and API say **Node**; older docs (`docs/node-core-contract
 | Component | Binary / entry point | Language / stack | Responsibility |
 |---|---|---|---|
 | Node | `apps/node/main.go` -> `internal/cli` | Go, gopsutil, GORM + SQLite (state only) | Registers with Core, collects host metrics and per-monitor checks, spools and ships reports and service logs |
-| Core API | `apps/core/cmd/api/main.go` | Go 1.25, Gin, GORM, mattn/go-sqlite3 (CGO), golang-jwt | REST API, ingestion, health computation, incidents, alerts, status pages, serves the Console SPA from `./web` |
+| Core API | `apps/core/cmd/api/main.go` | Go 1.26, Gin, GORM, mattn/go-sqlite3 (CGO), golang-jwt | REST API, ingestion, health computation, incidents, alerts, status pages, serves the Console SPA from `./web` |
 | Core Worker | `apps/core/cmd/worker/main.go` | Go, same module | Claims due Core-managed monitor configs under a DB lease, runs checks (http, tcp, dns, tls, udp, ping, mail, api_request, domain_expiration, synthetic, playwright), reconciles missed heartbeats, writes worker heartbeats |
 | Data lifecycle scheduler | goroutine inside Core API (`service/data-lifecycle-scheduler-service.go`) | Go | Hourly rollup, raw report archive, subscriber privacy retention |
 | Console | `apps/console` (React/Vite) | TypeScript | UI, built into `apps/core/web` |
