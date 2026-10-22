@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	nodestate "orion/node/internal/state"
 )
 
 func TestEnrollRegistersWithTokenHeader(t *testing.T) {
@@ -58,5 +60,47 @@ func TestEnrollRejectedTokenExplainsFix(t *testing.T) {
 	}, &out, &errOut)
 	if code == 0 || !strings.Contains(errOut.String()+out.String(), "Add server") {
 		t.Fatalf("code=%d out=%s err=%s", code, out.String(), errOut.String())
+	}
+}
+
+func TestEnrollWithFreshTokenReplacesACredentialCoreNoLongerAccepts(t *testing.T) {
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("X-Orion-Enrollment-Token") == "fresh-token" {
+			w.Write([]byte(`{"success":true,"data":{"node_id":"ag-new","token":"new-secret"}}`))
+			return
+		}
+		if r.Header.Get("Authorization") == "Bearer new-secret" {
+			w.Write([]byte(`{"success":true,"data":{"monitor_id":"m-1"}}`))
+			return
+		}
+		w.WriteHeader(401)
+		w.Write([]byte(`{"success":false,"message":"Invalid token for this node"}`))
+	}))
+	defer core.Close()
+
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config.yaml")
+	os.WriteFile(cfg, []byte("core_url: "+core.URL+"\ninterval: 60s\nmonitors:\n  - name: redis\n    type: tcp\n    interval: 30s\n    tcp:\n      host: localhost\n      port: 6379\n"), 0o600)
+	db := filepath.Join(dir, "state.db")
+	store, err := nodestate.Open(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateRegistration("ag-old", "stale-secret", core.URL); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+
+	var out, errOut bytes.Buffer
+	code := Execute(context.Background(), []string{
+		"--json", "--config", cfg, "--state", db, "--socket", filepath.Join(dir, "s"),
+		"enroll", "--core-url", core.URL, "--token", "fresh-token",
+	}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("code=%d err=%s out=%s", code, errOut.String(), out.String())
+	}
+	if !strings.Contains(out.String(), "ag-new") {
+		t.Fatalf("not re-enrolled: %s", out.String())
 	}
 }

@@ -148,6 +148,31 @@ fail_step() { # name reason fix code detail...
   exit "$code"
 }
 
+# install_failed shows an install that failed the way every other failure looks:
+# the finished steps, the step that broke with its reason, a fix and the help link.
+# The lower-level transcript is kept in a file for anyone who needs all of it.
+install_failed() { # log
+  local log="$1" keep="${TMPDIR:-/tmp}/orion-node-install.log" name="Installed" fix reason
+  cp "$log" "$keep" 2>/dev/null || keep="$log"
+  local -a detail=()
+  local line
+  while IFS= read -r line; do detail+=("$line"); done < <(
+    sed "s/${ESC}\[[0-9;]*m//g" "$log" | awk '
+      /^\[fail\]/ {sub(/^\[fail\] */,""); print; infail=1; next}
+      /^ +error:/ {next}
+      infail && /^ +fix:/ {next}
+      infail && /^ +[^ ]/ {sub(/^ +/,""); print; next}
+      {infail=0}' | head -6)
+  reason="${detail[0]:-installation failed}"; detail=("${detail[@]:1}")
+  if grep -q '^\[06\]\|Enrollment' "$log" 2>/dev/null && grep -q 'enrollment failed' "$log"; then
+    name="Enrolled"; fix="create a new token in Console > Add server and run the new command"
+  else
+    fix="fix the reported step and re-run the same command"
+  fi
+  detail+=("full log: $keep")
+  fail_step "$name" "$reason" "$fix" 1 "${detail[@]}"
+}
+
 require_value() { [ -n "${2:-}" ] || { printf '%s requires a value.\n' "$1" >&2; usage >&2; exit 1; }; }
 require_cmd()   { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1" "install $1 and re-run"; }
 
@@ -492,8 +517,7 @@ else
   # Keep the front-door installer concise. On failure, reveal the complete
   # lower-level install transcript so no diagnostic information is lost.
   if ! (cd "$WORK" && $SUDO ./orion-node-install.sh ${args[@]+"${args[@]}"}) >"$WORK/install.log" 2>&1; then
-    cat "$WORK/install.log" >&2
-    die "installation failed" "fix the reported step and re-run the same command"
+    install_failed "$WORK/install.log"
   fi
   record ok "Installed" "$BIN_DIR/orion-node"
   if [ "$START_SERVICE" != "true" ]; then SERVICE_DETAIL="installed, not started (--no-start)"

@@ -117,7 +117,15 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 			os.Unsetenv(config.EnvEnrollment)
 		}
 	}()
-	if err := registration.New(userConfig, opts.ConfigPath, store).RegisterNodeIfNeeded(); err != nil {
+	reg := registration.New(userConfig, opts.ConfigPath, store)
+	err = reg.RegisterNodeIfNeeded()
+	if err != nil && wasEnrolled && transport.IsAuthError(err) {
+		// The kept credential no longer works (Core was reset or the server was
+		// removed), and the person just supplied a fresh Add server token.
+		wasEnrolled = false
+		err = reg.ReconnectNode()
+	}
+	if err != nil {
 		if errors.Is(err, transport.ErrEnrollmentRejected) {
 			return NewCommandError("Core rejected the enrollment token", err, "create a new token in Console and run enroll again")
 		}
