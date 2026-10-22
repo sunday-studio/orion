@@ -41,6 +41,11 @@ services:
   orion-core-worker:
     <<: *core
     command: ["./orion-core-worker"]
+    environment:
+      ORION_ADMIN_USERNAME: ""
+      ORION_ADMIN_PASSWORD: ""
+      ORION_JWT_SECRET: ""
+      ORION_ENROLLMENT_TOKEN: ""
     depends_on:
       orion-core:
         condition: service_healthy
