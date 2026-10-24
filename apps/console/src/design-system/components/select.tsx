@@ -25,6 +25,8 @@ export type SelectProps = {
   "aria-label"?: string;
   className?: string;
   disabled?: boolean;
+  /** Shown in the trigger while no option is chosen. */
+  placeholder?: string;
 };
 
 /** Single-choice select over a typed option list. */
@@ -35,6 +37,7 @@ export const Select = ({
   label,
   className,
   disabled,
+  placeholder,
   "aria-label": ariaLabel,
 }: SelectProps) => {
   const selected = options.find((option) => option.value === value);
@@ -54,7 +57,11 @@ export const Select = ({
       >
         <span className="min-w-0 flex-1 truncate text-left">
           {label ? `${label}: ` : ""}
-          {selected?.label ?? value}
+          {selected ? (
+            selected.label
+          ) : (
+            <span className="font-normal text-faint">{placeholder ?? value}</span>
+          )}
         </span>
         <SelectPrimitive.Icon className="shrink-0">
           <span
