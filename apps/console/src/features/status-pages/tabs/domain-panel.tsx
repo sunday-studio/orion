@@ -19,6 +19,7 @@ import {
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 import { DomainDialog } from "../dialogs/domain-dialog";
+import { DomainProxyHint, DomainTargetWarning } from "./domain-record-notes";
 
 const COLUMNS = "70px minmax(0,1fr) minmax(0,1.3fr) 70px";
 
@@ -99,6 +100,9 @@ export const DomainPanel = ({
       <p className="mb-3 text-[13px] text-quiet">
         Add this record at your DNS provider, then verify. Changes can take up to an hour.
       </p>
+      <div className="mb-3">
+        <DomainTargetWarning message={data?.target_warning} />
+      </div>
       <RaisedCard>
         <GridTable>
           <GridRow columns={COLUMNS} header>
@@ -131,6 +135,9 @@ export const DomainPanel = ({
           ))}
         </GridTable>
       </RaisedCard>
+      <div className="mt-3">
+        <DomainProxyHint />
+      </div>
       {status && (
         <Callout
           tone={status === "verified" ? "up" : status === "failed" ? "down" : "warn"}

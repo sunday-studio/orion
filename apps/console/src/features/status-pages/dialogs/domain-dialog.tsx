@@ -23,6 +23,7 @@ import {
   useVerifyStatusPageDomain,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
+import { DomainProxyHint, DomainTargetWarning } from "../tabs/domain-record-notes";
 
 const STEPS = ["Enter the domain", "Add the DNS record", "Verify"] as const;
 const COLUMNS = "64px minmax(0,1fr) minmax(0,1.3fr) 64px";
@@ -124,7 +125,10 @@ export const DomainDialog = ({
               <>
                 <p className="text-[13px] leading-[1.5] text-quiet">
                   Serve this page on your own address. Enter the domain you control, for example
-                  status.example.com. Use a subdomain: apex domains cannot use a CNAME record.
+                  status.example.com.
+                  {data?.records?.some((record) => record.type !== "CNAME")
+                    ? ""
+                    : " Use a subdomain: apex domains cannot use a CNAME record."}
                 </p>
                 <label className="grid gap-1.5">
                   <span className="text-[12.5px] font-medium">Domain</span>
@@ -165,6 +169,7 @@ export const DomainDialog = ({
                   <b className="font-medium text-ink">{domain}</b>. Changes can take up to an hour.
                   You can close this and come back, Orion keeps checking while this is open.
                 </p>
+                <DomainTargetWarning message={data?.target_warning} />
                 <RaisedCard>
                   <GridTable>
                     <GridRow columns={COLUMNS} header>
@@ -197,6 +202,7 @@ export const DomainDialog = ({
                     ))}
                   </GridTable>
                 </RaisedCard>
+                <DomainProxyHint />
                 {data?.target_known === false && (
                   <Callout tone="warn" lead="Orion does not know its own address yet.">
                     The record needs to point at your Orion instance. Set the Public Core URL in{" "}
