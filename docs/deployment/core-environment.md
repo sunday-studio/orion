@@ -84,7 +84,7 @@ Public status page subscriber mail uses its own sender and is off by default. Pa
 | `ORION_PUBLIC_STATUS_MAIL_REPLY_TO` | empty | API | Reply-To address. |
 | `ORION_PUBLIC_STATUS_URL_ORIGIN` | empty | API | Public origin of the status pages, for example `https://status.example.com`, used in email links. |
 | `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` | empty | API | Encrypts subscriber addresses. Without it Core stores only hashes, so operators cannot see, export or import full addresses. |
-| `ORION_STATUS_PAGES_CNAME_TARGET` | the host of the status origin, then of `ORION_PUBLIC_URL` | API | The host custom status page domains must point a CNAME at. |
+| `ORION_STATUS_PAGES_CNAME_TARGET` | the host of the status origin, then of `ORION_PUBLIC_URL` | API | The host or IP address custom status page domains must point at (a `CNAME` for a hostname, an `A` or `AAAA` record for an IP address). |
 
 ## Image-level
 

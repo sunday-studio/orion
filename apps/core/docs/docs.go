@@ -15003,7 +15003,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Resolves the domain's CNAME and compares it with the target. Checks closer than 10 seconds apart return the last result.",
+                "description": "Resolves the domain's CNAME (hostname target) or A/AAAA address (IP target) and compares it with the target. Checks closer than 10 seconds apart return the last result.",
                 "produces": [
                     "application/json"
                 ],
@@ -21788,7 +21788,13 @@ const docTemplate = `{
                     "example": "status.example.com"
                 },
                 "type": {
+                    "description": "Type is CNAME when the target is a hostname, A when it is an IPv4 address and AAAA when it is an IPv6 address.",
                     "type": "string",
+                    "enum": [
+                        "CNAME",
+                        "A",
+                        "AAAA"
+                    ],
                     "example": "CNAME"
                 },
                 "value": {
@@ -21839,6 +21845,10 @@ const docTemplate = `{
                 },
                 "target_known": {
                     "type": "boolean"
+                },
+                "target_warning": {
+                    "description": "TargetWarning is set when the DNS target is a private, loopback or tailnet address: the record can be\ncreated and verified, but the domain will only work inside that network. It never blocks anything.",
+                    "type": "string"
                 },
                 "verified_at": {
                     "type": "string"

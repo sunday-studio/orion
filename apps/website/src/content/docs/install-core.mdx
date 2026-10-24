@@ -159,6 +159,16 @@ This applies to both options.
 
 Put a reverse proxy in front of Core, point your domain at the server, set `ORION_PUBLIC_URL` to the public address and `ORION_TRUSTED_PROXIES` to the proxy's address, then run `docker compose up -d` again. A Caddy example is in [`deploy/examples/reverse-proxy`](https://github.com/sunday-studio/orion/tree/main/deploy/examples/reverse-proxy).
 
+### A custom domain for a status page
+
+A status page can also be served on its own domain, for example `status.example.com`. Core only serves the page on that domain when the domain reaches Core, so Core must be reachable on ports 80 and 443 behind your reverse proxy, with a certificate for that domain. In the Console, open the page's domain settings: it shows the DNS record to create.
+
+- If `ORION_PUBLIC_URL` (or `ORION_STATUS_PAGES_CNAME_TARGET`) is a **hostname**, create a `CNAME` record pointing at it.
+- If it is an **IP address**, create an `A` record (IPv4) or `AAAA` record (IPv6) with that address. DNS providers reject an IP as a `CNAME` value.
+- A private, loopback or tailnet address (such as `100.x.y.z`) can be verified, but the domain then only works inside that network. The Console shows a warning.
+
+If your DNS provider proxies records (Cloudflare's orange cloud), set the record to DNS only while you verify, because a proxied record resolves to the provider's addresses. Press Verify after the record exists. Apex domains that use ALIAS or ANAME records cannot be verified yet; use a subdomain.
+
 ## Verify it is running
 
 <Steps>

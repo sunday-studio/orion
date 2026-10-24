@@ -78,11 +78,17 @@ ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 
 Console sessions last `ORION_SESSION_HOURS` hours (default 12). The Public Core URL, time zone and registration token can also be changed in Settings; a value saved there wins over `ORION_PUBLIC_URL` and `ORION_ENROLLMENT_TOKEN`. Internal log retention is `ORION_INTERNAL_LOG_RETENTION_DAYS` (7) and `ORION_INTERNAL_LOG_MAX_STORAGE_MB` (200).
 
-Custom status page domains: operators point a CNAME at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
-to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Verification checks a CNAME only, so apex domains that use ALIAS/ANAME/flattened records
-cannot be verified yet; use a subdomain such as status.example.com. Core checks the record when
-the operator presses Verify and only serves a custom domain once it is verified. TLS for that domain
-is terminated by your reverse proxy; Core only reports whether DNS is verified. The subscriber
+Custom status page domains: operators point their domain at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
+to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). The record type depends on that
+target: a **hostname** needs a `CNAME`; an **IPv4 address** needs an `A` record and an **IPv6 address** an `AAAA`
+record, because DNS providers reject an IP as a CNAME value. The Console shows the exact record. Apex domains
+that use ALIAS/ANAME/flattened records cannot be verified yet; use a subdomain such as status.example.com.
+Core checks the record when the operator presses Verify (a CNAME for hostnames, the resolved addresses for IPs)
+and only serves a custom domain once it is verified. Core must be reachable on ports 80 and 443 behind a
+reverse proxy that holds the certificate for that domain; TLS is terminated there, Core only reports whether
+DNS is verified. When the target is a private, loopback or tailnet address (`10/8`, `172.16/12`, `192.168/16`,
+`100.64/10`, `127/8`) the domain can be verified but only works inside that network, and the response carries
+a `target_warning`. If your DNS provider proxies records (Cloudflare's orange cloud), set the record to DNS only while you verify: a proxied record resolves to the provider's addresses, so verification reports "Record points somewhere else". The subscriber
 secret is also what lets operators see full subscriber emails, export them, and import CSV lists.
 
 Subscriber privacy retention runs inside the Core data lifecycle scheduler. The current hot-database

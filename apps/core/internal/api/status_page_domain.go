@@ -23,7 +23,8 @@ const (
 )
 
 type StatusPageDomainRecord struct {
-	Type  string `json:"type" example:"CNAME"`
+	// Type is CNAME when the target is a hostname, A when it is an IPv4 address and AAAA when it is an IPv6 address.
+	Type  string `json:"type" enums:"CNAME,A,AAAA" example:"CNAME"`
 	Host  string `json:"host" example:"status.example.com"`
 	Value string `json:"value" example:"pages.orion.example.com"`
 }
@@ -41,6 +42,9 @@ type StatusPageDomainResponse struct {
 	TargetKnown    bool                     `json:"target_known"`
 	FallbackURL    string                   `json:"fallback_url"`
 	VerifyAfterSec int                      `json:"verify_after_seconds"`
+	// TargetWarning is set when the DNS target is a private, loopback or tailnet address: the record can be
+	// created and verified, but the domain will only work inside that network. It never blocks anything.
+	TargetWarning string `json:"target_warning,omitempty"`
 }
 
 // statusPageCNAMETarget is where custom domains must point.
@@ -67,7 +71,9 @@ func (s *Server) domainResponse(page db.StatusPage) StatusPageDomainResponse {
 		out.Status = ""
 		return out
 	}
-	out.Records = append(out.Records, StatusPageDomainRecord{Type: "CNAME", Host: page.CustomDomain, Value: target})
+	parsed := parseDomainTarget(target)
+	out.TargetWarning = parsed.warning()
+	out.Records = append(out.Records, StatusPageDomainRecord{Type: parsed.recordType, Host: page.CustomDomain, Value: parsed.value})
 	switch page.DomainStatus {
 	case domainStatusVerified:
 		out.StatusText, out.Certificate = "Verified", "issued"
@@ -118,7 +124,7 @@ func (s *Server) getStatusPageDomain(c *gin.Context) {
 
 // verifyStatusPageDomain looks up the DNS record now.
 // @Summary      Verify status page custom domain
-// @Description  Resolves the domain's CNAME and compares it with the target. Checks closer than 10 seconds apart return the last result.
+// @Description  Resolves the domain's CNAME (hostname target) or A/AAAA address (IP target) and compares it with the target. Checks closer than 10 seconds apart return the last result.
 // @Tags         status-pages
 // @Produce      json
 // @Security     BearerAuth
@@ -161,7 +167,10 @@ func (s *Server) verifyStatusPageDomain(c *gin.Context) {
 func (s *Server) checkDomainDNS(ctx context.Context, domain string) (string, string) {
 	target := s.statusPageCNAMETarget()
 	if target == "" {
-		return domainStatusPending, "Orion has no CNAME target configured (ORION_STATUS_PAGES_CNAME_TARGET)"
+		return domainStatusPending, "Orion has no DNS target configured (ORION_STATUS_PAGES_CNAME_TARGET)"
+	}
+	if parsed := parseDomainTarget(target); parsed.recordType != domainRecordCNAME {
+		return s.checkAddressRecord(ctx, domain, parsed)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

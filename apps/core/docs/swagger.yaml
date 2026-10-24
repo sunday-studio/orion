@@ -3334,6 +3334,12 @@ definitions:
         example: status.example.com
         type: string
       type:
+        description: Type is CNAME when the target is a hostname, A when it is an
+          IPv4 address and AAAA when it is an IPv6 address.
+        enum:
+        - CNAME
+        - A
+        - AAAA
         example: CNAME
         type: string
       value:
@@ -3371,6 +3377,11 @@ definitions:
         type: string
       target_known:
         type: boolean
+      target_warning:
+        description: |-
+          TargetWarning is set when the DNS target is a private, loopback or tailnet address: the record can be
+          created and verified, but the domain will only work inside that network. It never blocks anything.
+        type: string
       verified_at:
         type: string
       verify_after_seconds:
@@ -14871,8 +14882,9 @@ paths:
       - status-pages
   /v1/status-pages/{id}/domain/verify:
     post:
-      description: Resolves the domain's CNAME and compares it with the target. Checks
-        closer than 10 seconds apart return the last result.
+      description: Resolves the domain's CNAME (hostname target) or A/AAAA address
+        (IP target) and compares it with the target. Checks closer than 10 seconds
+        apart return the last result.
       operationId: verifyStatusPageDomain
       parameters:
       - description: Status page ID

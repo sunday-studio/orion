@@ -42,6 +42,7 @@ type Server struct {
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
 	lookupCNAME                  func(ctx context.Context, host string) (string, error)
+	lookupHost                   func(ctx context.Context, host string) ([]string, error)
 	router                       *gin.Engine
 	logs                         *productLogs
 	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
@@ -108,6 +109,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
 	server.lookupCNAME = net.DefaultResolver.LookupCNAME
+	server.lookupHost = net.DefaultResolver.LookupHost
 
 	server.setupRoutes()
 

@@ -24,7 +24,7 @@ An **alert rule** decides which events matter. A **route** sends them to a **cha
 
 ## Status pages
 
-A status page shows chosen components and the incidents that affect them. You can preview it, attach a domain and post public updates.
+A status page shows chosen components and the incidents that affect them. You can preview it, attach your own domain (the Console shows the DNS record to create) and post public updates.
 
 ## Apps and logs
 
