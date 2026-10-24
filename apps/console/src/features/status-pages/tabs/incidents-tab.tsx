@@ -71,8 +71,17 @@ export const IncidentsTab = ({
               <StatusBadge status={incident.resolved_at ? "up" : "degraded"}>
                 {incident.public_status ?? "investigating"}
               </StatusBadge>
-              <Button size="sm" variant="secondary" onClick={() => setSelected(incident.id)}>
-                Post update
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={incident.id === current?.id}
+                onClick={() => {
+                  setSelected(incident.id);
+                  setStatus(incident.public_status ?? "investigating");
+                  setMessage("");
+                }}
+              >
+                {incident.id === current?.id ? "Selected" : "Write update"}
               </Button>
             </div>
           ))}
