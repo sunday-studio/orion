@@ -117,11 +117,13 @@ export const LogsPage = () => {
             : envAppIds.join(",") || "none",
         }
       : state;
-  const list = useLogList(kind, effective, limit, view === "list");
-  const facets = useLogFacets(kind, effective, fieldKey, showAll ? 100 : undefined);
-  const histogram = useLogHistogram(kind, effective);
-  const patterns = useLogPatterns(kind, effective, view === "patterns");
-  const stream = useLogStream(kind, effective, view === "live", paused);
+  // With an environment chosen, wait for the apps so nothing is fetched with a wrong filter.
+  const ready = !(kind === "service" && state.env) || apps.isSuccess;
+  const list = useLogList(kind, effective, limit, view === "list" && ready);
+  const facets = useLogFacets(kind, effective, fieldKey, showAll ? 100 : undefined, ready);
+  const histogram = useLogHistogram(kind, effective, ready);
+  const patterns = useLogPatterns(kind, effective, view === "patterns" && ready);
+  const stream = useLogStream(kind, effective, view === "live" && ready, paused);
 
   const filtersActive = FILTER_KEYS.some((key) => state[key] !== "");
   const clear = () => void set({ ...CLEARED });
@@ -129,7 +131,20 @@ export const LogsPage = () => {
   const noApps = kind === "service" && apps.isSuccess && (apps.data?.apps ?? []).length === 0;
   const params = filterParams(effective, kind);
   const query = toQueryString(params as Record<string, string | undefined>);
-  const sourceOptions = facets.groups.find((group) => group.key === "source")?.items ?? [];
+  const groups = state.env
+    ? facets.groups.map((group) =>
+        group.key === "source"
+          ? {
+              ...group,
+              items: group.items.map((item) => ({
+                ...item,
+                disabled: item.disabled || !envAppIds.includes(item.value),
+              })),
+            }
+          : group,
+      )
+    : facets.groups;
+  const sourceOptions = groups.find((group) => group.key === "source")?.items ?? [];
   const selectedSource = sourceOptions.find((item) => item.value === state.source);
   const plainOnly =
     kind === "service" &&
@@ -193,7 +208,7 @@ export const LogsPage = () => {
       <Button size="sm" variant="secondary" onClick={() => setExporting(true)}>
         Export
       </Button>
-      {kind === "service" && <SaveViewButton current={savedFilters(state)} />}
+      {kind === "service" && <SaveViewButton current={savedFilters(effective)} />}
       {kind === "service" && view === "list" && (
         <Button size="sm" variant="secondary" onClick={() => patch({ view: "live" })}>
           <i className="mr-1.5 inline-block size-1.5 rounded-full bg-[#2a9f69]" />
@@ -204,6 +219,13 @@ export const LogsPage = () => {
   );
 
   const body = () => {
+    if (!ready) {
+      return apps.isError ? (
+        <LoadFailed onRetry={() => void apps.refetch()} />
+      ) : (
+        <Skeleton className="h-60 w-full rounded-xl" />
+      );
+    }
     if (view === "live") {
       return (
         <LiveView
@@ -253,7 +275,7 @@ export const LogsPage = () => {
         )}
         <div className="flex items-start gap-6">
           <FacetSidebar
-            groups={facets.groups}
+            groups={groups}
             fields={facets.fields}
             fieldValues={facets.values}
             state={state}
@@ -365,7 +387,7 @@ export const LogsPage = () => {
             />
             {kind === "service" && (
               <SavedViewsMenu
-                current={savedFilters(state)}
+                current={savedFilters(effective)}
                 onApply={(filters) =>
                   void set({ ...CLEARED, ...fromSavedFilters(filters), log: "" })
                 }

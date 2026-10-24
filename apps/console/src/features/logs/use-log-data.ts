@@ -88,14 +88,20 @@ export const useLogList = (kind: LogKind, state: LogQueryState, limit: number, e
   };
 };
 
-const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string, top?: number) => {
+const useRawFacets = (
+  kind: LogKind,
+  state: LogQueryState,
+  field?: string,
+  top?: number,
+  ready = true,
+) => {
   const params = filterParams(state, kind);
   const service = useGetLogFacets(
     { ...params, field, events: top },
-    { query: { ...keep.query, enabled: kind === "service" } },
+    { query: { ...keep.query, enabled: ready && kind === "service" } },
   );
   const internal = useGetInternalLogFacets(params, {
-    query: { ...keep.query, enabled: kind === "internal" },
+    query: { ...keep.query, enabled: ready && kind === "internal" },
   });
   const status = useGetStatusLogFacets(
     { ...params, top },
@@ -182,10 +188,10 @@ const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string, top?:
   };
 };
 
-export const useLogHistogram = (kind: LogKind, state: LogQueryState) => {
+export const useLogHistogram = (kind: LogKind, state: LogQueryState, ready = true) => {
   const params = filterParams(state, kind);
   const service = useGetLogHistogram(params, {
-    query: { ...keep.query, enabled: kind === "service" },
+    query: { ...keep.query, enabled: ready && kind === "service" },
   });
   const status = useGetStatusLogHistogram(params, {
     query: { ...keep.query, enabled: kind === "status" },
@@ -234,8 +240,14 @@ const GROUP_STATE: Record<string, keyof LogQueryState> = {
  * options that no result matches under the other selected filters are disabled instead of
  * disappearing, so picking one never removes its siblings.
  */
-export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string, top?: number) => {
-  const filtered = useRawFacets(kind, state, field, top);
+export const useLogFacets = (
+  kind: LogKind,
+  state: LogQueryState,
+  field?: string,
+  top?: number,
+  ready = true,
+) => {
+  const filtered = useRawFacets(kind, state, field, top, ready);
   const baseState = {
     ...state,
     source: "",
@@ -248,7 +260,7 @@ export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string
     attr: "",
     env: "",
   };
-  const base = useRawFacets(kind, baseState, undefined, top);
+  const base = useRawFacets(kind, baseState, undefined, top, ready);
   const groups = base.groups.map((group) => {
     const own = String(state[GROUP_STATE[group.key]] ?? "");
     const live = new Map(
