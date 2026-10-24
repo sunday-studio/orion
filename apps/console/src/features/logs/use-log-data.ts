@@ -165,6 +165,7 @@ const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string, top?:
       : [
           { key: "severity", title: "Severity", items: severity },
           { key: "source", title: "Source", items: toItems(data?.sources) },
+          { key: "env", title: "Environment", items: toItems(data?.environments) },
           {
             key: "event",
             title: "Event",
@@ -219,6 +220,7 @@ export const useLogPatterns = (kind: LogKind, state: LogQueryState, enabled: boo
 
 const GROUP_STATE: Record<string, keyof LogQueryState> = {
   severity: "severity",
+  env: "env",
   source: "source",
   event: "event",
   type: "type",
@@ -244,6 +246,7 @@ export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string
     monitor: "",
     component: "",
     attr: "",
+    env: "",
   };
   const base = useRawFacets(kind, baseState, undefined, top);
   const groups = base.groups.map((group) => {

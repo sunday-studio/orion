@@ -11,6 +11,7 @@ const caption = "text-[11px] font-medium uppercase tracking-[0.08em] text-faint"
 /** Which state key each facet group writes to. */
 const KEY: Record<string, keyof LogQueryState> = {
   severity: "severity",
+  env: "env",
   source: "source",
   event: "event",
   type: "type",

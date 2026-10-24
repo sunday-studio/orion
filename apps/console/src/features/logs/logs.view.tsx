@@ -53,6 +53,7 @@ const PLACEHOLDER: Record<LogKind, string> = {
 const FILTER_KEYS: (keyof LogQueryState)[] = [
   "q",
   "source",
+  "env",
   "severity",
   "event",
   "type",
@@ -101,17 +102,32 @@ export const LogsPage = () => {
   const [showAll, setShowAll] = useState(false);
 
   const apps = useListApps();
-  const list = useLogList(kind, state, limit, view === "list");
-  const facets = useLogFacets(kind, state, fieldKey, showAll ? 100 : undefined);
-  const histogram = useLogHistogram(kind, state);
-  const patterns = useLogPatterns(kind, state, view === "patterns");
-  const stream = useLogStream(kind, state, view === "live", paused);
+  // Core filters by app, so an environment becomes the apps that run in it.
+  const envAppIds = (apps.data?.apps ?? [])
+    .filter((app) => app.environment === state.env)
+    .map((app) => app.id ?? "");
+  const effective =
+    kind === "service" && state.env
+      ? {
+          ...state,
+          source: state.source
+            ? envAppIds.includes(state.source)
+              ? state.source
+              : "none"
+            : envAppIds.join(",") || "none",
+        }
+      : state;
+  const list = useLogList(kind, effective, limit, view === "list");
+  const facets = useLogFacets(kind, effective, fieldKey, showAll ? 100 : undefined);
+  const histogram = useLogHistogram(kind, effective);
+  const patterns = useLogPatterns(kind, effective, view === "patterns");
+  const stream = useLogStream(kind, effective, view === "live", paused);
 
   const filtersActive = FILTER_KEYS.some((key) => state[key] !== "");
   const clear = () => void set({ ...CLEARED });
   const patch = (next: Partial<LogQueryState>) => void set(next);
   const noApps = kind === "service" && apps.isSuccess && (apps.data?.apps ?? []).length === 0;
-  const params = filterParams(state, kind);
+  const params = filterParams(effective, kind);
   const query = toQueryString(params as Record<string, string | undefined>);
   const sourceOptions = facets.groups.find((group) => group.key === "source")?.items ?? [];
   const selectedSource = sourceOptions.find((item) => item.value === state.source);
@@ -133,6 +149,7 @@ export const LogsPage = () => {
   const switchTab = (tab: string) =>
     void set({ ...CLEARED, tab, view: "list", log: "", limit: state.limit });
   const tokens: { field: string; value: string; clear: Partial<LogQueryState> }[] = [
+    state.env && { field: "Environment", value: state.env, clear: { env: "" } },
     selectedSource && { field: "Source", value: selectedSource.label, clear: { source: "" } },
     state.severity && {
       field: kind === "service" ? "Severity" : "Level",
