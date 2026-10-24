@@ -45,7 +45,10 @@ export const ComponentDialog = ({
 }) => {
   const toast = useToast();
   const [name, setName] = useState(component?.public_name ?? "");
-  const [sectionId, setSectionId] = useState(component?.section_id ?? NO_SECTION);
+  const sections = detail?.sections ?? [];
+  const [sectionId, setSectionId] = useState(
+    component?.section_id ?? sections[0]?.id ?? NO_SECTION,
+  );
   const [kind, setKind] = useState("monitor");
   const [resourceId, setResourceId] = useState("");
   const monitors = useGetMonitors({ limit: 200 }, { query: { enabled: open } });
@@ -54,7 +57,11 @@ export const ComponentDialog = ({
     onChanged();
     onOpenChange(false);
   };
-  const fail = () => toast.add({ title: "Unable to save the component" });
+  const fail = (error: unknown) =>
+    toast.add({
+      title: "Unable to save the component",
+      description: error instanceof Error ? error.message : undefined,
+    });
   const create = useCreateStatusPageComponent({ mutation: { onSuccess: done, onError: fail } });
   const update = useUpdateStatusPageComponent({ mutation: { onSuccess: done, onError: fail } });
   const remove = useDeleteStatusPageComponent({ mutation: { onSuccess: done, onError: fail } });
@@ -103,13 +110,14 @@ export const ComponentDialog = ({
           <Select
             aria-label="Section"
             className="w-full"
-            options={[
-              { value: NO_SECTION, label: "No section" },
-              ...(detail?.sections ?? []).map((s) => ({ value: s.id ?? "", label: s.name ?? "" })),
-            ]}
+            placeholder="Choose a section"
+            options={sections.map((s) => ({ value: s.id ?? "", label: s.name ?? "" }))}
             value={sectionId}
             onValueChange={setSectionId}
           />
+          {sections.length === 0 && (
+            <small className="font-normal text-faint">Add a section first.</small>
+          )}
         </div>
         {component?.id && (
           <div className="grid gap-2">
@@ -202,7 +210,10 @@ export const ComponentDialog = ({
               Delete
             </Button>
           )}
-          <Button disabled={!name.trim() || create.isPending || update.isPending} onClick={save}>
+          <Button
+            disabled={!name.trim() || !sectionId || create.isPending || update.isPending}
+            onClick={save}
+          >
             {component ? "Save" : "Add component"}
           </Button>
         </DialogFooter>

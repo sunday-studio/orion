@@ -1,6 +1,6 @@
 import type { ApiStatusPageComponentRequest, ApiStatusPageComponentResponse } from "@/orion-sdk";
 
-/** Full update body for a component; the API replaces every field it is sent. */
+/** Full update body for a component; send every field so none is cleared by accident. */
 export const componentPayload = (
   component: ApiStatusPageComponentResponse,
   changes: Partial<ApiStatusPageComponentRequest> = {},

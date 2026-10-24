@@ -58,7 +58,7 @@ export const ComponentsBulkBar = ({
       updateStatusPageComponent(
         pageId,
         component.id ?? "",
-        componentPayload(component, { section_id: sectionId || undefined }),
+        componentPayload(component, { section_id: sectionId }),
       ),
     );
 
@@ -84,10 +84,11 @@ export const ComponentsBulkBar = ({
           className="h-6 min-w-[150px] text-xs"
           disabled={busy}
           placeholder="Section"
-          options={[
-            { value: "", label: "No section" },
-            ...(detail?.sections ?? []).map((s) => ({ value: s.id ?? "", label: s.name ?? "" })),
-          ]}
+          options={(detail?.sections ?? []).map((s) => ({
+            value: s.id ?? "",
+            label: s.name ?? "",
+          }))}
+          // Matches no option, so the trigger keeps showing the placeholder after a pick.
           value={MOVE_PLACEHOLDER}
           onValueChange={(value) => void moveTo(value)}
         />

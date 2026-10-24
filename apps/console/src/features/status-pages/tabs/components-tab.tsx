@@ -26,6 +26,8 @@ export const ComponentsTab = ({
   const preview = usePreviewStatusPage(pageId);
   const [editing, setEditing] = useState<string>();
   const [sectionName, setSectionName] = useState("");
+  // Bumped when a reorder fails so each group drops its dragged order.
+  const [orderEpoch, setOrderEpoch] = useState(0);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const addSection = useCreateStatusPageSection({
     mutation: {
@@ -80,8 +82,10 @@ export const ComponentsTab = ({
         );
       }),
     );
-    if (results.some((result) => result.status === "rejected"))
+    if (results.some((result) => result.status === "rejected")) {
       toast.add({ title: "Unable to save the new order" });
+      setOrderEpoch((epoch) => epoch + 1);
+    }
     onChanged();
   };
 
@@ -118,7 +122,7 @@ export const ComponentsTab = ({
           .filter((group) => group.items.length > 0 || group.id !== NO_SECTION)
           .map((group) => (
             <ComponentsGroup
-              key={group.id}
+              key={`${group.id}:${orderEpoch}`}
               name={group.name}
               items={group.items}
               status={status}
