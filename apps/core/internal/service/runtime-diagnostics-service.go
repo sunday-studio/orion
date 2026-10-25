@@ -227,6 +227,12 @@ func (s *RuntimeDiagnosticsService) RecordActiveIncidentLookup(duration time.Dur
 }
 
 func (s *RuntimeDiagnosticsService) RecordDatabaseOperation(operation string, duration time.Duration, err error) {
+	s.recordDatabaseOperation(operation, duration, err, "", "", "")
+}
+
+// recordDatabaseOperation is RecordDatabaseOperation plus what the statement touched. sql holds
+// placeholders only (bound values are never included), so it is safe to log.
+func (s *RuntimeDiagnosticsService) recordDatabaseOperation(operation string, duration time.Duration, err error, table, sql, requestID string) {
 	if s == nil {
 		return
 	}
@@ -236,9 +242,23 @@ func (s *RuntimeDiagnosticsService) RecordDatabaseOperation(operation string, du
 		s.mu.Unlock()
 	}
 	if duration > databaseOperationSlowThreshold {
-		s.RecordSlowOperation("sqlite", operation, duration)
+		label := operation
+		if table != "" {
+			label = operation + " " + table
+		}
+		s.RecordSlowOperation("sqlite", label, duration)
 		if s.logger != nil {
-			s.logger.Warn("Slow SQLite operation", "operation", operation, "duration_ms", duration.Milliseconds())
+			args := []any{"operation", operation, "duration_ms", duration.Milliseconds()}
+			if table != "" {
+				args = append(args, "table", table)
+			}
+			if sql != "" {
+				args = append(args, "sql", sql)
+			}
+			if requestID != "" {
+				args = append(args, "request_id", requestID)
+			}
+			s.logger.Warn("Slow SQLite operation", args...)
 		}
 	}
 }
@@ -345,8 +365,26 @@ func (s *RuntimeDiagnosticsService) afterDatabaseOperation(operation string) fun
 		if err == nil {
 			err = tx.Error
 		}
-		s.RecordDatabaseOperation(operation, time.Since(startedAt), err)
+		var table, sql, requestID string
+		if tx.Statement != nil {
+			table = tx.Statement.Table
+			sql = truncateSQL(tx.Statement.SQL.String())
+			if tx.Statement.Context != nil {
+				requestID = utils.RequestIDFromContext(tx.Statement.Context)
+			}
+		}
+		s.recordDatabaseOperation(operation, time.Since(startedAt), err, table, sql, requestID)
 	}
+}
+
+const maxLoggedSQLLength = 240
+
+func truncateSQL(sql string) string {
+	sql = strings.Join(strings.Fields(sql), " ")
+	if len(sql) > maxLoggedSQLLength {
+		return sql[:maxLoggedSQLLength] + "..."
+	}
+	return sql
 }
 
 func reportWriteStats(count int64, errorCount int64, samples []int64) RuntimeReportWriteStats {

@@ -316,81 +316,155 @@ func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*Upti
 	return s.getMonitorUptime(monitorID, period, time.Now().UTC())
 }
 
-func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
-	days := parsePeriod(period)
-	since := now.AddDate(0, 0, -days)
-	settingsService := NewSettingsService(s.db, s.logger, s.cfg.DataDir)
-	settings, err := settingsService.GetDataLifecycleSettings()
-	if err != nil {
-		return nil, err
-	}
-	rawCutoffDay := dayStart(now.AddDate(0, 0, -settings.RawReportHotDays))
+const uptimeDateLayout = "2006-01-02"
 
-	var reports []db.MonitorReport
-	if err := s.db.Where("monitor_id = ? AND created_at >= ? AND created_at >= ?", monitorID, since, rawCutoffDay).
-		Order("created_at ASC").
-		Find(&reports).Error; err != nil {
-		s.logger.Error("Failed to get monitor reports for uptime", "monitor_id", monitorID, "error", err)
-		return nil, err
+type uptimeCounts struct{ up, total int }
+
+// monitorUptimeCounts returns per-monitor, per-day up/total counts for the last `days` days.
+//
+// Completed days come from monitor_uptime_rollups, so the cost does not grow with report volume.
+// Raw reports are only aggregated (in SQL, never loaded as rows) for today and for any completed
+// day that has no rollup yet (for example yesterday before the nightly job, or a missed run).
+func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now time.Time) (map[string]map[string]*uptimeCounts, error) {
+	out := make(map[string]map[string]*uptimeCounts, len(monitorIDs))
+	for _, id := range monitorIDs {
+		out[id] = make(map[string]*uptimeCounts)
 	}
+	if len(monitorIDs) == 0 {
+		return out, nil
+	}
+
+	since := now.AddDate(0, 0, -days)
+	sinceKey := since.Format(uptimeDateLayout)
+	today := dayStart(now)
+	todayKey := today.Format(uptimeDateLayout)
 
 	var rollups []db.MonitorUptimeRollup
-	if err := s.db.Where("monitor_id = ? AND date >= ? AND date < ?", monitorID, since.Format("2006-01-02"), rawCutoffDay.Format("2006-01-02")).
-		Order("date ASC").
-		Find(&rollups).Error; err != nil {
-		s.logger.Error("Failed to get monitor uptime rollups", "monitor_id", monitorID, "error", err)
+	if err := s.db.Where("monitor_id IN ? AND date >= ? AND date < ?", monitorIDs, sinceKey, todayKey).Find(&rollups).Error; err != nil {
+		s.logger.Error("Failed to get monitor uptime rollups", "error", err)
 		return nil, err
 	}
-
-	// Bucket by date (day)
-	type day struct {
-		up, total int
-	}
-	buckets := make(map[string]*day)
-	var totalUp, totalCount int
-
+	hasRollup := make(map[string]map[string]bool, len(monitorIDs))
 	for _, r := range rollups {
-		buckets[r.Date] = &day{up: r.UpCount, total: r.TotalCount}
-		totalUp += r.UpCount
-		totalCount += r.TotalCount
+		out[r.MonitorID][r.Date] = &uptimeCounts{up: r.UpCount, total: r.TotalCount}
+		if hasRollup[r.MonitorID] == nil {
+			hasRollup[r.MonitorID] = make(map[string]bool)
+		}
+		hasRollup[r.MonitorID][r.Date] = true
 	}
 
-	for _, r := range reports {
-		dateKey := r.CreatedAt.Format("2006-01-02")
-		if buckets[dateKey] == nil {
-			buckets[dateKey] = &day{}
+	// Completed days without a rollup still need raw data, but only from each monitor's first report
+	// onward: days before it existed have nothing to count. One index seek per monitor, one round trip.
+	firstReport := make(map[string]time.Time, len(monitorIDs))
+	for from := 0; from < len(monitorIDs); from += 200 {
+		chunk := monitorIDs[from:min(from+200, len(monitorIDs))]
+		parts := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)*2)
+		for i, id := range chunk {
+			parts[i] = "SELECT ? AS monitor_id, (SELECT MIN(created_at) FROM monitor_reports WHERE monitor_id = ?) AS first_at"
+			args = append(args, id, id)
 		}
-		buckets[dateKey].total++
-		totalCount++
-		if r.Health == "up" {
-			buckets[dateKey].up++
-			totalUp++
+		var firsts []struct {
+			MonitorID string
+			FirstAt   *string
 		}
-	}
-
-	// Build ordered daily_buckets for each day in range
-	var daily []UptimeDayBucket
-	for d := 0; d < days; d++ {
-		dt := since.AddDate(0, 0, d)
-		dateKey := dt.Format("2006-01-02")
-		b := buckets[dateKey]
-		up, total := 0, 0
-		var pct float64
-		if b != nil {
-			up, total = b.up, b.total
-			if total > 0 {
-				pct = 100 * float64(up) / float64(total)
+		if err := s.db.Raw(strings.Join(parts, " UNION ALL "), args...).Scan(&firsts).Error; err != nil {
+			return nil, err
+		}
+		for _, f := range firsts {
+			// MIN() loses the column's time type, so read the stored text and keep its date part.
+			if f.FirstAt != nil && len(*f.FirstAt) >= 10 {
+				if t, err := time.Parse(uptimeDateLayout, (*f.FirstAt)[:10]); err == nil {
+					firstReport[f.MonitorID] = t
+				}
 			}
 		}
-		daily = append(daily, UptimeDayBucket{Date: dateKey, Up: up, Total: total, UptimePercent: pct})
+	}
+	missing := make(map[string]map[string]bool)
+	rawFrom := today
+	for _, id := range monitorIDs {
+		firstAt, ok := firstReport[id]
+		if !ok {
+			continue
+		}
+		first := dayStart(since)
+		if dayStart(firstAt).After(first) {
+			first = dayStart(firstAt)
+		}
+		for d := first; d.Before(today); d = d.AddDate(0, 0, 1) {
+			key := d.Format(uptimeDateLayout)
+			if hasRollup[id][key] {
+				continue
+			}
+			if missing[id] == nil {
+				missing[id] = make(map[string]bool)
+			}
+			missing[id][key] = true
+			if d.Before(rawFrom) {
+				rawFrom = d
+			}
+		}
 	}
 
+	var rows []struct {
+		MonitorID string
+		Day       string
+		Up        int
+		Total     int
+	}
+	if err := s.db.Raw(`
+		SELECT monitor_id, substr(created_at, 1, 10) AS day,
+		       SUM(CASE WHEN health = 'up' THEN 1 ELSE 0 END) AS up,
+		       COUNT(*) AS total
+		FROM monitor_reports
+		WHERE monitor_id IN ? AND created_at >= ?
+		GROUP BY monitor_id, day`, monitorIDs, rawFrom).Scan(&rows).Error; err != nil {
+		s.logger.Error("Failed to aggregate monitor reports for uptime", "error", err)
+		return nil, err
+	}
+	for _, r := range rows {
+		if r.Day == todayKey || missing[r.MonitorID][r.Day] {
+			out[r.MonitorID][r.Day] = &uptimeCounts{up: r.Up, total: r.Total}
+		}
+	}
+	return out, nil
+}
+
+// uptimeResultFromCounts builds the ordered daily buckets and overall percent for a period.
+func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.Time) *UptimeResult {
+	since := now.AddDate(0, 0, -days)
+	daily := make([]UptimeDayBucket, 0, days)
+	var totalUp, totalCount int
+	for d := 0; d < days; d++ {
+		key := since.AddDate(0, 0, d).Format(uptimeDateLayout)
+		bucket := UptimeDayBucket{Date: key}
+		if c := counts[key]; c != nil {
+			bucket.Up, bucket.Total = c.up, c.total
+			if c.total > 0 {
+				bucket.UptimePercent = 100 * float64(c.up) / float64(c.total)
+			}
+		}
+		daily = append(daily, bucket)
+	}
+	// Totals cover every counted day, including today, which has no bucket of its own.
+	for _, c := range counts {
+		totalUp += c.up
+		totalCount += c.total
+	}
 	pct := 0.0
 	if totalCount > 0 {
 		pct = 100 * float64(totalUp) / float64(totalCount)
 	}
+	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}
+}
 
-	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}, nil
+func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
+	days := parsePeriod(period)
+	counts, err := s.monitorUptimeCounts([]string{monitorID}, days, now)
+	if err != nil {
+		return nil, err
+	}
+	return uptimeResultFromCounts(counts[monitorID], days, now), nil
 }
 
 // GetNodeUptime aggregates uptime from the node's active monitors.
@@ -409,49 +483,22 @@ func (s *ReportService) getNodeUptime(nodeID string, period string, now time.Tim
 		return &UptimeResult{DailyBuckets: emptyUptimeBuckets(period, now), UptimePercent: 0}, nil
 	}
 
-	dailyByDate := make(map[string]*UptimeDayBucket)
-	var totalUp, totalCount int
-	for _, mid := range monitorIDs {
-		res, err := s.getMonitorUptime(mid, period, now)
-		if err != nil {
-			continue
-		}
-
-		for _, bucket := range res.DailyBuckets {
-			nodeBucket := dailyByDate[bucket.Date]
-			if nodeBucket == nil {
-				nodeBucket = &UptimeDayBucket{Date: bucket.Date}
-				dailyByDate[bucket.Date] = nodeBucket
-			}
-			nodeBucket.Up += bucket.Up
-			nodeBucket.Total += bucket.Total
-			totalUp += bucket.Up
-			totalCount += bucket.Total
-		}
-	}
-
 	days := parsePeriod(period)
-	since := now.AddDate(0, 0, -days)
-	daily := make([]UptimeDayBucket, 0, days)
-	for d := 0; d < days; d++ {
-		dateKey := since.AddDate(0, 0, d).Format("2006-01-02")
-		bucket := UptimeDayBucket{Date: dateKey}
-		if aggregated := dailyByDate[dateKey]; aggregated != nil {
-			bucket.Up = aggregated.Up
-			bucket.Total = aggregated.Total
-			if bucket.Total > 0 {
-				bucket.UptimePercent = 100 * float64(bucket.Up) / float64(bucket.Total)
+	perMonitor, err := s.monitorUptimeCounts(monitorIDs, days, now)
+	if err != nil {
+		return nil, err
+	}
+	combined := make(map[string]*uptimeCounts)
+	for _, byDay := range perMonitor {
+		for day, c := range byDay {
+			if combined[day] == nil {
+				combined[day] = &uptimeCounts{}
 			}
+			combined[day].up += c.up
+			combined[day].total += c.total
 		}
-		daily = append(daily, bucket)
 	}
-
-	pct := 0.0
-	if totalCount > 0 {
-		pct = 100 * float64(totalUp) / float64(totalCount)
-	}
-
-	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}, nil
+	return uptimeResultFromCounts(combined, days, now), nil
 }
 
 func emptyUptimeBuckets(period string, now time.Time) []UptimeDayBucket {

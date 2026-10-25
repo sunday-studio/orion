@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
+	"sort"
 	"strings"
 	"time"
 )
@@ -55,18 +56,39 @@ type recentCheck struct {
 	createdAt time.Time
 }
 
-// recentMonitorChecks loads the newest recentCheckCount reports per monitor, newest first. One
-// index-ordered LIMIT query per monitor keeps the cost independent of how much history exists.
+// recentMonitorChecks loads the newest recentCheckCount reports per monitor, newest first, in one
+// round trip per 200 monitors: a UNION ALL of per-monitor "ORDER BY created_at DESC LIMIT n" seeks on
+// the (monitor_id, created_at DESC) index. That stays O(n) per monitor however much history exists,
+// unlike ROW_NUMBER() OVER (PARTITION BY ...), which ranks every row. Payloads are only read for
+// non-up checks: they are needed for failure detail and are large relative to the rest.
 func (s *Server) recentMonitorChecks(ids []string) map[string][]recentCheck {
 	out := make(map[string][]recentCheck, len(ids))
-	for _, id := range ids {
-		var rows []db.MonitorReport
-		if err := s.db.Select("health", "payload", "created_at").Where("monitor_id = ?", id).Order("created_at DESC").Limit(recentCheckCount).Find(&rows).Error; err != nil {
+	type row struct {
+		MonitorID string
+		Health    string
+		Payload   string
+		CreatedAt time.Time
+	}
+	const part = `SELECT * FROM (SELECT monitor_id, health, CASE WHEN health <> 'up' THEN payload ELSE '' END AS payload, created_at
+		FROM monitor_reports WHERE monitor_id = ? ORDER BY created_at DESC LIMIT ?)`
+	for from := 0; from < len(ids); from += 200 {
+		chunk := ids[from:min(from+200, len(ids))]
+		parts := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)*2)
+		for i, id := range chunk {
+			parts[i] = part
+			args = append(args, id, recentCheckCount)
+		}
+		var rows []row
+		if err := s.db.Raw(strings.Join(parts, " UNION ALL "), args...).Scan(&rows).Error; err != nil {
 			continue
 		}
 		for _, r := range rows {
-			out[id] = append(out[id], recentCheck{health: r.Health, payload: r.Payload, createdAt: r.CreatedAt})
+			out[r.MonitorID] = append(out[r.MonitorID], recentCheck{health: r.Health, payload: r.Payload, createdAt: r.CreatedAt})
 		}
+	}
+	for id := range out {
+		sort.SliceStable(out[id], func(i, j int) bool { return out[id][i].createdAt.After(out[id][j].createdAt) })
 	}
 	return out
 }

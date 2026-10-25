@@ -407,6 +407,8 @@ func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 
 		// Set request ID in context
 		c.Set("request_id", requestID)
+		// Also on the request context so queries run with WithContext(c.Request.Context()) can be attributed.
+		c.Request = c.Request.WithContext(utils.WithRequestID(c.Request.Context(), requestID))
 
 		// Add request ID to response header
 		c.Header("X-Request-ID", requestID)

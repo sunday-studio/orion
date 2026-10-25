@@ -278,3 +278,38 @@ func TestMonitorListStaysFastWithLargeHistory(t *testing.T) {
 		t.Fatalf("list over 500k reports took %v, want index-bounded work", elapsed)
 	}
 }
+
+func TestRecentMonitorChecksWindowedQuery(t *testing.T) {
+	server := setupTestServer(t)
+	registerTestNode(t, server)
+	a := createHTTPMonitor(t, server, "recent-a", nil)
+	b := createHTTPMonitor(t, server, "recent-b", nil)
+	empty := createHTTPMonitor(t, server, "recent-empty", nil)
+
+	healths := make([]string, 30)
+	for i := range healths {
+		healths[i] = "up"
+	}
+	healths[len(healths)-1] = "down"
+	addChecks(server, a.Data.Monitor.ID, healths...)
+	addChecks(server, b.Data.Monitor.ID, "up", "down")
+
+	got := server.recentMonitorChecks([]string{a.Data.Monitor.ID, b.Data.Monitor.ID, empty.Data.Monitor.ID})
+
+	if n := len(got[a.Data.Monitor.ID]); n != recentCheckCount {
+		t.Fatalf("monitor a returned %d checks, want %d", n, recentCheckCount)
+	}
+	newest := got[a.Data.Monitor.ID][0]
+	if newest.health != "down" || !strings.Contains(newest.payload, "deadline exceeded") {
+		t.Fatalf("newest check = %+v, want down with payload", newest)
+	}
+	if older := got[a.Data.Monitor.ID][1]; older.health != "up" || older.payload != "" || older.createdAt.IsZero() {
+		t.Fatalf("up check should have no payload and a parsed time: %+v", older)
+	}
+	if len(got[b.Data.Monitor.ID]) != 2 || got[b.Data.Monitor.ID][0].health != "down" {
+		t.Fatalf("monitor b checks = %+v", got[b.Data.Monitor.ID])
+	}
+	if len(got[empty.Data.Monitor.ID]) != 0 {
+		t.Fatalf("empty monitor should have no checks")
+	}
+}
