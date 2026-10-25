@@ -1,0 +1,16 @@
+
+Discover: found on edge-05, 7 things, 1 new
+Services (3)
+  [x] nginx             Check it is running             high
+  [x] postgresql        Check it is running             high
+  [=] redis             already monitored (managed in file)
+Containers (1)
+  [x] api               Check it is running             high
+Ports (1)
+  [ ] :6379 redis       Check it accepts connections    medium
+Disks (1)
+  [x] /var              Alert above 90% full            high
+Logs (1)
+  [ ] nginx error.log   Ship its lines                  needs a log key     medium
+
+ 4 pre-ticked · apply them with orion-node setup

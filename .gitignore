@@ -1,2 +1,37 @@
 todo.md
-core/data
+.DS_Store
+
+# Local databases and runtime state
+app/core/data
+apps/core/data
+apps/core/tmp/
+tmp/
+
+# Dependency directories
+node_modules/
+apps/*/node_modules/
+
+# Frontend build outputs
+apps/console/dist/
+apps/console/src/orion-sdk/
+apps/console/test-results/
+
+# node
+apps/node/orion-node
+apps/node/state.yaml
+apps/node/config.yaml
+apps/node/tmp/
+
+# core
+apps/core/.env
+apps/core/web/
+*.test
+*.out
+*.cpu
+*.block
+*.mutex
+
+# local server runs
+apps/core/orion-*
+apps/core/*.log
+apps/core/*.err

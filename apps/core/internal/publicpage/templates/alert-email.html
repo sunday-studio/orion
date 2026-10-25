@@ -1,0 +1,10 @@
+{{define "alert-email.html"}}<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>{{.Title}}</title><style>{{css}}</style></head>
+<body class="plain-page {{.ThemeClass}}"><div class="plain-wrap">
+<section class="card"><h1>{{.Heading}}</h1><p>{{.Body}}</p>{{if .Address}}<p class="b">{{.Address}}</p>{{end}}
+{{if .Action}}<form class="actions" method="post" action="{{.Action}}"><button class="btn p" type="submit">{{.Button}}</button>{{if .Skip}}<a class="btn" href="{{.Skip}}">This is not me</a>{{end}}</form>{{end}}
+</section>
+<p class="small"><a href="https://orion.thesunday.studio" target="_blank" rel="noopener">Powered by Orion</a></p>
+</div></body></html>
+{{end}}

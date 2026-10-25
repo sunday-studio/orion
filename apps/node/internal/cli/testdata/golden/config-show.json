@@ -1,0 +1,26 @@
+{
+  "core_url": "string",
+  "interval": "string",
+  "logging": {
+    "Compress": "bool",
+    "Format": "string",
+    "Level": "string",
+    "MaxAgeDays": "number",
+    "MaxBackups": "number",
+    "MaxSizeMB": "number",
+    "Path": "string"
+  },
+  "monitors": [],
+  "path": "string",
+  "schema_version": "number",
+  "source": {
+    "file": "string",
+    "file_found": "bool",
+    "origins": {
+      "core_url": "string",
+      "interval": "string",
+      "monitors": "string"
+    },
+    "zero_config": "bool"
+  }
+}

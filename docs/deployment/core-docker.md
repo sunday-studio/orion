@@ -1,0 +1,304 @@
+# Core Docker Deployment
+
+The Core Docker image is the default deployable unit for a self-hosted Orion Core.
+
+Docker Compose is the recommended first deployment path. It gives small teams and homelab operators
+a repeatable Core install with a persistent SQLite volume, without requiring Kubernetes, a managed
+database, or a separate web server. Run Core somewhere the monitored Servers can reliably reach. For
+home networks, that can mean a small VPS, a Tailscale-accessible machine, or the most reliable host
+inside the network.
+
+It builds:
+
+- the Console with Vite;
+- the Core Go binary;
+- the Core monitor worker Go binary;
+- the Console static files copied into the Core runtime image.
+
+The final runtime image contains two binaries: `orion-core` for the API/Console process and
+`orion-core-worker` for Core-managed monitor execution. Run them as separate containers that share
+the same `/data` volume.
+
+## Image
+
+Core API, Core monitor worker, and Console are shipped together as one Docker image:
+
+```txt
+ghcr.io/sunday-studio/orion-core:<version>
+```
+
+The default command runs `orion-core`, which serves the backend API and Console UI. Override the
+command with `./orion-core-worker` to run the monitor worker.
+
+## Run With Docker Compose
+
+Download the sample Compose file:
+
+```sh
+curl -fsSL -o docker-compose.yml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
+```
+
+Pin a release image and set admin credentials in the same directory:
+
+```sh
+ADMIN_PASSWORD="$(openssl rand -base64 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+
+cat > .env <<'EOF'
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
+ORION_HTTP_PORT=8999
+ORION_REQUIRE_FRONTEND_AUTH=true
+ORION_ADMIN_USERNAME=admin
+EOF
+
+printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
+```
+
+The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core refuses startup
+unless `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all present.
+Required-auth mode also rejects placeholder auth values, admin passwords shorter than 12 characters,
+and JWT secrets shorter than 32 characters.
+
+Public status page subscriber email is disabled by default. To send confirmation and public incident
+update mail, configure a dedicated sender for public subscribers:
+
+```sh
+ORION_PUBLIC_STATUS_MAIL_ENABLED=true
+ORION_PUBLIC_STATUS_MAIL_HOST=smtp.example.com
+ORION_PUBLIC_STATUS_MAIL_PORT=587
+ORION_PUBLIC_STATUS_MAIL_USERNAME=status-sender
+ORION_PUBLIC_STATUS_MAIL_PASSWORD=replace-with-smtp-password
+ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL=status@example.com
+ORION_PUBLIC_STATUS_MAIL_FROM_NAME="Example Status"
+ORION_PUBLIC_STATUS_MAIL_REPLY_TO=support@example.com
+ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
+ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
+```
+
+Console sessions last `ORION_SESSION_HOURS` hours (default 12). The Public Core URL, time zone and registration token can also be changed in Settings; a value saved there wins over `ORION_PUBLIC_URL` and `ORION_ENROLLMENT_TOKEN`. Internal log retention is `ORION_INTERNAL_LOG_RETENTION_DAYS` (7) and `ORION_INTERNAL_LOG_MAX_STORAGE_MB` (200).
+
+Custom status page domains: operators point their domain at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
+to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). The record type depends on that
+target: a **hostname** needs a `CNAME`; an **IPv4 address** needs an `A` record and an **IPv6 address** an `AAAA`
+record, because DNS providers reject an IP as a CNAME value. The Console shows the exact record. Apex domains
+that use ALIAS/ANAME/flattened records cannot be verified yet; use a subdomain such as status.example.com.
+Core checks the record when the operator presses Verify (a CNAME for hostnames, the resolved addresses for IPs)
+and only serves a custom domain once it is verified. Core must be reachable on ports 80 and 443 behind a
+reverse proxy that holds the certificate for that domain; TLS is terminated there, Core only reports whether
+DNS is verified. When the target is a private, loopback or tailnet address (`10/8`, `172.16/12`, `192.168/16`,
+`100.64/10`, `127/8`) the domain can be verified but only works inside that network, and the response carries
+a `target_warning`. If your DNS provider proxies records (Cloudflare's orange cloud), set the record to DNS only while you verify: a proxied record resolves to the provider's addresses, so verification reports "Record points somewhere else". The subscriber
+secret is also what lets operators see full subscriber emails, export them, and import CSV lists.
+
+Subscriber privacy retention runs inside the Core data lifecycle scheduler. The current hot-database
+defaults are 7 days after pending confirmation expiry, 90 days for unsubscribed or bounced
+subscriber suppression records, and 180 days for subscriber delivery rows. The job records audit
+events before anonymization or hard deletion, and it still runs when raw report archiving is set to
+manual mode.
+
+These `ORION_PUBLIC_STATUS_MAIL_*` variables only send public status page subscriber mail. Email
+alert channels use a separate SMTP setup, `ORION_ALERT_SMTP_*`, and when it is set the API and the
+Worker must also share `ORION_ALERT_EMAIL_SECRET`. Every variable, with its default and which
+container reads it, is in [Core environment variables](core-environment.md).
+
+Start Core after creating the `.env` file. Compose starts two services:
+
+- `orion-core`: API, Console, incidents, alerts, and diagnostics;
+- `orion-core-worker`: Core-managed monitor worker heartbeat and check execution.
+
+```sh
+docker compose up -d
+```
+
+Core listens on port `8999` of the server.
+Worker state is exposed through the API diagnostics route:
+
+```sh
+TOKEN="$(
+  curl -fsS http://localhost:8999/v1/auth/login \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" |
+    jq -r '.data.token'
+)"
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8999/v1/diagnostics/core-worker
+```
+
+The plain `/health` endpoint only reports API and database availability. It does not fail because
+the worker is paused, stale, or stopped.
+
+## Core Monitor Target Policy
+
+Core-managed monitors reject localhost, loopback, private RFC1918, link-local, multicast,
+unspecified, and known cloud metadata targets by default. Private and loopback targets are allowed
+only when the worker is running in a trusted internal deployment and
+`ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS=true` is set explicitly. Link-local, multicast,
+unspecified, and cloud metadata targets stay blocked. Redirects are checked with the same policy
+before the worker follows them, and report payloads strip URL user info, query strings, and fragments
+from recorded target URLs.
+
+## Playwright Transaction Runtime
+
+Playwright transaction monitors use an explicit runner executable on the Core worker host. The
+default `ghcr.io/sunday-studio/orion-core` image intentionally does not bundle Node, Playwright, or
+browser binaries. That keeps the standard Core image small and avoids silently adding a browser
+sandbox to every self-hosted install.
+
+Supported first-release model:
+
+- keep the default Core API and Core worker image browser-free;
+- install or mount a trusted Node/Playwright runner executable on worker hosts that need browser
+  transaction checks;
+- set `ORION_PLAYWRIGHT_RUNNER` on the `orion-core-worker` process to the executable path;
+- leave `ORION_PLAYWRIGHT_RUNNER` unset on workers that should not run browser checks.
+
+The runner contract is stdin/stdout JSON: Core passes the validated transaction request on stdin and
+expects a bounded JSON result on stdout. If `ORION_PLAYWRIGHT_RUNNER` is unset, Playwright monitors
+fail explicitly with `failure_stage: runtime_unavailable`; other Core monitor types keep running.
+
+Docker users can either build a derived worker image that includes the runner and browsers, or mount
+the runner into the worker container and point the environment variable at it:
+
+```yaml
+services:
+  orion-core-worker:
+    environment:
+      ORION_PLAYWRIGHT_RUNNER: /opt/orion/playwright-runner
+    volumes:
+      - ./playwright-runner:/opt/orion/playwright-runner:ro
+```
+
+An official optional Playwright worker image or sidecar is intentionally deferred until the browser
+sandbox, browser set, and artifact retention policy are versioned as a separate runtime contract.
+
+From this repository, you can run it after creating `deploy/.env` (copy `deploy/.env.example` and set
+the password and JWT secret):
+
+```sh
+cd deploy
+cp .env.example .env     # then edit .env
+docker compose up -d
+```
+
+When Core serves the bundled Console, browser API calls stay on the same origin and do not need
+CORS. Set `ORION_CORS_ORIGINS` only when a separately hosted Console or custom browser origin calls
+this Core API:
+
+```sh
+ORION_CORS_ORIGINS=https://console.example.com,https://orion-core.examples.orb.local
+```
+
+## Run With Docker
+
+```sh
+docker run -d \
+  --name orion-core \
+  --restart unless-stopped \
+  -p 8999:8999 \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS=3600 \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
+  ghcr.io/sunday-studio/orion-core:<version>
+
+docker run -d \
+  --name orion-core-worker \
+  --restart unless-stopped \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_WORKER_ID=core-monitor-worker \
+  -e ORION_WORKER_HEARTBEAT_SECONDS=15 \
+  -e ORION_WORKER_STALE_SECONDS=60 \
+  -e ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS=false \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
+  ghcr.io/sunday-studio/orion-core:<version> \
+  ./orion-core-worker
+```
+
+## Runtime Example
+
+The Compose file lives at `deploy/docker-compose.yml`; every setting is documented in `deploy/.env.example`.
+
+Start or update Core:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+To inspect the resolved Compose file without starting Core:
+
+```sh
+docker compose config
+```
+
+Stop Core:
+
+```sh
+docker compose down
+```
+
+## Data
+
+Both Core containers store Core data at `/data`, mounted by Docker Compose as the `orion-data`
+volume. The first worker release uses shared SQLite access on a single Docker host. Do not point
+multiple hosts at the same SQLite file.
+
+This includes:
+
+- `orion.db`;
+- archive SQLite files;
+- lifecycle metadata.
+- Core worker heartbeat diagnostics.
+
+Backups should include the Docker volume. See [SQLite backup and restore](../sqlite-backup-restore.md).
+
+## Server Connection URL
+
+Servers need a stable `core_url` that points at this Core deployment.
+
+Common examples:
+
+- `https://orion.example.com`;
+- `http://192.168.x.y:8999`;
+- `http://100.x.y.z:8999` for Tailscale;
+- `https://orion.example.com` if placed behind a reverse proxy.
+
+## Publishing
+
+Image publishing is manually triggered from GitHub Actions. Run the `Docker Images` workflow and
+provide the version tag to publish.
+
+Servers should be installed separately on each monitored machine. They do not run inside the Core API
+or Core worker containers. The installed binary and CLI are still named `orion-node` for
+compatibility.
+
+## Hardened runtime profile
+
+`deploy/docker-compose.yml` runs both services with a restricted profile:
+
+- **Non-root.** The image creates an `orion` user (uid 10001). The entrypoint starts as root only to repair ownership of an existing `/data` volume created by an older, root-running image (one-time `chown`, skipped once the volume belongs to `orion`), then `su-exec`s to `orion`. Run with `user: "10001:10001"` instead if your volume is already owned by that uid.
+- **Read-only root filesystem** with a `tmpfs` at `/tmp`; the only writable path is the `/data` volume.
+- **`cap_drop: [ALL]`** plus `CHOWN`, `SETUID` and `SETGID` for the entrypoint. `no-new-privileges` is on.
+- **Limits:** `mem_limit` and `cpus` (override with `ORION_CORE_MEMORY_LIMIT`, `ORION_CORE_CPUS`, `ORION_WORKER_MEMORY_LIMIT`, `ORION_WORKER_CPUS`) and `pids_limit: 256`.
+- **`stop_grace_period: 30s`** so in-flight checks and requests finish on `docker compose stop`.
+- **`GIN_MODE=release`** is set in the image.
+- **The Worker gets no admin credentials.** It no longer receives `ORION_ADMIN_*` or `ORION_JWT_SECRET`, and the Playwright runner subprocess only inherits an allowlisted environment.
+- Base images are pinned by digest; Dependabot (docker ecosystem) proposes updates. CI builds the image and fails on fixable HIGH or CRITICAL findings from Trivy.
+
+Pin `ORION_CORE_IMAGE` to a release tag (or digest) in production instead of `latest`.
+
+### TLS reverse proxy
+
+Nodes send bearer tokens to `core_url`, so use HTTPS. `deploy/examples/reverse-proxy/` has a Caddy overlay that terminates TLS, stops publishing Core's port and sets `ORION_TRUSTED_PROXIES` so rate limits see real client IPs:
+
+```sh
+export ORION_PUBLIC_HOST=orion.example.com
+docker compose -f deploy/docker-compose.yml -f deploy/examples/reverse-proxy/compose.override.yaml up -d
+```

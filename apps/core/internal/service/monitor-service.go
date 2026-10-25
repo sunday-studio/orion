@@ -1,0 +1,481 @@
+package service
+
+import (
+	"errors"
+	"orion/core/internal/db"
+	"orion/core/internal/utils"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type RegisterMonitorRequest struct {
+	NodeID                   string    `json:"node_id,omitempty"`
+	Name                     string    `json:"name" binding:"required"`
+	Description              *string   `json:"description" binding:"required"`
+	Type                     string    `json:"type" binding:"required"`
+	LastChecked              time.Time `json:"last_checked" binding:"required"`
+	ReportingIntervalSeconds int       `json:"reporting_interval_seconds"` // Monitor check interval in seconds
+	Meta                     string    `json:"meta,omitempty"`
+}
+
+type UnregisterMonitorRequest struct {
+	NodeID    string `json:"node_id,omitempty"`
+	MonitorID string `json:"monitor_id" binding:"required"`
+}
+
+type UnregisterMonitorResponse struct {
+	Success bool `json:"success"`
+}
+
+type RegisterMonitorResponse struct {
+	MonitorID string `json:"monitor_id"`
+}
+
+type ListAllMonitorsOpts struct {
+	Limit        int
+	Offset       int
+	Search       string
+	Health       string
+	Type         string
+	OwnerKind    string
+	OwnerName    string
+	Source       string
+	Lifecycle    string
+	StaleOnly    bool
+	HasIncidents bool
+	// IncludeSystem adds Core's self-monitors (worker liveness, node connectivity).
+	IncludeSystem bool
+	// Statuses keeps only monitors whose computed health is in the set (up, down, degraded, stale, unknown).
+	Statuses map[string]bool
+	NodeID   string
+	// Paused filters Core-managed monitors by paused state when set.
+	Paused *bool
+	Sort   string
+	Order  string
+}
+
+type MonitorSummary struct {
+	Total        int64 `json:"total"`
+	Up           int64 `json:"up"`
+	Down         int64 `json:"down"`
+	Degraded     int64 `json:"degraded"`
+	Unknown      int64 `json:"unknown"`
+	Stale        int64 `json:"stale"`
+	HasIncidents int64 `json:"has_incidents"`
+	// Paused counts Core-managed monitors that are paused.
+	Paused int64 `json:"paused"`
+}
+
+type MonitorService struct {
+	db     *gorm.DB
+	logger *utils.Logger
+}
+
+func NewMonitorService(database *gorm.DB, logger *utils.Logger) *MonitorService {
+	return &MonitorService{
+		db:     database,
+		logger: logger,
+	}
+}
+
+func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {
+	var monitor db.Monitor
+
+	// Prefer the live row; only fall back to reviving a soft-deleted one (newest
+	// first). Picking by id alone could revive a deleted twin while a live monitor of
+	// the same name exists, which the unique (node_id, name) index rejects.
+	err := s.db.
+		Where("node_id = ? AND name = ?", req.NodeID, req.Name).
+		Order("CASE WHEN lifecycle = 'deleted' THEN 1 ELSE 0 END, created_at DESC, id DESC").
+		First(&monitor).Error
+
+	switch {
+	case err == nil:
+		if monitor.Lifecycle == "deleted" {
+			// Default interval to 60 seconds if not provided
+			interval := req.ReportingIntervalSeconds
+			if interval == 0 {
+				interval = 60
+			}
+
+			updates := map[string]any{
+				"lifecycle":                  "active",
+				"health":                     "up",
+				"description":                req.Description,
+				"type":                       req.Type,
+				"updated_at":                 time.Now(),
+				"reporting_interval_seconds": interval,
+			}
+			if req.Meta != "" {
+				updates["meta"] = req.Meta
+			}
+
+			if err := s.db.Model(&monitor).Updates(updates).Error; err != nil {
+				return nil, err
+			}
+
+			// exist but deleted → revive
+			return &RegisterMonitorResponse{
+				MonitorID: monitor.ID,
+			}, nil
+		}
+
+		updates := map[string]any{}
+		if req.ReportingIntervalSeconds > 0 && monitor.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
+			updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
+		}
+		if req.Description != nil && (monitor.Description == nil || *monitor.Description != *req.Description) {
+			updates["description"] = req.Description
+		}
+		if req.Type != "" && monitor.Type != req.Type {
+			updates["type"] = req.Type
+		}
+		if req.Meta != "" && monitor.Meta != req.Meta {
+			updates["meta"] = req.Meta
+		}
+		if len(updates) > 0 {
+			updates["updated_at"] = time.Now()
+			if err := s.db.Model(&monitor).Updates(updates).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		return &RegisterMonitorResponse{
+			MonitorID: monitor.ID,
+		}, nil
+
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		resp, err := s.createNewMonitor(req)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+
+	default:
+		s.logger.Error("Database error during monitor lookup", "error", err)
+		return nil, err
+	}
+}
+
+// ErrMonitorNotOwned is returned when a monitor does not exist or belongs to another node.
+var ErrMonitorNotOwned = errors.New("monitor not found for node")
+
+func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
+	now := time.Now()
+
+	result := s.db.Model(&db.Monitor{}).
+		Where("node_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.NodeID, req.MonitorID, time.Time{}).
+		Updates(map[string]any{
+			"lifecycle":  "deleted",
+			"health":     "unknown",
+			"updated_at": now,
+			"deleted_at": &now,
+		})
+	if result.Error != nil {
+		s.logger.Error(
+			"Failed to unregister monitor",
+			"node_id", req.NodeID,
+			"monitor_id", req.MonitorID,
+			"error", result.Error,
+		)
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		// Unregistering an already-deleted monitor the node owns stays idempotent;
+		// anything else (unknown id, another node's monitor) is rejected.
+		var owned int64
+		if err := s.db.Model(&db.Monitor{}).Where("node_id = ? AND id = ?", req.NodeID, req.MonitorID).Count(&owned).Error; err != nil {
+			return nil, err
+		}
+		if owned == 0 {
+			return nil, ErrMonitorNotOwned
+		}
+	}
+
+	return &UnregisterMonitorResponse{Success: true}, nil
+}
+
+func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {
+	monitorID := utils.GenerateID("monitor")
+
+	// Default interval to 60 seconds if not provided
+	interval := req.ReportingIntervalSeconds
+	if interval == 0 {
+		interval = 60
+	}
+
+	monitor := db.Monitor{
+		ID:                       monitorID,
+		NodeID:                   req.NodeID,
+		Description:              req.Description,
+		Type:                     req.Type,
+		Name:                     req.Name,
+		Meta:                     req.Meta,
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: interval,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
+	}
+
+	if err := s.db.Create(&monitor).Error; err != nil {
+		s.logger.Error("Failed to create monitor", "error", err)
+		return nil, err
+	}
+
+	return &RegisterMonitorResponse{
+		MonitorID: monitorID,
+	}, nil
+}
+
+func (s *MonitorService) ListMonitors(nodeID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
+	monitors, _, err := s.listNodeMonitors(nodeID, healthFilter, lifecycleFilter)
+	if err != nil {
+		return nil, err
+	}
+	return paginateMonitors(monitors, limit, offset), nil
+}
+
+func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
+	var monitors []db.Monitor
+	if err := s.db.Where("lifecycle = ? AND system = ?", "active", false).Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to load monitor summary", "error", err)
+		return MonitorSummary{}, err
+	}
+
+	summary := MonitorSummary{Total: int64(len(monitors))}
+	monitorIDs := make([]string, 0, len(monitors))
+	healthService := NewHealthService(s.db, s.logger)
+	config := DefaultHealthConfig()
+
+	for _, monitor := range monitors {
+		monitorIDs = append(monitorIDs, monitor.ID)
+
+		health, err := healthService.ComputeMonitorHealth(monitor.ID, config)
+		if err != nil {
+			summary.Unknown++
+			continue
+		}
+
+		switch strings.ToLower(health) {
+		case "stale":
+			summary.Stale++
+		case "up":
+			summary.Up++
+		case "down":
+			summary.Down++
+		case "degraded":
+			summary.Degraded++
+		default:
+			summary.Unknown++
+		}
+	}
+
+	if len(monitorIDs) > 0 {
+		var rows []struct {
+			MonitorID string
+		}
+		if err := s.db.Model(&db.Incident{}).
+			Select("monitor_id").
+			Where("monitor_id IN ? AND status IN ?", monitorIDs, activeIncidentStatuses()).
+			Group("monitor_id").
+			Find(&rows).Error; err != nil {
+			s.logger.Error("Failed to load monitor incident summary", "error", err)
+			return MonitorSummary{}, err
+		}
+		summary.HasIncidents = int64(len(rows))
+		s.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id IN ? AND paused = ?", monitorIDs, true).Count(&summary.Paused)
+	}
+
+	return summary, nil
+}
+
+func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+	monitors, err := s.monitorsWithComputedHealth([]db.Monitor{monitor})
+	if err != nil {
+		return nil, err
+	}
+	return &monitors[0], nil
+}
+
+func (s *MonitorService) GetMonitorCount(nodeID string, healthFilter string, lifecycleFilter string) (int64, error) {
+	_, count, err := s.listNodeMonitors(nodeID, healthFilter, lifecycleFilter)
+	return count, err
+}
+
+func (s *MonitorService) listNodeMonitors(nodeID string, healthFilter string, lifecycleFilter string) ([]db.Monitor, int64, error) {
+	var monitors []db.Monitor
+	query := s.applyMonitorListFilters(s.db, nodeID, lifecycleFilter).Order("created_at DESC")
+	if err := query.Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to list monitors", "node_id", nodeID, "error", err)
+		return nil, 0, err
+	}
+
+	monitors, err := s.monitorsWithComputedHealth(monitors)
+	if err != nil {
+		return nil, 0, err
+	}
+	monitors = filterMonitorsByComputedHealth(monitors, healthFilter)
+
+	s.logger.Debug("Retrieved monitors", "node_id", nodeID, "count", len(monitors))
+	return monitors, int64(len(monitors)), nil
+}
+
+func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, nodeID string, lifecycleFilter string) *gorm.DB {
+	query = query.Where("node_id = ?", nodeID)
+
+	if lifecycleFilter != "" {
+		return query.Where("lifecycle = ?", lifecycleFilter)
+	}
+
+	return query.Where("lifecycle = ?", "active")
+}
+
+func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts) *gorm.DB {
+	if !opts.IncludeSystem {
+		query = query.Where("system = ?", false)
+	}
+	if opts.NodeID != "" {
+		query = query.Where("node_id = ?", opts.NodeID)
+	}
+	if opts.Paused != nil {
+		pausedIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id").Where("paused = ?", true)
+		if *opts.Paused {
+			query = query.Where("id IN (?)", pausedIDs)
+		} else {
+			query = query.Where("id NOT IN (?)", pausedIDs)
+		}
+	}
+	coreMonitorIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id")
+
+	if opts.Search != "" {
+		like := "%" + opts.Search + "%"
+		query = query.Where(
+			"name LIKE ? OR type LIKE ? OR id LIKE ? OR node_id IN (?)",
+			like,
+			like,
+			like,
+			s.db.Model(&db.Node{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
+		)
+	}
+
+	if opts.OwnerName != "" {
+		like := "%" + opts.OwnerName + "%"
+		query = query.Where(
+			"node_id IN (?)",
+			s.db.Model(&db.Node{}).Select("id").Where("name LIKE ? OR machine_id LIKE ? OR id LIKE ?", like, like, like),
+		)
+	}
+
+	switch normalizeMonitorOwnerFilter(opts.OwnerKind) {
+	case "core":
+		query = query.Where("id IN (?)", coreMonitorIDs)
+	case "node":
+		query = query.Where("id NOT IN (?)", coreMonitorIDs)
+	}
+
+	switch normalizeMonitorOwnerFilter(opts.Source) {
+	case "core":
+		query = query.Where("id IN (?)", coreMonitorIDs)
+	case "node":
+		query = query.Where("id NOT IN (?)", coreMonitorIDs)
+	}
+
+	if opts.Lifecycle != "" {
+		query = query.Where("lifecycle = ?", opts.Lifecycle)
+	} else {
+		query = query.Where("lifecycle = ?", "active")
+	}
+
+	if opts.Type != "" {
+		query = query.Where("LOWER(type) = ?", normalizeMonitorTypeFilter(opts.Type))
+	}
+
+	if opts.HasIncidents {
+		query = query.Where(
+			"id IN (?)",
+			s.db.Model(&db.Incident{}).Select("monitor_id").Where("status IN ?", activeIncidentStatuses()),
+		)
+	}
+
+	return query
+}
+
+func normalizeMonitorTypeFilter(monitorType string) string {
+	switch strings.ToLower(strings.TrimSpace(monitorType)) {
+	case "docker":
+		return "docker-container"
+	case "systemd":
+		return "systemd-service"
+	default:
+		return strings.ToLower(strings.TrimSpace(monitorType))
+	}
+}
+
+func normalizeMonitorOwnerFilter(owner string) string {
+	switch strings.ToLower(strings.TrimSpace(owner)) {
+	case "core", "core-worker", "core_monitor", "core-monitor":
+		return "core"
+	case "node", "node-monitor", "node_monitor":
+		return "node"
+	default:
+		return ""
+	}
+}
+
+func filterMonitorsByComputedHealth(monitors []db.Monitor, healthFilter string) []db.Monitor {
+	health := strings.ToLower(strings.TrimSpace(healthFilter))
+	if health == "" {
+		return monitors
+	}
+
+	filtered := make([]db.Monitor, 0, len(monitors))
+	for _, monitor := range monitors {
+		if strings.ToLower(monitor.ComputedHealth) == health {
+			filtered = append(filtered, monitor)
+		}
+	}
+	return filtered
+}
+
+func paginateMonitors(monitors []db.Monitor, limit int, offset int) []db.Monitor {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(monitors) {
+		return []db.Monitor{}
+	}
+
+	end := offset + limit
+	if end > len(monitors) {
+		end = len(monitors)
+	}
+	return monitors[offset:end]
+}
+
+func (s *MonitorService) monitorsWithComputedHealth(monitors []db.Monitor) ([]db.Monitor, error) {
+	healthService := NewHealthService(s.db, s.logger)
+	config := DefaultHealthConfig()
+
+	for index := range monitors {
+		health, err := healthService.ComputeMonitorHealth(monitors[index].ID, config)
+		if err != nil {
+			return nil, err
+		}
+		monitors[index].Health = health
+		monitors[index].ComputedHealth = health
+	}
+
+	return monitors, nil
+}

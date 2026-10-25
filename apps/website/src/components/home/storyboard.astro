@@ -1,0 +1,31 @@
+---
+import "../../styles/storyboard.css";
+const arrow = '<path d="M5 12h14M13 6l6 6-6 6"/>';
+---
+<div class="sec">
+  <div class="sechead">
+    <span class="k">Watch it work</span>
+    <h2 class="h2">Pull the plug. Watch it notice.</h2>
+    <p class="lead">This is what your own Orion does, in seconds.</p>
+  </div>
+  <div class="stgrid" data-storyboard>
+    <div class="stg stg1"><span class="sn m">1</span><b>You pull the plug</b>
+      <div class="sv"><div class="vis1">
+        <svg viewBox="0 0 96 64" fill="none" aria-hidden="true"><g class="pcg"><rect x="20" y="14" width="56" height="36" rx="9" style="fill:var(--color-tray);stroke:var(--color-line-strong)"/><circle cx="32" cy="26" r="3.2" class="led2"/><rect x="42" y="23" width="26" height="6" rx="2" style="fill:var(--color-card);stroke:var(--color-line-strong)"/><rect x="30" y="50" width="36" height="4" rx="2" style="fill:var(--color-line-strong)"/></g></svg>
+        <div class="m vt"><span class="vu">mini-pc · up</span><span class="vd">mini-pc · off</span></div>
+      </div></div>
+    </div>
+    <span class="stga stga1" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg2"><span class="sn m">2</span><b>Orion notices</b>
+      <div class="sv"><div class="vis2"><span class="ck ck1"></span><span class="ck ck2"></span><span class="ck ck3"></span><span class="ck ck4"></span><span class="ck ck5"></span></div><div class="m vt2">3 checks fail in a row</div></div>
+    </div>
+    <span class="stga stga2" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg3"><span class="sn m">3</span><b>An incident opens</b>
+      <div class="sv"><div class="vis3"><span class="dt r"></span><span>Open</span><span class="m">INC-0231</span></div></div>
+    </div>
+    <span class="stga stga3" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg4"><span class="sn m">4</span><b>You get notified</b>
+      <div class="sv"><div class="chips2"><span class="dl"><span class="dt g"></span>Email</span><span class="dl"><span class="dt g"></span>Webhook</span></div><div class="m vt2">by email or webhook</div></div>
+    </div>
+  </div>
+</div>

@@ -7,3 +7,6 @@ frontend/node_modules
 .env.*
 .DS_Store
 .cursor
+apps/node/config.yaml
+apps/node/state.yaml
+apps/node/orion-node

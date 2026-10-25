@@ -1,0 +1,4 @@
+ALTER TABLE agents ADD COLUMN labels TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE agents ADD COLUMN notes TEXT NOT NULL DEFAULT '';
+ALTER TABLE agents ADD COLUMN previous_token_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE agents ADD COLUMN previous_token_expires_at DATETIME;

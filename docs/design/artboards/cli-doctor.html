@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>CLI, doctor checklist</title><link rel="stylesheet" href="orion.css"></head>
+<body><style>body{margin:0}</style>
+<div class="app light fr" style="width:1280px;height:749px;flex-direction:column;background:#fff"><div class="tw"><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-node doctor</span></div><div class="tcn"><span class="zp">$</span> orion-node doctor
+
+  <span class="zg">✓</span> DNS              core.example.com resolves to 203.0.113.10
+  <span class="zg">✓</span> TLS              valid until Jan 12, 2027
+  <span class="zg">✓</span> Core reachable   142 ms
+  <span class="zg">✓</span> Token            valid, Node edge-05
+  <span class="za">!</span> Clock skew       +4.2 s <span class="zm">(limit 5 s)</span>
+      <span class="zm">fix:</span> sudo timedatectl set-ntp true
+  <span class="zr">✗</span> Log access       cannot read /var/log/nginx/error.log
+      <span class="zm">fix:</span> sudo usermod -aG adm orion && sudo systemctl restart orion-noded
+  <span class="zg">✓</span> Disk space       41 GB free
+  <span class="zg">✓</span> Service          active, running 3d 4h
+  <span class="zg">✓</span> Version          0.9.2, latest
+  <span class="za">⠙</span> Checking spool...
+
+  <span class="zg">8 passed</span>   <span class="za">1 warning</span>   <span class="zr">1 failed</span>   <span class="zm">exit 1</span></div></div><div class="tnotes"><div class="nb"><h4>Streaming checklist</h4><ul><li>Each check prints as it finishes; a spinner marks the one running.</li><li>Every warning and failure prints the exact command to fix it, indented under the line.</li><li>Summary line counts passes, warnings and failures; exit code is nonzero on failure.</li></ul></div><div class="nb"><h4>Other forms</h4><ul><li><code>--json</code> prints a stable schema per check: id, status, message, fix.</li><li>Non-TTY prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code> lines with no spinner.</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div></div></div></div>
+</body></html>

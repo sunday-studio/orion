@@ -1,0 +1,9 @@
+{{define "unsubscribe.html"}}{{template "open" .}}
+<main>
+{{if eq .State "confirm"}}<section class="card"><h2>Leave this list?</h2><p>{{.Email}} will stop receiving status updates.</p>
+<form class="actions" method="post" action="{{.Action}}"><button class="btn danger" type="submit">Unsubscribe</button><a class="btn" href="{{.Shell.HomeURL}}">Keep</a></form>
+{{if .ManageURL}}<p class="small">Prefer fewer emails? <a href="{{.ManageURL}}">Manage preferences.</a></p>{{end}}</section>
+{{else if eq .State "done"}}<section class="card"><h2>You are unsubscribed</h2><p>You will not receive further status updates.</p><div class="actions"><a class="btn p" href="{{.Shell.SubscribeURL}}">Subscribe again</a></div></section>
+{{else}}<section class="card"><h2>Invalid token</h2><p>This link no longer works.</p><div class="actions"><a class="btn p" href="{{.Shell.HomeURL}}">View status</a></div></section>{{end}}
+</main>
+{{template "close" .}}{{end}}

@@ -1,0 +1,7 @@
+# TLS-terminating reverse proxy for Orion Core. Replace the hostname; Caddy obtains
+# and renews the certificate automatically. Nodes then use https://orion.example.com
+# as core_url, so bearer tokens never cross the network in clear text.
+{$ORION_PUBLIC_HOST:orion.example.com} {
+	encode zstd gzip
+	reverse_proxy orion-core:8999
+}

@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "group": "string",
+      "id": "string",
+      "label": "string",
+      "message": "string",
+      "status": "string",
+      "title": "string"
+    }
+  ],
+  "config_path": "string",
+  "ok": "bool",
+  "schema_version": "number",
+  "state_path": "string",
+  "version": "string"
+}

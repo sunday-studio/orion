@@ -1,0 +1,199 @@
+# Data Ingestion
+
+## High-Level Flow
+
+```mermaid
+sequenceDiagram
+  participant Server
+  participant Core
+  participant ServerService
+  participant MonitorService
+  participant ReportService
+  participant DB as SQLite
+
+  Server->>Core: POST /v1/register
+  Core->>ServerService: RegisterServer(machine_id, name, os, arch, meta)
+  ServerService->>DB: create or reconnect server
+  DB-->>ServerService: server id + token
+  Core-->>Server: node_id + token
+
+  Server->>Core: POST /v1/nodes/{node_id}/register-monitor
+  Core->>MonitorService: RegisterMonitor(...)
+  MonitorService->>DB: create, revive, or reject duplicate monitor
+  Core-->>Server: monitor_id
+
+  Server->>Core: POST /v1/nodes/{node_id}/report
+  Core->>ReportService: StoreNodeReport(...)
+  ReportService->>DB: insert node_reports
+  ReportService->>DB: reconcile stale monitor incidents
+  Core-->>Server: report accepted
+
+  Server->>Core: POST /v1/nodes/{node_id}/{monitor_id}/report
+  Core->>ReportService: StoreMonitorReport(...)
+  ReportService->>DB: insert monitor_reports
+  ReportService->>DB: update monitor health and last success
+  ReportService->>DB: reconcile incidents
+  ReportService->>DB: compute and cache health
+  Core-->>Server: report accepted
+```
+
+## Server Registration
+
+The Server stores its durable identity in local SQLite state at `state.db`.
+
+On first registration:
+
+- Server generates or reads a machine identity.
+- Server reads local system name, OS, and architecture.
+- Server sends `machine_id`, `name`, `os`, `arch`, and optional config `meta`.
+- Core creates an `nodes` row with a generated `node-*` id and token.
+- Server saves `node_id`, `token`, `core_url`, and registration state.
+
+On reconnect:
+
+- Core looks up the existing `machine_id`.
+- Core returns the same token.
+- Core refreshes `last_seen`.
+- Core updates changed name, OS, arch, reporting interval, and meta.
+
+After Server token lifecycle controls are implemented, revoked Servers must not receive a token
+through unauthenticated re-registration. Rotation and reissue preserve the existing `node_id` and
+monitor IDs; operators apply the replacement token to local Server state instead of resetting state
+when identity continuity matters. See [node-token-lifecycle.md](node-token-lifecycle.md).
+
+```mermaid
+flowchart TD
+  Register["POST /v1/register"] --> Lookup{"machine_id exists?"}
+  Lookup -- "no" --> Create["Create nodes row"]
+  Create --> Token["Generate bearer token"]
+  Token --> ReturnNew["Return node_id + token"]
+  Lookup -- "yes" --> Update["Update metadata + last_seen"]
+  Update --> ReturnExisting["Return existing node_id + token"]
+```
+
+## Monitor Registration
+
+After Server registration, configured monitors are reconciled against internal state:
+
+- Configured monitors are sent to Core on startup so Core can refresh monitor metadata and reporting intervals.
+- Configured monitor missing from state: Core creates or revives it.
+- State monitor missing from config: unregister it from Core.
+
+Core monitor registration behavior:
+
+- New monitor creates a `monitors` row with `lifecycle = active`, `health = unknown`, and `computed_health = unknown`.
+- Previously deleted monitor with the same server/name is revived.
+- Active duplicate monitor names for a server are rejected.
+- Existing active monitors with the same name are reconciled and returned to the Server.
+- Removed monitors are soft-deleted by setting `lifecycle = deleted`, `health = unknown`, and `deleted_at`.
+- Core stores each monitor reporting interval and uses it to derive stale state.
+
+```mermaid
+flowchart TD
+  ConfigMonitors["Config monitors"] --> Compare["Compare with state monitors"]
+  StateMonitors["State monitors"] --> Compare
+  Compare --> Configured["Every configured monitor"]
+  Compare --> Removed["In state, not in config"]
+  Configured --> RegisterCore["POST register-monitor"]
+  RegisterCore --> Reconcile["Create, revive, or refresh Core monitor"]
+  Removed --> UnregisterCore["POST unregister-monitor"]
+  Reconcile --> SaveState["Save refreshed state.db"]
+  UnregisterCore --> SaveState
+```
+
+## System Report Ingestion
+
+System reports are sent:
+
+- once immediately when the Server runtime starts;
+- then on the global `interval` from config.
+
+Server collects:
+
+- hostname, OS, platform, architecture, kernel;
+- uptime seconds;
+- CPU core count, CPU usage, load 1/5/15;
+- memory total/used/free/available/percent;
+- root disk total/used/free/percent;
+- optional location metadata;
+- Server version;
+- config summary with reporting interval, monitor count, and monitor type counts.
+
+Core stores system reports in `node_reports`.
+Core may also refresh the stored Server reporting interval from `config_summary.reporting_interval`.
+
+```mermaid
+flowchart TD
+  Tick["System interval tick or startup"] --> Maintenance{"Server local maintenance?"}
+  Maintenance -- "yes" --> Skip["Skip system report"]
+  Maintenance -- "no" --> Collect["Collect system metrics"]
+  Collect --> Send["POST /v1/nodes/{node_id}/report"]
+  Send --> Auth["Core validates bearer token"]
+  Auth --> Store["Insert node_reports row"]
+  Store --> LastSeen["Update server last_seen"]
+  Store --> Stale["Reconcile stale monitor incidents"]
+```
+
+## Monitor Report Ingestion
+
+Each monitor runs in its own worker on its own configured interval. The Server also runs every monitor once at startup.
+
+Monitor reports contain:
+
+- report timestamp;
+- health: generally `up` or `down`, with Core-derived states later adding `degraded`, `unknown`, and `stale`;
+- metrics payload for successful checks;
+- error payload for failed checks.
+
+Core stores monitor reports in `monitor_reports`. If a monitor reports `up`, Core updates `last_successful_report_at`.
+
+```mermaid
+flowchart TD
+  Tick["Monitor interval tick or startup"] --> Maintenance{"Server local maintenance?"}
+  Maintenance -- "yes" --> Skip["Skip monitor report"]
+  Maintenance -- "no" --> RunCheck["Run monitor collector"]
+  RunCheck --> Result{"Check result"}
+  Result -- "success" --> Metrics["Build metrics payload"]
+  Result -- "failure" --> Error["Build error payload"]
+  Metrics --> Send["POST /v1/nodes/{node_id}/{monitor_id}/report"]
+  Error --> Send
+  Send --> CoreAuth["Core validates bearer token"]
+  CoreAuth --> Store["Insert monitor_reports row"]
+  Store --> UpdateMonitor["Update monitor health and last success"]
+  UpdateMonitor --> Incidents["Reconcile incident state"]
+  Incidents --> Health["Compute and cache derived health"]
+```
+
+## Retry Behavior
+
+The Server transport performs short request retries first:
+
+- max attempts: 3;
+- base delay: 200ms;
+- max delay: 5s;
+- jitter ratio: 20%;
+- retries on network errors, HTTP `429`, and HTTP `5xx`.
+
+If a system or monitor report still fails after transport retries:
+
+- Server pushes a send closure into a bounded retry queue.
+- Queue capacity defaults to 100.
+- If full, oldest item is dropped and replaced.
+- A retry worker flushes the queue every 30 seconds.
+- Shutdown flushes the queue once with a background context.
+
+Authentication failures are not queued as transient failures. The Server stops reporting and exits with a visible error so the operator can fix credentials or registration state.
+
+```mermaid
+flowchart TD
+  Send["Send report"] --> RetryHTTP{"Transport retry succeeds?"}
+  RetryHTTP -- "yes" --> Done["Done"]
+  RetryHTTP -- "no" --> Queue["Push to retry queue"]
+  Queue --> Capacity{"Queue full?"}
+  Capacity -- "yes" --> DropOldest["Drop oldest item"]
+  Capacity -- "no" --> Keep["Keep item"]
+  DropOldest --> RetryTick
+  Keep --> RetryTick["30s retry worker tick"]
+  RetryTick --> Flush["Flush queued sends"]
+  Flush --> RetryHTTP
+```

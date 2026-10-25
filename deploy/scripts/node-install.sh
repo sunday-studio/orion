@@ -1,0 +1,691 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SERVICE_NAME="orion-node"
+LINUX_USER="orion"
+LINUX_GROUP="orion"
+MACOS_USER="_orion"
+MACOS_GROUP="_orion"
+INSTALL_DIR="/usr/local/bin"
+
+CORE_URL=""
+# Optional shared secret for first registration when Core sets ORION_ENROLLMENT_TOKEN.
+# Read from the environment (not a flag) so it never appears in process listings.
+ENROLLMENT_TOKEN="${ORION_ENROLLMENT_TOKEN:-}"
+BINARY_PATH=""
+CONFIG_SOURCE=""
+TOKEN_FILE=""
+DOCKER_ACCESS="false"
+START_SERVICE="true"
+OVERWRITE_CONFIG="false"
+DRY_RUN="false"
+INSTALL_KIND="first-install"
+INSTALL_STEP=0
+INSTALLED_CONFIG_PATH=""
+COLOR_ENABLED="false"
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  COLOR_ENABLED="true"
+fi
+
+usage() {
+  printf '%s\n' "Usage: sudo ./deploy/scripts/node-install.sh --core-url http://core:8999 [options]"
+  printf '%s\n' ""
+  printf '%s\n' "Options:"
+  printf '%s\n' "  --core-url URL       Core URL written to config when creating a new config."
+  printf '%s\n' "  ORION_ENROLLMENT_TOKEN=...  (environment) enrollment secret written to a new config; required when Core sets ORION_ENROLLMENT_TOKEN."
+  printf '%s\n' "  --binary PATH        Node binary to install. Defaults to ./apps/node/orion-node, then ./orion-node."
+  printf '%s\n' "  --config PATH        Existing config file to install instead of generating a minimal one."
+  printf '%s\n' "  --enrollment-token-file F  One-time enrollment token; enrolls the host during install."
+  printf '%s\n' "  --docker-access      Add the service user to the docker group (root-equivalent) for Docker monitors and container metrics."
+  printf '%s\n' "  --no-start           Install files without starting the service."
+  printf '%s\n' "  --overwrite-config   Replace an existing installed config."
+  printf '%s\n' "  --dry-run            Print install actions without changing the system."
+  printf '%s\n' "  -h, --help           Show this help."
+}
+
+run_cmd() {
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ %q' "$1"
+    shift
+    for arg in "$@"; do
+      printf ' %q' "$arg"
+    done
+    printf '\n'
+    return 0
+  fi
+  "$@"
+}
+
+step() {
+  INSTALL_STEP=$((INSTALL_STEP + 1))
+  printf '\n[%02d] %s\n' "$INSTALL_STEP" "$1"
+}
+
+ok() {
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '     plan: %s\n' "$1"
+    return
+  fi
+  printf '     ok: %s\n' "$1"
+}
+
+skip() {
+  printf '     skip: %s\n' "$1"
+}
+
+info() {
+  printf '     %s\n' "$1"
+}
+
+require_value() {
+  local flag="$1"
+  local value="${2:-}"
+
+  if [ -z "$value" ]; then
+    printf '%s requires a value.\n' "$flag" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+supports_color() {
+  [ "$COLOR_ENABLED" = "true" ]
+}
+
+ansi() {
+  if supports_color; then
+    printf '\033[%sm' "$1"
+  fi
+}
+
+print_orion_banner() {
+  local mode="$1"
+  local accent=""
+  local reset=""
+  local dim=""
+
+  accent="$(ansi '36;1')"
+  dim="$(ansi '2')"
+  reset="$(ansi '0')"
+
+  printf '%s' "$accent"
+  printf '%s\n' "   ____       _             "
+  printf '%s\n' "  / __ \\_____(_)___  ____   "
+  printf '%s\n' " / / / / ___/ / __ \\/ __ \\  "
+  printf '%s\n' "/ /_/ / /  / / /_/ / / / /  "
+  printf '%s\n' "\\____/_/  /_/\\____/_/ /_/   "
+  printf '%s' "$reset"
+  printf '%sNode installer%s - %s\n' "$dim" "$reset" "$mode"
+}
+
+detect_install_kind() {
+  local os_name="$1"
+  local binary_path="$INSTALL_DIR/orion-node"
+  local config_dir=""
+  local config_path=""
+  local state_dir=""
+  local state_path=""
+  local service_path=""
+
+  case "$os_name" in
+    linux)
+      config_dir="/etc/orion"
+      config_path="/etc/orion/config.yaml"
+      state_dir="/var/lib/orion"
+      state_path="/var/lib/orion/state.db"
+      service_path="/etc/systemd/system/$SERVICE_NAME.service"
+      ;;
+    macos)
+      config_dir="/usr/local/etc/orion"
+      config_path="/usr/local/etc/orion/config.yaml"
+      state_dir="/usr/local/var/lib/orion"
+      state_path="/usr/local/var/lib/orion/state.db"
+      service_path="/Library/LaunchDaemons/com.orion.node.plist"
+      ;;
+  esac
+
+  if [ -e "$binary_path" ] || [ -e "$service_path" ]; then
+    printf '%s\n' "repair/upgrade"
+    return
+  fi
+
+  if [ -d "$config_dir" ] || [ -e "$config_path" ] || [ -d "$state_dir" ] || [ -e "$state_path" ]; then
+    printf '%s\n' "reinstall"
+    return
+  fi
+
+  printf '%s\n' "first install"
+}
+
+print_command_hint() {
+  local command="$1"
+  local description="$2"
+  local accent=""
+  local reset=""
+
+  accent="$(ansi '36')"
+  reset="$(ansi '0')"
+
+  printf '  %s%-44s%s %s\n' "$accent" "$command" "$reset" "$description"
+}
+
+print_next_steps() {
+  local mode="$1"
+  local service_note=""
+
+  if [ "$DRY_RUN" = "true" ]; then
+    if [ "$START_SERVICE" = "true" ]; then
+      service_note="the service would start at the end of install"
+    else
+      service_note="the service would be left stopped because --no-start was used"
+    fi
+  elif [ "$START_SERVICE" = "true" ]; then
+    service_note="the service starts at the end of install"
+  else
+    service_note="the service is left stopped because --no-start was used"
+  fi
+
+  printf '\n%s\n' "Next commands"
+  if [ "$START_SERVICE" = "true" ]; then
+    print_command_hint "orion-node status" "confirm the service, state database, and local identity"
+    print_command_hint "orion-node logs --lines 80" "read the structured Node log and service diagnostics"
+  else
+    print_command_hint "orion-node start" "start the installed service when you are ready"
+    print_command_hint "orion-node status" "confirm the installed service and local state"
+  fi
+  print_command_hint "orion-node config show" "review Core URL, interval, and configured monitors"
+  print_command_hint "orion-node run --once" "run one foreground collection cycle for debugging"
+
+  if [ "$mode" = "first install" ]; then
+    printf '\n%s\n' "First-run notes"
+    printf '  %s\n' "The installer created the service account, config, state database, log file, and service."
+    printf '  %s\n' "Keep state.db during upgrades; it holds this machine's Node identity."
+    printf '  %s\n' "Add monitors in the config when host metrics are reporting cleanly."
+  elif [ "$mode" = "reinstall" ]; then
+    printf '\n%s\n' "Reinstall notes"
+    printf '  %s\n' "Existing config or state paths were found; reinstall data is preserved when present."
+    printf '  %s\n' "The binary and service file are installed again; $service_note."
+  else
+    printf '\n%s\n' "Upgrade notes"
+    printf '  %s\n' "Existing config and state were kept unless --overwrite-config was used."
+    printf '  %s\n' "The binary and service file are refreshed; $service_note."
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --core-url)
+      require_value "$1" "${2:-}"
+      CORE_URL="${2:-}"
+      shift 2
+      ;;
+    --binary)
+      require_value "$1" "${2:-}"
+      BINARY_PATH="${2:-}"
+      shift 2
+      ;;
+    --config)
+      require_value "$1" "${2:-}"
+      CONFIG_SOURCE="${2:-}"
+      shift 2
+      ;;
+    --enrollment-token-file)
+      require_value "$1" "${2:-}"
+      TOKEN_FILE="${2:-}"
+      shift 2
+      ;;
+    --docker-access)
+      DOCKER_ACCESS="true"
+      shift
+      ;;
+    --no-start)
+      START_SERVICE="false"
+      shift
+      ;;
+    --overwrite-config)
+      OVERWRITE_CONFIG="true"
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN="true"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown option: %s\n' "$1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$DRY_RUN" != "true" ] && [ "$(id -u)" -ne 0 ]; then
+  printf '%s\n' "This script must be run as root." >&2
+  exit 1
+fi
+
+detect_os() {
+  case "$(uname -s)" in
+    Linux) printf '%s\n' "linux" ;;
+    Darwin) printf '%s\n' "macos" ;;
+    *)
+      printf '%s\n' "Unsupported OS: $(uname -s)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+resolve_binary() {
+  if [ -n "$BINARY_PATH" ]; then
+    printf '%s\n' "$BINARY_PATH"
+    return
+  fi
+  if [ -x "./apps/node/orion-node" ]; then
+    printf '%s\n' "./apps/node/orion-node"
+    return
+  fi
+  if [ -x "./orion-node" ]; then
+    printf '%s\n' "./orion-node"
+    return
+  fi
+  printf '%s\n' "No node binary found. Build one with: cd apps/node && go build -o orion-node ." >&2
+  exit 1
+}
+
+write_minimal_config() {
+  local config_path="$1"
+  if [ -z "$CORE_URL" ]; then
+    printf '%s\n' "--core-url is required when --config is not provided." >&2
+    exit 1
+  fi
+  {
+    printf 'core_url: %s\n' "$CORE_URL"
+    printf 'interval: 60s\n'
+    printf 'geo_location: false\n'
+    if [ -n "$ENROLLMENT_TOKEN" ]; then
+      printf 'enrollment_token: %s\n' "$ENROLLMENT_TOKEN"
+    fi
+    printf 'monitors: []\n'
+  } > "$config_path"
+  if [ -n "$ENROLLMENT_TOKEN" ]; then
+    chmod 600 "$config_path"
+  fi
+}
+
+config_has_core_url() {
+  local config_path="$1"
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*core_url[[:space:]]*:[[:space:]]*[^[:space:]]/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$config_path"
+}
+
+install_config() {
+  local config_path="$1"
+  local owner="$2"
+  local group="$3"
+  local tmp_config=""
+
+  step "Config"
+  if [ -f "$config_path" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then
+    if ! config_has_core_url "$config_path"; then
+      printf '     error: existing config is missing core_url: %s\n' "$config_path" >&2
+      printf '     rerun with --overwrite-config to regenerate it from --core-url, or edit the file manually.\n' >&2
+      exit 1
+    fi
+    skip "keeping existing config at $config_path"
+    return
+  fi
+
+  if [ -n "$CONFIG_SOURCE" ]; then
+    if [ ! -f "$CONFIG_SOURCE" ]; then
+      printf 'Config file does not exist: %s\n' "$CONFIG_SOURCE" >&2
+      exit 1
+    fi
+    run_cmd install -m 0640 -o "$owner" -g "$group" "$CONFIG_SOURCE" "$config_path"
+    ok "installed config from $CONFIG_SOURCE to $config_path"
+  else
+    if [ "$DRY_RUN" = "true" ]; then
+      printf '+ generate minimal config at %q for core %q\n' "$config_path" "$CORE_URL"
+      ok "would generate default config at $config_path"
+      return
+    fi
+    tmp_config="$(mktemp)"
+    write_minimal_config "$tmp_config"
+    run_cmd install -m 0640 -o "$owner" -g "$group" "$tmp_config" "$config_path"
+    rm -f "$tmp_config"
+    ok "generated default config at $config_path"
+  fi
+}
+
+initialize_state() {
+  local state_path="$1"
+  local owner="$2"
+  local group="$3"
+
+  step "State database"
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ initialize state database at %q\n' "$state_path"
+    ok "would initialize state database at $state_path"
+    if [ -n "$TOKEN_FILE" ]; then ok "would enroll this host with the one-time token"; fi
+    return
+  fi
+
+  "$INSTALL_DIR/orion-node" state init -state "$state_path" >/dev/null
+  run_cmd chown "$owner:$group" "$state_path"
+  ok "initialized state database at $state_path"
+
+  if [ -n "$TOKEN_FILE" ]; then
+    step "Enrollment"
+    local core_url="$CORE_URL"
+    if [ -z "$core_url" ]; then
+      core_url="$(awk '/^[[:space:]]*core_url[[:space:]]*:/ {print $2; exit}' "$INSTALLED_CONFIG_PATH")"
+    fi
+    if ! "$INSTALL_DIR/orion-node" enroll --config "$INSTALLED_CONFIG_PATH" --state "$state_path" \
+        --core-url "$core_url" --token-file "$TOKEN_FILE"; then
+      # node-bootstrap.sh matches the words "enrollment failed" below to name the failing step.
+      printf '     error: enrollment failed. Create a new token in Console > Add server and re-run the install command.\n' >&2
+      exit 1
+    fi
+    ok "host enrolled"
+  fi
+}
+
+prepare_log_file() {
+  local log_dir="$1"
+  local log_path="$2"
+  local owner="$3"
+  local group="$4"
+
+  step "Logs"
+  run_cmd install -d -m 0750 -o "$owner" -g "$group" "$log_dir"
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ ensure log file %q with owner %q and mode 0640\n' "$log_path" "$owner:$group"
+    ok "would prepare log file at $log_path"
+    return
+  fi
+  if [ ! -f "$log_path" ]; then
+    run_cmd install -m 0640 -o "$owner" -g "$group" /dev/null "$log_path"
+  else
+    run_cmd chown "$owner:$group" "$log_path"
+    run_cmd chmod 0640 "$log_path"
+  fi
+  ok "prepared log file at $log_path"
+}
+
+install_binary() {
+  local binary="$1"
+
+  step "Binary"
+  run_cmd install -d -m 0755 "$INSTALL_DIR"
+  run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-node"
+  ok "install binary to $INSTALL_DIR/orion-node"
+}
+
+configure_linux_docker_access() {
+  step "Docker access"
+  if [ "$DOCKER_ACCESS" != "true" ]; then
+    skip "not granting docker group access (it is root-equivalent); re-run with --docker-access to enable Docker monitors and container metrics"
+  elif getent group docker >/dev/null; then
+    run_cmd usermod -aG docker "$LINUX_USER"
+    ok "added $LINUX_USER to docker group"
+  else
+    skip "docker group not found; Docker monitors may need manual socket permissions"
+  fi
+}
+
+# Before the rename the node was called the agent. An upgraded host would run two daemons, so the
+# old service and binary are stopped and removed. Config, state and the service user are shared and stay.
+soft() {
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ %q' "$1"; shift
+    for arg in "$@"; do printf ' %q' "$arg"; done
+    printf '\n'
+    return 0
+  fi
+  "$@" >/dev/null 2>&1 || true
+}
+
+retire_previous_agent() {
+  local found="false"
+  step "Previous version"
+  case "$1" in
+    linux)
+      if [ -f /etc/systemd/system/orion-agent.service ]; then
+        found="true"
+        soft systemctl disable --now orion-agent
+        run_cmd rm -f /etc/systemd/system/orion-agent.service
+        soft systemctl daemon-reload
+      fi
+      ;;
+    macos)
+      if [ -f /Library/LaunchDaemons/com.orion.agent.plist ]; then
+        found="true"
+        soft launchctl bootout system /Library/LaunchDaemons/com.orion.agent.plist
+        run_cmd rm -f /Library/LaunchDaemons/com.orion.agent.plist
+      fi
+      ;;
+  esac
+  if [ -e "$INSTALL_DIR/orion-agent" ]; then
+    found="true"
+    run_cmd rm -f "$INSTALL_DIR/orion-agent"
+  fi
+  if [ "$found" = "true" ]; then
+    ok "removed the orion-agent service and binary (renamed to orion-node); config and state are kept"
+  else
+    skip "no previous orion-agent install"
+  fi
+}
+
+install_linux() {
+  binary="$1"
+  config_dir="/etc/orion"
+  INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
+  state_dir="/var/lib/orion"
+  state_path="$state_dir/state.db"
+  log_dir="/var/log/orion"
+  log_path="$log_dir/node.log"
+
+  step "Service account"
+  if ! getent group "$LINUX_GROUP" >/dev/null; then
+    run_cmd groupadd --system "$LINUX_GROUP"
+    ok "created group $LINUX_GROUP"
+  else
+    skip "group $LINUX_GROUP already exists"
+  fi
+  if ! id "$LINUX_USER" >/dev/null 2>&1; then
+    run_cmd useradd --system --gid "$LINUX_GROUP" --home-dir "$state_dir" --shell /usr/sbin/nologin "$LINUX_USER"
+    ok "created user $LINUX_USER"
+  else
+    skip "user $LINUX_USER already exists"
+  fi
+
+  step "Directories"
+  run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$config_dir"
+  run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$state_dir"
+  ok "prepared $config_dir and $state_dir"
+
+  install_binary "$binary"
+
+  install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
+  initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
+  prepare_log_file "$log_dir" "$log_path" "$LINUX_USER" "$LINUX_GROUP"
+  configure_linux_docker_access
+
+  retire_previous_agent linux
+
+  step "Systemd service"
+  run_cmd install -m 0644 "deploy/systemd/orion-node.service" "/etc/systemd/system/$SERVICE_NAME.service"
+  ok "install service file"
+
+  run_cmd systemctl daemon-reload
+  ok "reload systemd"
+  run_cmd systemctl enable "$SERVICE_NAME"
+  ok "enable $SERVICE_NAME"
+  if [ "$START_SERVICE" = "true" ]; then
+    run_cmd systemctl restart "$SERVICE_NAME"
+    ok "start $SERVICE_NAME"
+
+    step "Service state"
+    if [ "$DRY_RUN" = "true" ]; then
+      ok "would verify $SERVICE_NAME is active"
+    elif systemctl is-active --quiet "$SERVICE_NAME"; then
+      ok "$SERVICE_NAME is active"
+    else
+      printf '     error: %s did not become active\n' "$SERVICE_NAME" >&2
+      exit 1
+    fi
+  else
+    skip "service start disabled by --no-start"
+  fi
+}
+
+next_macos_id() {
+  dscl . -list /Users UniqueID 2>/dev/null |
+    awk '$2 >= 380 && $2 < 500 { used[$2] = 1 } END { for (i = 380; i < 500; i++) if (!used[i]) { print i; exit } }'
+}
+
+ensure_macos_account() {
+  account_id=""
+  if [ "$DRY_RUN" = "true" ]; then
+    account_id="380"
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP"
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP" PrimaryGroupID "$account_id"
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP" Password '*'
+    run_cmd dscl . -create "/Users/$MACOS_USER"
+    run_cmd dscl . -create "/Users/$MACOS_USER" UniqueID "$account_id"
+    run_cmd dscl . -create "/Users/$MACOS_USER" PrimaryGroupID "$account_id"
+    run_cmd dscl . -create "/Users/$MACOS_USER" NFSHomeDirectory /usr/local/var/lib/orion
+    run_cmd dscl . -create "/Users/$MACOS_USER" UserShell /usr/bin/false
+    run_cmd dscl . -create "/Users/$MACOS_USER" RealName "Orion Node"
+    run_cmd dscl . -create "/Users/$MACOS_USER" Password '*'
+    ok "would ensure user and group $MACOS_USER"
+    return
+  fi
+
+  if ! dscl . -read "/Groups/$MACOS_GROUP" >/dev/null 2>&1; then
+    account_id="$(next_macos_id)"
+    if [ -z "$account_id" ]; then
+      printf '%s\n' "No available macOS system id in range 380-499." >&2
+      exit 1
+    fi
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP"
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP" PrimaryGroupID "$account_id"
+    run_cmd dscl . -create "/Groups/$MACOS_GROUP" Password '*'
+    ok "created group $MACOS_GROUP"
+  else
+    skip "group $MACOS_GROUP already exists"
+  fi
+  if ! dscl . -read "/Users/$MACOS_USER" >/dev/null 2>&1; then
+    if [ -z "$account_id" ]; then
+      account_id="$(dscl . -read "/Groups/$MACOS_GROUP" PrimaryGroupID | awk '{ print $2 }')"
+    fi
+    run_cmd dscl . -create "/Users/$MACOS_USER"
+    run_cmd dscl . -create "/Users/$MACOS_USER" UniqueID "$account_id"
+    run_cmd dscl . -create "/Users/$MACOS_USER" PrimaryGroupID "$account_id"
+    run_cmd dscl . -create "/Users/$MACOS_USER" NFSHomeDirectory /usr/local/var/lib/orion
+    run_cmd dscl . -create "/Users/$MACOS_USER" UserShell /usr/bin/false
+    run_cmd dscl . -create "/Users/$MACOS_USER" RealName "Orion Node"
+    run_cmd dscl . -create "/Users/$MACOS_USER" Password '*'
+    ok "created user $MACOS_USER"
+  else
+    skip "user $MACOS_USER already exists"
+  fi
+}
+
+install_macos() {
+  binary="$1"
+  config_dir="/usr/local/etc/orion"
+  INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
+  state_dir="/usr/local/var/lib/orion"
+  state_path="$state_dir/state.db"
+  log_dir="/usr/local/var/log/orion"
+  log_path="$log_dir/node.log"
+  plist_path="/Library/LaunchDaemons/com.orion.node.plist"
+
+  step "Service account"
+  ensure_macos_account
+
+  step "Directories"
+  run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$config_dir"
+  run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$state_dir"
+  run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$log_dir"
+  ok "prepared $config_dir, $state_dir, and $log_dir"
+
+  install_binary "$binary"
+
+  install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
+  initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
+  prepare_log_file "$log_dir" "$log_path" "$MACOS_USER" "$MACOS_GROUP"
+
+  retire_previous_agent macos
+
+  step "Launchd service"
+  run_cmd install -m 0644 "deploy/launchd/com.orion.node.plist" "$plist_path"
+  ok "install launchd plist"
+
+  if [ "$DRY_RUN" = "true" ]; then
+    run_cmd launchctl bootout system "$plist_path"
+  else
+    launchctl bootout system "$plist_path" >/dev/null 2>&1 || true
+  fi
+  if [ "$START_SERVICE" = "true" ]; then
+    run_cmd launchctl bootstrap system "$plist_path"
+    ok "start $SERVICE_NAME"
+
+    step "Service state"
+    if [ "$DRY_RUN" = "true" ]; then
+      ok "would verify $SERVICE_NAME is loaded"
+    elif launchctl print system/com.orion.node >/dev/null 2>&1; then
+      ok "$SERVICE_NAME is loaded"
+    else
+      printf '     error: %s did not load\n' "$SERVICE_NAME" >&2
+      exit 1
+    fi
+  else
+    skip "service start disabled by --no-start"
+  fi
+}
+
+OS="$(detect_os)"
+INSTALL_KIND="$(detect_install_kind "$OS")"
+print_orion_banner "$INSTALL_KIND"
+if [ "$DRY_RUN" = "true" ]; then
+  info "mode: dry run"
+fi
+info "platform: $OS"
+BINARY="$(resolve_binary)"
+info "binary: $BINARY"
+
+if [ ! -x "$BINARY" ]; then
+  printf 'Node binary is not executable: %s\n' "$BINARY" >&2
+  exit 1
+fi
+
+case "$OS" in
+  linux) install_linux "$BINARY" ;;
+  macos) install_macos "$BINARY" ;;
+esac
+
+if [ "$DRY_RUN" = "true" ]; then
+  printf '%s\n' "Orion Node install dry run complete."
+elif [ "$START_SERVICE" = "true" ]; then
+  printf '%s\n' "Orion Node installed."
+  printf '%s\n' "Service started: $SERVICE_NAME"
+else
+  printf '%s\n' "Orion Node installed."
+  printf '%s\n' "Service installed but not started."
+fi
+
+if [ -n "$INSTALLED_CONFIG_PATH" ]; then
+  printf '%s\n' "Edit the Node config at: $INSTALLED_CONFIG_PATH"
+  printf '%s\n' "Node commands prompt for privileges automatically when needed."
+fi
+
+print_next_steps "$INSTALL_KIND"

@@ -1,0 +1,4 @@
+User-node: *
+Allow: /
+
+Sitemap: https://orion.thesunday.studio/sitemap-index.xml

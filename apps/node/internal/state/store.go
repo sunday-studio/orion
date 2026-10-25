@@ -1,0 +1,386 @@
+package state
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	"orion/node/internal/config"
+	"orion/node/internal/logging"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	gormlogger "gorm.io/gorm/logger"
+)
+
+const (
+	stateDirMode  = 0o700
+	stateFileMode = 0o600
+)
+
+type Store struct {
+	path string
+	db   *gorm.DB
+}
+
+type nodeStateRecord struct {
+	ID                int        `gorm:"primaryKey"`
+	NodeID            string     `gorm:"column:node_id"`
+	Token             string     `gorm:"column:token"`
+	Registered        bool       `gorm:"column:registered;not null;default:false"`
+	CoreURL           string     `gorm:"column:core_url"`
+	LastSync          time.Time  `gorm:"column:last_sync"`
+	MaintenanceMode   bool       `gorm:"column:maintenance_mode;not null;default:false"`
+	MaintenanceReason *string    `gorm:"column:maintenance_reason"`
+	MaintenanceUntil  *time.Time `gorm:"column:maintenance_until"`
+	CreatedAt         time.Time  `gorm:"column:created_at"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at"`
+}
+
+type monitorStateRecord struct {
+	Name        string    `gorm:"primaryKey;column:name"`
+	MonitorID   string    `gorm:"column:monitor_id;not null"`
+	Status      string    `gorm:"column:status;not null"`
+	LastChecked time.Time `gorm:"column:last_checked"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at"`
+}
+
+// maintenanceActive reads an ended window as "not in maintenance" so the node
+// resumes reporting on its own, matching Core, which stops suppressing alerts then.
+func (r nodeStateRecord) maintenanceActive(now time.Time) bool {
+	if !r.MaintenanceMode {
+		return false
+	}
+	return r.MaintenanceUntil == nil || now.Before(*r.MaintenanceUntil)
+}
+
+func (nodeStateRecord) TableName() string {
+	return "node_state"
+}
+
+func (monitorStateRecord) TableName() string {
+	return "monitor_state"
+}
+
+func DefaultPath() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "/var/lib/orion/state.db"
+	case "darwin":
+		return "/usr/local/var/lib/orion/state.db"
+	default:
+		return "state.db"
+	}
+}
+
+func Open(path string) (*Store, error) {
+	if path == "" {
+		path = DefaultPath()
+	}
+	if err := ensureStateDir(filepath.Dir(path)); err != nil {
+		return nil, err
+	}
+
+	database, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
+	if err != nil {
+		return nil, fmt.Errorf("open state database: %w", err)
+	}
+	if err := migrateLegacyNames(database); err != nil {
+		return nil, fmt.Errorf("migrate state database: %w", err)
+	}
+	if err := database.AutoMigrate(&nodeStateRecord{}, &monitorStateRecord{}, &reportSpoolRecord{}, &logOffsetRecord{}, &discoveryRecord{}); err != nil {
+		return nil, fmt.Errorf("migrate state database: %w", err)
+	}
+	if err := os.Chmod(path, stateFileMode); err != nil {
+		return nil, fmt.Errorf("secure state database permissions: %w", err)
+	}
+
+	return &Store{path: path, db: database}, nil
+}
+
+// InspectReadOnly loads the current node state without creating, migrating, or
+// chmodding the database. It is intended for read-only operator commands.
+func InspectReadOnly(path string) (*config.InternalState, error) {
+	if path == "" {
+		path = DefaultPath()
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("inspect state database: %w", err)
+	}
+
+	database, err := gorm.Open(sqlite.Open(readOnlySQLiteDSN(path)), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
+	if err != nil {
+		return nil, fmt.Errorf("open state database read-only: %w", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		return nil, fmt.Errorf("open state database handle: %w", err)
+	}
+	defer sqlDB.Close()
+
+	record := nodeStateRecord{ID: 1}
+	if legacy, ok := readLegacyAgentState(database); ok {
+		record = legacy
+	} else if err := database.First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			record = nodeStateRecord{ID: 1}
+		} else {
+			return nil, fmt.Errorf("load node state: %w", err)
+		}
+	}
+
+	var monitorRecords []monitorStateRecord
+	if err := database.Order("name ASC").Find(&monitorRecords).Error; err != nil {
+		return nil, fmt.Errorf("load monitor state: %w", err)
+	}
+
+	monitors := make([]config.InternalStateMonitor, 0, len(monitorRecords))
+	for _, monitor := range monitorRecords {
+		monitors = append(monitors, config.InternalStateMonitor{
+			Name:        monitor.Name,
+			ID:          monitor.MonitorID,
+			Status:      monitor.Status,
+			LastChecked: monitor.LastChecked,
+		})
+	}
+
+	return &config.InternalState{
+		NodeID:            record.NodeID,
+		Token:             record.Token,
+		Registered:        record.Registered,
+		CoreURL:           record.CoreURL,
+		LastSync:          record.LastSync,
+		MaintenanceMode:   record.maintenanceActive(time.Now()),
+		MaintenanceReason: record.MaintenanceReason,
+		MaintenanceUntil:  record.MaintenanceUntil,
+		Monitors:          monitors,
+	}, nil
+}
+
+func readOnlySQLiteDSN(path string) string {
+	return "file:" + strings.ReplaceAll(path, "?", "%3f") + "?mode=ro"
+}
+
+func ensureStateDir(dir string) error {
+	if dir == "" || dir == "." {
+		return nil
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect state directory: %w", err)
+	}
+	if err := os.MkdirAll(dir, stateDirMode); err != nil {
+		return fmt.Errorf("create state directory: %w", err)
+	}
+	if err := os.Chmod(dir, stateDirMode); err != nil {
+		return fmt.Errorf("secure state directory permissions: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) Close() error {
+	sqlDB, err := s.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
+
+func (s *Store) Path() string {
+	return s.path
+}
+
+func (s *Store) Get() (*config.InternalState, error) {
+	record, err := s.getOrCreateNodeState()
+	if err != nil {
+		return nil, err
+	}
+
+	var monitorRecords []monitorStateRecord
+	if err := s.db.Order("name ASC").Find(&monitorRecords).Error; err != nil {
+		return nil, fmt.Errorf("load monitor state: %w", err)
+	}
+
+	monitors := make([]config.InternalStateMonitor, 0, len(monitorRecords))
+	for _, monitor := range monitorRecords {
+		monitors = append(monitors, config.InternalStateMonitor{
+			Name:        monitor.Name,
+			ID:          monitor.MonitorID,
+			Status:      monitor.Status,
+			LastChecked: monitor.LastChecked,
+		})
+	}
+
+	return &config.InternalState{
+		NodeID:            record.NodeID,
+		Token:             record.Token,
+		Registered:        record.Registered,
+		CoreURL:           record.CoreURL,
+		LastSync:          record.LastSync,
+		MaintenanceMode:   record.maintenanceActive(time.Now()),
+		MaintenanceReason: record.MaintenanceReason,
+		MaintenanceUntil:  record.MaintenanceUntil,
+		Monitors:          monitors,
+	}, nil
+}
+
+func (s *Store) GetMonitorByName(name string) (*config.InternalStateMonitor, error) {
+	var record monitorStateRecord
+	if err := s.db.Where("name = ?", name).First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load monitor state: %w", err)
+	}
+	return &config.InternalStateMonitor{
+		Name:        record.Name,
+		ID:          record.MonitorID,
+		Status:      record.Status,
+		LastChecked: record.LastChecked,
+	}, nil
+}
+
+func (s *Store) UpdateRegistration(nodeID string, token string, coreURL string) error {
+	record, err := s.getOrCreateNodeState()
+	if err != nil {
+		return err
+	}
+	return s.db.Model(record).Updates(map[string]interface{}{
+		"node_id":    nodeID,
+		"token":      token,
+		"registered": true,
+		"core_url":   coreURL,
+		"last_sync":  time.Now(),
+		"updated_at": time.Now(),
+	}).Error
+}
+
+func (s *Store) ApplyReplacementToken(token string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return fmt.Errorf("replacement token is required")
+	}
+
+	record, err := s.getOrCreateNodeState()
+	if err != nil {
+		return err
+	}
+	if !record.Registered || record.NodeID == "" || record.CoreURL == "" {
+		return fmt.Errorf("state is not registered; run reconfigure only when a new Node identity is intended")
+	}
+
+	return s.db.Model(record).Updates(map[string]interface{}{
+		"token":      token,
+		"last_sync":  time.Now(),
+		"updated_at": time.Now(),
+	}).Error
+}
+
+func (s *Store) ReplaceMonitors(monitors []config.InternalStateMonitor) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&monitorStateRecord{}).Error; err != nil {
+			return err
+		}
+		for _, monitor := range monitors {
+			record := monitorStateRecord{
+				Name:        monitor.Name,
+				MonitorID:   monitor.ID,
+				Status:      monitor.Status,
+				LastChecked: monitor.LastChecked,
+			}
+			if err := tx.Create(&record).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Store) ResetRegistration() error {
+	logging.Debugf("resetting registration state in %s", s.path)
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var record nodeStateRecord
+		result := tx.Where("id = ?", 1).Find(&record)
+		if result.Error != nil {
+			return fmt.Errorf("load node state: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			record = nodeStateRecord{ID: 1}
+			if err := tx.Create(&record).Error; err != nil {
+				return fmt.Errorf("create node state: %w", err)
+			}
+		}
+
+		if err := tx.Model(&record).Updates(map[string]interface{}{
+			"node_id":    "",
+			"token":      "",
+			"registered": false,
+			"core_url":   "",
+			"last_sync":  time.Time{},
+			"updated_at": time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&monitorStateRecord{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&reportSpoolRecord{}).Error; err != nil {
+			return err
+		}
+		logging.Debugf("registration state reset: monitor mappings and report spool cleared")
+
+		return nil
+	})
+}
+
+func (s *Store) SetMaintenanceMode(enabled bool, reason *string) error {
+	return s.SetMaintenanceWindow(enabled, reason, nil)
+}
+
+// SetMaintenanceWindow enables maintenance until `until` (nil = no recorded end) or disables it.
+func (s *Store) SetMaintenanceWindow(enabled bool, reason *string, until *time.Time) error {
+	record, err := s.getOrCreateNodeState()
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		until = nil
+	}
+	return s.db.Model(record).Updates(map[string]interface{}{
+		"maintenance_mode":   enabled,
+		"maintenance_reason": reason,
+		"maintenance_until":  until,
+		"updated_at":         time.Now(),
+	}).Error
+}
+
+func (s *Store) getOrCreateNodeState() (*nodeStateRecord, error) {
+	var record nodeStateRecord
+	result := s.db.Where("id = ?", 1).Find(&record)
+	if result.Error != nil {
+		return nil, fmt.Errorf("load node state: %w", result.Error)
+	}
+	if result.RowsAffected > 0 {
+		return &record, nil
+	}
+
+	record = nodeStateRecord{
+		ID: 1,
+	}
+	// Two callers can both find nothing and create the row; the loser must not fail or log.
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
+		return nil, fmt.Errorf("create node state: %w", err)
+	}
+	if err := s.db.Where("id = ?", 1).First(&record).Error; err != nil {
+		return nil, fmt.Errorf("load node state: %w", err)
+	}
+	return &record, nil
+}

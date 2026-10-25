@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>CLI, setup wizard</title><link rel="stylesheet" href="orion.css"></head>
+<body><style>body{margin:0}</style>
+<div class="app light fr" style="width:1280px;height:1206px;flex-direction:column;background:#fff"><div class="tw"><div style="display:flex;flex-direction:column;gap:20px"><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-node setup, 1 of 3</span></div><div class="tcn"><span class="zb">Connect this host</span>
+<span class="zf">──────────────────────────────────────────────────────────────</span>
+
+<span class="zb">Core URL</span>
+<span class="zm">Where is your Orion Core?</span>
+<span class="zc">┃</span> https://core.example.com<span class="f">▏</span>
+
+<span class="zb">Enrollment token</span>
+<span class="zm">From Console, Servers, Add server</span>
+<span class="zc">┃</span> ••••••••••••••••••••
+
+<span class="zg">✓</span> Core reachable <span class="zm">142 ms</span>   <span class="zg">✓</span> Token valid
+
+<span class="zm">enter submit   esc cancel</span></div></div><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-node setup, 2 of 3</span></div><div class="tcn"><span class="zb">What should Orion watch?</span>
+<span class="zf">──────────────────────────────────────────────────────────────</span>
+<span class="zm">Found by discovery. Space to toggle, a for all.</span>
+
+<span class="zsel"> <span class="zg">[x]</span> nginx            systemd unit      <span class="zg">high</span>  </span>
+ <span class="zg">[x]</span> postgresql       systemd unit      <span class="zg">high</span>
+ <span class="zg">[x]</span> api (container)  docker            <span class="zg">high</span>
+ <span class="zg">[x]</span> disk /var        91% used          <span class="zg">high</span>
+ [ ] /var/log/nginx   log files         <span class="za">medium</span>
+ [ ] redis :6379      listening port    <span class="za">medium</span>
+
+<span class="zm">↑/↓ move   space toggle   enter continue</span></div></div><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-node setup, 3 of 3</span></div><div class="tcn"><span class="zb">Review changes</span>
+<span class="zf">──────────────────────────────────────────────────────────────</span>
+<span class="zm">/etc/orion/config.d/discovered.yaml</span>
+
+<span class="zg">+ monitors:</span>
+<span class="zg">+   - type: systemd</span>
+<span class="zg">+     unit: nginx.service</span>
+<span class="zg">+   - type: container</span>
+<span class="zg">+     name: api</span>
+<span class="zr">- interval: 60s</span>
+<span class="zg">+ interval: 30s</span>
+
+Apply these changes?  <span class="zchip"> Yes </span>  No
+<span class="zm">Applies without restarting the Node.</span></div></div></div><div class="tnotes"><div class="nb"><h4>Wizard (huh and bubbletea)</h4><ul><li>Three steps: connect, choose, review. A step counter is in the window title.</li><li>Focused field has a green left bar <code>┃</code>; hint text is muted.</li><li>Discovery rows show a confidence label: high green, medium amber.</li><li>Review shows a unified diff: additions green, removals red.</li></ul></div><div class="nb"><h4>Non-interactive</h4><ul><li>The same flow runs from flags or JSON for automation: <code>--core-url</code>, <code>--token</code>, <code>--accept-discovered</code>, <code>--yes</code>.</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div></div></div></div>
+</body></html>

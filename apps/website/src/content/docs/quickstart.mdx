@@ -1,0 +1,54 @@
+---
+title: Quickstart
+description: "Core running on your server, one server connected and a first alert delivered. About ten minutes."
+group: Start
+order: 2
+progress: ["Start Core", "Connect a server", "Add a monitor", "Add an alert channel"]
+---
+import Callout from "../../components/docs/callout.astro";
+import Done from "../../components/docs/done.astro";
+
+<Callout title="Prefer to hand this off?">An AI assistant can do the whole setup for you and ask before it changes anything. See [Set up with an AI assistant](/docs/ai-setup/).</Callout>
+
+## Start Core
+
+Run this on the server that will host Core: a VPS, a home server or any Linux machine you control, with Docker and the Compose plugin installed. It writes the settings with generated secrets, starts Core and its worker, and prints the address and your login.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
+```
+
+Using a domain? Add `--public-url https://orion.example.com`. Otherwise Core uses the server's own address, for example `http://203.0.113.10:8999`.
+
+<Done id="s1">the printed address, opened from your computer, shows the sign-in page</Done>
+
+<Callout>If the page does not load, allow TCP port `8999` through the server's firewall or cloud security group.</Callout>
+
+## Connect a server
+
+In the Console, open **Servers** and choose **Add server** to get an install command. Run it on any Linux or macOS machine you want to watch. It installs the Node and points it at your Core.
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-node-installer.sh | \
+  ORION_ENROLLMENT_TOKEN=<token> bash -s -- --core-url http://203.0.113.10:8999
+```
+
+<Callout>Check it from that machine with `orion-node status`. The server appears in the Console within a minute. If anything is wrong, `orion-node doctor` names it and prints the fix.</Callout>
+
+<Done id="s2">the server shows as Up under Servers</Done>
+
+## Add a monitor
+
+Open **Monitors**, choose **New monitor**, pick HTTP, enter a URL and use **Test now**, then save. The first check runs straight away.
+
+<Done id="s3">the monitor shows a green check</Done>
+
+## Add an alert channel
+
+Open **Alerts, Channels** and add a webhook or an email channel. Use **Send test** to confirm it arrives, then route your monitors to it.
+
+<Done id="s4">the test message arrives</Done>
+
+## You are running Orion
+
+Everything lives on your server, in two SQLite files. Good next steps: [send logs from an app](/docs/send-logs/), [back up the database](/docs/backups/) and [learn the concepts](/docs/concepts/).

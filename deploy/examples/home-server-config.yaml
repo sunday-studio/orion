@@ -1,0 +1,55 @@
+meta:
+  title: home-server
+  description: Main home server
+
+# Use a Core URL this Server host can reach.
+core_url: http://orion-core.local:8999
+interval: 60s
+geo_location: false
+
+monitors:
+  - name: orion-core
+    description: Orion Core API health
+    type: internal-service
+    interval: 30s
+    internal_service:
+      ping:
+        # Use the Core URL from this host. If the Server runs on the Core machine,
+        # 127.0.0.1 is fine. Otherwise use the same hostname/IP as core_url.
+        url: http://127.0.0.1:8999/health
+        timeout: 3s
+      process:
+        # This only works when the Server runs on the Core host.
+        port: 8999
+
+  - name: root-disk
+    description: Root disk usage
+    type: resource-threshold
+    interval: 60s
+    resource:
+      max_disk_percent: 85
+
+  - name: memory
+    description: Memory pressure
+    type: resource-threshold
+    interval: 60s
+    resource:
+      max_memory_percent: 90
+
+  - name: ssh
+    description: SSH reachability
+    type: tcp
+    interval: 60s
+    tcp:
+      host: 127.0.0.1
+      port: 22
+      timeout: 3s
+
+  - name: backup-marker
+    description: Backup marker file exists
+    type: command
+    interval: 15m
+    command:
+      # Change this to whatever file your backup job creates after a successful run.
+      command: test -f /var/lib/orion-backups/latest.ok
+      timeout: 5s

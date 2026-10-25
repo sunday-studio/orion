@@ -1,0 +1,56 @@
+[Unit]
+Description=Orion Node - System Monitoring Service
+Documentation=https://github.com/sunday-studio/orion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=orion
+Group=orion
+WorkingDirectory=/var/lib/orion
+ExecStart=/usr/local/bin/orion-node run -config /etc/orion/config.yaml -state /var/lib/orion/state.db
+Restart=on-failure
+RestartSec=10s
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Control socket directory (/run/orion/node.sock, group orion, mode 0660)
+RuntimeDirectory=orion
+RuntimeDirectoryMode=0750
+
+# Security settings
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectClock=true
+ProtectHostname=true
+SystemCallArchitectures=native
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/orion /etc/orion /var/log/orion
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-node
+
+# Environment
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+
+[Install]
+WantedBy=multi-user.target

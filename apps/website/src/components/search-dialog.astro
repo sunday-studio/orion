@@ -1,0 +1,13 @@
+---
+import "../styles/search.css";
+---
+<div class="ov" data-search-overlay hidden></div>
+<div class="dlg" data-search-dialog role="dialog" aria-modal="true" aria-label="Search docs" hidden>
+  <div class="si">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input type="search" data-search-input placeholder="Search the docs" autocomplete="off" spellcheck="false" aria-label="Search the docs" />
+    <span class="kb">esc</span>
+  </div>
+  <div class="sr" data-search-results></div>
+  <div class="sf"><span><span class="kb">↑</span><span class="kb">↓</span> to navigate</span><span><span class="kb">↵</span> to open</span><span class="count" data-search-count></span></div>
+</div>

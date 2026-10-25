@@ -1,0 +1,375 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-24.04
+    outputs:
+      node: ${{ steps.filter.outputs.node }}
+      console: ${{ steps.filter.outputs.console }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      core: ${{ steps.filter.outputs.core }}
+      deploy: ${{ steps.filter.outputs.deploy }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            node:
+              - 'apps/node/**'
+              - 'deploy/scripts/**'
+              - 'deploy/systemd/**'
+              - 'deploy/launchd/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            console:
+              - 'apps/console/**'
+              - 'apps/core/openapi.yaml'
+              - 'apps/core/docs/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            contracts:
+              - 'apps/core/internal/api/**'
+              - 'apps/core/internal/db/**'
+              - 'apps/core/internal/service/**'
+              - 'apps/core/scripts/generate-openapi.sh'
+              - 'apps/core/main.go'
+              - 'apps/core/openapi.yaml'
+              - 'apps/core/docs/**'
+              - 'apps/console/src/orion-sdk/**'
+              - 'apps/console/orval.config.ts'
+              - 'apps/console/package.json'
+              - 'apps/console/pnpm-lock.yaml'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            core:
+              - '.golangci.yml'
+              - 'apps/core/**'
+              - 'deploy/docker-compose.yml'
+              - 'deploy/docker-compose.yml'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            deploy:
+              - 'deploy/**'
+              - 'README.md'
+              - 'docs/deployment/**'
+              - '.github/workflows/ci.yml'
+            docs:
+              - 'docs/**'
+              - 'README.md'
+              - 'AGENTS.md'
+              - '.github/workflows/ci.yml'
+
+  console:
+    name: Console
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Go
+        if: needs.changes.outputs.contracts == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Install Swagger generator
+        if: needs.changes.outputs.contracts == 'true'
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
+      - name: Check generated contracts
+        if: needs.changes.outputs.contracts == 'true'
+        run: |
+          make generate-sdk
+          git diff --exit-code -- apps/core/docs apps/core/openapi.yaml
+          test -s apps/console/src/orion-sdk/index.ts
+
+      - name: Lint Console
+        run: pnpm run lint
+        working-directory: apps/console
+
+      - name: Check Console formatting
+        run: pnpm run format:check
+        working-directory: apps/console
+
+      - name: Build Console
+        run: make console-build
+
+  core:
+    name: Core
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Check Core formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt -w on these Core files:\n%s\n' "$unformatted"
+            exit 1
+          fi
+        working-directory: apps/core
+
+      - name: Check Core backend test expectation
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+        run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
+      - name: Vet Core
+        run: go vet ./...
+        working-directory: apps/core
+
+      - name: Test Core
+        run: go test ./...
+        working-directory: apps/core
+
+      - name: Race-test Core
+        run: go test -race ./...
+        working-directory: apps/core
+
+      - name: Vulnerability scan Core
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+        working-directory: apps/core
+
+      - name: Lint Core
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+          working-directory: apps/core
+          args: --config ../../.golangci.yml --new-from-merge-base=origin/main ./...
+
+      - name: Test Core coverage
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/core
+
+      - name: Enforce Core coverage floor (70% with -coverpkg)
+        run: |
+          go test -coverpkg=./internal/... -coverprofile=coverpkg.out ./... >/dev/null
+          total="$(go tool cover -func=coverpkg.out | awk '/^total:/ {gsub("%","",$3); print $3}')"
+          echo "Core coverage with -coverpkg: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t+0 >= 70.0) ? 0 : 1 }' || { echo "Core coverage ${total}% is below the 70% floor"; exit 1; }
+        working-directory: apps/core
+
+      - name: Upload Core coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: core-coverage
+          path: |
+            apps/core/coverage.out
+            apps/core/coverage-summary.txt
+          if-no-files-found: error
+
+      - name: Build Core
+        run: |
+          make core-build CORE_OUTPUT=/tmp/orion-core
+          make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+
+  server:
+    name: Server
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.node == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/node/go.mod
+          cache-dependency-path: apps/node/go.sum
+
+      - name: Check Server formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt -w on these Server files:\n%s\n' "$unformatted"
+            exit 1
+          fi
+        working-directory: apps/node
+
+      - name: Vet Server
+        run: go vet ./...
+        working-directory: apps/node
+
+      - name: Test Server
+        run: go test ./...
+        working-directory: apps/node
+
+      - name: Race-test Server
+        run: go test -race ./...
+        working-directory: apps/node
+
+      - name: Enforce Server coverage floor (50%, ratcheting toward the 60% target)
+        run: |
+          go test -coverprofile=floor.out ./... >/dev/null
+          total="$(go tool cover -func=floor.out | awk '/^total:/ {gsub("%","",$3); print $3}')"
+          echo "Server coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t+0 >= 50.0) ? 0 : 1 }' || { echo "Server coverage ${total}% is below the 50% floor"; exit 1; }
+        working-directory: apps/node
+
+      - name: Test Server coverage
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/node
+
+      - name: Upload Server coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: server-coverage
+          path: |
+            apps/node/coverage.out
+            apps/node/coverage-summary.txt
+          if-no-files-found: error
+
+      - name: Build Server
+        run: make node-build NODE_OUTPUT=/tmp/orion-node
+
+      - name: Race tests (node)
+        run: go test -race ./...
+        working-directory: apps/node
+
+      - name: Static cross builds (node)
+        run: make node-build-all
+
+      - name: Installer tests (node)
+        run: make node-installer-test
+
+      - name: Theme is generated from design tokens (node)
+        run: make node-theme-check
+
+      - name: Performance budgets (node)
+        run: make node-perf
+
+  core-image-scan:
+    name: Core image scan
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Core image
+        run: docker build -f apps/core/Dockerfile -t orion-core:ci .
+
+      - name: Scan image for HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: orion-core:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  repository-smoke:
+    name: Repository smoke
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true' || needs.changes.outputs.docs == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check shell scripts
+        run: |
+          bash -n deploy/scripts/*.sh
+          bash deploy/scripts/test-node-bootstrap-verify.sh
+
+      - name: Validate Docker Compose syntax
+        run: docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
+        env:
+          ORION_ADMIN_USERNAME: ci-admin
+          ORION_ADMIN_PASSWORD: ci-password
+          ORION_JWT_SECRET: ci-secret-at-least-long-enough
+
+  release-readiness:
+    name: Release readiness
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+      - console
+      - core
+      - server
+      - core-image-scan
+      - repository-smoke
+    if: always()
+    steps:
+      - name: Check gate results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CONSOLE_RESULT: ${{ needs.console.result }}
+          CORE_RESULT: ${{ needs.core.result }}
+          SERVER_RESULT: ${{ needs.server.result }}
+          CORE_IMAGE_SCAN_RESULT: ${{ needs.core-image-scan.result }}
+          REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
+        run: |
+          failed=0
+          for gate in \
+            "Changed area detection:${CHANGES_RESULT}" \
+            "Console:${CONSOLE_RESULT}" \
+            "Core:${CORE_RESULT}" \
+            "Server:${SERVER_RESULT}" \
+            "Core image scan:${CORE_IMAGE_SCAN_RESULT}" \
+            "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
+          do
+            name="${gate%%:*}"
+            result="${gate#*:}"
+            case "${result}" in
+              success|skipped)
+                printf '%s: %s\n' "${name}" "${result}"
+                ;;
+              *)
+                printf '%s: %s\n' "${name}" "${result}"
+                failed=1
+                ;;
+            esac
+          done
+          exit "${failed}"

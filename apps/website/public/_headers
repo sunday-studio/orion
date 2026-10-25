@@ -1,0 +1,22 @@
+# Cloudflare static assets headers.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+
+# Hashed build output never changes.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Images keep their file names, so cache for a day and let the CDN revalidate.
+/og/*
+  Cache-Control: public, max-age=86400
+/shots/*
+  Cache-Control: public, max-age=86400
+/favicon.svg
+  Cache-Control: public, max-age=86400
+
+# The docs search index changes with each deploy.
+/search.json
+  Cache-Control: public, max-age=300

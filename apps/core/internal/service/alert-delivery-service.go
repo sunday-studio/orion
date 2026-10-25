@@ -1,0 +1,187 @@
+package service
+
+import (
+	"orion/core/internal/db"
+	"orion/core/internal/utils"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	now := time.Now().UTC()
+	var deliveries []db.AlertDelivery
+	if err := s.db.
+		Where("status IN ? AND attempt_count < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at <= ?) AND (locked_until IS NULL OR locked_until <= ?)", []string{"pending", "failed"}, now, now).
+		Order("created_at ASC").
+		Limit(limit).
+		Find(&deliveries).Error; err != nil {
+		return 0, err
+	}
+
+	processed := 0
+	for i := range deliveries {
+		delivery := &deliveries[i]
+		claimed, err := s.claimDelivery(delivery, now)
+		if err != nil {
+			s.logger.Error("Failed to claim alert delivery", "delivery_id", delivery.ID, "error", err)
+			continue
+		}
+		if !claimed {
+			continue
+		}
+		if retiredAlertDeliveryType(delivery.Type) {
+			if err := s.updateDelivery(delivery.ID, "suppressed", retiredAlertDeliveryMessage); err != nil {
+				s.logger.Error("Failed to suppress retired alert delivery", "delivery_id", delivery.ID, "type", delivery.Type, "error", err)
+			}
+			processed++
+			continue
+		}
+		channel, err := s.channelForDelivery(*delivery)
+		if err != nil {
+			if attemptErr := s.attemptDelivery(delivery, func(*SendRecord) error {
+				return newAlertDeliveryError("channel_lookup", err)
+			}); attemptErr != nil {
+				s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", attemptErr)
+			}
+			processed++
+			continue
+		}
+		if delivery.AttemptCount == 0 && s.inCooldown(delivery.RouteID, delivery.IncidentID, channel.Name, delivery.EventType, delivery.ID) {
+			if err := s.updateDelivery(delivery.ID, "cooldown", "alert cooldown active"); err != nil {
+				s.logger.Error("Failed to mark alert delivery cooldown", "delivery_id", delivery.ID, "error", err)
+			}
+			processed++
+			continue
+		}
+		if s.holdForDigest(delivery, channel, now) {
+			processed++
+			continue
+		}
+		if channel.Type == "email" && delivery.EventType != "test" && s.confirmedRecipientCount(channel.ID) == 0 {
+			if err := s.updateDelivery(delivery.ID, "suppressed", "no confirmed email recipients"); err != nil {
+				s.logger.Error("Failed to suppress email delivery", "delivery_id", delivery.ID, "error", err)
+			}
+			processed++
+			continue
+		}
+		if err := s.attemptDelivery(delivery, func(rec *SendRecord) error {
+			if delivery.EventType == alertEventGroupSummary && delivery.AlertGroupID != "" {
+				return s.deliverGroupSummary(channel, delivery.ID, delivery.AlertGroupID, rec)
+			}
+			return s.deliver(channel, delivery.ID, delivery.IncidentID, delivery.EventType, rec)
+		}); err != nil {
+			s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", err)
+		}
+		processed++
+	}
+	return processed, nil
+}
+
+// claimDelivery takes a short lease on a due delivery so concurrent dispatchers
+// never send the same row twice. A crashed dispatcher's lease simply expires.
+func (s *AlertService) claimDelivery(delivery *db.AlertDelivery, now time.Time) (bool, error) {
+	until := now.Add(alertDeliveryLeaseDuration)
+	result := s.db.Model(&db.AlertDelivery{}).
+		Where("id = ? AND status IN ? AND attempt_count = ? AND (locked_until IS NULL OR locked_until <= ?)", delivery.ID, []string{"pending", "failed"}, delivery.AttemptCount, now).
+		Updates(map[string]any{"locked_by": alertDispatcherID, "locked_until": until})
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected == 1, nil
+}
+
+func (s *AlertService) channelForDelivery(delivery db.AlertDelivery) (db.AlertChannel, error) {
+	channels, err := s.deliveryChannels()
+	if err != nil {
+		return db.AlertChannel{}, err
+	}
+	for _, channel := range channels {
+		if channel.Name == delivery.Channel && channel.Type == delivery.Type {
+			return channel, nil
+		}
+	}
+	return db.AlertChannel{}, gorm.ErrRecordNotFound
+}
+
+func retiredAlertDeliveryType(deliveryType string) bool {
+	switch strings.TrimSpace(deliveryType) {
+	case "slack", "discord":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDelivery, error) {
+	delivery.ID = utils.GenerateID("alert_delivery")
+	if delivery.Status == "pending" && delivery.MaxAttempts == 0 {
+		delivery.MaxAttempts = defaultAlertDeliveryMaxAttempts
+	}
+	if err := s.db.Create(&delivery).Error; err != nil {
+		s.logger.Error("Failed to create alert delivery", "incident_id", delivery.IncidentID, "event_type", delivery.EventType, "error", err)
+		return nil, err
+	}
+	return &delivery, nil
+}
+
+func (s *AlertService) updateDelivery(deliveryID string, status string, message string) error {
+	return s.db.Model(&db.AlertDelivery{}).Where("id = ?", deliveryID).Updates(map[string]any{
+		"status": status,
+		"error":  message,
+	}).Error
+}
+
+// cooldownSecondsFor is the rule's own cooldown, else the global default.
+func (s *AlertService) cooldownSecondsFor(routeID string) int {
+	if routeID != "" {
+		var route db.AlertRoute
+		if s.db.Select("cooldown_seconds").Where("id = ?", routeID).Limit(1).Find(&route).RowsAffected > 0 && route.CooldownSeconds > 0 {
+			return route.CooldownSeconds
+		}
+	}
+	if s.cfg == nil {
+		return 0
+	}
+	return s.cfg.AlertCooldownSeconds
+}
+
+func (s *AlertService) inCooldown(routeID string, incidentID string, channelName string, eventType string, currentDeliveryID string) bool {
+	seconds := s.cooldownSecondsFor(routeID)
+	if seconds <= 0 {
+		return false
+	}
+	since := time.Now().UTC().Add(-time.Duration(seconds) * time.Second)
+
+	var count int64
+	if err := s.db.Model(&db.AlertDelivery{}).
+		Where("incident_id = ? AND channel = ? AND event_type = ? AND id <> ? AND status = ? AND created_at >= ?", incidentID, channelName, eventType, currentDeliveryID, "sent", since).
+		Count(&count).Error; err != nil {
+		s.logger.Error("Failed to check alert cooldown", "incident_id", incidentID, "channel", channelName, "error", err)
+		return false
+	}
+	return count > 0
+}
+
+// holdForDigest delays a first send on a digest_15m email channel until the next 15 minute mark.
+// Critical incidents and test mails always go out immediately.
+func (s *AlertService) holdForDigest(delivery *db.AlertDelivery, channel db.AlertChannel, now time.Time) bool {
+	if channel.Type != "email" || channel.EmailDeliveryMode != "digest_15m" || delivery.EventType == "test" || delivery.AttemptCount > 0 || delivery.NextAttemptAt != nil {
+		return false
+	}
+	var incident db.Incident
+	if s.db.Select("severity").Where("id = ?", delivery.IncidentID).Limit(1).Find(&incident).RowsAffected > 0 && incident.Severity == "critical" {
+		return false
+	}
+	due := now.Truncate(15 * time.Minute).Add(15 * time.Minute)
+	if err := s.db.Model(&db.AlertDelivery{}).Where("id = ?", delivery.ID).Updates(map[string]any{"next_attempt_at": due, "locked_by": "", "locked_until": nil}).Error; err != nil {
+		s.logger.Error("Failed to hold digest delivery", "delivery_id", delivery.ID, "error", err)
+		return false
+	}
+	return true
+}

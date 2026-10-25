@@ -1,0 +1,30 @@
+import { getApiBase } from "@/api/client";
+import { toZoned } from "@/utils/date";
+
+export const NOT_CONNECTED_AFTER_MS = 5 * 60 * 1000;
+
+export type ServerPlatform = "linux" | "macos";
+
+/** Linux and macOS only (D-014); the Docker tile returns once the node image ships. */
+export const platformTiles = [
+  { value: "linux", title: "Linux", caption: "systemd" },
+  { value: "macos", title: "macOS", caption: "launchd" },
+] as const;
+
+const coreOrigin = () => getApiBase() || window.location.origin;
+
+export const coreHost = (coreUrl?: string) => {
+  try {
+    return new URL(coreUrl || coreOrigin()).host;
+  } catch {
+    return window.location.host;
+  }
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+export const clockWithSeconds = (iso?: string) => {
+  if (!iso) return "-";
+  const date = toZoned(new Date(iso));
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};

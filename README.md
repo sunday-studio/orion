@@ -1,139 +1,130 @@
 # Orion
 
-Orion is a lightweight, self-hosted monitoring system: agents on your servers collect system metrics and health checks, and a central Core server stores and serves them through a web UI.
+[![CI](https://github.com/sunday-studio/orion/actions/workflows/ci.yml/badge.svg)](https://github.com/sunday-studio/orion/actions/workflows/ci.yml)
 
-## Components
+<p align="center">
+  <img src="assets/orion-banner.png" alt="Orion: run monitoring and incident response on a machine you own" width="880">
+</p>
 
-- **Agent** (Go): Runs on Linux/macOS. Auto-registers with Core. Collects CPU, memory, and disk; runs monitors (HTTP, website, PM2, internal-service, command).
-- **Core** (Go + SQLite): Receives reports, manages agents and monitors, serves a REST API and built-in SPA.
-- **Frontend** (React/Vite): Dev UI; production builds are in `core/web/`.
+**Self-hosted monitoring, incident response and logs for personal projects and small teams.**
 
-```mermaid
-flowchart LR
-    subgraph servers [Your Servers]
-        A1[Orion Agent]
-        A2[Orion Agent]
-    end
-    subgraph central [Orion Core]
-        API[REST API]
-        DB[(SQLite)]
-        UI[Web UI]
-    end
-    A1 -->|HTTPS + token| API
-    A2 -->|HTTPS + token| API
-    API --> DB
-    UI --> API
+**[Documentation](https://orion.thesunday.studio/docs/)** · [Quickstart](https://orion.thesunday.studio/docs/quickstart/) · [Set up with an AI assistant](https://orion.thesunday.studio/docs/ai-setup/) · [orion.thesunday.studio](https://orion.thesunday.studio)
+
+Run Orion on a machine you own. When something breaks you hear it first, and every byte stays on your
+server. There is no hosted version and no account to create.
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-overview-dark.png">
+        <img src="assets/console-overview-light.png" alt="The Orion Console overview: an open incident, server health and recent incidents">
+      </picture>
+      <sub><b>Overview</b>: what needs you now, and how your servers are doing</sub>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-incident-detail-dark.png">
+        <img src="assets/console-incident-detail-light.png" alt="An incident with its timeline, notifications and affected components">
+      </picture>
+      <sub><b>Incidents</b> with a timeline and who was told</sub>
+    </td>
+  </tr>
+</table>
+
+## What you get
+
+- **Monitors** for HTTP endpoints, websites, TCP ports, Docker containers, systemd services, PM2
+  processes, commands and resource thresholds.
+- **Incidents** opened automatically when a monitor fails, with a timeline of what failed, who was told
+  and who acknowledged.
+- **Alerts** routed by rule to webhook or email, with every delivery recorded and failed ones retried.
+- **Logs** from your own apps over JSON or OpenTelemetry, searchable next to the incident.
+- **Status pages** you can publish for the people who depend on you.
+- **One small footprint:** one API process, a monitor worker, SQLite, and the bundled Console. Back it up
+  as ordinary files.
+
+## Why Orion?
+
+Most uptime tools run checks from outside your network. That is useful, but it cannot see local service
+state, Docker containers, systemd units, PM2 processes, command checks, or the machine's own resource
+pressure.
+
+Orion keeps that local context on the monitored host. Each Server runs next to the services it watches
+and reports to a Core you control, so you can run it from Docker Compose without adopting Prometheus,
+Postgres, Kubernetes or a hosted observability stack first.
+
+## Get started
+
+About ten minutes, on the server that will host Core (any Linux machine with Docker). The full steps, with
+every command, are in the **[Quickstart](https://orion.thesunday.studio/docs/quickstart/)** on the documentation site.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/setup-core.sh | bash
 ```
 
-## Prerequisites
+That starts **Core** (the API, the Console and the worker) with Docker Compose and prints the address and
+your login. Then:
 
-- **Go 1.25+**
-- **Node 18+** and **npm** — for frontend development or rebuilding the UI
-- **SQLite** — embedded in Core; nothing to install
+1. **Connect a server** with the one-line installer the Console shows under Servers, Add server, on any Linux
+   or macOS host you want to watch.
+2. **Add a monitor and an alert channel**, then send a test message.
 
-## Quick Start
+The settings are in [`deploy/.env.example`](deploy/.env.example); the compose file is
+[`deploy/docker-compose.yml`](deploy/docker-compose.yml). Building Core from source on a new server:
+[Set up Core with Docker](docs/deployment/docker-new-server.md).
 
-1. **Build Core**
-   ```bash
-   cd core && go build -o orion-core . && cd ..
-   ```
+Want to see it work before installing anything? The demo starts Core, monitors a tiny Python service,
+breaks it and checks recovery:
 
-2. **Build Agent**
-   ```bash
-   cd agent && go build -o orion-agent . && cd ..
-   ```
-
-3. **Run Core** — creates `core/data/orion.db`, serves on `:8999`
-   ```bash
-   ./core/orion-core
-   ```
-
-4. **Agent config** — create `agent/config.yaml`:
-   ```yaml
-   core_url: http://localhost:8999
-   interval: 60s
-   monitors: [] # optional
-   ```
-
-5. **Run Agent**
-   ```bash
-   ./agent/orion-agent run -config config.yaml -state state.yaml
-   ```
-
-6. **Open UI** — `http://localhost:8999` (from `core/web/`). If the UI is empty, run `make build-static` and restart Core.
-
-## Configuration
-
-### Agent
-
-- **Required**: `core_url`, `interval` (e.g. `60s`)
-- **Optional**: `meta` (title, description), `monitors`
-
-### Monitor types
-
-| Type | Required config |
-|------|-----------------|
-| `http-healthcheck` | `http.url`, `http.timeout`, `http.expected_status` |
-| `website` | `website.url`; optional `timeout`, `expected_status` |
-| `internal-service` | `internal_service.ping.url`, `internal_service.ping.timeout`, `internal_service.process.port` |
-| `pm2` | `pm2.app_name` |
-| `command` | `command.command` |
-
-### Paths
-
-- **Linux**: `/etc/orion/config.yaml`, `/var/lib/orion/state.yaml` — see [scripts/orion-agent.service](scripts/orion-agent.service)
-- **macOS**: `/usr/local/etc/orion/config.yaml`, `/usr/local/var/lib/orion/state.yaml` — see [scripts/com.orion.agent.plist](scripts/com.orion.agent.plist)
-- **Dev**: `config.yaml` and `state.yaml` in the agent directory, with `-config` and `-state`
-
-### Core
-
-Port in [core/main.go](core/main.go) (`:8999`). Database in [core/internal/db/db.go](core/internal/db/db.go) (`data/orion.db`).
-
-## Running as a Service
-
-- **Linux (systemd)**: [scripts/orion-agent.service](scripts/orion-agent.service). Binary: `/usr/local/bin/orion-agent`; config: `/etc/orion/config.yaml`; state: `/var/lib/orion/state.yaml`. Create the `orion` user/group or adjust.
-- **macOS (launchd)**: [scripts/com.orion.agent.plist](scripts/com.orion.agent.plist) — paths are in the plist.
-- **Uninstall**: [scripts/agent-uninstall.sh](scripts/agent-uninstall.sh) (run with `sudo`).
-
-See [scripts/README.md](scripts/README.md) for manual install steps until `agent-install.sh` is available.
-
-## Project Layout
-
-```
-orion/
-├── agent/       # Orion Agent (Go)
-├── core/        # Orion Core (Go), API + core/web/ SPA
-├── frontend/    # React/Vite; production → core/web via make build-static
-├── scripts/     # systemd, launchd, uninstall
-├── docs/        # system-design, agent-core-contract
-├── sdk/         # OpenAPI types (make generate-sdk)
-└── Makefile     # generate-sdk, build-static
+```sh
+examples/python-sleep-compose/smoke.sh
 ```
 
-## Makefile
+## Let your AI set it up
 
-- `make generate-sdk` — generate frontend API client from `core/openapi.yaml` (Orval → `frontend/src/lib/api.ts`)
-- `make build-static` — build frontend and copy to `core/web/`
-- `make docker-build` — build orion-core Docker image
-- `make docker-up` — run orion-core via `docker compose up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
+Hand the whole setup to an AI assistant. It asks you a few questions, then installs and verifies Core, connects
+your servers and sends a test alert, asking before it changes anything.
 
-## Development
+[![Set up Orion with Claude](https://img.shields.io/badge/Set%20up%20Orion%20with-Claude-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/new?q=Set%20up%20Orion%20%28self-hosted%20monitoring%29%20for%20me%20end%20to%20end.%20Read%20https%3A%2F%2Fraw.githubusercontent.com%2Fsunday-studio%2Forion%2Fmain%2Fdocs%2Fai-setup.md%20and%20follow%20it%20step%20by%20step.%20Ask%20me%20the%20questions%20it%20lists%20first%2C%20and%20ask%20before%20you%20change%20anything%20on%20a%20machine.)
 
-- **Frontend**: `cd frontend && npm install && npm run dev`. Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `.env` (see [frontend/.env.example](frontend/.env.example)).
-- **API**: [core/openapi.yaml](core/openapi.yaml). Regenerate the frontend client: `npm run generate:api` in the frontend directory.
-- **Agent CLI** ([agent/main.go](agent/main.go)): `start`, `stop`, `status`, `restart`, `run`, `maintenance` (`-up` / `-down`), `config` (`validate`, `diff`).
+Using Claude Code or another assistant that can run commands? Paste this:
+
+```text
+Set up Orion (self-hosted monitoring) for me end to end. Read
+https://raw.githubusercontent.com/sunday-studio/orion/main/docs/ai-setup.md and follow it step by step.
+Ask me the questions it lists first, and ask before you change anything on a machine.
+```
+
+The guide is on the [documentation site](https://orion.thesunday.studio/docs/ai-setup/), and the instructions the assistant follows are in [docs/ai-setup.md](docs/ai-setup.md): what to ask, the exact
+commands, how to check every step, and when to stop.
 
 ## Documentation
 
-- [System design](docs/system-design.md)
-- [Agent–Core contract](docs/agent-core-contract.md)
-- [Agent registration](agent/docs/agent-registration.md)
-- [Core server](core/README.md)
+**The documentation site is at [orion.thesunday.studio/docs](https://orion.thesunday.studio/docs/).** Start there: the quickstart, installing Core, adding a
+server, sending logs, backups, the CLI and the API.
 
-## Contributing
+The in-repo reference, including deployment details and design notes, has its own map in
+[docs/README.md](docs/README.md). The most useful pages:
 
-Contributions are welcome. Open an issue or a pull request.
+| | |
+|---|---|
+| **Start** | [Quickstart](https://orion.thesunday.studio/docs/quickstart/) · [Set up with AI](https://orion.thesunday.studio/docs/ai-setup/) · [Getting started](docs/getting-started.md) · [How Orion works](docs/how-it-works.md) |
+| **Run it** | [Deployment guide](docs/deployment/README.md) · [Core Docker deployment](docs/deployment/core-docker.md) · [Core security defaults](docs/deployment/core-security-defaults.md) · [Install and manage a Node](docs/deployment/node-install-upgrade.md) · [Server CLI cheat sheet](docs/deployment/server-cli-cheatsheet.md) |
+| **Your data** | [Send logs from your apps](docs/product-logs.md) · [SQLite backup and restore](docs/sqlite-backup-restore.md) |
+| **Build** | [Local development](docs/development/local-development.md) · [Architecture](docs/architecture/system-overview.md) · [System design](docs/system-design.md) |
 
-## License
+## Project layout
 
-See [LICENSE](LICENSE).
+```txt
+orion/
+├── apps/
+│   ├── node/    # Go Server daemon and orion-node compatibility CLI
+│   ├── core/     # Go API server, SQLite, OpenAPI, embedded Console
+│   ├── console/  # React/Vite UI source
+│   └── website/  # Astro site and documentation
+├── deploy/       # Docker Compose, systemd, launchd, install scripts
+├── docs/         # architecture, deployment, development, milestones
+├── packages/     # shared/generated package space
+└── Makefile
+```

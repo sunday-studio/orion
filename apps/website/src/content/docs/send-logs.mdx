@@ -1,0 +1,77 @@
+---
+title: Send logs
+description: "Any app can send product logs: a plain message, JSON, or OpenTelemetry. There is no required schema."
+group: Guides
+order: 6
+readTime: 6 min read
+note: Needs an ingest key
+---
+import Callout from "../../components/docs/callout.astro";
+import CodeTabs from "../../components/docs/code-tabs.astro";
+import Steps from "../../components/docs/steps.astro";
+import Step from "../../components/docs/step.astro";
+import Badge from "../../components/docs/badge.astro";
+
+## Get an ingest key
+
+<Steps>
+<Step title="Create an app">In the Console, open Settings, Apps, and create one for your service.</Step>
+<Step title="Create an ingest key">It looks like `orion_ik_...`, is shown once, and can only write logs for that app.</Step>
+</Steps>
+
+<Callout title="Rotating.">Create a second key, deploy it, then revoke the old one.</Callout>
+
+## Send a log
+
+Pick the way your app already speaks. A `202` response means queued, and entries are searchable within about a second.
+
+<CodeTabs labels={["curl", "NDJSON batch", "OpenTelemetry"]}>
+
+```sh
+curl -X POST "$ORION_URL/v1/ingest/logs" \
+  -H "Authorization: Bearer $ORION_INGEST_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"severity":"error","event":"payment.failed",
+       "body":"payment failed for order 8841",
+       "attributes":{"order_id":8841,"currency":"EUR"}}'
+```
+
+```sh
+printf '%s\n' '{"body":"job started"}' '{"body":"job finished"}' |
+curl -X POST "$ORION_URL/v1/ingest/logs" \
+  -H "Authorization: Bearer $ORION_INGEST_KEY" \
+  -H "Content-Type: application/x-ndjson" --data-binary @-
+```
+
+```sh
+export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/logs"
+export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"
+export OTEL_SERVICE_NAME="checkout-api"
+```
+
+</CodeTabs>
+
+## The entry format
+
+Every field is optional, but an entry needs a `body` or an `event`. Unknown fields are stored as attributes.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `body` | string or JSON | The message. Structured bodies are searchable as text. |
+| `event` | string | A short stable name such as `payment.failed`. |
+| `severity` | string or number | `trace` to `fatal`. Also accepts OpenTelemetry numbers. |
+| `attributes` | object | Anything, any shape. Depth 8, 128 keys. |
+| `id` | string | Your own id. Re-sending the same id is ignored, so retries are safe. |
+
+## Limits and responses
+
+| Status | Meaning | What to do |
+|---|---|---|
+| <Badge tone="g">202</Badge> | Accepted. Check `rejected` for per-entry problems. | Nothing. |
+| <Badge tone="a">401</Badge> | Missing, wrong or revoked ingest key. | Check the key. |
+| <Badge tone="a">413</Badge> | Request too large. 1 MiB JSON, 5 MiB NDJSON. | Send smaller batches. |
+| <Badge tone="r">429</Badge> | Rate limit or queue full. Has `Retry-After`. | Wait, then retry the same batch. |
+| <Badge tone="z">5xx</Badge> | Orion is unavailable. | Retry with backoff. |
+
+<Callout type="warn" title="Secrets.">Orion redacts common secret keys such as `password` and `token`, but it does not scan plain-text messages. Do not log secrets on purpose.</Callout>

@@ -1,0 +1,466 @@
+package service
+
+import (
+	"encoding/json"
+	"orion/core/internal/config"
+	"orion/core/internal/db"
+	"orion/core/internal/utils"
+	"strings"
+	"time"
+
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+type NodeReportPayload struct {
+	UptimeSeconds uint64         `json:"uptime_seconds"`
+	Timestamp     string         `json:"timestamp"`
+	NodeVersion   string         `json:"node_version,omitempty"`
+	ConfigSummary any            `json:"config_summary,omitempty"`
+	CPU           db.CPUStats    `json:"cpu"`
+	Memory        db.MemoryStats `json:"memory"`
+	Disk          db.DiskStats   `json:"disk"`
+	Location      db.GeoLocation `json:"location,omitempty"`
+	// AppResources is the node's passive per-app measurements; Core stores the latest.
+	AppResources json.RawMessage `json:"app_resources,omitempty" swaggertype:"object"`
+}
+
+type MonitorReportPayload struct {
+	// ReportID is an optional node-generated idempotency key (UUID). Replaying a
+	// report with the same ID for the same monitor stores nothing new.
+	ReportID  string `json:"report_id,omitempty"`
+	Timestamp string `json:"timestamp" binding:"required"`
+	Health    string `json:"health" binding:"required"` // up | down
+	Metrics   any    `json:"metrics" binding:"required"`
+	Error     any    `json:"error,omitempty"`
+}
+
+type ReportService struct {
+	db          *gorm.DB
+	logger      *utils.Logger
+	cfg         *config.Config
+	diagnostics *RuntimeDiagnosticsService
+}
+
+func NewReportService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *ReportService {
+	return &ReportService{
+		db:     database,
+		logger: logger,
+		cfg:    cfg,
+	}
+}
+
+func (s *ReportService) SetDiagnostics(diagnostics *RuntimeDiagnosticsService) {
+	s.diagnostics = diagnostics
+}
+
+func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorReportPayload) (*string, error) {
+	monitorReportID := utils.GenerateID("monitor_report")
+
+	var reportPayload interface{}
+	if payload.Error != nil {
+		reportPayload = payload.Error
+	} else {
+		reportPayload = payload.Metrics
+	}
+
+	b, err := json.Marshal(RedactMonitorReportPayloadValue(reportPayload))
+	if err != nil {
+		return nil, err
+	}
+
+	monitorReport := db.MonitorReport{
+		ID:             monitorReportID,
+		MonitorID:      monitorID,
+		ClientReportID: strings.TrimSpace(payload.ReportID),
+		Health:         payload.Health,
+		CollectedAt:    payload.Timestamp,
+		Payload:        string(b),
+	}
+
+	// The report row, the monitor's health columns and the incident reconcile
+	// commit together. A failure rolls everything back, so the node's retry
+	// starts clean instead of finding a stored report whose incident was never
+	// opened; a replay of an already-committed report is a no-op.
+	storedID := monitorReportID
+	duplicate := false
+	writeStarted := time.Now()
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&monitorReport)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			var existing db.MonitorReport
+			if err := tx.Where("monitor_id = ? AND client_report_id = ?", monitorID, monitorReport.ClientReportID).First(&existing).Error; err != nil {
+				return err
+			}
+			storedID = existing.ID
+			duplicate = true
+			return nil
+		}
+		s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), nil)
+
+		now := time.Now()
+		updates := map[string]any{
+			"health":                  payload.Health,
+			"computed_health":         "",
+			"last_health_computation": nil,
+		}
+		if payload.Health == "up" {
+			updates["last_successful_report_at"] = &now
+		}
+		if err := tx.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		incidentService := NewIncidentService(tx, s.logger, s.cfg)
+		incidentService.SetDiagnostics(s.diagnostics)
+		incidentService.inTransaction = true
+		return incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload)
+	})
+	if err != nil {
+		s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), err)
+		s.logger.Error("Failed to store monitor report", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+	if duplicate {
+		s.logger.Info("Duplicate monitor report ignored", "monitor_id", monitorID, "monitor_report_id", storedID)
+		return &storedID, nil
+	}
+
+	healthService := NewHealthService(s.db, s.logger)
+	if _, err := healthService.ComputeMonitorHealth(monitorID, DefaultHealthConfig()); err != nil {
+		s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
+	}
+
+	s.logger.Info("Monitor report stored successfully", "monitor_report_id", storedID)
+	return &storedID, nil
+}
+
+func (s *ReportService) StoreNodeReport(nodeID string, payload NodeReportPayload) (*string, error) {
+	nodeReportID := utils.GenerateID("node_report")
+	configSummary := ""
+	if payload.ConfigSummary != nil {
+		configSummaryBytes, err := json.Marshal(payload.ConfigSummary)
+		if err != nil {
+			return nil, err
+		}
+		configSummary = string(configSummaryBytes)
+	}
+
+	nodeReport := db.NodeReport{
+		ID:            nodeReportID,
+		NodeID:        nodeID,
+		NodeVersion:   payload.NodeVersion,
+		ConfigSummary: configSummary,
+		UptimeSeconds: payload.UptimeSeconds,
+		Timestamp:     payload.Timestamp,
+
+		CPU:      datatypes.NewJSONType(payload.CPU),
+		Memory:   datatypes.NewJSONType(payload.Memory),
+		Disk:     datatypes.NewJSONType(payload.Disk),
+		Location: datatypes.NewJSONType(payload.Location),
+	}
+
+	writeStarted := time.Now()
+	if err := s.db.Create(&nodeReport).Omit("Node").Error; err != nil {
+		s.diagnostics.RecordReportWrite("node", time.Since(writeStarted), err)
+		s.logger.Error("Failed to store node report", "error", err)
+		return nil, err
+	}
+	s.diagnostics.RecordReportWrite("node", time.Since(writeStarted), nil)
+
+	if intervalSeconds := reportingIntervalSeconds(payload.ConfigSummary); intervalSeconds > 0 {
+		if err := s.db.Model(&db.Node{}).
+			Where("id = ?", nodeID).
+			Update("reporting_interval_seconds", intervalSeconds).Error; err != nil {
+			s.logger.Error("Failed to update node reporting interval", "node_id", nodeID, "error", err)
+		}
+	}
+
+	s.logger.Info("Node report stored successfully", "node_report_id", nodeReport.ID)
+	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
+	incidentService.SetDiagnostics(s.diagnostics)
+	if err := incidentService.ReconcileStaleMonitors(nodeID); err != nil {
+		s.logger.Error("Failed to reconcile stale monitor incidents after node report", "node_id", nodeID, "error", err)
+		return nil, err
+	}
+	return &nodeReportID, nil
+}
+
+func reportingIntervalSeconds(configSummary any) int {
+	summary, ok := configSummary.(map[string]any)
+	if !ok {
+		return 0
+	}
+
+	value, ok := summary["reporting_interval"]
+	if !ok {
+		return 0
+	}
+
+	interval, ok := value.(string)
+	if !ok || interval == "" {
+		return 0
+	}
+
+	duration, err := time.ParseDuration(interval)
+	if err != nil || duration <= 0 {
+		return 0
+	}
+
+	return int(duration.Seconds())
+}
+
+func (s *ReportService) GetNodeReportsById(nodeID string, limit int, offset int) ([]db.NodeReport, error) {
+	var reports []db.NodeReport
+
+	query := s.db.Where("node_id = ?", nodeID).Order("created_at DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&reports).Error; err != nil {
+		s.logger.Error("Failed to retrieve reports", "node_id", nodeID, "error", err)
+		return nil, err
+	}
+
+	s.logger.Debug("Retrieved reports", "node_id", nodeID, "count", len(reports))
+	return reports, nil
+}
+
+func (s *ReportService) GetMonitorReports(monitorID string, limit int, offset int) ([]db.MonitorReport, error) {
+	var reports []db.MonitorReport
+
+	query := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&reports).Error; err != nil {
+		s.logger.Error("Failed to retrieve monitor reports", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
+	s.logger.Debug("Retrieved monitor reports", "monitor_id", monitorID, "count", len(reports))
+	return reports, nil
+}
+
+func (s *ReportService) GetMonitorReportCount(monitorID string) (int64, error) {
+	var count int64
+	if err := s.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", monitorID).Count(&count).Error; err != nil {
+		s.logger.Error("Failed to count monitor reports", "monitor_id", monitorID, "error", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// UptimeDayBucket is one day in the SLA heatmap.
+type UptimeDayBucket struct {
+	Date          string  `json:"date"` // YYYY-MM-DD
+	Up            int     `json:"up"`
+	Total         int     `json:"total"`
+	UptimePercent float64 `json:"uptime_percent"`
+}
+
+// UptimeResult holds daily_buckets and overall uptime_percent.
+type UptimeResult struct {
+	DailyBuckets  []UptimeDayBucket `json:"daily_buckets"`
+	UptimePercent float64           `json:"uptime_percent"`
+	UpCount       int               `json:"-"`
+	TotalCount    int               `json:"-"`
+}
+
+const (
+	defaultPeriodDays = 90
+	maxPeriodDays     = 365
+)
+
+// parsePeriod returns days from strings like "90d", "30d", "7d". Default 90,
+// clamped to maxPeriodDays so a hostile period cannot allocate unbounded buckets.
+func parsePeriod(period string) int {
+	if period == "" {
+		return defaultPeriodDays
+	}
+	var n int
+	for _, r := range period {
+		if r >= '0' && r <= '9' {
+			n = n*10 + int(r-'0')
+			if n > maxPeriodDays {
+				return maxPeriodDays
+			}
+		} else if r == 'd' && n > 0 {
+			return n
+		}
+	}
+	if n > 0 {
+		return n
+	}
+	return defaultPeriodDays
+}
+
+// GetMonitorUptime returns daily buckets and overall uptime percent for a monitor.
+func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*UptimeResult, error) {
+	return s.getMonitorUptime(monitorID, period, time.Now().UTC())
+}
+
+func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
+	days := parsePeriod(period)
+	since := now.AddDate(0, 0, -days)
+	settingsService := NewSettingsService(s.db, s.logger, s.cfg.DataDir)
+	settings, err := settingsService.GetDataLifecycleSettings()
+	if err != nil {
+		return nil, err
+	}
+	rawCutoffDay := dayStart(now.AddDate(0, 0, -settings.RawReportHotDays))
+
+	var reports []db.MonitorReport
+	if err := s.db.Where("monitor_id = ? AND created_at >= ? AND created_at >= ?", monitorID, since, rawCutoffDay).
+		Order("created_at ASC").
+		Find(&reports).Error; err != nil {
+		s.logger.Error("Failed to get monitor reports for uptime", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
+	var rollups []db.MonitorUptimeRollup
+	if err := s.db.Where("monitor_id = ? AND date >= ? AND date < ?", monitorID, since.Format("2006-01-02"), rawCutoffDay.Format("2006-01-02")).
+		Order("date ASC").
+		Find(&rollups).Error; err != nil {
+		s.logger.Error("Failed to get monitor uptime rollups", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
+	// Bucket by date (day)
+	type day struct {
+		up, total int
+	}
+	buckets := make(map[string]*day)
+	var totalUp, totalCount int
+
+	for _, r := range rollups {
+		buckets[r.Date] = &day{up: r.UpCount, total: r.TotalCount}
+		totalUp += r.UpCount
+		totalCount += r.TotalCount
+	}
+
+	for _, r := range reports {
+		dateKey := r.CreatedAt.Format("2006-01-02")
+		if buckets[dateKey] == nil {
+			buckets[dateKey] = &day{}
+		}
+		buckets[dateKey].total++
+		totalCount++
+		if r.Health == "up" {
+			buckets[dateKey].up++
+			totalUp++
+		}
+	}
+
+	// Build ordered daily_buckets for each day in range
+	var daily []UptimeDayBucket
+	for d := 0; d < days; d++ {
+		dt := since.AddDate(0, 0, d)
+		dateKey := dt.Format("2006-01-02")
+		b := buckets[dateKey]
+		up, total := 0, 0
+		var pct float64
+		if b != nil {
+			up, total = b.up, b.total
+			if total > 0 {
+				pct = 100 * float64(up) / float64(total)
+			}
+		}
+		daily = append(daily, UptimeDayBucket{Date: dateKey, Up: up, Total: total, UptimePercent: pct})
+	}
+
+	pct := 0.0
+	if totalCount > 0 {
+		pct = 100 * float64(totalUp) / float64(totalCount)
+	}
+
+	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}, nil
+}
+
+// GetNodeUptime aggregates uptime from the node's active monitors.
+func (s *ReportService) GetNodeUptime(nodeID string, period string) (*UptimeResult, error) {
+	return s.getNodeUptime(nodeID, period, time.Now().UTC())
+}
+
+func (s *ReportService) getNodeUptime(nodeID string, period string, now time.Time) (*UptimeResult, error) {
+	var monitorIDs []string
+	if err := s.db.Model(&db.Monitor{}).Where("node_id = ? AND lifecycle = ?", nodeID, "active").Pluck("id", &monitorIDs).Error; err != nil {
+		s.logger.Error("Failed to list monitors for node uptime", "node_id", nodeID, "error", err)
+		return nil, err
+	}
+
+	if len(monitorIDs) == 0 {
+		return &UptimeResult{DailyBuckets: emptyUptimeBuckets(period, now), UptimePercent: 0}, nil
+	}
+
+	dailyByDate := make(map[string]*UptimeDayBucket)
+	var totalUp, totalCount int
+	for _, mid := range monitorIDs {
+		res, err := s.getMonitorUptime(mid, period, now)
+		if err != nil {
+			continue
+		}
+
+		for _, bucket := range res.DailyBuckets {
+			nodeBucket := dailyByDate[bucket.Date]
+			if nodeBucket == nil {
+				nodeBucket = &UptimeDayBucket{Date: bucket.Date}
+				dailyByDate[bucket.Date] = nodeBucket
+			}
+			nodeBucket.Up += bucket.Up
+			nodeBucket.Total += bucket.Total
+			totalUp += bucket.Up
+			totalCount += bucket.Total
+		}
+	}
+
+	days := parsePeriod(period)
+	since := now.AddDate(0, 0, -days)
+	daily := make([]UptimeDayBucket, 0, days)
+	for d := 0; d < days; d++ {
+		dateKey := since.AddDate(0, 0, d).Format("2006-01-02")
+		bucket := UptimeDayBucket{Date: dateKey}
+		if aggregated := dailyByDate[dateKey]; aggregated != nil {
+			bucket.Up = aggregated.Up
+			bucket.Total = aggregated.Total
+			if bucket.Total > 0 {
+				bucket.UptimePercent = 100 * float64(bucket.Up) / float64(bucket.Total)
+			}
+		}
+		daily = append(daily, bucket)
+	}
+
+	pct := 0.0
+	if totalCount > 0 {
+		pct = 100 * float64(totalUp) / float64(totalCount)
+	}
+
+	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}, nil
+}
+
+func emptyUptimeBuckets(period string, now time.Time) []UptimeDayBucket {
+	days := parsePeriod(period)
+	since := now.AddDate(0, 0, -days)
+	daily := make([]UptimeDayBucket, 0, days)
+	for d := 0; d < days; d++ {
+		dt := since.AddDate(0, 0, d)
+		daily = append(daily, UptimeDayBucket{Date: dt.Format("2006-01-02")})
+	}
+	return daily
+}

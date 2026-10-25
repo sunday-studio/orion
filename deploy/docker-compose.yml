@@ -1,0 +1,60 @@
+# Orion Core. Setup: docs/getting-started.md. Settings: .env (see .env.example).
+name: orion
+
+x-core: &core
+  image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:0.2.2}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - orion-data:/data
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETUID
+    - SETGID
+  stop_grace_period: 30s
+
+services:
+  orion-core:
+    <<: *core
+    ports:
+      - "${ORION_HTTP_PORT:-8999}:8999"
+    environment:
+      ORION_REQUIRE_FRONTEND_AUTH: "true"
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD in .env}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET in .env}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  orion-core-worker:
+    <<: *core
+    command: ["./orion-core-worker"]
+    environment:
+      ORION_ADMIN_USERNAME: ""
+      ORION_ADMIN_PASSWORD: ""
+      ORION_JWT_SECRET: ""
+      ORION_ENROLLMENT_TOKEN: ""
+    depends_on:
+      orion-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "docker-entrypoint.sh", "./orion-core-worker", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  orion-data:

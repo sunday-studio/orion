@@ -1,0 +1,88 @@
+/* Stacked toasts (Base UI): newest in front, older ones peek out behind and fan out on hover or focus. */
+.ds-toast-viewport {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+}
+
+.ds-toast {
+  --ds-toast-gap: 12px;
+  --ds-toast-peek: 14px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--toast-frontmost-height, var(--toast-height));
+  z-index: calc(1000 - var(--toast-index));
+  transform-origin: bottom center;
+  transform: translateY(
+      calc(var(--toast-swipe-movement-y, 0px) - var(--toast-index) * var(--ds-toast-peek))
+    )
+    scale(calc(1 - var(--toast-index) * 0.05));
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s,
+    height 0.15s;
+  border: 1px solid var(--color-hairline);
+  border-radius: 10px;
+  background: var(--color-card);
+  box-shadow: var(--shadow-overlay);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Hover/focus: fan the stack out to each toast's measured offset. */
+.ds-toast[data-expanded] {
+  height: var(--toast-height);
+  transform: translateY(
+      calc(
+        var(--toast-offset-y) * -1 - var(--toast-index) * var(--ds-toast-gap) +
+          var(--toast-swipe-movement-y, 0px)
+      )
+    )
+    scale(1);
+}
+
+.ds-toast[data-starting-style],
+.ds-toast[data-ending-style] {
+  opacity: 0;
+  transform: translateY(150%);
+}
+
+.ds-toast[data-limited] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ds-toast[data-swiping] {
+  transition: none;
+}
+
+.ds-toast-content {
+  display: block;
+  padding: 12px 36px 12px 12px;
+  overflow: hidden;
+  transition: opacity 0.25s;
+}
+
+.ds-toast-content[data-behind] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ds-toast-content[data-expanded] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The toast itself needs a layout box so the absolute stack has height to sit in. */
+.ds-toast-viewport::before {
+  content: "";
+  display: block;
+  height: 1px;
+}

@@ -1,0 +1,58 @@
+---
+import Base from "./base.astro";
+import { getCollection, type CollectionEntry } from "astro:content";
+import "../styles/docs.css";
+interface Props { entry: CollectionEntry<"docs">; headings: { depth: number; slug: string; text: string }[] }
+const { entry, headings } = Astro.props;
+const all = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
+const groups = (["Start", "Guides", "Reference"] as const).map((g) => [g, all.filter((d) => d.data.group === g)] as const);
+const idx = all.findIndex((d) => d.id === entry.id);
+const prev = idx > 0 ? all[idx - 1] : undefined;
+const next = idx < all.length - 1 ? all[idx + 1] : undefined;
+const toc = headings.filter((h) => h.depth === 2);
+const progress = entry.data.progress;
+const edit = `https://github.com/sunday-studio/orion/edit/main/apps/website/${entry.filePath}`;
+const check = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
+---
+<Base title={`${entry.data.title} · Orion docs`} description={entry.data.description} active="docs" docs footer ogImage={`/og/docs/${entry.id}`} imageAlt={`${entry.data.title}. Orion documentation.`}>
+  <div class="dg">
+    <div class="sideov" data-side-overlay hidden></div>
+    <aside class="side" id="docs-side" aria-label="Documentation">
+      {groups.map(([g, items]) => (
+        <div class="grp"><div class="gt">{g}</div>
+          {items.map((d) => <a href={`/docs/${d.id}/`} class={d.id === entry.id ? "on" : ""} aria-current={d.id === entry.id ? "page" : undefined}>{d.data.title}</a>)}
+        </div>
+      ))}
+    </aside>
+    <main id="main" class="art">
+      <button type="button" class="sidebtn" data-side-toggle aria-controls="docs-side" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Docs menu</button>
+      <div class="crumb"><a href="/docs/">Docs</a><span class="sep">›</span><span>{entry.data.group}</span><span class="sep">›</span><span class="cur">{entry.data.title}</span></div>
+      <h1>{entry.data.title}</h1>
+      <p class="lead">{entry.data.description}</p>
+      {(entry.data.readTime || entry.data.note) && <div class="meta">{entry.data.readTime && <span>{entry.data.readTime}</span>}{entry.data.note && <span>{entry.data.note}</span>}</div>}
+      <slot />
+      <div class="fb">
+        <input type="checkbox" id="fb" class="fbx" />
+        <span class="q">Was this page helpful? <label for="fb" class="bt">Yes</label><label for="fb" class="bt">No</label></span>
+        <span class="thx" set:html={`${check} Thanks, noted.`} />
+      </div>
+      <nav class="pn" aria-label="Pager">
+        {prev ? <a href={`/docs/${prev.id}/`}><small>Previous</small><b>{prev.data.title}</b></a> : <span />}
+        {next ? <a class="rt" href={`/docs/${next.id}/`}><small>Next</small><b>{next.data.title}</b></a> : <span />}
+      </nav>
+    </main>
+    <aside class={progress ? "toc toc-progress" : "toc"} aria-label="On this page">
+      {progress
+        ? <>
+            <div class="th">Your progress</div>
+            <div class="bar">{progress.map(() => <i />)}</div>
+            <div class="prog">{progress.map((t, n) => <div class={`pi pi${n + 1}`}><span class="pb" set:html={check} />{t}</div>)}</div>
+          </>
+        : toc.length > 0 && <>
+            <div class="th">On this page</div>
+            {toc.map((h) => <a href={`#${h.slug}`}>{h.text}</a>)}
+          </>}
+      <a class="ed" href={edit}>Edit this page on GitHub</a>
+    </aside>
+  </div>
+</Base>

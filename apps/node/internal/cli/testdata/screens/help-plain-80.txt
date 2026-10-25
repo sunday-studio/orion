@@ -1,0 +1,23 @@
+
+orion-node  monitor this host and report to Orion Core
+
+USAGE   orion-node <command> [flags]
+
+ START HERE
+   setup     connect this host and choose what to monitor
+   doctor    check everything and fix what is wrong
+   status    see what the node is doing right now
+
+ DAY TO DAY
+   logs      read node and shipped logs
+   config    show, diff, validate and edit settings
+   update    upgrade safely, with rollback
+   service   start, stop, restart, install
+
+ EXAMPLES
+   $ orion-node setup
+   $ orion-node logs --follow --level warn
+   $ orion-node status --short
+
+ More: enroll · discover · usage · maintenance · token · version · run · start
+       · stop · restart · reconfigure · state · emit · run-job

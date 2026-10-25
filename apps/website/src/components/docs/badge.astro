@@ -1,0 +1,5 @@
+---
+interface Props { tone?: "g" | "a" | "r" | "z" }
+const { tone = "z" } = Astro.props;
+---
+<span class={`bg ${tone}`}><slot /></span>

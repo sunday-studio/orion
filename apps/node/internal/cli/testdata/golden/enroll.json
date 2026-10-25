@@ -1,0 +1,7 @@
+{
+  "config": "string",
+  "core_url": "string",
+  "node_id": "string",
+  "schema_version": "number",
+  "state": "string"
+}

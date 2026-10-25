@@ -1,0 +1,471 @@
+package config
+
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"net/mail"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+)
+
+// Config holds runtime configuration from environment.
+type Config struct {
+	DataDir    string
+	DBLogLevel string
+	Port       string
+	// ListenHost is the address the API binds to (ORION_LISTEN_HOST). Empty means every interface,
+	// except that Core without authentication always binds to loopback.
+	ListenHost                     string
+	CORSOrigins                    []string
+	CoreWorkerID                   string
+	CoreWorkerHeartbeatSeconds     int
+	CoreWorkerStaleSeconds         int
+	CoreWorkerConcurrency          int
+	CoreMonitorAllowPrivateTargets bool
+	DataLifecycleSchedulerSeconds  int
+	AdminUsername                  string
+	AdminPassword                  string
+	JWTSecret                      string
+	FrontendAuthOn                 bool
+	RequireFrontendAuth            bool
+	AllowInsecureNoAuth            bool
+	EnrollmentToken                string
+	AlertAllowPrivateWebhooks      bool
+	TrustedProxies                 []string
+	EnableSwagger                  bool
+	MetricsToken                   string
+	LogsQueueMax                   int
+	LogsAppRatePerSecond           int
+	// InternalLogRetentionDays and InternalLogMaxStorageMB bound Core's own recorded log lines.
+	InternalLogRetentionDays     int
+	InternalLogMaxStorageMB      int
+	DeadManURL                   string
+	RegisterRateLimitPerMinute   int
+	LoginRateLimitAttempts       int
+	LoginRateLimitWindowSecs     int
+	AlertCooldownSeconds         int
+	AlertRecoveryNotifications   bool
+	AlertTLSExpiryDays           int
+	PublicStatusMailEnabled      bool
+	PublicStatusMailHost         string
+	PublicStatusMailPort         int
+	PublicStatusMailUsername     string
+	PublicStatusMailPassword     string
+	PublicStatusMailFromEmail    string
+	PublicStatusMailFromName     string
+	PublicStatusMailReplyTo      string
+	PublicStatusURLOrigin        string
+	PublicStatusSubscriberSecret string
+	// StatusPagesCNAMETarget is the host custom domains must point a CNAME at.
+	StatusPagesCNAMETarget string
+	PublicURL              string
+	// publicURLOverride is the Public Core URL saved in Settings; it wins over ORION_PUBLIC_URL.
+	publicURLOverride *publicURLBox
+	// SessionHours is how long a Console sign-in lasts.
+	SessionHours      int
+	AlertSMTPHost     string
+	AlertSMTPPort     int
+	AlertSMTPUsername string
+	AlertSMTPPassword string
+	AlertSMTPFrom     string
+	AlertSMTPTLS      string // starttls | tls | none
+	AlertEmailSecret  string
+}
+
+// Load reads configuration from environment variables.
+// ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD must both be set to enable frontend auth.
+// ORION_JWT_SECRET is required when frontend auth is enabled.
+// ORION_REQUIRE_FRONTEND_AUTH rejects startup without production-safe frontend auth.
+func Load() *Config {
+	adminUser := os.Getenv("ORION_ADMIN_USERNAME")
+	adminPass := os.Getenv("ORION_ADMIN_PASSWORD")
+	jwtSecret := os.Getenv("ORION_JWT_SECRET")
+
+	frontendAuthOn := adminUser != "" && adminPass != ""
+
+	return &Config{
+		DataDir:                        getEnv("ORION_DATA_DIR", "data"),
+		DBLogLevel:                     getEnv("ORION_DB_LOG_LEVEL", "warn"),
+		Port:                           getEnv("ORION_PORT", "8999"),
+		ListenHost:                     getEnv("ORION_LISTEN_HOST", ""),
+		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
+		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
+		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
+		CoreWorkerStaleSeconds:         getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
+		CoreWorkerConcurrency:          getEnvInt("ORION_WORKER_CONCURRENCY", 16),
+		CoreMonitorAllowPrivateTargets: getEnvBool("ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS", false),
+		DataLifecycleSchedulerSeconds:  getEnvInt("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", 3600),
+		AdminUsername:                  adminUser,
+		AdminPassword:                  adminPass,
+		JWTSecret:                      jwtSecret,
+		FrontendAuthOn:                 frontendAuthOn,
+		RequireFrontendAuth:            getEnvBool("ORION_REQUIRE_FRONTEND_AUTH", false),
+		AllowInsecureNoAuth:            getEnvBool("ORION_ALLOW_INSECURE_NO_AUTH", false),
+		EnrollmentToken:                os.Getenv("ORION_ENROLLMENT_TOKEN"),
+		AlertAllowPrivateWebhooks:      getEnvBool("ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS", false),
+		TrustedProxies:                 getEnvList("ORION_TRUSTED_PROXIES", nil),
+		EnableSwagger:                  getEnvBool("ORION_ENABLE_SWAGGER", false),
+		MetricsToken:                   os.Getenv("ORION_METRICS_TOKEN"),
+		LogsQueueMax:                   getEnvInt("ORION_LOGS_QUEUE_MAX", 50000),
+		LogsAppRatePerSecond:           getEnvInt("ORION_LOGS_APP_RATE_PER_SECOND", 1000),
+		InternalLogRetentionDays:       getEnvInt("ORION_INTERNAL_LOG_RETENTION_DAYS", 7),
+		InternalLogMaxStorageMB:        getEnvInt("ORION_INTERNAL_LOG_MAX_STORAGE_MB", 200),
+		DeadManURL:                     strings.TrimSpace(os.Getenv("ORION_DEADMAN_URL")),
+		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
+		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
+		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
+		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
+		AlertRecoveryNotifications:     getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
+		AlertTLSExpiryDays:             getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
+		PublicStatusMailEnabled:        getEnvBool("ORION_PUBLIC_STATUS_MAIL_ENABLED", false),
+		PublicStatusMailHost:           getEnv("ORION_PUBLIC_STATUS_MAIL_HOST", ""),
+		PublicStatusMailPort:           getEnvInt("ORION_PUBLIC_STATUS_MAIL_PORT", 587),
+		PublicStatusMailUsername:       getEnv("ORION_PUBLIC_STATUS_MAIL_USERNAME", ""),
+		PublicStatusMailPassword:       getEnv("ORION_PUBLIC_STATUS_MAIL_PASSWORD", ""),
+		PublicStatusMailFromEmail:      getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL", ""),
+		PublicStatusMailFromName:       getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_NAME", "Orion Status"),
+		PublicStatusMailReplyTo:        getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
+		PublicStatusURLOrigin:          getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
+		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
+		StatusPagesCNAMETarget:         strings.ToLower(strings.TrimSpace(getEnv("ORION_STATUS_PAGES_CNAME_TARGET", ""))),
+		PublicURL:                      strings.TrimRight(strings.TrimSpace(os.Getenv("ORION_PUBLIC_URL")), "/"),
+		SessionHours:                   max(getEnvInt("ORION_SESSION_HOURS", 12), 1),
+		AlertSMTPHost:                  getEnv("ORION_ALERT_SMTP_HOST", ""),
+		AlertSMTPPort:                  getEnvInt("ORION_ALERT_SMTP_PORT", 587),
+		AlertSMTPUsername:              getEnv("ORION_ALERT_SMTP_USERNAME", ""),
+		AlertSMTPPassword:              getEnvOrFile("ORION_ALERT_SMTP_PASSWORD"),
+		AlertSMTPFrom:                  getEnv("ORION_ALERT_SMTP_FROM", ""),
+		AlertSMTPTLS:                   strings.ToLower(getEnv("ORION_ALERT_SMTP_TLS", "starttls")),
+		AlertEmailSecret:               getEnvOrFile("ORION_ALERT_EMAIL_SECRET"),
+	}
+}
+
+// LoadDotEnv loads KEY=VALUE pairs from a dotenv file without overriding existing
+// process environment variables.
+func LoadDotEnv(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNumber := 0
+	for scanner.Scan() {
+		lineNumber++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			return fmt.Errorf("invalid dotenv line %d: missing '='", lineNumber)
+		}
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return fmt.Errorf("invalid dotenv line %d: empty key", lineNumber)
+		}
+		value = parseDotEnvValue(strings.TrimSpace(value))
+
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("set %s from dotenv: %w", key, err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseDotEnvValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) && len(value) >= 2 {
+		if unquoted, err := strconv.Unquote(value); err == nil {
+			return unquoted
+		}
+	}
+	if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") && len(value) >= 2 {
+		return value[1 : len(value)-1]
+	}
+
+	if hashIndex := strings.Index(value, " #"); hashIndex >= 0 {
+		value = value[:hashIndex]
+	}
+	return strings.TrimSpace(value)
+}
+
+// ValidateAPIAuth refuses to start the admin API without authentication unless
+// the operator explicitly opts out with ORION_ALLOW_INSECURE_NO_AUTH=true. Only
+// the API process calls it; the Worker serves no admin routes.
+func (c *Config) ValidateAPIAuth() error {
+	if c.FrontendAuthOn || c.AllowInsecureNoAuth {
+		return nil
+	}
+	return &ValidationError{Msg: "admin API authentication is not configured: set ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET, or set ORION_ALLOW_INSECURE_NO_AUTH=true to run without authentication (not recommended)"}
+}
+
+// ListenAddress is where the API binds. Without authentication it is always loopback, whatever
+// ORION_LISTEN_HOST says, because an open admin API must never be reachable from the network.
+func (c *Config) ListenAddress() string {
+	if c.RunsWithoutAuth() {
+		return net.JoinHostPort("127.0.0.1", c.Port)
+	}
+	return net.JoinHostPort(c.ListenHost, c.Port)
+}
+
+// RunsWithoutAuth reports whether the admin API will accept unauthenticated requests.
+func (c *Config) RunsWithoutAuth() bool {
+	return !c.FrontendAuthOn
+}
+
+// Validate returns an error if config is invalid (e.g. frontend auth on but JWT_SECRET empty).
+func (c *Config) Validate() error {
+	authValues := []string{
+		strings.TrimSpace(c.AdminUsername),
+		strings.TrimSpace(c.AdminPassword),
+		strings.TrimSpace(c.JWTSecret),
+	}
+	authValueCount := 0
+	for _, value := range authValues {
+		if value != "" {
+			authValueCount++
+		}
+	}
+	if authValueCount > 0 && authValueCount < len(authValues) {
+		return &ValidationError{Msg: "ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET must all be set together"}
+	}
+	if c.RequireFrontendAuth {
+		if authValueCount != len(authValues) {
+			return &ValidationError{Msg: "ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET are required when ORION_REQUIRE_FRONTEND_AUTH is true"}
+		}
+		if err := validateRequiredFrontendAuth(c); err != nil {
+			return err
+		}
+	}
+	if c.FrontendAuthOn && c.JWTSecret == "" {
+		return &ValidationError{Msg: "ORION_JWT_SECRET is required when ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD are set"}
+	}
+	if c.RequireFrontendAuth && authValueCount != len(authValues) {
+		return &ValidationError{Msg: "ORION_REQUIRE_FRONTEND_AUTH requires ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET"}
+	}
+	if c.RegisterRateLimitPerMinute < 0 {
+		return &ValidationError{Msg: "ORION_REGISTER_RATE_LIMIT_PER_MINUTE must be >= 0"}
+	}
+	if c.LoginRateLimitAttempts < 0 {
+		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}
+	}
+	if c.LoginRateLimitWindowSecs < 0 {
+		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS must be >= 0"}
+	}
+	if c.CoreWorkerHeartbeatSeconds <= 0 {
+		return &ValidationError{Msg: "ORION_WORKER_HEARTBEAT_SECONDS must be > 0"}
+	}
+	if c.CoreWorkerConcurrency < 0 || c.CoreWorkerConcurrency > 256 {
+		return &ValidationError{Msg: "ORION_WORKER_CONCURRENCY must be between 0 and 256"}
+	}
+	if c.CoreWorkerStaleSeconds <= 0 {
+		return &ValidationError{Msg: "ORION_WORKER_STALE_SECONDS must be > 0"}
+	}
+	if c.DataLifecycleSchedulerSeconds <= 0 {
+		return &ValidationError{Msg: "ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS must be > 0"}
+	}
+	if c.AlertCooldownSeconds < 0 {
+		return &ValidationError{Msg: "ORION_ALERT_COOLDOWN_SECONDS must be >= 0"}
+	}
+	if c.AlertTLSExpiryDays < 0 {
+		return &ValidationError{Msg: "ORION_ALERT_TLS_EXPIRY_DAYS must be >= 0"}
+	}
+	if c.PublicStatusMailEnabled {
+		if strings.TrimSpace(c.PublicStatusMailHost) == "" {
+			return &ValidationError{Msg: "ORION_PUBLIC_STATUS_MAIL_HOST is required when ORION_PUBLIC_STATUS_MAIL_ENABLED is true"}
+		}
+		if c.PublicStatusMailPort <= 0 {
+			return &ValidationError{Msg: "ORION_PUBLIC_STATUS_MAIL_PORT must be > 0 when ORION_PUBLIC_STATUS_MAIL_ENABLED is true"}
+		}
+		if strings.TrimSpace(c.PublicStatusMailFromEmail) == "" {
+			return &ValidationError{Msg: "ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL is required when ORION_PUBLIC_STATUS_MAIL_ENABLED is true"}
+		}
+		if _, err := mail.ParseAddress(strings.TrimSpace(c.PublicStatusMailFromEmail)); err != nil {
+			return &ValidationError{Msg: "ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL must be a valid email address"}
+		}
+		if strings.TrimSpace(c.PublicStatusMailReplyTo) != "" {
+			if _, err := mail.ParseAddress(strings.TrimSpace(c.PublicStatusMailReplyTo)); err != nil {
+				return &ValidationError{Msg: "ORION_PUBLIC_STATUS_MAIL_REPLY_TO must be a valid email address"}
+			}
+		}
+		if err := validatePublicURLOrigin(c.PublicStatusURLOrigin); err != nil {
+			return err
+		}
+		if strings.TrimSpace(c.PublicStatusSubscriberSecret) == "" {
+			return &ValidationError{Msg: "ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET is required when ORION_PUBLIC_STATUS_MAIL_ENABLED is true"}
+		}
+	}
+	return nil
+}
+
+func validateRequiredFrontendAuth(c *Config) error {
+	adminPassword := strings.TrimSpace(c.AdminPassword)
+	if len(adminPassword) < 12 {
+		return &ValidationError{Msg: "ORION_ADMIN_PASSWORD must be at least 12 characters when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	if isPlaceholderSecret(adminPassword) {
+		return &ValidationError{Msg: "ORION_ADMIN_PASSWORD must not use a placeholder value when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+
+	jwtSecret := strings.TrimSpace(c.JWTSecret)
+	if len(jwtSecret) < 32 {
+		return &ValidationError{Msg: "ORION_JWT_SECRET must be at least 32 characters when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	if isPlaceholderSecret(jwtSecret) {
+		return &ValidationError{Msg: "ORION_JWT_SECRET must not use a placeholder value when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	return nil
+}
+
+func isPlaceholderSecret(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	placeholderFragments := []string{
+		"change-me",
+		"changeme",
+		"replace-with",
+	}
+	for _, fragment := range placeholderFragments {
+		if strings.Contains(normalized, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidationError is returned when config validation fails.
+type ValidationError struct {
+	Msg string
+}
+
+func (e *ValidationError) Error() string { return e.Msg }
+
+func validatePublicURLOrigin(value string) error {
+	origin := strings.TrimSpace(value)
+	if origin == "" {
+		return &ValidationError{Msg: "ORION_PUBLIC_STATUS_URL_ORIGIN is required when ORION_PUBLIC_STATUS_MAIL_ENABLED is true"}
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return &ValidationError{Msg: "ORION_PUBLIC_STATUS_URL_ORIGIN must be an absolute URL origin"}
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return &ValidationError{Msg: "ORION_PUBLIC_STATUS_URL_ORIGIN must use http or https"}
+	}
+	if parsed.Path != "" && parsed.Path != "/" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return &ValidationError{Msg: "ORION_PUBLIC_STATUS_URL_ORIGIN must not include path, query, or fragment"}
+	}
+	return nil
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func getEnvInt(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func getEnvList(key string, fallback []string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return fallback
+	}
+	return items
+}
+
+// getEnvOrFile returns KEY, or the trimmed contents of the file named by KEY_FILE
+// (Docker/Kubernetes secrets). The direct variable wins when both are set.
+func getEnvOrFile(key string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	if path := strings.TrimSpace(os.Getenv(key + "_FILE")); path != "" {
+		if data, err := os.ReadFile(path); err == nil {
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
+}
+
+// publicURLBox holds the saved Public Core URL. It is a pointer in Config so Config values stay copyable.
+type publicURLBox struct{ v atomic.Pointer[string] }
+
+var publicURLBoxMu sync.Mutex
+
+func (c *Config) urlBox() *publicURLBox {
+	publicURLBoxMu.Lock()
+	defer publicURLBoxMu.Unlock()
+	if c.publicURLOverride == nil {
+		c.publicURLOverride = &publicURLBox{}
+	}
+	return c.publicURLOverride
+}
+
+// PublicBaseURL is the public address of Core: the value saved in Settings, else ORION_PUBLIC_URL.
+func (c *Config) PublicBaseURL() string {
+	if v := c.urlBox().v.Load(); v != nil && *v != "" {
+		return *v
+	}
+	return c.PublicURL
+}
+
+// SetPublicURLOverride applies the Public Core URL saved in Settings ("" falls back to the environment).
+func (c *Config) SetPublicURLOverride(value string) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	c.urlBox().v.Store(&value)
+}
