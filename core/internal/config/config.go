@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 // Config holds runtime configuration from environment.
 type Config struct {
@@ -10,6 +13,11 @@ type Config struct {
 	AdminPassword  string
 	JWTSecret      string
 	FrontendAuthOn bool
+
+	// RetentionDays is how long raw reports stay in the main DB (0 disables pruning).
+	RetentionDays int
+	// ArchiveEnabled copies pruned reports into archive.db instead of discarding them.
+	ArchiveEnabled bool
 }
 
 // Load reads configuration from environment variables.
@@ -29,6 +37,8 @@ func Load() *Config {
 		AdminPassword:  adminPass,
 		JWTSecret:      jwtSecret,
 		FrontendAuthOn: frontendAuthOn,
+		RetentionDays:  getEnvInt("ORION_RETENTION_DAYS", 30),
+		ArchiveEnabled: getEnv("ORION_ARCHIVE_ENABLED", "true") != "false",
 	}
 }
 
@@ -50,6 +60,15 @@ func (e *ValidationError) Error() string { return e.Msg }
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return n
+		}
 	}
 	return fallback
 }

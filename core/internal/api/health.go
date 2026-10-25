@@ -20,7 +20,6 @@ import (
 // @Router       /v1/health/summary [get]
 func (s *Server) getSystemHealth(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
-	config := service.DefaultHealthConfig()
 
 	// Get all active agents
 	var agents []db.Agent
@@ -47,15 +46,9 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 
 	totalMonitors = len(monitors)
 
-	// Compute health for each monitor
+	// Health per monitor is the stored value on the loaded rows (refreshed on ingest and in the background)
 	for _, monitor := range monitors {
-		computedHealth, err := healthService.ComputeMonitorHealth(monitor.ID, config)
-		if err != nil {
-			unknownCount++
-			continue
-		}
-
-		switch computedHealth {
+		switch healthService.CachedHealth(monitor) {
 		case "up":
 			upCount++
 		case "down":
@@ -117,18 +110,15 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 	}
 
 	var issues []gin.H
+	agents := s.agentsByID(monitorAgentIDs(monitors))
 
 	// Check each monitor for issues
 	for _, monitor := range monitors {
-		computedHealth, err := healthService.ComputeMonitorHealth(monitor.ID, config)
-		if err != nil {
-			continue
-		}
+		computedHealth := healthService.CachedHealth(monitor)
 
 		if computedHealth == "down" || computedHealth == "degraded" {
-			// Get agent info
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			agent, ok := agents[monitor.AgentID]
+			if !ok {
 				continue
 			}
 
@@ -149,8 +139,8 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 		s.logger.Error("Failed to detect stale monitors", "error", err)
 	} else {
 		for _, monitor := range staleMonitors {
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+			agent, ok := agents[monitor.AgentID]
+			if !ok {
 				continue
 			}
 
@@ -184,7 +174,6 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 // @Router       /v1/incidents/candidates [get]
 func (s *Server) getIncidentCandidates(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
-	config := service.DefaultHealthConfig()
 
 	// Get all active monitors
 	var monitors []db.Monitor
@@ -196,56 +185,105 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 
 	var candidates []gin.H
 
-	// Check each monitor for incident candidates (down or degraded)
+	// Only down/degraded monitors need agent and recent-report lookups; fetch them in bulk.
+	var flagged []db.Monitor
 	for _, monitor := range monitors {
-		computedHealth, err := healthService.ComputeMonitorHealth(monitor.ID, config)
-		if err != nil {
+		if h := healthService.CachedHealth(monitor); h == "down" || h == "degraded" {
+			flagged = append(flagged, monitor)
+		}
+	}
+	agents := s.agentsByID(monitorAgentIDs(flagged))
+	recent := s.recentReportsByMonitor(flagged, 5)
+
+	for _, monitor := range flagged {
+		agent, ok := agents[monitor.AgentID]
+		if !ok {
 			continue
 		}
 
-		if computedHealth == "down" || computedHealth == "degraded" {
-			// Get agent info
-			var agent db.Agent
-			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
-				continue
-			}
-
-			// Get recent reports to determine severity
-			var recentReports []db.MonitorReport
-			if err := s.db.Where("monitor_id = ?", monitor.ID).
-				Order("created_at DESC").
-				Limit(5).
-				Find(&recentReports).Error; err == nil {
-				downCount := 0
-				for _, report := range recentReports {
-					if report.Health == "down" {
-						downCount++
-					}
-				}
-
-				severity := "low"
-				if downCount >= 3 {
-					severity = "high"
-				} else if downCount >= 1 {
-					severity = "medium"
-				}
-
-				candidates = append(candidates, gin.H{
-					"monitor_id":   monitor.ID,
-					"monitor_name": monitor.Name,
-					"monitor_type": monitor.Type,
-					"health":       computedHealth,
-					"severity":     severity,
-					"agent_id":     monitor.AgentID,
-					"agent_name":   agent.Name,
-					"down_count":   downCount,
-				})
+		downCount := 0
+		for _, report := range recent[monitor.ID] {
+			if report.Health == "down" {
+				downCount++
 			}
 		}
+
+		severity := "low"
+		if downCount >= 3 {
+			severity = "high"
+		} else if downCount >= 1 {
+			severity = "medium"
+		}
+
+		candidates = append(candidates, gin.H{
+			"monitor_id":   monitor.ID,
+			"monitor_name": monitor.Name,
+			"monitor_type": monitor.Type,
+			"health":       healthService.CachedHealth(monitor),
+			"severity":     severity,
+			"agent_id":     monitor.AgentID,
+			"agent_name":   agent.Name,
+			"down_count":   downCount,
+		})
 	}
 
 	utils.SuccessResponse(c, 200, "Incident candidates retrieved successfully", gin.H{
 		"candidates": candidates,
 		"count":      len(candidates),
 	})
+}
+
+func monitorAgentIDs(monitors []db.Monitor) []string {
+	seen := make(map[string]struct{}, len(monitors))
+	ids := make([]string, 0, len(monitors))
+	for _, m := range monitors {
+		if _, ok := seen[m.AgentID]; !ok {
+			seen[m.AgentID] = struct{}{}
+			ids = append(ids, m.AgentID)
+		}
+	}
+	return ids
+}
+
+// agentsByID loads the given agents in one query.
+func (s *Server) agentsByID(ids []string) map[string]db.Agent {
+	out := make(map[string]db.Agent, len(ids))
+	if len(ids) == 0 {
+		return out
+	}
+	var agents []db.Agent
+	if err := s.db.Where("id IN ?", ids).Find(&agents).Error; err != nil {
+		s.logger.Error("Failed to load agents", "error", err)
+		return out
+	}
+	for _, a := range agents {
+		out[a.ID] = a
+	}
+	return out
+}
+
+// recentReportsByMonitor returns the newest n reports per monitor in one query.
+func (s *Server) recentReportsByMonitor(monitors []db.Monitor, n int) map[string][]db.MonitorReport {
+	out := make(map[string][]db.MonitorReport, len(monitors))
+	if len(monitors) == 0 {
+		return out
+	}
+	ids := make([]string, len(monitors))
+	for i, m := range monitors {
+		ids[i] = m.ID
+	}
+	var reports []db.MonitorReport
+	err := s.db.Raw(`
+		SELECT * FROM (
+			SELECT *, ROW_NUMBER() OVER (PARTITION BY monitor_id ORDER BY created_at DESC) AS rn
+			FROM monitor_reports WHERE monitor_id IN ?
+		) WHERE rn <= ?`, ids, n).Scan(&reports).Error
+	if err != nil {
+		s.logger.Error("Failed to load recent reports", "error", err)
+		return out
+	}
+	for _, r := range reports {
+		out[r.MonitorID] = append(out[r.MonitorID], r)
+	}
+	return out
 }

@@ -62,8 +62,8 @@ type Agent struct {
 
 type AgentReport struct {
 	ID            string                          `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AgentID       string                          `json:"agent_id" gorm:"index:idx_agent_reports_agent_id;not null"`
-	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_agent_reports_created_at"`
+	AgentID       string                          `json:"agent_id" gorm:"index:idx_agent_reports_agent_created,priority:1;not null"`
+	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_agent_reports_agent_created,priority:2,sort:desc;index:idx_agent_reports_created_at"`
 	UptimeSeconds uint64                          `json:"uptime_seconds"`
 	Timestamp     string                          `json:"timestamp"`
 	CPU           datatypes.JSONType[CPUStats]    `json:"cpu" gorm:"type:json"`
@@ -94,9 +94,18 @@ type Monitor struct {
 
 type MonitorReport struct {
 	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	MonitorID   string    `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
+	MonitorID   string    `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_created,priority:1;not null"`
 	Payload     string    `json:"payload" gorm:"type:text;not null"`
 	CollectedAt string    `json:"collected_at" gorm:"not null"`
 	Health      string    `json:"health" gorm:"not null"` // up | down
-	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
+	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_monitor_created,priority:2,sort:desc;index:idx_monitor_reports_created_at"`
+}
+
+// MonitorDailyRollup keeps per-day up/total counts for reports already pruned from
+// monitor_reports, so long-range uptime stays correct after retention.
+type MonitorDailyRollup struct {
+	MonitorID string `gorm:"primaryKey;type:varchar(255)"`
+	Date      string `gorm:"primaryKey;type:varchar(10)"` // YYYY-MM-DD
+	Up        int    `gorm:"not null;default:0"`
+	Total     int    `gorm:"not null;default:0"`
 }

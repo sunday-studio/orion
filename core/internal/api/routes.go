@@ -29,7 +29,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger)
 	monitorService := service.NewMonitorService(database, logger)
-	router := gin.Default()
+	router := gin.New()
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173"},

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"time"
@@ -36,34 +37,49 @@ func DefaultHealthConfig() HealthComputationConfig {
 	}
 }
 
-// ComputeMonitorHealth computes the derived health state for a monitor with TTL caching
+// CachedHealth returns the stored computed health for an already-loaded monitor without querying.
+func (s *HealthService) CachedHealth(m db.Monitor) string {
+	if m.LastHealthComputation == nil || m.ComputedHealth == "" {
+		return "unknown"
+	}
+	return m.ComputedHealth
+}
+
+// ComputeMonitorHealth returns the monitor's computed health from the stored value.
+// It is read-only: health is refreshed on report ingest and by the background refresher,
+// so request handlers never write. It only computes inline if a value was never stored.
 func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComputationConfig) (string, error) {
-	// Get monitor to check cache
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
 		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
 		return "unknown", err
 	}
 
-	// Check if cache is fresh (within reporting interval)
-	now := time.Now()
-	if monitor.LastHealthComputation != nil && monitor.ReportingIntervalSeconds > 0 {
-		cacheExpiry := monitor.LastHealthComputation.Add(time.Duration(monitor.ReportingIntervalSeconds) * time.Second)
-		if now.Before(cacheExpiry) && monitor.ComputedHealth != "" {
-			// Cache is fresh, return cached value
-			s.logger.Debug("Returning cached health", "monitor_id", monitorID, "computed_health", monitor.ComputedHealth)
-			return monitor.ComputedHealth, nil
-		}
+	if monitor.LastHealthComputation != nil && monitor.ComputedHealth != "" {
+		return monitor.ComputedHealth, nil
+	}
+	return s.RecomputeMonitorHealth(monitorID, config)
+}
+
+// RecomputeMonitorHealth derives health from recent reports and stores it. It writes only
+// when the value changed (or was never stored) to keep write volume low.
+func (s *HealthService) RecomputeMonitorHealth(monitorID string, config HealthComputationConfig) (string, error) {
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
+		return "unknown", err
 	}
 
-	// Cache is stale or missing, recompute
 	computedHealth, err := s.computeMonitorHealthInternal(monitorID, config)
 	if err != nil {
 		return "unknown", err
 	}
 
-	// Update cache
-	now = time.Now()
+	if monitor.LastHealthComputation != nil && monitor.ComputedHealth == computedHealth {
+		return computedHealth, nil
+	}
+
+	now := time.Now()
 	if err := s.db.Model(&monitor).Updates(map[string]interface{}{
 		"computed_health":         computedHealth,
 		"last_health_computation": &now,
@@ -73,6 +89,39 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 	}
 
 	return computedHealth, nil
+}
+
+// RefreshAll recomputes health for every active monitor so time-based states (stale data) advance
+// even when no reports arrive.
+func (s *HealthService) RefreshAll(config HealthComputationConfig) {
+	var ids []string
+	if err := s.db.Model(&db.Monitor{}).Where("lifecycle = ?", "active").Pluck("id", &ids).Error; err != nil {
+		s.logger.Error("Failed to list monitors for health refresh", "error", err)
+		return
+	}
+	for _, id := range ids {
+		if _, err := s.RecomputeMonitorHealth(id, config); err != nil {
+			s.logger.Error("Health refresh failed", "monitor_id", id, "error", err)
+		}
+	}
+}
+
+// StartRefresher runs RefreshAll on an interval until ctx is cancelled.
+func (s *HealthService) StartRefresher(ctx context.Context, interval time.Duration) {
+	go func() {
+		config := DefaultHealthConfig()
+		s.RefreshAll(config)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.RefreshAll(config)
+			}
+		}
+	}()
 }
 
 // computeMonitorHealthInternal performs the actual health computation
@@ -178,13 +227,9 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 	degradedCount := 0
 	unknownCount := 0
 
-	// Compute health for each monitor (uses cached value if fresh)
+	// Health per monitor comes from the stored value on the already-loaded rows
 	for _, monitor := range monitors {
-		computedHealth, err := s.ComputeMonitorHealth(monitor.ID, config)
-		if err != nil {
-			unknownCount++
-			continue
-		}
+		computedHealth := s.CachedHealth(monitor)
 
 		switch computedHealth {
 		case "up":
@@ -213,26 +258,33 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 	return overallHealth, upCount, downCount, degradedCount, nil
 }
 
-// DetectStaleMonitors finds monitors with stale data
+// DetectStaleMonitors finds monitors with stale data using one query for the latest report per monitor.
 func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]db.Monitor, error) {
 	var monitors []db.Monitor
 	threshold := time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes) * time.Minute)
 
-	// Get all active monitors
 	if err := s.db.Where("lifecycle = ?", "active").Find(&monitors).Error; err != nil {
+		return nil, err
+	}
+	if len(monitors) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, len(monitors))
+	for i, m := range monitors {
+		ids[i] = m.ID
+	}
+	latest, err := s.latestMonitorReports(ids)
+	if err != nil {
 		return nil, err
 	}
 
 	var staleMonitors []db.Monitor
 	for _, monitor := range monitors {
-		var latestReport db.MonitorReport
-		if err := s.db.Where("monitor_id = ?", monitor.ID).
-			Order("created_at DESC").
-			First(&latestReport).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				// No reports yet
-				staleMonitors = append(staleMonitors, monitor)
-			}
+		latestReport, ok := latest[monitor.ID]
+		if !ok {
+			// No reports yet
+			staleMonitors = append(staleMonitors, monitor)
 			continue
 		}
 
@@ -251,4 +303,22 @@ func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]d
 	}
 
 	return staleMonitors, nil
+}
+
+// latestMonitorReports returns the newest report per monitor in one query (uses the
+// (monitor_id, created_at) index).
+func (s *HealthService) latestMonitorReports(monitorIDs []string) (map[string]db.MonitorReport, error) {
+	var reports []db.MonitorReport
+	err := s.db.Raw(`
+		SELECT mr.* FROM monitor_reports mr
+		JOIN (SELECT monitor_id, MAX(created_at) AS m FROM monitor_reports WHERE monitor_id IN ? GROUP BY monitor_id) x
+		  ON mr.monitor_id = x.monitor_id AND mr.created_at = x.m`, monitorIDs).Scan(&reports).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]db.MonitorReport, len(reports))
+	for _, r := range reports {
+		out[r.MonitorID] = r
+	}
+	return out, nil
 }

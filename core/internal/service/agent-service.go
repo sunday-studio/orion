@@ -305,15 +305,21 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 		}
 	}
 
-	// Latest report per agent: uptime_seconds, Location.IP (N+1 acceptable for now)
+	// Latest report per agent in one query: uptime_seconds, Location.IP
 	uptimeMap := make(map[string]uint64)
 	ipMap := make(map[string]string)
-	for _, id := range ids {
-		var r db.AgentReport
-		if err := s.db.Where("agent_id = ?", id).Order("created_at DESC").Limit(1).First(&r).Error; err == nil {
-			uptimeMap[id] = r.UptimeSeconds
+	if len(ids) > 0 {
+		var latest []db.AgentReport
+		if err := s.db.Raw(`
+			SELECT ar.* FROM agent_reports ar
+			JOIN (SELECT agent_id, MAX(created_at) AS m FROM agent_reports WHERE agent_id IN ? GROUP BY agent_id) x
+			  ON ar.agent_id = x.agent_id AND ar.created_at = x.m`, ids).Scan(&latest).Error; err != nil {
+			s.logger.Error("Failed to load latest agent reports", "error", err)
+		}
+		for _, r := range latest {
+			uptimeMap[r.AgentID] = r.UptimeSeconds
 			if loc := r.Location.Data(); loc.IP != "" {
-				ipMap[id] = loc.IP
+				ipMap[r.AgentID] = loc.IP
 			}
 		}
 	}

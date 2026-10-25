@@ -91,7 +91,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	go func() {
 		healthService := NewHealthService(s.db, s.logger)
 		config := DefaultHealthConfig()
-		_, err := healthService.ComputeMonitorHealth(monitorID, config)
+		_, err := healthService.RecomputeMonitorHealth(monitorID, config)
 		if err != nil {
 			s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
 		} else {
@@ -229,32 +229,50 @@ func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*Upti
 	days := parsePeriod(period)
 	since := time.Now().AddDate(0, 0, -days)
 
-	var reports []db.MonitorReport
-	if err := s.db.Where("monitor_id = ? AND created_at >= ?", monitorID, since).
-		Order("created_at ASC").
-		Find(&reports).Error; err != nil {
-		s.logger.Error("Failed to get monitor reports for uptime", "monitor_id", monitorID, "error", err)
+	// Aggregate in SQL instead of loading every raw row into memory.
+	type dayRow struct {
+		Day   string
+		Up    int
+		Total int
+	}
+	var rows []dayRow
+	if err := s.db.Raw(`
+		SELECT substr(created_at, 1, 10) AS day,
+		       SUM(CASE WHEN health = 'up' THEN 1 ELSE 0 END) AS up,
+		       COUNT(*) AS total
+		FROM monitor_reports
+		WHERE monitor_id = ? AND created_at >= ?
+		GROUP BY day`, monitorID, since).Scan(&rows).Error; err != nil {
+		s.logger.Error("Failed to aggregate monitor reports for uptime", "monitor_id", monitorID, "error", err)
 		return nil, err
 	}
 
-	// Bucket by date (day)
+	// Days already pruned from monitor_reports live in the daily rollup table.
+	var rolled []db.MonitorDailyRollup
+	if err := s.db.Where(`monitor_id = ? AND "date" >= ?`, monitorID, since.Format("2006-01-02")).Find(&rolled).Error; err != nil {
+		s.logger.Error("Failed to load uptime rollups", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
 	type day struct {
 		up, total int
 	}
 	buckets := make(map[string]*day)
 	var totalUp, totalCount int
-
-	for _, r := range reports {
-		dateKey := r.CreatedAt.Format("2006-01-02")
-		if buckets[dateKey] == nil {
-			buckets[dateKey] = &day{}
+	add := func(key string, up, total int) {
+		if buckets[key] == nil {
+			buckets[key] = &day{}
 		}
-		buckets[dateKey].total++
-		totalCount++
-		if r.Health == "up" {
-			buckets[dateKey].up++
-			totalUp++
-		}
+		buckets[key].up += up
+		buckets[key].total += total
+		totalUp += up
+		totalCount += total
+	}
+	for _, r := range rows {
+		add(r.Day, r.Up, r.Total)
+	}
+	for _, r := range rolled {
+		add(r.Date, r.Up, r.Total)
 	}
 
 	// Build ordered daily_buckets for each day in range
