@@ -190,8 +190,9 @@ func TestGetNodeUptimeAggregatesActiveMonitorBuckets(t *testing.T) {
 	for _, bucket := range result.DailyBuckets {
 		buckets[bucket.Date] = bucket
 	}
-	if buckets["2026-05-12"].Up != 3 || buckets["2026-05-12"].Total != 4 {
-		t.Fatalf("node bucket = %+v, want active monitor aggregate counts", buckets["2026-05-12"])
+	// Node figures are weighted by check interval, so counts come back as seconds (60s monitors here).
+	if buckets["2026-05-12"].Up != 3*60 || buckets["2026-05-12"].Total != 4*60 {
+		t.Fatalf("node bucket = %+v, want active monitor aggregate counts weighted by interval", buckets["2026-05-12"])
 	}
 	if result.UptimePercent != 75 {
 		t.Fatalf("UptimePercent = %v, want 75", result.UptimePercent)

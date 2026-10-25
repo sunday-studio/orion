@@ -318,13 +318,27 @@ func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*Upti
 
 const uptimeDateLayout = "2006-01-02"
 
-type uptimeCounts struct{ up, total int }
+// uptimeCounts is one monitor-day: checks that came back up, checks that arrived, checks that should
+// have run but did not (downtime), and the monitor's interval in seconds as its weight when combined.
+type uptimeCounts struct{ up, total, missed, weight int }
 
-// monitorUptimeCounts returns per-monitor, per-day up/total counts for the last `days` days.
+// parseStoredTime reads the text SQLite hands back for MIN/MAX over a timestamp column.
+func parseStoredTime(s string) (time.Time, bool) {
+	for _, layout := range []string{"2006-01-02 15:04:05.999999999-07:00", "2006-01-02T15:04:05.999999999Z07:00", "2006-01-02 15:04:05.999999999"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.UTC(), true
+		}
+	}
+	return time.Time{}, false
+}
+
+// monitorUptimeCounts returns per-monitor, per-day counts for the last `days` days.
 //
 // Completed days come from monitor_uptime_rollups, so the cost does not grow with report volume.
 // Raw reports are only aggregated (in SQL, never loaded as rows) for today and for any completed
-// day that has no rollup yet (for example yesterday before the nightly job, or a missed run).
+// day that has no rollup yet (for example yesterday before the nightly job, or a missed run). For
+// those days silences before the first and after the last report count as missed checks; silences in
+// the middle are added when the day is rolled up.
 func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now time.Time) (map[string]map[string]*uptimeCounts, error) {
 	out := make(map[string]map[string]*uptimeCounts, len(monitorIDs))
 	for _, id := range monitorIDs {
@@ -339,6 +353,17 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 	today := dayStart(now)
 	todayKey := today.Format(uptimeDateLayout)
 
+	monitors, err := loadUptimeMonitors(s.db, monitorIDs)
+	if err != nil {
+		return nil, err
+	}
+	weightOf := func(id string) int {
+		if m, ok := monitors[id]; ok {
+			return int(m.interval() / time.Second)
+		}
+		return 60
+	}
+
 	var rollups []db.MonitorUptimeRollup
 	if err := s.db.Where("monitor_id IN ? AND date >= ? AND date < ?", monitorIDs, sinceKey, todayKey).Find(&rollups).Error; err != nil {
 		s.logger.Error("Failed to get monitor uptime rollups", "error", err)
@@ -346,7 +371,11 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 	}
 	hasRollup := make(map[string]map[string]bool, len(monitorIDs))
 	for _, r := range rollups {
-		out[r.MonitorID][r.Date] = &uptimeCounts{up: r.UpCount, total: r.TotalCount}
+		weight := r.IntervalSeconds
+		if weight <= 0 {
+			weight = weightOf(r.MonitorID)
+		}
+		out[r.MonitorID][r.Date] = &uptimeCounts{up: r.UpCount, total: r.TotalCount, missed: r.MissedCount, weight: weight}
 		if hasRollup[r.MonitorID] == nil {
 			hasRollup[r.MonitorID] = make(map[string]bool)
 		}
@@ -411,26 +440,98 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 		Day       string
 		Up        int
 		Total     int
+		FirstAt   string
+		LastAt    string
 	}
 	if err := s.db.Raw(`
 		SELECT monitor_id, substr(created_at, 1, 10) AS day,
 		       SUM(CASE WHEN health = 'up' THEN 1 ELSE 0 END) AS up,
-		       COUNT(*) AS total
+		       COUNT(*) AS total,
+		       MIN(created_at) AS first_at, MAX(created_at) AS last_at
 		FROM monitor_reports
 		WHERE monitor_id IN ? AND created_at >= ?
 		GROUP BY monitor_id, day`, monitorIDs, rawFrom).Scan(&rows).Error; err != nil {
 		s.logger.Error("Failed to aggregate monitor reports for uptime", "error", err)
 		return nil, err
 	}
+
+	// Gap accounting for the raw days: only from the day paused/maintenance history started.
+	gapsFrom := gapAccountingStart(s.db)
+	gapsOn := !gapsFrom.IsZero()
+	var excluded map[string][]timeSpan
+	if gapsOn {
+		if excluded, err = loadExcludedSpans(s.db, timeSpan{rawFrom, now}, monitors); err != nil {
+			return nil, err
+		}
+	}
+	missedFor := func(id string, day time.Time, firstAt, lastAt *time.Time) int {
+		m, ok := monitors[id]
+		if !gapsOn || !ok || day.Before(gapsFrom) {
+			return 0
+		}
+		window := timeSpan{day, day.AddDate(0, 0, 1)}
+		if window.end.After(now) {
+			window.end = now
+		}
+		cov := m.coverage(window)
+		if !cov.end.After(cov.start) {
+			return 0
+		}
+		if firstAt == nil {
+			return silentMissedChecks(cov, m.interval(), excluded[id])
+		}
+		lead, trail := timeSpan{cov.start, *firstAt}, timeSpan{*lastAt, cov.end}
+		return silentMissedChecks(lead, m.interval(), excluded[id]) + silentMissedChecks(trail, m.interval(), excluded[id])
+	}
+
+	seenRaw := make(map[string]map[string]bool)
 	for _, r := range rows {
-		if r.Day == todayKey || missing[r.MonitorID][r.Day] {
-			out[r.MonitorID][r.Day] = &uptimeCounts{up: r.Up, total: r.Total}
+		if !(r.Day == todayKey || missing[r.MonitorID][r.Day]) {
+			continue
+		}
+		day, err := time.Parse(uptimeDateLayout, r.Day)
+		if err != nil {
+			continue
+		}
+		first, okFirst := parseStoredTime(r.FirstAt)
+		last, okLast := parseStoredTime(r.LastAt)
+		counts := &uptimeCounts{up: r.Up, total: r.Total, weight: weightOf(r.MonitorID)}
+		if okFirst && okLast {
+			counts.missed = missedFor(r.MonitorID, day, &first, &last)
+		}
+		out[r.MonitorID][r.Day] = counts
+		if seenRaw[r.MonitorID] == nil {
+			seenRaw[r.MonitorID] = make(map[string]bool)
+		}
+		seenRaw[r.MonitorID][r.Day] = true
+	}
+
+	// Days (and today) with no report at all are silent for the whole time the monitor existed.
+	if gapsOn {
+		for id := range firstReport {
+			dayKeys := []string{todayKey}
+			for key := range missing[id] {
+				dayKeys = append(dayKeys, key)
+			}
+			for _, key := range dayKeys {
+				if seenRaw[id][key] {
+					continue
+				}
+				day, err := time.Parse(uptimeDateLayout, key)
+				if err != nil {
+					continue
+				}
+				if missed := missedFor(id, day, nil, nil); missed > 0 {
+					out[id][key] = &uptimeCounts{missed: missed, weight: weightOf(id)}
+				}
+			}
 		}
 	}
 	return out, nil
 }
 
-// uptimeResultFromCounts builds the ordered daily buckets and overall percent for a period.
+// uptimeResultFromCounts builds the ordered daily buckets and overall percent for a period. Missed
+// checks are downtime: a bucket's total is the checks that arrived plus the checks that did not.
 func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.Time) *UptimeResult {
 	since := now.AddDate(0, 0, -days)
 	daily := make([]UptimeDayBucket, 0, days)
@@ -439,9 +540,9 @@ func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.
 		key := since.AddDate(0, 0, d).Format(uptimeDateLayout)
 		bucket := UptimeDayBucket{Date: key}
 		if c := counts[key]; c != nil {
-			bucket.Up, bucket.Total = c.up, c.total
-			if c.total > 0 {
-				bucket.UptimePercent = 100 * float64(c.up) / float64(c.total)
+			bucket.Up, bucket.Total = c.up, c.total+c.missed
+			if bucket.Total > 0 {
+				bucket.UptimePercent = 100 * float64(c.up) / float64(bucket.Total)
 			}
 		}
 		daily = append(daily, bucket)
@@ -449,7 +550,7 @@ func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.
 	// Totals cover every counted day, including today, which has no bucket of its own.
 	for _, c := range counts {
 		totalUp += c.up
-		totalCount += c.total
+		totalCount += c.total + c.missed
 	}
 	pct := 0.0
 	if totalCount > 0 {
@@ -472,6 +573,9 @@ func (s *ReportService) GetNodeUptime(nodeID string, period string) (*UptimeResu
 	return s.getNodeUptime(nodeID, period, time.Now().UTC())
 }
 
+// getNodeUptime combines the node's monitors weighted by time: each monitor's counts are scaled by its
+// check interval, so a monitor checking every 10s counts the same as one checking every 60s. The
+// returned UpCount and TotalCount are therefore seconds, not checks.
 func (s *ReportService) getNodeUptime(nodeID string, period string, now time.Time) (*UptimeResult, error) {
 	var monitorIDs []string
 	if err := s.db.Model(&db.Monitor{}).Where("node_id = ? AND lifecycle = ?", nodeID, "active").Pluck("id", &monitorIDs).Error; err != nil {
@@ -494,8 +598,13 @@ func (s *ReportService) getNodeUptime(nodeID string, period string, now time.Tim
 			if combined[day] == nil {
 				combined[day] = &uptimeCounts{}
 			}
-			combined[day].up += c.up
-			combined[day].total += c.total
+			w := c.weight
+			if w <= 0 {
+				w = 60
+			}
+			combined[day].up += c.up * w
+			combined[day].total += c.total * w
+			combined[day].missed += c.missed * w
 		}
 	}
 	return uptimeResultFromCounts(combined, days, now), nil

@@ -11,7 +11,7 @@ import (
 
 func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testing.T) {
 	server := setupTestServer(t)
-	now := time.Now().UTC().Add(-1 * time.Hour)
+	now := time.Now().UTC().Add(-time.Minute) // recent: an older last report counts as a silent monitor
 
 	page := db.StatusPage{
 		ID:                        "status-page-history-test",
@@ -266,6 +266,14 @@ func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
 	}
 	if err := server.db.Create(&reports).Error; err != nil {
 		t.Fatalf("create reports: %v", err)
+	}
+	// The fixtures are a day old and nothing reported since; without this a silent monitor counts as
+	// downtime. Marking the nodes as in maintenance since then keeps the test about history aggregation.
+	for _, nodeID := range []string{monitorNode.ID, workerNode.ID} {
+		if err := server.db.Exec(`INSERT INTO uptime_exclusions (subject_type, subject_id, starts_at, ends_at) VALUES ('node_maintenance', ?, ?, NULL)`,
+			nodeID, now.Add(-time.Hour).Format("2006-01-02 15:04:05+00:00")).Error; err != nil {
+			t.Fatalf("exclude silence: %v", err)
+		}
 	}
 
 	resp := performJSONRequest(t, server, http.MethodGet, "/status/public-uptime-projection?format=json", nil, "")

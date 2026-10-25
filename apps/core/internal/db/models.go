@@ -211,17 +211,33 @@ type MonitorReport struct {
 }
 
 type MonitorUptimeRollup struct {
-	ID            int       `json:"id" gorm:"primaryKey"`
-	MonitorID     string    `json:"monitor_id" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date"`
-	Date          string    `json:"date" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date;index:idx_monitor_uptime_rollups_date"`
-	UpCount       int       `json:"up_count" gorm:"not null;default:0"`
-	DownCount     int       `json:"down_count" gorm:"not null;default:0"`
-	DegradedCount int       `json:"degraded_count" gorm:"not null;default:0"`
-	UnknownCount  int       `json:"unknown_count" gorm:"not null;default:0"`
-	TotalCount    int       `json:"total_count" gorm:"not null;default:0"`
-	UptimePercent float64   `json:"uptime_percent" gorm:"not null;default:0"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            int     `json:"id" gorm:"primaryKey"`
+	MonitorID     string  `json:"monitor_id" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date"`
+	Date          string  `json:"date" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date;index:idx_monitor_uptime_rollups_date"`
+	UpCount       int     `json:"up_count" gorm:"not null;default:0"`
+	DownCount     int     `json:"down_count" gorm:"not null;default:0"`
+	DegradedCount int     `json:"degraded_count" gorm:"not null;default:0"`
+	UnknownCount  int     `json:"unknown_count" gorm:"not null;default:0"`
+	TotalCount    int     `json:"total_count" gorm:"not null;default:0"`
+	UptimePercent float64 `json:"uptime_percent" gorm:"not null;default:0"`
+	// MissedCount is checks that should have run but did not during silences longer than the stale
+	// window, minus paused and maintenance time. They count as downtime.
+	MissedCount int `json:"missed_count" gorm:"not null;default:0"`
+	// IntervalSeconds is the monitor's check interval that day; it weights the monitor by time when
+	// uptimes are combined. 0 on rows written before it existed.
+	IntervalSeconds int       `json:"interval_seconds" gorm:"not null;default:0"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// UptimeExclusion is a period when a monitor was not expected to report (paused or in maintenance).
+// Rows are written by database triggers; see migration 000056.
+type UptimeExclusion struct {
+	ID          int64  `gorm:"primaryKey"`
+	SubjectType string // monitor_pause | monitor_maintenance | node_maintenance
+	SubjectID   string
+	StartsAt    time.Time
+	EndsAt      *time.Time
 }
 
 type CoreMonitorConfig struct {
