@@ -79,3 +79,27 @@ Pass criteria (from the plan): zero lost or duplicated alerts (the monitor soak 
 ## How the CI gate relates
 
 `go test ./...` runs `TestSoak` at 10 agents x 5 monitors for 10 s with a 35% webhook failure rate so the retry path is always exercised, and fails on any violation or an ingest p95 above 200 ms.
+
+## Uptime rollups: Overview and monitor list (2026-10-27)
+
+`BenchmarkUptimeEndpoints` (`apps/core/internal/api/uptime-bench_test.go`) seeds a file-backed WAL SQLite with raw reports for every monitor, rolls up each completed day, then times `GET /v1/monitors` (first page of 50) and `GET /v1/overview` through the real router. Darwin/arm64, M4 Pro. "Before" is `e9b90bcc`, the parent of `1b17e71e`; "after" is `1b17e71e`; HEAD is `9cc1e789`, which includes the time-based uptime in `1d172bbd`.
+
+```sh
+cd apps/core && ORION_BENCH_MONITORS=100 ORION_BENCH_DAYS=90 ORION_BENCH_INTERVAL=900 \
+  go test ./internal/api -run XXX -bench UptimeEndpoints -benchtime 5x
+```
+
+| Fleet (90 days of raw reports kept) | Build | `/v1/overview` | `/v1/monitors` |
+|---|---|---|---|
+| 100 monitors, 900 s interval, 864k rows | before | 2273 ms | 3.4 ms |
+| | after `1b17e71e` | 25 ms | 3.8 ms |
+| | HEAD | 29 ms | 3.9 ms |
+| 200 monitors, 300 s interval, 5.18M rows | before | 14175 ms | 5.9 ms |
+| | HEAD | 85 ms | 6.4 ms |
+
+Findings:
+
+- The rollup change fixes the Overview: about 90x at 864k rows and about 165x at 5.18M. The old cost grew with raw rows; the new cost grows with the rows of the current day, which is why HEAD went from 29 ms to 85 ms when the per-monitor check rate tripled.
+- The monitor list was not slow in this setup. Both builds take a few milliseconds for a 50-row page, so batching recent checks into one `UNION ALL` made no measurable difference here. It was probably cheap already because SQLite has no network round trip per query. Any real-world slowness in the list needs the slow-query log from a production database, not this fixture.
+- Time-based uptime (`1d172bbd`) cost about 4 ms on the Overview at 864k rows and is inside the noise on the list.
+- Not covered: the node and monitor detail uptime endpoints, the status page history endpoint, rollup job duration, and a database with missing rollups for completed days (those fall back to raw aggregation and will be slower).
