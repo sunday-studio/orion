@@ -79,24 +79,31 @@ func seedUptimeBench(b *testing.B, monitors, days, intervalSeconds int) *Server 
 	return NewServer(database, utils.NewLogger(), &config.Config{})
 }
 
-// BenchmarkUptimeEndpoints measures the two Console pages the uptime rollups were added for. Scale it
-// with ORION_BENCH_MONITORS, ORION_BENCH_DAYS and ORION_BENCH_INTERVAL (seconds).
+// BenchmarkUptimeEndpoints measures the Console pages the uptime rollups were added for, the detail
+// uptime endpoints (a status page component calls the same service methods per mapped monitor or node),
+// and the same endpoints after every rollup is deleted, which forces the raw-report fallback.
+// Scale it with ORION_BENCH_MONITORS, ORION_BENCH_DAYS and ORION_BENCH_INTERVAL (seconds).
 func BenchmarkUptimeEndpoints(b *testing.B) {
 	server := seedUptimeBench(b, benchEnvInt("ORION_BENCH_MONITORS", 100), benchEnvInt("ORION_BENCH_DAYS", 90), benchEnvInt("ORION_BENCH_INTERVAL", 900))
-	for _, path := range []string{"/v1/monitors", "/v1/overview"} {
-		b.Run(path, func(b *testing.B) {
-			req := httptest.NewRequest(http.MethodGet, path, nil)
-			if w := httptest.NewRecorder(); true {
-				server.router.ServeHTTP(w, req)
+	paths := []string{"/v1/monitors", "/v1/overview", "/v1/monitors/m0000/uptime?period=90d", "/v1/nodes/n1/uptime?period=90d"}
+	runAll := func(prefix string) {
+		for _, path := range paths {
+			b.Run(prefix+path, func(b *testing.B) {
+				w := httptest.NewRecorder()
+				server.router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 				if w.Code != http.StatusOK {
 					b.Fatalf("%s = %d %s", path, w.Code, w.Body.String())
 				}
-			}
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				w := httptest.NewRecorder()
-				server.router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-			}
-		})
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					server.router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
+				}
+			})
+		}
 	}
+	runAll("rollups")
+	if err := server.db.Exec("DELETE FROM monitor_uptime_rollups").Error; err != nil {
+		b.Fatal(err)
+	}
+	runAll("no-rollups")
 }

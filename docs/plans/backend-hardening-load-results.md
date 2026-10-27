@@ -103,3 +103,25 @@ Findings:
 - The monitor list was not slow in this setup. Both builds take a few milliseconds for a 50-row page, so batching recent checks into one `UNION ALL` made no measurable difference here. It was probably cheap already because SQLite has no network round trip per query. Any real-world slowness in the list needs the slow-query log from a production database, not this fixture.
 - Time-based uptime (`1d172bbd`) cost about 4 ms on the Overview at 864k rows and is inside the noise on the list.
 - Not covered: the node and monitor detail uptime endpoints, the status page history endpoint, rollup job duration, and a database with missing rollups for completed days (those fall back to raw aggregation and will be slower).
+
+### Detail endpoints and missing rollups (2026-10-27)
+
+Same benchmark, extended: it also times `GET /v1/monitors/{id}/uptime?period=90d` and `GET /v1/nodes/{id}/uptime?period=90d` (a status page component calls the same `GetMonitorUptime` and `GetNodeUptime` per mapped resource, so these are its per-mapping cost; the node case has every monitor mapped), then deletes every row in `monitor_uptime_rollups` and repeats, which forces the raw-report fallback for all 90 days. "Before" is `e9b90bcc`; HEAD is `9cc1e789`.
+
+| Fleet | Case | Build | Monitor uptime | Node uptime | Overview |
+|---|---|---|---|---|---|
+| 100 monitors, 864k rows | rollups present | before | 24 ms | 2227 ms | 2258 ms |
+| | | HEAD | 0.4 ms | 30 ms | 31 ms |
+| | no rollups | before | 22 ms | 2273 ms | 2207 ms |
+| | | HEAD | 10.7 ms | 1215 ms | 1168 ms |
+| 200 monitors, 5.18M rows | rollups present | before | 73 ms | 14561 ms | 14551 ms |
+| | | HEAD | 0.6 ms | 87 ms | 91 ms |
+| | no rollups | before | 74 ms | 15455 ms | 14699 ms |
+| | | HEAD | 37.5 ms | 8158 ms | 9146 ms |
+
+Findings:
+
+- Detail endpoints follow the Overview: with rollups, a single monitor is under 1 ms and a node with 200 monitors is under 100 ms. The before build ignored rollups, so its numbers did not change when they were deleted.
+- Without rollups the new code is only about 1.5 to 2x faster than before, because the SQL aggregation still scans every raw row for the missing days. A database with missing rollups is nearly as slow as the old code.
+- Rollups are only created by the daily job, which rolls up yesterday (`RunDailyMonitorUptimeRollup`, gated on `RollupsEnabled` and `shouldRunDailyJob`). Nothing backfills existing history. An install that upgrades with weeks of raw reports, or one whose Core was down at job time, keeps taking the slow path for those days until they are rolled up by hand. This is the main remaining risk of the uptime work.
+- Status page history (`/status/:slug/history`) was not timed directly; its cost is the per-mapping cost above times the number of mappings, and it caches within a request.
