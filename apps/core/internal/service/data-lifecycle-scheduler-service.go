@@ -13,6 +13,7 @@ const defaultDataLifecycleSchedulerInterval = time.Hour
 
 type DataLifecycleScheduleResult struct {
 	RollupRan                       bool `json:"rollup_ran"`
+	RollupBackfilledDays            int  `json:"rollup_backfilled_days"`
 	ArchiveRan                      bool `json:"archive_ran"`
 	SubscriberPrivacyRetentionRan   bool `json:"subscriber_privacy_retention_ran"`
 	SubscriberPrivacyRetentionCount int  `json:"subscriber_privacy_retention_count"`
@@ -69,6 +70,12 @@ func (s *DataLifecycleSchedulerService) RunDue(now time.Time) (*DataLifecycleSch
 		} else {
 			result.RollupRan = true
 		}
+		// Not gated on the daily marker: it is a cheap no-op once no completed day is missing a rollup.
+		days, err := NewRollupService(s.db, s.logger).BackfillMissingMonitorUptimeDays(now)
+		if err != nil {
+			runErrors = append(runErrors, err)
+		}
+		result.RollupBackfilledDays = days
 	}
 
 	if settings.ArchiveSchedule != "manual" && settings.ArchiveRawReports && shouldRunDailyJob(settings.LastArchiveRunAt, now) {
@@ -100,7 +107,7 @@ func (s *DataLifecycleSchedulerService) runAndLog(now time.Time) {
 		s.logger.Error("Scheduled data lifecycle run failed", "error", err)
 		return
 	}
-	if result.RollupRan || result.ArchiveRan || result.SubscriberPrivacyRetentionRan {
+	if result.RollupRan || result.RollupBackfilledDays > 0 || result.ArchiveRan || result.SubscriberPrivacyRetentionRan {
 		s.logger.Info("Scheduled data lifecycle run completed", "rollup_ran", result.RollupRan, "archive_ran", result.ArchiveRan, "subscriber_privacy_retention_ran", result.SubscriberPrivacyRetentionRan, "subscriber_privacy_retention_count", result.SubscriberPrivacyRetentionCount)
 	}
 }

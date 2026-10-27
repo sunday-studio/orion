@@ -125,3 +125,16 @@ Findings:
 - Without rollups the new code is only about 1.5 to 2x faster than before, because the SQL aggregation still scans every raw row for the missing days. A database with missing rollups is nearly as slow as the old code.
 - Rollups are only created by the daily job, which rolls up yesterday (`RunDailyMonitorUptimeRollup`, gated on `RollupsEnabled` and `shouldRunDailyJob`). Nothing backfills existing history. An install that upgrades with weeks of raw reports, or one whose Core was down at job time, keeps taking the slow path for those days until they are rolled up by hand. This is the main remaining risk of the uptime work.
 - Status page history (`/status/:slug/history`) was not timed directly; its cost is the per-mapping cost above times the number of mappings, and it caches within a request.
+
+### Rollup backfill (2026-10-27)
+
+`RollupService.BackfillMissingMonitorUptimeDays` (`apps/core/internal/service/rollup-backfill.go`) runs from the data lifecycle scheduler on every tick while rollups are enabled and the schedule is not manual. It finds completed days inside the last 365 days that have raw reports but no rollup rows and rolls them up, newest first, at most 31 days per tick, so a long history catches up over a few hourly ticks instead of one long job. Days with no raw reports are skipped (the read path handles them without scanning). Once nothing is missing it costs one `MIN(created_at)` and one distinct-date lookup on the rollup index.
+
+The benchmark now runs the backfill after deleting every rollup (in batches, as the scheduler would) and then repeats the endpoint timings.
+
+| Fleet | Backfill | Endpoints after backfill |
+|---|---|---|
+| 100 monitors, 864k rows, 90 days | 0.62 s in 3 ticks | same as "rollups present": Overview 30 ms, node uptime 30 ms, monitor uptime 0.4 ms |
+| 200 monitors, 5.18M rows, 90 days | 2.5 s in 3 ticks | not re-timed at this scale; expected to match the 5.18M "rollups present" row |
+
+The no-rollups case this replaces was 1.2 s (864k rows) and 9.1 s (5.18M rows) per Overview request. Backfilled days use the same gap accounting as the nightly job, so days before migration 000056 keep `missed_count` 0.

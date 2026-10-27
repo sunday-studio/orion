@@ -81,7 +81,8 @@ func seedUptimeBench(b *testing.B, monitors, days, intervalSeconds int) *Server 
 
 // BenchmarkUptimeEndpoints measures the Console pages the uptime rollups were added for, the detail
 // uptime endpoints (a status page component calls the same service methods per mapped monitor or node),
-// and the same endpoints after every rollup is deleted, which forces the raw-report fallback.
+// the same endpoints after every rollup is deleted (the raw-report fallback), and again after the
+// scheduler's backfill has rebuilt them.
 // Scale it with ORION_BENCH_MONITORS, ORION_BENCH_DAYS and ORION_BENCH_INTERVAL (seconds).
 func BenchmarkUptimeEndpoints(b *testing.B) {
 	server := seedUptimeBench(b, benchEnvInt("ORION_BENCH_MONITORS", 100), benchEnvInt("ORION_BENCH_DAYS", 90), benchEnvInt("ORION_BENCH_INTERVAL", 900))
@@ -106,4 +107,20 @@ func BenchmarkUptimeEndpoints(b *testing.B) {
 		b.Fatal(err)
 	}
 	runAll("no-rollups")
+
+	// The scheduler's catch-up: bounded batches of days, repeated until nothing is missing.
+	rollups := service.NewRollupService(server.db, utils.NewLogger())
+	started, ticks, days := time.Now(), 0, 0
+	for {
+		done, err := rollups.BackfillMissingMonitorUptimeDays(time.Now().UTC())
+		if err != nil {
+			b.Fatal(err)
+		}
+		if done == 0 {
+			break
+		}
+		ticks, days = ticks+1, days+done
+	}
+	b.Logf("backfill: %d days in %d ticks, %s total", days, ticks, time.Since(started).Round(time.Millisecond))
+	runAll("backfilled")
 }
