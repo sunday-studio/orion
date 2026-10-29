@@ -5,9 +5,10 @@ Orion uses `.github/workflows/ci.yml` for pull request and `main` branch validat
 The workflow is path-aware:
 
 - Server changes run `go test ./...` in `apps/node`.
-- Core changes run `make core-coverage`, upload package/function coverage artifacts, run race
-  detection on the Core service and worker packages, run the Core modernization lint gate, run
-  `govulncheck`, and build the Core API and worker binaries.
+- Core changes run `make core-coverage`, upload package/function coverage artifacts, run the Core
+  modernization lint gate, run `govulncheck`, and build the Core API and worker binaries. Race
+  detection is not part of CI because it roughly doubles the Core job; run `make core-race` locally
+  (it is part of `make core-backend-verify`) before Core backend PRs.
 - Console changes install dependencies with pnpm and run the Console build.
 - API or generated-contract changes regenerate OpenAPI and the Console SDK, then fail if committed
   Core generated files drift or SDK generation stops producing `apps/console/src/orion-sdk/index.ts`.
