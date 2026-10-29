@@ -14,6 +14,7 @@ var ErrNodeMonitorNotRemovable = errors.New("monitor is defined on the node, not
 
 // DeleteMonitor deletes a Core-managed monitor, or a Node monitor that was added in Orion (a
 // definition, including accepted discoveries). The Node stops running a definition once it is gone.
+// keepHistory only applies to Core-managed monitors; a Node monitor is always kept soft-deleted.
 func (s *CoreMonitorManagementService) DeleteMonitor(monitorID string, keepHistory bool) error {
 	err := s.DeleteCoreMonitorWith(monitorID, keepHistory)
 	if !errors.Is(err, ErrCoreManagedMonitorNotFound) {
@@ -38,9 +39,9 @@ func (s *CoreMonitorManagementService) DeleteMonitor(monitorID string, keepHisto
 		if err := resolveIncidentsForRemovedMonitor(tx, s.logger, monitorID); err != nil {
 			return err
 		}
-		if !keepHistory {
-			return purgeMonitorsHistory(tx, []string{monitorID})
-		}
+		// keepHistory is ignored: the row stays (soft-deleted, purged by retention) because the Node
+		// still holds the monitor until its next sync and then calls unregister-monitor, which fails
+		// with not found if the row was removed, and would keep failing on every later reconcile.
 		return tx.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(map[string]any{
 			"lifecycle":  "deleted",
 			"health":     "unknown",

@@ -70,4 +70,23 @@ func TestDeleteRemovesNodeMonitorsAddedInOrionAndRefusesNodeConfigOnes(t *testin
 	if lifecycle("mon-bulk") != "deleted" || definitions() != 0 {
 		t.Fatalf("bulk: lifecycle %q, %d definitions", lifecycle("mon-bulk"), definitions())
 	}
+
+	// keep_history=false must not remove a Node monitor's row: the Node still unregisters it on its
+	// next sync and that call must succeed (it fails with 404 if the row is gone).
+	server.db.Create(&db.Monitor{ID: "mon-purge", NodeID: nodeID, Name: "port 22", Type: "port", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 30, CreatedAt: now})
+	server.db.Create(&db.NodeMonitorDefinition{ID: "def-purge", NodeID: nodeID, Name: "port 22", CheckType: "port", Params: "{}", IntervalSeconds: 30, FailAfter: 3, CreatedAt: now})
+	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/mon-purge?keep_history=false", nil, ""); r.Code != http.StatusOK {
+		t.Fatalf("delete with keep_history=false = %d %s", r.Code, r.Body.String())
+	}
+	if lifecycle("mon-purge") != "deleted" {
+		t.Fatalf("lifecycle %q, want the row kept as deleted", lifecycle("mon-purge"))
+	}
+	if r := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+nodeID+"/unregister-monitor", gin.H{"monitor_id": "mon-purge"}, node.Data.Token); r.Code != http.StatusOK {
+		t.Fatalf("the node's unregister after a delete = %d %s", r.Code, r.Body.String())
+	}
+
+	// Deleting again is a clean 404, not an error.
+	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/mon-added", nil, ""); r.Code != http.StatusNotFound {
+		t.Fatalf("second delete = %d, want 404", r.Code)
+	}
 }

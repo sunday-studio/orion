@@ -105,7 +105,7 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 
 // deleteCoreMonitor deletes a Core-managed monitor.
 // @Summary      Delete a monitor
-// @Description  Delete a Core-managed monitor, or a Node monitor that was added in Orion (including an accepted discovery; the Node stops running it). Monitors declared in the Node config cannot be deleted here. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.
+// @Description  Delete a Core-managed monitor, or a Node monitor that was added in Orion (including an accepted discovery; the Node stops running it, and keep_history does not apply: its history is kept and purged by retention). Monitors declared in the Node config cannot be deleted here. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.
 // @Tags         monitors
 // @Produce      json
 // @ID           deleteCoreMonitor
