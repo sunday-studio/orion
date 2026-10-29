@@ -81,6 +81,7 @@ func (s *Server) recentMonitorChecks(ids []string) map[string][]recentCheck {
 		}
 		var rows []row
 		if err := s.db.Raw(strings.Join(parts, " UNION ALL "), args...).Scan(&rows).Error; err != nil {
+			s.logger.Error("Failed to load recent monitor checks", "monitors", len(chunk), "error", err)
 			continue
 		}
 		for _, r := range rows {

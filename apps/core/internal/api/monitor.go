@@ -402,7 +402,7 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 
 // getMonitorUptime returns monitor uptime over a period.
 // @Summary      Get monitor uptime
-// @Description  Returns daily uptime buckets and overall uptime percentage for a monitor.
+// @Description  Returns daily uptime buckets and overall uptime percentage for a monitor. Bucket up and total are check counts; total includes checks that should have run but did not, so silence counts as downtime (time paused or in maintenance is excluded).
 // @Tags         monitors
 // @Produce      json
 // @ID           getMonitorUptime

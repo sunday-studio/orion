@@ -179,8 +179,9 @@ func loadExcludedSpans(database *gorm.DB, window timeSpan, monitors map[string]u
 	return out, nil
 }
 
-// gapAccountingStart is the first day that has paused/maintenance history, or the zero time when the
-// migration marker is unavailable (then gap accounting stays off rather than guessing).
+// gapAccountingStart is the first full day that has paused/maintenance history, or the zero time when
+// the migration marker is unavailable (then gap accounting stays off rather than guessing). The
+// migration day itself is excluded: a pause that began and ended earlier that day was never recorded.
 func gapAccountingStart(database *gorm.DB) time.Time {
 	var applied *string
 	if err := database.Raw(`SELECT applied_at FROM schema_migrations WHERE version = ?`, gapAccountingMigration).Scan(&applied).Error; err != nil || applied == nil || len(*applied) < 10 {
@@ -190,5 +191,5 @@ func gapAccountingStart(database *gorm.DB) time.Time {
 	if err != nil {
 		return time.Time{}
 	}
-	return t
+	return t.AddDate(0, 0, 1)
 }

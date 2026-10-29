@@ -9802,7 +9802,7 @@ const docTemplate = `{
         },
         "/v1/monitors/{id}/uptime": {
             "get": {
-                "description": "Returns daily uptime buckets and overall uptime percentage for a monitor.",
+                "description": "Returns daily uptime buckets and overall uptime percentage for a monitor. Bucket up and total are check counts; total includes checks that should have run but did not, so silence counts as downtime (time paused or in maintenance is excluded).",
                 "produces": [
                     "application/json"
                 ],
@@ -11091,7 +11091,7 @@ const docTemplate = `{
         },
         "/v1/nodes/{id}/uptime": {
             "get": {
-                "description": "Returns daily uptime buckets and overall uptime percentage for a node.",
+                "description": "Returns daily uptime buckets and overall uptime percentage for a node. Monitors are weighted by time, so the up and total of each bucket are seconds (check counts scaled by the check interval of each monitor), and silence counts as downtime.",
                 "produces": [
                     "application/json"
                 ],

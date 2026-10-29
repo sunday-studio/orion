@@ -265,7 +265,7 @@ func (s *Server) publicStatusPageMappedResourceUptime(mapping StatusPageComponen
 	var err error
 	switch mapping.ResourceType {
 	case "monitor":
-		result, err = s.reportService.GetMonitorUptime(mapping.ResourceID, period)
+		result, err = s.reportService.GetMonitorUptimeWeighted(mapping.ResourceID, period)
 	case "node":
 		result, err = s.reportService.GetNodeUptime(mapping.ResourceID, period)
 	default:

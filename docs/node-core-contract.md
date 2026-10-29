@@ -272,6 +272,12 @@ defaults to 2000; excess output is counted in the final entry.
 - Core redacts sensitive monitor report payload values before `monitor_reports.payload` is persisted. The redaction boundary covers nested JSON keys and embedded text markers for tokens, passwords, secrets, API keys, authorization, credentials, sessions, cookies, and private keys.
 - Incident evidence, incident timeline evidence, monitor report history, and report inspection UI must read only the redacted monitor report payload projection. They may show status, timing, failure stage, redacted target summaries, and bounded response/error snippets, but must not expose raw request headers, bearer tokens, heartbeat tokens, cookies, passwords, API keys, or original secret-bearing response samples.
 
+### Uptime
+
+- Uptime is time-based and Core-owned; Nodes send nothing extra for it. A monitor has a check interval (the Core-managed one when set, otherwise the one the Node reports). A silence longer than the stale window (the same threshold health uses) counts the checks that should have run as `missed`, so a Node that stops reporting shows downtime. The first interval after a report is not counted, and neither is time while the monitor was paused, in a maintenance window, or its Node was in maintenance. Those periods are recorded in `uptime_exclusions` by database triggers, so every code path that pauses or schedules maintenance is covered. History starts the day after migration 000056; earlier days count only the reports that arrived.
+- Completed days are read from `monitor_uptime_rollups` (`up_count`, `total_count`, `missed_count`, `interval_seconds`). The lifecycle scheduler rolls up yesterday daily and, on every tick, backfills up to 31 completed days that have raw reports but no rollup (newest first, 365-day window). Days without a rollup are aggregated from raw reports; today counts its silences exactly, an unrolled completed day counts only the silence before its first and after its last report until it is rolled up.
+- API units: for a monitor, `daily_buckets[].up` and `total` are check counts and `total` includes missed checks. For a node they are seconds, the sum over its active monitors of check counts times their check interval, so every monitor weighs equally by time. Public status pages combine mapped monitors and nodes in seconds, so the `average` strategy is time-weighted across both.
+
 ## API Response Ownership Fields
 
 Monitor responses should add:

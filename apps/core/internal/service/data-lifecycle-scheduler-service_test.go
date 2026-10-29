@@ -130,3 +130,50 @@ func TestDataLifecycleSchedulerRunsOncePerDay(t *testing.T) {
 		t.Fatalf("RunDue() result = %+v, want no duplicate daily run", result)
 	}
 }
+
+func TestDataLifecycleSchedulerBackfillsOnEveryTickNotOncePerDay(t *testing.T) {
+	database := openArchiveTestDatabase(t)
+	logger := utils.NewLogger()
+	dataDir := t.TempDir()
+	now := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
+	if _, err := NewSettingsService(database, logger, dataDir).UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
+		RawReportHotDays: 30, RollupsEnabled: true, ArchiveSchedule: "daily",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for back := 1; back <= rollupBackfillMaxDaysPerRun+4; back++ {
+		insertArchiveMonitorReport(t, database, "monitor_a", "up", now.AddDate(0, 0, -back).Add(time.Hour))
+	}
+	scheduler := NewDataLifecycleSchedulerService(database, logger, dataDir, time.Hour)
+
+	first, err := scheduler.RunDue(now)
+	if err != nil || !first.RollupRan || first.RollupBackfilledDays == 0 {
+		t.Fatalf("first tick = %+v, %v; want the daily rollup and a backfill batch", first, err)
+	}
+	// Same day: the daily rollup is done, but the remaining history keeps catching up.
+	second, err := scheduler.RunDue(now.Add(time.Hour))
+	if err != nil || second.RollupRan || second.RollupBackfilledDays == 0 {
+		t.Fatalf("second tick = %+v, %v; want no daily rollup but more backfill", second, err)
+	}
+	third, err := scheduler.RunDue(now.Add(2 * time.Hour))
+	if err != nil || third.RollupBackfilledDays != 0 {
+		t.Fatalf("third tick = %+v, %v; want nothing left to backfill", third, err)
+	}
+}
+
+func TestDataLifecycleSchedulerDoesNotBackfillWhenRollupsAreOff(t *testing.T) {
+	database := openArchiveTestDatabase(t)
+	logger := utils.NewLogger()
+	dataDir := t.TempDir()
+	now := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
+	if _, err := NewSettingsService(database, logger, dataDir).UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
+		RawReportHotDays: 30, RollupsEnabled: false, ArchiveSchedule: "daily",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	insertArchiveMonitorReport(t, database, "monitor_a", "up", now.AddDate(0, 0, -3))
+	result, err := NewDataLifecycleSchedulerService(database, logger, dataDir, time.Hour).RunDue(now)
+	if err != nil || result.RollupRan || result.RollupBackfilledDays != 0 {
+		t.Fatalf("result = %+v, %v; want no rollup work", result, err)
+	}
+}

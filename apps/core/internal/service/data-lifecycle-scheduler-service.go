@@ -64,14 +64,18 @@ func (s *DataLifecycleSchedulerService) RunDue(now time.Time) (*DataLifecycleSch
 	result := &DataLifecycleScheduleResult{}
 	if settings.ArchiveSchedule == "manual" {
 		result.SkippedManual = true
-	} else if settings.RollupsEnabled && shouldRunDailyJob(settings.LastRollupRunAt, now) {
-		if _, err := NewRollupService(s.db, s.logger).RunDailyMonitorUptimeRollup(now); err != nil {
-			runErrors = append(runErrors, err)
-		} else {
-			result.RollupRan = true
+	} else if settings.RollupsEnabled {
+		rollups := NewRollupService(s.db, s.logger)
+		if shouldRunDailyJob(settings.LastRollupRunAt, now) {
+			if _, err := rollups.RunDailyMonitorUptimeRollup(now); err != nil {
+				runErrors = append(runErrors, err)
+			} else {
+				result.RollupRan = true
+			}
 		}
-		// Not gated on the daily marker: it is a cheap no-op once no completed day is missing a rollup.
-		days, err := NewRollupService(s.db, s.logger).BackfillMissingMonitorUptimeDays(now)
+		// Runs on every tick, not once a day: a long history catches up in batches and, once no
+		// completed day is missing a rollup, each tick costs two indexed lookups.
+		days, err := rollups.BackfillMissingMonitorUptimeDays(now)
 		if err != nil {
 			runErrors = append(runErrors, err)
 		}
@@ -108,7 +112,7 @@ func (s *DataLifecycleSchedulerService) runAndLog(now time.Time) {
 		return
 	}
 	if result.RollupRan || result.RollupBackfilledDays > 0 || result.ArchiveRan || result.SubscriberPrivacyRetentionRan {
-		s.logger.Info("Scheduled data lifecycle run completed", "rollup_ran", result.RollupRan, "archive_ran", result.ArchiveRan, "subscriber_privacy_retention_ran", result.SubscriberPrivacyRetentionRan, "subscriber_privacy_retention_count", result.SubscriberPrivacyRetentionCount)
+		s.logger.Info("Scheduled data lifecycle run completed", "rollup_ran", result.RollupRan, "rollup_backfilled_days", result.RollupBackfilledDays, "archive_ran", result.ArchiveRan, "subscriber_privacy_retention_ran", result.SubscriberPrivacyRetentionRan, "subscriber_privacy_retention_count", result.SubscriberPrivacyRetentionCount)
 	}
 }
 

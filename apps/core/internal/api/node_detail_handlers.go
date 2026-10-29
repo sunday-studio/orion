@@ -139,7 +139,7 @@ func (s *Server) getNodeReports(c *gin.Context) {
 
 // getNodeUptime returns node uptime over a period.
 // @Summary      Get node uptime
-// @Description  Returns daily uptime buckets and overall uptime percentage for a node.
+// @Description  Returns daily uptime buckets and overall uptime percentage for a node. Monitors are weighted by time, so the up and total of each bucket are seconds (check counts scaled by the check interval of each monitor), and silence counts as downtime.
 // @Tags         nodes
 // @Produce      json
 // @ID           getNodeUptime

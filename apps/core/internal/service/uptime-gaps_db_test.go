@@ -201,3 +201,77 @@ func TestExclusionTriggersRecordPauseAndMaintenance(t *testing.T) {
 		t.Fatal("node maintenance should record a window")
 	}
 }
+
+func TestExclusionTriggerFixes(t *testing.T) {
+	database := gapTestDatabase(t, "m1", 60)
+	open := func(subjectType, subjectID string) int64 {
+		var n int64
+		database.Model(&db.UptimeExclusion{}).Where("subject_type = ? AND subject_id = ? AND ends_at IS NULL", subjectType, subjectID).Count(&n)
+		return n
+	}
+
+	// A config created paused is recorded.
+	if err := database.Create(&db.CoreMonitorConfig{MonitorID: "m1", Kind: "http", Paused: true}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if open("monitor_pause", "m1") != 1 {
+		t.Fatal("a monitor created paused should open an exclusion")
+	}
+
+	// Node maintenance turned on when the column was NULL still fires.
+	database.Exec(`UPDATE nodes SET maintenance_mode = NULL WHERE id = ?`, "node_gap")
+	database.Exec(`UPDATE nodes SET maintenance_mode = 1 WHERE id = ?`, "node_gap")
+	if open("node_maintenance", "node_gap") != 1 {
+		t.Fatal("NULL -> 1 on maintenance_mode should open an exclusion")
+	}
+
+	// Exclusions go away with their monitor and node.
+	database.Exec(`DELETE FROM monitors WHERE id = ?`, "m1")
+	database.Exec(`DELETE FROM nodes WHERE id = ?`, "node_gap")
+	var left int64
+	database.Model(&db.UptimeExclusion{}).Count(&left)
+	if left != 0 {
+		t.Fatalf("%d exclusions left after deleting the monitor and node", left)
+	}
+}
+
+func TestUptimeTodayCountsMidDayOutage(t *testing.T) {
+	database := gapTestDatabase(t, "m1", 60)
+	addReports(t, database, "m1", "up", gapDay, 120, time.Minute)                  // 00:00-01:59
+	addReports(t, database, "m1", "up", gapDay.Add(4*time.Hour), 120, time.Minute) // 04:00-05:59, recovered
+	now := gapDay.Add(6 * time.Hour)
+
+	service := NewReportService(database, utils.NewLogger(), &config.Config{DataDir: t.TempDir()})
+	result, err := service.getMonitorUptime("m1", "7d", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The 2h silence between 01:59 and 04:00 is downtime now, not only after the nightly rollup.
+	if result.UpCount != 240 || result.TotalCount < 240+115 {
+		t.Fatalf("up/total = %d/%d, want 240 up and about 118 missed checks from the recovered outage", result.UpCount, result.TotalCount)
+	}
+}
+
+func TestStatusPageMonitorUptimeIsTimeWeighted(t *testing.T) {
+	database := gapTestDatabase(t, "m1", 30)
+	if err := database.Exec(`UPDATE schema_migrations SET applied_at = ? WHERE version = ?`, "2026-06-01 00:00:00+00:00", gapAccountingMigration).Error; err != nil {
+		t.Fatal(err)
+	}
+	addReports(t, database, "m1", "up", gapDay, 100, 30*time.Second)
+	service := NewReportService(database, utils.NewLogger(), &config.Config{DataDir: t.TempDir()})
+	now := gapDay.Add(36 * time.Hour)
+	plain, err := service.getMonitorUptime("m1", "7d", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	weighted, err := service.getMonitorUptimeWeighted("m1", "7d", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.TotalCount != 100 || weighted.TotalCount != 100*30 || weighted.UpCount != 100*30 {
+		t.Fatalf("plain total %d, weighted up/total %d/%d; want 100 checks and 3000 seconds", plain.TotalCount, weighted.UpCount, weighted.TotalCount)
+	}
+	if plain.UptimePercent != weighted.UptimePercent {
+		t.Fatalf("weighting changed the percentage: %v vs %v", plain.UptimePercent, weighted.UptimePercent)
+	}
+}

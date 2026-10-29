@@ -464,9 +464,20 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 			return nil, err
 		}
 	}
+	// Today is the one raw day counted exactly: its report times are read so a mid-day outage that has
+	// already recovered shows as downtime now, as the nightly rollup will count it. Unrolled completed
+	// days only count the silence before the first and after the last report; the backfill job rolls
+	// them up with the exact count.
+	var todayTimes map[string][]time.Time
+	if gapsOn {
+		if todayTimes, err = s.reportTimesSince(monitorIDs, today); err != nil {
+			return nil, err
+		}
+	}
 	missedFor := func(id string, day time.Time, firstAt, lastAt *time.Time) int {
 		m, ok := monitors[id]
-		if !gapsOn || !ok || day.Before(gapsFrom) {
+		// The rollup only covers active monitors, so the read path must agree.
+		if !gapsOn || !ok || m.Lifecycle != "active" || day.Before(gapsFrom) {
 			return 0
 		}
 		window := timeSpan{day, day.AddDate(0, 0, 1)}
@@ -479,6 +490,9 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 		}
 		if firstAt == nil {
 			return silentMissedChecks(cov, m.interval(), excluded[id])
+		}
+		if day.Equal(today) {
+			return missedChecks(todayTimes[id], cov, m.interval(), excluded[id])
 		}
 		lead, trail := timeSpan{cov.start, *firstAt}, timeSpan{*lastAt, cov.end}
 		return silentMissedChecks(lead, m.interval(), excluded[id]) + silentMissedChecks(trail, m.interval(), excluded[id])
@@ -559,6 +573,26 @@ func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.
 	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct, UpCount: totalUp, TotalCount: totalCount}
 }
 
+// reportTimesSince returns each monitor's report times from since onward, oldest first, for exact gap counting.
+func (s *ReportService) reportTimesSince(monitorIDs []string, since time.Time) (map[string][]time.Time, error) {
+	rows, err := s.db.Model(&db.MonitorReport{}).Select("monitor_id", "created_at").
+		Where("monitor_id IN ? AND created_at >= ?", monitorIDs, since).Order("monitor_id, created_at").Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string][]time.Time, len(monitorIDs))
+	for rows.Next() {
+		var id string
+		var at time.Time
+		if err := rows.Scan(&id, &at); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], at.UTC())
+	}
+	return out, rows.Err()
+}
+
 func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
 	days := parsePeriod(period)
 	counts, err := s.monitorUptimeCounts([]string{monitorID}, days, now)
@@ -566,6 +600,30 @@ func (s *ReportService) getMonitorUptime(monitorID string, period string, now ti
 		return nil, err
 	}
 	return uptimeResultFromCounts(counts[monitorID], days, now), nil
+}
+
+// GetMonitorUptimeWeighted is GetMonitorUptime with every count scaled by the monitor's check interval,
+// so UpCount, TotalCount and the daily buckets are seconds, the same unit GetNodeUptime returns. Status
+// pages combine monitors and nodes, and only counts in one unit can be added.
+func (s *ReportService) GetMonitorUptimeWeighted(monitorID string, period string) (*UptimeResult, error) {
+	return s.getMonitorUptimeWeighted(monitorID, period, time.Now().UTC())
+}
+
+func (s *ReportService) getMonitorUptimeWeighted(monitorID string, period string, now time.Time) (*UptimeResult, error) {
+	days := parsePeriod(period)
+	counts, err := s.monitorUptimeCounts([]string{monitorID}, days, now)
+	if err != nil {
+		return nil, err
+	}
+	scaled := make(map[string]*uptimeCounts, len(counts[monitorID]))
+	for day, c := range counts[monitorID] {
+		w := c.weight
+		if w <= 0 {
+			w = 60
+		}
+		scaled[day] = &uptimeCounts{up: c.up * w, total: c.total * w, missed: c.missed * w, weight: w}
+	}
+	return uptimeResultFromCounts(scaled, days, now), nil
 }
 
 // GetNodeUptime aggregates uptime from the node's active monitors.

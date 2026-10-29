@@ -138,3 +138,5 @@ The benchmark now runs the backfill after deleting every rollup (in batches, as 
 | 200 monitors, 5.18M rows, 90 days | 2.5 s in 3 ticks | not re-timed at this scale; expected to match the 5.18M "rollups present" row |
 
 The no-rollups case this replaces was 1.2 s (864k rows) and 9.1 s (5.18M rows) per Overview request. Backfilled days use the same gap accounting as the nightly job, so days before migration 000056 keep `missed_count` 0.
+
+After the staff-review fixes (exact gap counting for today, active-only monitors on the read path), the 100-monitor / 864k-row run measured Overview 35 ms and node uptime 34 ms (was 30 ms), monitor uptime 0.4 ms, backfill 0.64 s. The extra few milliseconds are the read of today's report times.
