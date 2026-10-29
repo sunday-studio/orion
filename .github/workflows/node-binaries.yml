@@ -108,6 +108,10 @@ jobs:
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
+        with:
+          # cosign 3 only writes a bundle and ignores --output-signature/--output-certificate; the release
+          # assets and node-bootstrap.sh's verify-blob use the separate SHA256SUMS.sig and SHA256SUMS.pem.
+          cosign-release: v2.6.5
 
       - name: Sign checksums (keyless)
         working-directory: dist
