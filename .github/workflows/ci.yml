@@ -84,13 +84,13 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
       - name: Set up Go
         if: needs.changes.outputs.contracts == 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
@@ -138,7 +138,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
@@ -173,7 +173,7 @@ jobs:
         working-directory: apps/core
 
       - name: Lint Core
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
           working-directory: apps/core
@@ -194,7 +194,7 @@ jobs:
         working-directory: apps/core
 
       - name: Upload Core coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: core-coverage
           path: |
@@ -217,7 +217,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: apps/node/go.mod
           cache-dependency-path: apps/node/go.sum
@@ -258,7 +258,7 @@ jobs:
         working-directory: apps/node
 
       - name: Upload Server coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: server-coverage
           path: |
