@@ -113,7 +113,7 @@ type BulkMonitorResult struct {
 
 // bulkMonitorAction applies one action to many monitors.
 // @Summary      Bulk monitor action
-// @Description  Pause, resume, set maintenance, delete or clone up to 100 monitors. Each id succeeds or fails on its own. Pause, resume, delete and clone apply to Core-managed monitors only.
+// @Description  Pause, resume, set maintenance, delete or clone up to 100 monitors. Each id succeeds or fails on its own. Pause, resume and clone apply to Core-managed monitors only. Delete also removes Node monitors added in Orion (including accepted discoveries).
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
@@ -164,7 +164,7 @@ func (s *Server) bulkMonitorAction(c *gin.Context) {
 		case "resume":
 			_, err = s.coreMonitorManagementService.ResumeCoreMonitor(id)
 		case "delete":
-			err = s.coreMonitorManagementService.DeleteCoreMonitorWith(id, keep)
+			err = s.coreMonitorManagementService.DeleteMonitor(id, keep)
 		case "clone":
 			var record *service.CoreManagedMonitorRecord
 			if record, err = s.coreMonitorManagementService.CloneCoreMonitor(id); err == nil {
@@ -186,6 +186,8 @@ func (s *Server) bulkMonitorAction(c *gin.Context) {
 
 func bulkMonitorError(err error, action string) string {
 	switch {
+	case errors.Is(err, service.ErrNodeMonitorNotRemovable):
+		return "This monitor is defined in the Node config; remove it there"
 	case errors.Is(err, service.ErrCoreManagedMonitorNotFound) && action != "maintenance":
 		return "Only Core-managed monitors can be " + map[string]string{"pause": "paused", "resume": "resumed", "delete": "deleted", "clone": "cloned"}[action] + " here"
 	case errors.Is(err, service.ErrMonitorNotFound):

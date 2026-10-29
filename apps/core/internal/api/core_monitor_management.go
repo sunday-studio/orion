@@ -104,8 +104,8 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 }
 
 // deleteCoreMonitor deletes a Core-managed monitor.
-// @Summary      Delete a Core monitor
-// @Description  Delete a Core-managed monitor. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.
+// @Summary      Delete a monitor
+// @Description  Delete a Core-managed monitor, or a Node monitor that was added in Orion (including an accepted discovery; the Node stops running it). Monitors declared in the Node config cannot be deleted here. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.
 // @Tags         monitors
 // @Produce      json
 // @ID           deleteCoreMonitor
@@ -116,7 +116,15 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id} [delete]
 func (s *Server) deleteCoreMonitor(c *gin.Context) {
-	if err := s.coreMonitorManagementService.DeleteCoreMonitorWith(c.Param("id"), utils.QueryBool(c, "keep_history", true)); err != nil {
+	if err := s.coreMonitorManagementService.DeleteMonitor(c.Param("id"), utils.QueryBool(c, "keep_history", true)); err != nil {
+		if errors.Is(err, service.ErrNodeMonitorNotRemovable) {
+			utils.BadRequest(c, "This monitor is defined in the Node config; remove it there")
+			return
+		}
+		if errors.Is(err, service.ErrMonitorNotFound) {
+			utils.NotFound(c, "Monitor not found")
+			return
+		}
 		s.handleCoreMonitorManagementError(c, err, "Failed to delete core monitor")
 		return
 	}

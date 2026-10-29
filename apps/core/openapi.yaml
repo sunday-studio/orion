@@ -10979,9 +10979,11 @@ paths:
       - monitors
   /v1/monitors/{id}:
     delete:
-      description: Delete a Core-managed monitor. Its active incident is resolved.
-        The default keeps check history for 90 days; keep_history=false deletes it
-        immediately. Incidents are never deleted.
+      description: Delete a Core-managed monitor, or a Node monitor that was added
+        in Orion (including an accepted discovery; the Node stops running it). Monitors
+        declared in the Node config cannot be deleted here. Its active incident is
+        resolved. The default keeps check history for 90 days; keep_history=false
+        deletes it immediately. Incidents are never deleted.
       operationId: deleteCoreMonitor
       parameters:
       - description: Monitor ID
@@ -11017,7 +11019,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
-      summary: Delete a Core monitor
+      summary: Delete a monitor
       tags:
       - monitors
     get:
@@ -11567,8 +11569,9 @@ paths:
       consumes:
       - application/json
       description: Pause, resume, set maintenance, delete or clone up to 100 monitors.
-        Each id succeeds or fails on its own. Pause, resume, delete and clone apply
-        to Core-managed monitors only.
+        Each id succeeds or fails on its own. Pause, resume and clone apply to Core-managed
+        monitors only. Delete also removes Node monitors added in Orion (including
+        accepted discoveries).
       operationId: bulkMonitorAction
       parameters:
       - description: Bulk action
