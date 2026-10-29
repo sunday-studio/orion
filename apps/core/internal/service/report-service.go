@@ -470,7 +470,14 @@ func (s *ReportService) monitorUptimeCounts(monitorIDs []string, days int, now t
 	// them up with the exact count.
 	var todayTimes map[string][]time.Time
 	if gapsOn {
-		if todayTimes, err = s.reportTimesSince(monitorIDs, today); err != nil {
+		// Inactive monitors count no missed checks, so their report times are not needed.
+		var active []string
+		for _, id := range monitorIDs {
+			if m, ok := monitors[id]; ok && m.Lifecycle == "active" {
+				active = append(active, id)
+			}
+		}
+		if todayTimes, err = s.reportTimesSince(active, today); err != nil {
 			return nil, err
 		}
 	}
@@ -575,6 +582,9 @@ func uptimeResultFromCounts(counts map[string]*uptimeCounts, days int, now time.
 
 // reportTimesSince returns each monitor's report times from since onward, oldest first, for exact gap counting.
 func (s *ReportService) reportTimesSince(monitorIDs []string, since time.Time) (map[string][]time.Time, error) {
+	if len(monitorIDs) == 0 {
+		return map[string][]time.Time{}, nil
+	}
 	rows, err := s.db.Model(&db.MonitorReport{}).Select("monitor_id", "created_at").
 		Where("monitor_id IN ? AND created_at >= ?", monitorIDs, since).Order("monitor_id, created_at").Rows()
 	if err != nil {
