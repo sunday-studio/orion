@@ -37,7 +37,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	server := control.NewServer(opts.SocketPath, ctrl)
 	if err := server.Start(); err != nil {
 		// The socket is a convenience for operators; never block reporting on it.
-		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "warn", Name: "Control socket unavailable", Detail: firstLineOf(err.Error())}}))
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "warn", Name: "Control socket unavailable", Detail: firstLineOf(err.Error()) + " (fix: sudo orion-node restart)"}}))
 	} else {
 		defer server.Close()
 		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Control socket listening", Detail: server.Path()}}))

@@ -7,6 +7,8 @@ The daemon (`orion-node run`) listens on a local unix socket so operators can in
 | Default path | `/run/orion/node.sock` | `/usr/local/var/run/orion/node.sock` |
 | Mode / group | `0660`, group `orion` | `0660`, group `orion` or `admin` |
 
+The socket folder must exist and belong to the service account. On Linux systemd creates it (`RuntimeDirectory=orion`). On macOS nothing does at runtime, because the daemon runs as the unprivileged `_orion` and cannot create folders under `/usr/local/var/run`: the installer creates `/usr/local/var/run/orion`, and `orion-node start`, `restart` and `update` (all root) create it for installs that predate that. Until it exists the node still reports to Core, but `status`, `doctor` and `restart` cannot see it; the fix is `sudo orion-node restart`. Custom `--socket` paths are never created or chowned for you.
+
 Override with `--socket` or `ORION_NODE_SOCKET`. The node token is never returned by any endpoint.
 
 | Route | Purpose |

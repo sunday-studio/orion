@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"orion/node/internal/control"
 	"os"
 	"os/exec"
 	"strconv"
@@ -164,6 +165,8 @@ func StartService() error {
 func StartServiceResult() ServiceControlResult {
 	manager := DetectServiceManagerType()
 	result := ServiceControlResult{Action: "start", Manager: manager}
+	// Older macOS installs never got the socket folder; start, restart and update all pass through here as root.
+	_ = control.EnsureSocketDir(control.DefaultSocketPath())
 
 	switch manager {
 	case ServiceManagerSystemd:

@@ -94,7 +94,12 @@ func checkService(_ context.Context, e *Env) Result {
 		if e.Daemon.Err != nil && strings.Contains(e.Daemon.Err.Error(), "permission") {
 			return warn(msg, "sudo usermod -aG orion $USER   (then log out and in)").titled("Control socket is not readable", msg)
 		}
-		return warn(msg, "orion-node restart").titled("Control socket is not reachable", msg)
+		fix := "orion-node restart"
+		if e.GOOS == "darwin" {
+			// A restart as root also creates the socket folder that older macOS installs are missing.
+			fix = "sudo orion-node restart"
+		}
+		return warn(msg, fix).titled("Control socket is not reachable", msg)
 	}
 	manager := "systemd"
 	if e.GOOS == "darwin" {

@@ -259,8 +259,25 @@ The server stays listed in the Console after an uninstall. Remove it there (open
 | Config | `/etc/orion/config.yaml` | `/usr/local/etc/orion/config.yaml` |
 | State (identity, token) | `/var/lib/orion/state.db` | `/usr/local/var/lib/orion/state.db` |
 | Log | `/var/log/orion/node.log` | `/usr/local/var/log/orion/node.log` |
+| Control socket | `/run/orion/node.sock` | `/usr/local/var/run/orion/node.sock` |
 | Service | `/etc/systemd/system/orion-node.service` | `/Library/LaunchDaemons/com.orion.node.plist` |
 | Runs as | user `orion` | user `_orion` |
+
+**Doctor says "control socket not reachable" on macOS.** The node is running and reporting to Core, but
+`status`, `doctor` and `restart` cannot reach it. Installs made before Node 0.3.1 did not create the
+socket folder, and `_orion` cannot create it under the root-owned `/usr/local/var/run`. The node log
+then shows `create socket directory: mkdir /usr/local/var/run: permission denied`. Run
+
+```sh
+sudo orion-node restart
+```
+
+which creates the folder for the service account, or upgrade with `sudo orion-node update` (any update
+does the same). Installing again also fixes it. To do it by hand:
+
+```sh
+sudo install -d -m 0750 -o _orion -g _orion /usr/local/var/run/orion && sudo orion-node restart
+```
 
 The service logs are JSON lines; `orion-node logs` prints them readably and falls back to
 `journalctl -u orion-node` (Linux) or `launchctl print system/com.orion.node` (macOS) when the log file

@@ -607,6 +607,7 @@ install_macos() {
   state_path="$state_dir/state.db"
   log_dir="/usr/local/var/log/orion"
   log_path="$log_dir/node.log"
+  socket_dir="/usr/local/var/run/orion"
   plist_path="/Library/LaunchDaemons/com.orion.node.plist"
 
   step "Service account"
@@ -616,7 +617,10 @@ install_macos() {
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$config_dir"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$state_dir"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$log_dir"
-  ok "prepared $config_dir, $state_dir, and $log_dir"
+  # The daemon runs as $MACOS_USER and cannot create this under root-owned /usr/local/var/run itself,
+  # so without it the control socket never starts and status, doctor and restart cannot reach the node.
+  run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$socket_dir"
+  ok "prepared $config_dir, $state_dir, $log_dir, and $socket_dir"
 
   install_binary "$binary"
 

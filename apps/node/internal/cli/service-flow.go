@@ -184,22 +184,30 @@ func startOrRestart(opts *Options, title string, restart bool) error {
 	}
 	began := time.Now()
 	if restart {
-		if err := RestartService(); err != nil {
-			return serviceFailure(opts, svc, "Could not restart the service", err)
+		var restartErr error
+		runWithProgress("Restarting the service", func() { restartErr = RestartService() })
+		if restartErr != nil {
+			return serviceFailure(opts, svc, "Could not restart the service", restartErr)
 		}
 		out := []opStep{{Mark: "ok", Name: "Stopped"}, {Mark: "ok", Name: "Started"}}
 		healthy := opStep{Mark: "ok", Name: "Healthy", Detail: "reporting again"}
-		if !waitForReport(opts, began, 30*time.Second) {
+		reported := false
+		runWithProgress("Waiting for the first report", func() { reported = waitForReport(opts, began, 30*time.Second) })
+		if !reported {
 			healthy = opStep{Mark: "warn", Name: "Started, not reporting yet", Detail: "check: orion-node status"}
 		}
 		healthy.TookMS = time.Since(began).Milliseconds()
 		fmt.Fprint(outputWriter, "\n"+opLines(theme, append(out, healthy)))
 		return nil
 	}
-	if err := StartService(); err != nil {
-		return serviceFailure(opts, append(steps, svc...), "Could not start the service", err)
+	var startErr error
+	runWithProgress("Starting the service", func() { startErr = StartService() })
+	if startErr != nil {
+		return serviceFailure(opts, append(steps, svc...), "Could not start the service", startErr)
 	}
-	st, ok := waitForDaemon(opts, 8*time.Second)
+	var st control.Status
+	var ok bool
+	runWithProgress("Waiting for the node to answer", func() { st, ok = waitForDaemon(opts, 8*time.Second) })
 	svc = append(svc, opStep{Mark: "ok", Name: "Started", Detail: serviceDetail(st, ok), TookMS: time.Since(began).Milliseconds()})
 	fmt.Fprint(outputWriter, startScreen(theme, title, steps, svc, runningLine(st, ok), "orion-node status"))
 	return nil
