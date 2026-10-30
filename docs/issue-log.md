@@ -7,6 +7,7 @@ Known problems and follow-ups that are not fixed yet, newest first. Add a row wh
 
 | ID | Found | Area | Issue | Next step |
 |---|---|---|---|---|
+| I-010 | 2026-10-30 | console | The status bars in the monitor list are drawn with uneven widths, so some bars look wider than their neighbours (subpixel rounding). The hover tooltip only says "up", with no time or detail | Size the bars from whole pixels or a fixed grid; show the time and status in the tooltip. Screenshot: Monitors list, status column |
 | I-009 | 2026-10-30 | node | The Console showed the container scan as off on a Node where nothing had turned it off, so containers were not listed until it was switched on. Cause not found: the Node's default is all kinds on | Check how a Node's scan kinds are stored and what the Console sends; confirm a fresh install lists containers |
 | I-008 | 2026-10-30 | node | `EnsureSocketDir` follows symlinks, so an admin could plant a symlink at `/usr/local/var/run/orion` and have root chown its target. Low impact (reviewer P3) | `Lstat` the folder first and skip it when it is a symlink or not a folder |
 | I-007 | 2026-10-30 | node | No tests for the root, chown and `_orion`-missing branches of `EnsureSocketDir`, or for the `sudo orion-node restart` doctor hint; the ignored error is not logged (reviewer P3) | Inject the OS, uid and lookups so the branches are testable; log the error at debug level |
