@@ -57,7 +57,7 @@ curl -fsSL  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/.e
 
 Edit `.env` and set `ORION_ADMIN_PASSWORD` (for example `openssl rand -base64 24 | tr -d '/+='`),
 `ORION_JWT_SECRET` (`openssl rand -hex 32`) and `ORION_PUBLIC_URL` (`http://<server-ip>:8999`, or your
-domain). Optionally pin `ORION_CORE_IMAGE` to a release such as `ghcr.io/sunday-studio/orion-core:0.3.0`.
+domain). Optionally pin `ORION_CORE_IMAGE` to a release such as `ghcr.io/sunday-studio/orion-core:0.3.1`.
 Then:
 
 ```sh
