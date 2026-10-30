@@ -12,7 +12,8 @@ export const Checkbox = ({
     data-slot="ds-checkbox"
     className={cn(
       controlBase,
-      "flex size-4 shrink-0 items-center justify-center rounded border border-input-border bg-card text-white data-[checked]:border-brand data-[checked]:bg-brand",
+      // The before: layer widens the tap target to 36px without changing how the box looks.
+      "relative flex size-4 shrink-0 items-center before:absolute before:-inset-2.5 before:content-[''] justify-center rounded border border-input-border bg-card text-white data-[checked]:border-brand data-[checked]:bg-brand",
       className,
     )}
     {...props}
