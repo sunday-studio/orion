@@ -3,7 +3,7 @@ import type * as React from "react";
 import { cn } from "@/utils/cn";
 
 const badgeStyles = cva(
-  "inline-flex h-5 w-fit items-center gap-[5px] rounded-md pl-[7px] pr-2 text-xs font-medium leading-none capitalize",
+  "inline-flex h-5 w-fit items-center gap-[5px] rounded-md pl-[7px] pr-2 text-xs font-medium leading-none",
   {
     variants: {
       tone: {
@@ -72,7 +72,7 @@ export type BadgeProps = React.ComponentProps<"span"> &
 export const Badge = ({ tone, shape, className, children, ...props }: BadgeProps) => (
   <span data-slot="ds-badge" className={cn(badgeStyles({ tone }), className)} {...props}>
     <Glyph shape={shape ?? defaultShape[tone ?? "unknown"]} />
-    {children}
+    <span className="first-letter:uppercase">{children}</span>
   </span>
 );
 
