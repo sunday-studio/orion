@@ -1,6 +1,6 @@
 """Mobile screens, part B: servers, monitors, logs, deliveries, more, states."""
 from common import ic
-from parts import hd, dhd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo, si, rw, gh, pill
+from parts import hd, dhd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo, rw, gh, pill
 
 
 
@@ -62,12 +62,12 @@ def logs(d):
     hist = '<div class="row" style="gap:2px;height:36px;align-items:flex-end;margin:0 16px 12px">%s</div>' % "".join(
         '<i style="flex:1;background:%s;height:%dpx"></i>' % ("var(--dnx)" if i > 20 else "var(--bd)", h) for i, h in enumerate([8, 6, 9, 7, 8, 6, 10, 7, 9, 8, 7, 6, 9, 8, 7, 10, 8, 9, 12, 16, 24, 30, 34, 28]))
     return (hd(back="More", right=("search",)) + '<h1 class="ttl">Logs</h1><div class="ut"><a href="#">Events</a><a href="#" class="on">Service logs</a></div>' +
-            '<div class="row g8" style="padding:0 16px 12px"><div class="fld" style="flex:1;min-height:44px"><span class="fa">%s</span><span class="v fa">level:error api</span></div><a href="#" class="btn" style="min-width:44px;padding:0 12px"><span class="s dn" style="width:8px;height:8px;border-radius:50%%;background:var(--dnx)"></span>Live</a></div>' % ic("search", 18) +
+            '<div class="row g8" style="padding:0 16px 12px"><div class="fld" style="flex:1;min-height:44px"><span class="fa">%s</span><span class="v fa">level:error api</span></div><a href="#" class="btn" style="min-width:44px;padding:0 12px">Live</a></div>' % ic("search", 18) +
             sc('<div class="chips"><span class="chip on">Error+ %s</span><span class="chip">api-gateway %s</span><span class="chip">Last hour %s</span></div>%s<div style="background:var(--sf);border-top:1px solid var(--bd)">%s</div>' % (ic("x", 12), ic("down", 12), ic("down", 12), hist, LOGS)) + tabs("More"))
 
 
 def logs_live(d):
-    return ('<div class="hd" style="padding-bottom:0"><a href="#" class="core" aria-label="Back">%s<span>Logs</span></a><span class="b" style="background:var(--dnb);color:var(--dnt)"><span class="s dn" style="width:8px;height:8px;border-radius:50%%"></span>Live</span></div>'
+    return ('<div class="hd" style="padding-bottom:0"><a href="#" class="core" aria-label="Back">%s<span>Logs</span></a><span class="b dn">Live</span></div>'
             '<div class="row sp" style="padding:8px 16px"><span class="sm mu">api-gateway &middot; Error+ &middot; 14 lines/s</span></div>'
             '<div class="sc" style="background:var(--sf);border-top:1px solid var(--bd);position:relative">%s%s</div>'
             '<div class="bar" style="padding-bottom:30px"><a href="#" class="btn f">%s Pause</a><a href="#" class="btn f">Filters</a></div>') % (
@@ -114,7 +114,7 @@ def delivery_detail(d):
 def more(d):
     li = lambda i, t, s="", b="": '<a href="#" class="li"><span style="color:var(--mu)">%s</span><div class="t"><b>%s</b>%s</div>%s%s</a>' % (ic(i, 22), t, ("<small>%s</small>" % s) if s else "", b, ic("chev", 18))
     return (hd(right=()) + '<h1 class="ttl">More</h1>' + sc(
-        '<div class="pad" style="margin-bottom:8px"><a href="#" class="card cp row" style="text-decoration:none;color:inherit"><span class="s up"></span><div class="col g4" style="flex:1"><b class="med">Production</b><span class="xs mu">orion.example.com &middot; Orion 0.14 &middot; 2 issues</span></div><span class="btn sm">Switch</span></a></div>'
+        '<div class="pad" style="margin-bottom:8px"><a href="#" class="card cp row" style="text-decoration:none;color:inherit"><div class="col g4" style="flex:1"><b class="med">Production</b><span class="xs mu">orion.example.com &middot; Orion 0.14 &middot; 2 issues</span></div><span class="btn sm">Switch</span></a></div>'
         '<div class="list">%s%s%s</div><div class="sec">App</div><div class="list">%s%s</div>'
         '<div class="pad" style="padding-top:20px"><a href="#" class="btn f" style="width:100%%;color:var(--dnt)">Forget this Core</a><p class="xs fa ctr" style="margin:14px 0 0">Orion Mobile 1.0 (24) &middot; This device: iPhone 15</p></div>' % (
             li("log", "Logs", "Events and service logs"), li("send", "Alert deliveries", "What was sent where", '<span class="b dn">1 failed</span>'), li("search", "Search", "Servers, monitors, incidents"),
@@ -122,9 +122,9 @@ def more(d):
 
 
 def search(d):
-    res = ('<div class="sec">Incidents</div><div class="list"><a href="#" class="li"><span class="s dn"></span><div class="t"><b>api.example.com unreachable</b><small>INC-0231 &middot; Open</small></div></a></div>'
-           '<div class="sec">Monitors</div><div class="list"><a href="#" class="li"><span class="s dn"></span><div class="t"><b>api-https</b><small>HTTP &middot; Down</small></div></a><a href="#" class="li"><span class="s up"></span><div class="t"><b>api-grpc</b><small>TCP &middot; Up</small></div></a></div>'
-           '<div class="sec">Servers</div><div class="list"><a href="#" class="li"><span class="s dg"></span><div class="t"><b>api-worker-02</b><small>Debian 12 &middot; Degraded</small></div></a></div>')
+    res = ('<div class="sec">Incidents</div><div class="list"><a href="#" class="li"><div class="t"><b>api.example.com unreachable</b><small>INC-0231 &middot; Open</small></div></a></div>'
+           '<div class="sec">Monitors</div><div class="list"><a href="#" class="li"><div class="t"><b>api-https</b><small>HTTP &middot; Down</small></div></a><a href="#" class="li"><div class="t"><b>api-grpc</b><small>TCP &middot; Up</small></div></a></div>'
+           '<div class="sec">Servers</div><div class="list"><a href="#" class="li"><div class="t"><b>api-worker-02</b><small>Debian 12 &middot; Degraded</small></div></a></div>')
     return ('<div class="hd" style="padding-bottom:8px"><div class="fld f" style="flex:1;min-height:44px"><span class="fa">%s</span><span class="v">api</span><span class="fa">%s</span></div><a href="#" class="btn g" style="padding:0 0 0 14px">Cancel</a></div>' % (ic("search", 18), ic("x", 16)) +
             sc('<div class="chips"><span class="chip on">All</span><span class="chip">Incidents</span><span class="chip">Servers</span><span class="chip">Monitors</span></div>' + res))
 
@@ -157,11 +157,11 @@ def settings_notifications(d):
 
 
 def core_switcher(d):
-    row = lambda sh, n, s, on, bad="": ('<div class="row g12" style="padding:12px;border:1px solid %s;border-radius:8px;background:var(--sf)"><span class="s %s"></span><div class="col g4" style="flex:1"><b class="med">%s</b><span class="xs mu">%s</span></div>%s</div>') % ("var(--ac)" if on else "var(--bd)", sh, n, s, ic("check", 18) if on else bad)
+    row = lambda sh, n, s, on, bad="": ('<div class="row g12" style="padding:12px;border:1px solid %s;border-radius:8px;background:var(--sf)"><div class="col g4" style="flex:1"><b class="med">%s</b><span class="xs mu">%s</span></div>%s</div>') % ("var(--ac)" if on else "var(--bd)", n, s, ic("check", 18) if on else bad)
     return (hd() + '<h1 class="ttl">Notifications</h1>' + sc('<div class="st4" style="margin:0 16px"><div><span>Incidents</span><b>2</b></div><div><span>Servers</span><b>5</b> <small>of 6</small></div><div><span>Monitors</span><b>21</b> <small>of 24</small></div></div>') + tabs("Notifications") +
             sheet("Your Cores", '<div class="col g8">%s%s</div><a href="#" class="btn">%s Add a Core</a>' % (
-                row("dg", "Production", "orion.example.com &middot; 2 issues", True),
-                row("up", "Home lab", "nas.local:8080 &middot; all healthy &middot; 2 unread", False, '<span class="b un">Muted</span>'),
+                row("x", "Production", "orion.example.com &middot; 2 issues", True),
+                row("x", "Home lab", "nas.local:8080 &middot; all healthy &middot; 2 unread", False, '<span class="b un">Muted</span>'),
                 ic("plus", 18))))
 
 
@@ -196,42 +196,49 @@ def monitor_test(d):
         '<div class="row g8"><a href="#" class="btn f">Close</a><a href="#" class="btn p f">Run again</a></div>')
 
 
-def _lrow(kind, name, sub, bad, warn, pct):
-    return ('<a href="#" class="rw">%s<div class="t"><b>%s</b><small>%s</small></div>%s<span class="xs mu" style="width:44px;text-align:right">%s</span></a>') % (
-        si(kind), name, sub, bars(22, bad, warn), pct)
 
 
-def servers_list(d):
-    rows = (gh("dn", "Needs attention", "2") + _lrow("dn", "edge-01", "Not reporting for 31m", (19, 20, 21), (), "99.2%") + _lrow("dg", "db-02", "Disk at 91%", (), (20, 21), "99.8%") +
-            gh("up", "Healthy", "3") + _lrow("up", "edge-02", "Ubuntu 24.04", (), (), "100%") + _lrow("up", "edge-04", "Ubuntu 24.04", (), (), "100%") + _lrow("up", "cache-01", "Debian 12", (), (9,), "99.9%") +
-            gh("mt", "Maintenance", "1") + _lrow("mt", "build-01", "macOS 15", (), (), "n/a"))
-    return (hd() + '<h1 class="ttl2">Servers</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 6</span><span class="fp">Needs attention 2</span><span class="fp">Maintenance 1</span></div>' +
-            sc(rows, 0) + tabs("Servers"))
 
 
-def monitors_list(d):
-    rows = (gh("dn", "Down", "1") + _lrow("dn", "api-https", "HTTP &middot; every 30s", (19, 20, 21), (), "99.2%") +
-            gh("dg", "Degraded", "1") + _lrow("dg", "disk-usage", "Node &middot; db-02", (), (20, 21), "99.8%") +
-            gh("up", "Up", "21") + _lrow("up", "web-https", "HTTP &middot; every 30s", (), (), "100%") + _lrow("up", "lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
-            _lrow("up", "nightly-backup", "Heartbeat &middot; daily", (), (), "100%") +
-            gh("un", "Paused", "1") + _lrow("un", "legacy-tcp", "TCP", (), (), "n/a"))
-    return (hd() + '<h1 class="ttl2">Monitors</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 24</span><span class="fp">Down 1</span><span class="fp">Degraded 1</span><span class="fp">Paused 1</span></div>' +
-            sc(rows, 0) + tabs("Monitors"))
 
 
 def server_detail(d):
-    pills = '<div class="pls">%s</div>' % (pill(si("un", 16), "Not reporting") + pill(ic("clock", 16), "Last report 31m ago", True) + pill(ic("server", 16), "Ubuntu 24.04", True))
+    pills = '<div class="pls">%s</div>' % ('<span class="b dn lg">Not reporting</span>' + pill(ic("clock", 16), "Last report 31m ago", True) + pill(ic("server", 16), "Ubuntu 24.04", True))
     return (dhd("edge-01", ("more",)) + '<div class="sc" style="gap:14px"><div class="pad col g12"><h1 class="h2t">edge-01</h1>%s'
             '<p class="prose">edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</p></div>%s'
             '<div class="ut" style="margin:0 16px"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
             '<div>%s%s</div></div>') % (pills, stats([("CPU, last seen", "41%", ""), ("Memory", "62%", ""), ("Disk", "58%", "")]),
-                                        rw("un", "api-https", "HTTP &middot; no data since 14:01", ""), rw("un", "edge-01-disk", "Node &middot; no data", ""))
+                                        rw("api-https", "HTTP &middot; no data since 14:01", "", False, '<span class="b un">Unknown</span>'), rw("edge-01-disk", "Node &middot; no data", "", False, '<span class="b un">Unknown</span>'))
 
 
 def monitor_body(d):
-    pills = '<div class="pls">%s</div>' % (pill(si("dn", 16), "Down") + pill(ic("globe", 16), "HTTP", True) + pill(ic("clock", 16), "Every 30s", True) + pill(ic("server", 16), "edge-01", True))
+    pills = '<div class="pls">%s</div>' % ('<span class="b dn lg">Down</span>' + pill(ic("globe", 16), "HTTP", True) + pill(ic("clock", 16), "Every 30s", True) + pill(ic("server", 16), "edge-01", True))
     return (dhd("api-https", ("more",)) + '<div class="sc" style="gap:12px"><div class="pad col g12"><h1 class="h2t">api-https</h1>%s<span class="mono">GET api.example.com/health</span></div>%s%s%s%s</div>') % (
         pills, expected_actual("200 OK", "under 1.5s", "Timeout", "no response in 10s"),
         box("Response time", "24 hours", '<div style="padding:10px 14px 8px">%s</div>' % chart(100, True)),
         box("Uptime", "30 days &middot; 99.20%", '<div style="padding:12px 14px">%s</div>' % uptime()),
         stats([("Avg", "184ms", ""), ("Checks", "43k", ""), ("Last", "Fail", "")]))
+
+
+def _lrow(name, sub, bad, warn, pct, label=None, tone="un"):
+    badge = ('<span class="b %s">%s</span>' % (tone, label)) if label else ""
+    return ('<a href="#" class="rw"><div class="t"><b>%s</b><small>%s%s</small></div>%s<span class="xs mu" style="width:44px;text-align:right">%s</span></a>') % (
+        name, badge, sub, bars(22, bad, warn), pct)
+
+
+def servers_list(d):
+    rows = (gh("Needs attention", "2") + _lrow("edge-01", "31m ago", (19, 20, 21), (), "99.2%", "Not reporting", "dn") + _lrow("db-02", "Disk at 91%", (), (20, 21), "99.8%", "Degraded", "dg") +
+            gh("Healthy", "3") + _lrow("edge-02", "Ubuntu 24.04", (), (), "100%") + _lrow("edge-04", "Ubuntu 24.04", (), (), "100%") + _lrow("cache-01", "Debian 12", (), (9,), "99.9%") +
+            gh("Maintenance", "1") + _lrow("build-01", "macOS 15", (), (), "n/a", "Maintenance", "mt"))
+    return (hd() + '<h1 class="ttl2">Servers</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 6</span><span class="fp">Needs attention 2</span><span class="fp">Maintenance 1</span></div>' +
+            sc(rows, 0) + tabs("Servers"))
+
+
+def monitors_list(d):
+    rows = (gh("Down", "1") + _lrow("api-https", "HTTP &middot; every 30s", (19, 20, 21), (), "99.2%", "Down", "dn") +
+            gh("Degraded", "1") + _lrow("disk-usage", "Node &middot; db-02", (), (20, 21), "99.8%", "Degraded", "dg") +
+            gh("Up", "21") + _lrow("web-https", "HTTP &middot; every 30s", (), (), "100%") + _lrow("lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
+            _lrow("nightly-backup", "Heartbeat &middot; daily", (), (), "100%") +
+            gh("Paused", "1") + _lrow("legacy-tcp", "TCP", (), (), "n/a", "Paused", "un"))
+    return (hd() + '<h1 class="ttl2">Monitors</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 24</span><span class="fp">Down 1</span><span class="fp">Degraded 1</span><span class="fp">Paused 1</span></div>' +
+            sc(rows, 0) + tabs("Monitors"))

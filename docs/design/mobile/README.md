@@ -8,4 +8,6 @@ Published on the design canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMR
 python3 docs/design/mobile/build/build.py <canvas.json> <out-dir>
 ```
 
-Built from the real Orion components (tracker, expected vs actual, one green `#1f7a50`) with Linear-mobile patterns: inbox-style flat rows with status ring icons, swipe actions, property pills with picker sheets, a pinned note bar and a flat tab bar. Values come from the canvas artboards, not `design-language.md` v2.
+Built from the real Orion components (tracker, expected vs actual, one green `#1f7a50`) with Linear-mobile patterns: inbox-style flat rows, swipe actions, property pills with picker sheets, a pinned note bar and a flat tab bar. Values come from the canvas artboards, not `design-language.md` v2.
+
+Status is shown by text badges (Open, Critical, Down, Degraded), group headers and uptime-bar colour. No status dots or ring icons.

@@ -10,25 +10,11 @@ def logo(size=26):
     return '<span class="mk" style="width:%dpx;height:%dpx">%s</span>' % (size, size, MARK % (size * 5 // 9, size * 5 // 9))
 
 
-SI = {
- "dn": '<circle cx="10" cy="10" r="8" style="stroke:var(--dnx)" fill="none" stroke-width="1.6"/><path d="M10 5.8v4.8" style="stroke:var(--dnx)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="13.7" r="1" style="fill:var(--dnx)"/>',
- "dg": '<circle cx="10" cy="10" r="8" style="stroke:var(--ddg)" fill="none" stroke-width="1.6"/><path d="M10 4.5a5.5 5.5 0 0 1 0 11z" style="fill:var(--ddg)"/>',
- "cv": '<circle cx="10" cy="10" r="8" style="stroke:var(--cvt)" fill="none" stroke-width="1.6"/><path d="M10 4.5a5.5 5.5 0 0 1 5.5 5.5H10z" style="fill:var(--cvt)"/>',
- "up": '<circle cx="10" cy="10" r="9" style="fill:var(--dup)"/><path d="M6 10.4l2.8 2.8L14 7.6" stroke="#fff" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
- "un": '<circle cx="10" cy="10" r="8" style="stroke:#a1a1aa" fill="none" stroke-width="1.6" stroke-dasharray="2.6 2.6"/>',
- "mt": '<circle cx="10" cy="10" r="8" style="stroke:#8b5cf6" fill="none" stroke-width="1.6"/><path d="M8 7.5v5M12 7.5v5" style="stroke:#8b5cf6" stroke-width="1.6" stroke-linecap="round"/>',
-}
-
-
-def si(kind, size=20):
-    return '<svg class="si" width="%d" height="%d" viewBox="0 0 20 20" aria-hidden="true">%s</svg>' % (size, size, SI[kind])
-
-
 def hd(core="Production", dot="dg", back=None, right=("search", "sliders")):
     if back:
         left = '<a href="#" class="core" aria-label="Back">%s<span>%s</span></a>' % (ic("back", 22), back)
     else:
-        left = '<a href="#" class="core" aria-label="Switch Core">%s<span>%s</span><i class="s %s"></i><span class="cv">%s</span></a>' % (logo(24), core, dot, ic("down", 16))
+        left = '<a href="#" class="core" aria-label="Switch Core">%s<span>%s</span><span class="cv">%s</span></a>' % (logo(24), core, ic("down", 16))
     r = "".join('<a href="#" class="ibtn" aria-label="%s">%s</a>' % (n.title(), ic(n, 21)) for n in right)
     return '<div class="hd" style="padding-bottom:2px">%s<div class="row" style="gap:0">%s</div></div>' % (left, r)
 
@@ -47,13 +33,13 @@ def tabs(active, badge=3):
     return '<nav class="bar2" aria-label="Main">%s</nav>' % out
 
 
-def rw(kind, t, sub, when, unread=False, extra=""):
-    return ('<a href="#" class="rw"%s>%s<div class="t"><b class="%s">%s</b><small>%s</small></div><div class="r"><span>%s</span>%s</div></a>') % (
-        extra, si(kind), "u" if unread else "", t, sub, when, '<i class="unr"></i>' if unread else "")
+def rw(t, sub, when, unread=False, badge=""):
+    return ('<a href="#" class="rw"><div class="t"><b class="%s">%s</b><small>%s%s</small></div><div class="r"><span%s>%s</span></div></a>') % (
+        "u" if unread else "", t, (badge + " ") if badge else "", sub, ' style="color:var(--ac);font-weight:500"' if unread else "", when)
 
 
-def gh(kind, t, n):
-    return '<div class="gh">%s%s<span>%s</span></div>' % (si(kind, 16) if kind else "", t, n)
+def gh(t, n):
+    return '<div class="gh">%s<span>%s</span></div>' % (t, n)
 
 
 def pill(icon_html, t, q=False):
@@ -101,5 +87,4 @@ def stats(items):
 
 
 def tl2(items):
-    return '<div class="tl2">%s</div>' % "".join(
-        '<div><span class="td %s"><i></i></span><p>%s</p><time>%s</time></div>' % (tone, txt, t) for tone, txt, t in items)
+    return '<div class="tl2">%s</div>' % "".join('<div><time>%s</time><p>%s</p></div>' % (t, txt) for tone, txt, t in items)
