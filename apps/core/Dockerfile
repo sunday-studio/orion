@@ -12,7 +12,7 @@ RUN cd apps/console && pnpm generate:api
 RUN cd apps/console && pnpm run build
 
 # Build Go binary and carry frontend dist for runtime serving
-FROM golang:1.26.10-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS core
+FROM golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS core
 WORKDIR /app
 RUN apk add --no-cache build-base
 COPY apps/core/go.mod apps/core/go.sum apps/core/
