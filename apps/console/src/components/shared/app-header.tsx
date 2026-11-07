@@ -12,6 +12,7 @@ const navItems = [
   { label: "Incidents", to: "/incidents" },
   { label: "Servers", to: "/servers" },
   { label: "Monitors", to: "/monitors" },
+  { label: "Services", to: "/services" },
   { label: "Alerts", to: "/alerts" },
   { label: "Status", to: "/status-pages" },
   { label: "Logs", to: "/logs" },
