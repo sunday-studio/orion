@@ -29,7 +29,7 @@ Storage is behind the `MetricStore` interface (`apps/core/internal/metricstore`)
 
 `GET /v1/services/{id}/log-counts?from=-6h&step_seconds=60` returns the apps' log entries per bucket and severity from a per-minute rollup kept in `logs.db`, so a timeline's error lane never counts raw rows. Ranges are limited to 7 days and 2,000 buckets.
 
-A response carries at most 100 series; `truncated` says when the service has more. The newest one to two hours are not in the hourly rollups yet, so a range over 48 hours ends at the last completed hour. Hourly averages are weighted by the rows they summarise.
+A response carries at most 100 series, of which at most 50 are app-reported (the most recently seen); `truncated` says when the service has more. The newest one to two hours are not in the hourly rollups yet, so a range over 48 hours ends at the last completed hour. Hourly averages are weighted by the rows they summarise.
 
 The log counts are written in the same transaction as the log entries, so a failure there drops that log batch like any other write failure (after one retry). Counts exist only for logs written after this feature is deployed; there is no backfill of earlier logs.
 

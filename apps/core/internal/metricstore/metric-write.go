@@ -85,7 +85,10 @@ func (s *Store) seriesID(tx *gorm.DB, b Batch, smp Sample, now int64) (int64, bo
 		if c.name == name && now-c.lastSeen < seriesTouchEvery {
 			return c.id, true, nil
 		}
-		res := tx.Exec("UPDATE series SET name = ?, kind = ?, unit = ?, last_seen = ? WHERE id = ?", name, smp.Kind, smp.Unit, now, c.id)
+		// Match the identity as well as the id: SQLite reuses the highest rowid after a delete, so after a
+		// prune the cached id may now belong to a different series.
+		res := tx.Exec("UPDATE series SET name = ?, kind = ?, unit = ?, last_seen = ? WHERE id = ? AND source = ? AND node_id = ? AND app_id = ? AND key = ?",
+			name, smp.Kind, smp.Unit, now, c.id, b.Source, b.NodeID, b.AppID, smp.Key)
 		if res.Error != nil {
 			return 0, false, res.Error
 		}

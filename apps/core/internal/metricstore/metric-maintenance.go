@@ -4,6 +4,8 @@ import (
 	"context"
 	"orion/core/internal/utils"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -66,16 +68,20 @@ func (s *Store) Rollup(now time.Time) (int, error) {
 	}
 	hours := 0
 	if end > start {
+		// Move the watermark first: a sample that lands while the statements run is then marked dirty
+		// and summarised again, never missed. If the pass fails, the old watermark is put back.
+		previous := s.rolledThrough.Swap(end)
 		for _, id := range ids {
 			if err := s.db.Exec(rollupSQL, id, start, end).Error; err != nil {
+				s.rolledThrough.Store(previous)
 				return hours, err
 			}
 		}
 		hours = int((end - start) / 3600)
 		if err := s.db.Exec("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", rollupThroughKey, end).Error; err != nil {
+			s.rolledThrough.Store(previous)
 			return hours, err
 		}
-		s.rolledThrough.Store(end)
 	}
 	return hours, s.rollupDirtyHours()
 }
@@ -89,10 +95,15 @@ func (s *Store) rollupDirtyHours() error {
 			return err
 		}
 		for _, d := range dirty {
-			if err := s.db.Exec(rollupSQL, d.SeriesID, d.Hour, d.Hour+3600).Error; err != nil {
-				return err
-			}
-			if err := s.db.Exec("DELETE FROM dirty_hours WHERE series_id = ? AND hour = ?", d.SeriesID, d.Hour).Error; err != nil {
+			// One transaction: the mark is cleared and the hour read together, so a late sample for the same
+			// hour either lands before (and is summarised now) or after (and marks the hour again).
+			err := s.db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Exec("DELETE FROM dirty_hours WHERE series_id = ? AND hour = ?", d.SeriesID, d.Hour).Error; err != nil {
+					return err
+				}
+				return tx.Exec(rollupSQL, d.SeriesID, d.Hour, d.Hour+3600).Error
+			})
+			if err != nil {
 				return err
 			}
 		}

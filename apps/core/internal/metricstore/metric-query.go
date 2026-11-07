@@ -51,17 +51,15 @@ func (s *Store) Query(q Query) (QueryResult, error) {
 	}
 	res.StepSeconds = int(step)
 
-	metas, err := s.findSeries(q)
-	if err != nil {
-		return res, err
-	}
 	limit := q.MaxSeries
 	if limit <= 0 {
 		limit = DefaultMaxSeries
 	}
-	if len(metas) > limit {
-		metas, res.Truncated = metas[:limit], true
+	metas, truncated, err := s.findSeries(q, limit)
+	if err != nil {
+		return res, err
 	}
+	res.Truncated = truncated
 	for _, m := range metas {
 		points, err := s.readPoints(sqlText, step, m.ID, q.From.Unix(), q.To.Unix())
 		if err != nil {
@@ -81,15 +79,21 @@ type seriesMeta struct {
 const seriesColumns = "id, source, node_id, app_id, key, kind, name, metric, unit, labels"
 
 // findSeries resolves the series a query asks for: the listed refs, then the most recently seen
-// OTLP series of the listed apps (at most MaxAppSeries per query).
-func (s *Store) findSeries(q Query) ([]seriesMeta, error) {
+// OTLP series of the listed apps (at most MaxAppSeries of them). It returns at most limit series and
+// says whether more matched, either past limit or past MaxAppSeries.
+func (s *Store) findSeries(q Query, limit int) ([]seriesMeta, bool, error) {
 	var out []seriesMeta
 	seen := map[int64]bool{}
+	truncated := false
 	for _, ref := range q.Series {
+		if len(out) >= limit {
+			truncated = true // a further ref may or may not exist; the cap is reached either way
+			break
+		}
 		var found []seriesMeta
 		if err := s.db.Raw("SELECT "+seriesColumns+" FROM series WHERE source = ? AND node_id = ? AND app_id = ? AND key = ?",
 			ref.Source, ref.NodeID, ref.AppID, ref.Key).Scan(&found).Error; err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		for _, m := range found {
 			if !seen[m.ID] {
@@ -101,8 +105,11 @@ func (s *Store) findSeries(q Query) ([]seriesMeta, error) {
 	if len(q.AppIDs) > 0 {
 		var found []seriesMeta
 		if err := s.db.Raw("SELECT "+seriesColumns+" FROM series WHERE source = ? AND app_id IN ? ORDER BY last_seen DESC, id LIMIT ?",
-			SourceOTLP, q.AppIDs, MaxAppSeries).Scan(&found).Error; err != nil {
-			return nil, err
+			SourceOTLP, q.AppIDs, MaxAppSeries+1).Scan(&found).Error; err != nil {
+			return nil, false, err
+		}
+		if len(found) > MaxAppSeries {
+			found, truncated = found[:MaxAppSeries], true
 		}
 		for _, m := range found {
 			if !seen[m.ID] {
@@ -111,7 +118,10 @@ func (s *Store) findSeries(q Query) ([]seriesMeta, error) {
 			}
 		}
 	}
-	return out, nil
+	if len(out) > limit {
+		out, truncated = out[:limit], true
+	}
+	return out, truncated, nil
 }
 
 func (s *Store) readPoints(sqlText string, step, id, from, to int64) ([]Point, error) {

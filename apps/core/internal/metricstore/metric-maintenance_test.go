@@ -1,6 +1,7 @@
 package metricstore
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -169,5 +170,66 @@ func TestQueryTruncatesToMaxSeries(t *testing.T) {
 	}
 	if res, _ := s.Query(Query{Series: refs, From: now.Add(-time.Hour), To: now.Add(time.Hour)}); len(res.Series) != 5 || res.Truncated {
 		t.Fatalf("default limit = %d series, truncated %v", len(res.Series), res.Truncated)
+	}
+}
+
+func TestAReusedRowIDNeverReceivesAnotherSeriesSamples(t *testing.T) {
+	s := openTestStore(t)
+	now := time.Now().UTC()
+	s.Enqueue(osBatch("n1", now.Add(-200*24*time.Hour), cpuSample("A", 1)))
+	s.Flush()
+	old := now.Add(-200 * 24 * time.Hour).Unix()
+	s.db.Exec("UPDATE series SET last_seen = ?", old)
+	for k, c := range s.cache {
+		c.lastSeen = old
+		s.cache[k] = c
+	}
+	// A holds the highest rowid. Prune deletes it, so the next series created takes the same id.
+	if pr, err := s.Prune(Retention{Raw: 24 * time.Hour, Rollup: 90 * 24 * time.Hour}, now); err != nil || pr.Series != 1 {
+		t.Fatalf("prune = %+v, %v", pr, err)
+	}
+	s.Enqueue(osBatch("n1", now, cpuSample("B", 50)))
+	s.Flush()
+	// A reports again while the writer still caches its old id, which is now B's.
+	s.Enqueue(osBatch("n1", now.Add(time.Minute), cpuSample("A", 99)))
+	s.Flush()
+
+	query := func(key string) []Point {
+		res, err := s.Query(Query{Series: []SeriesRef{refOS("n1", key)}, From: now.Add(-time.Hour), To: now.Add(time.Hour)})
+		if err != nil || len(res.Series) != 1 {
+			t.Fatalf("query %s = %+v, %v", key, res, err)
+		}
+		return res.Series[0].Points
+	}
+	if b := query("B"); len(b) != 1 || *b[0].CPUPercent != 50 {
+		t.Fatalf("series B holds %+v, want only its own sample", b)
+	}
+	if a := query("A"); len(a) != 1 || *a[0].CPUPercent != 99 {
+		t.Fatalf("series A holds %+v, want its own new sample", a)
+	}
+	var names []string
+	s.db.Raw("SELECT name FROM series ORDER BY key").Scan(&names)
+	if len(names) != 2 || names[0] != "A" || names[1] != "B" {
+		t.Fatalf("series names = %v, series B must not be renamed", names)
+	}
+}
+
+func TestQueryFlagsTruncationOfAppSeries(t *testing.T) {
+	s := openTestStore(t)
+	now := time.Now().UTC()
+	var samples []Sample
+	for i := 0; i < MaxAppSeries+10; i++ {
+		key := fmt.Sprintf("metric.%03d|", i)
+		samples = append(samples, Sample{Key: key, Kind: "gauge", Name: key, Metric: key, Values: Values{Value: fp(1)}})
+	}
+	s.Enqueue(Batch{Source: SourceOTLP, AppID: "app-1", At: now, SeriesCap: 200, Samples: samples})
+	s.Flush()
+	res, err := s.Query(Query{AppIDs: []string{"app-1"}, From: now.Add(-time.Hour), To: now.Add(time.Hour)})
+	if err != nil || len(res.Series) != MaxAppSeries || !res.Truncated {
+		t.Fatalf("%d series, truncated %v, %v; want %d series and the flag", len(res.Series), res.Truncated, err, MaxAppSeries)
+	}
+	res, _ = s.Query(Query{AppIDs: []string{"app-1"}, From: now.Add(-time.Hour), To: now.Add(time.Hour), MaxSeries: 5})
+	if len(res.Series) != 5 || !res.Truncated {
+		t.Fatalf("limited: %d series, truncated %v", len(res.Series), res.Truncated)
 	}
 }
