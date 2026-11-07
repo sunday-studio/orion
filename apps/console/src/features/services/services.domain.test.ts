@@ -8,6 +8,7 @@ import {
   environmentsOf,
   filterServices,
   healthCounts,
+  incidentsForMonitors,
   memberKey,
   monitorCandidates,
   planSuggestion,
@@ -200,5 +201,21 @@ describe("link candidates", () => {
       { kind: "resource", node_id: "n1", key: "container:api" },
     ]);
     assert.deepEqual(refsForKeys(candidates, new Set()), []);
+  });
+});
+
+describe("service incidents", () => {
+  it("keeps only incidents on the service's monitors, newest first", () => {
+    const incidents = [
+      { id: "i1", monitor_id: "m1", opened_at: "2026-11-07T10:00:00Z" },
+      { id: "i2", monitor_id: "other", opened_at: "2026-11-07T11:00:00Z" },
+      { id: "i3", monitor_id: "m2", opened_at: "2026-11-07T12:00:00Z" },
+      { id: "i4", opened_at: "2026-11-07T13:00:00Z" },
+    ] as never;
+    assert.deepEqual(
+      incidentsForMonitors(incidents, ["m1", "m2"]).map((i) => i.id),
+      ["i3", "i1"],
+    );
+    assert.deepEqual(incidentsForMonitors(incidents, []), []);
   });
 });

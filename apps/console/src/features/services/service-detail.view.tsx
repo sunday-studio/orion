@@ -1,7 +1,15 @@
+import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button, EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { useGetService } from "@/orion-sdk";
+import { EditLinksDialog } from "./components/edit-links-dialog";
 import { HealthBadge } from "./components/service-health";
+import { AppsTable, MonitorsTable } from "./detail/linked-tables";
+import { ServiceIncidentsTab } from "./detail/service-incidents-tab";
+import { ServiceLogsTab } from "./detail/service-logs-tab";
+import { ServiceOverviewTab } from "./detail/service-overview-tab";
+import { ServiceResourcesTab } from "./detail/service-resources-tab";
+import { ServiceSettingsTab } from "./detail/service-settings-tab";
 import {
   type ServiceTab,
   firstActiveIncident,
@@ -22,6 +30,7 @@ export const ServiceDetailPage = () => {
   const { serviceId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = useGetService(serviceId);
+  const [editing, setEditing] = useState(false);
   const service = query.data?.service;
   const tab = serviceTabFromParam(searchParams.get("tab"));
 
@@ -53,7 +62,8 @@ export const ServiceDetailPage = () => {
       },
       { replace: true },
     );
-  const incidentId = firstActiveIncident(service.monitors ?? []);
+  const monitors = service.monitors ?? [];
+  const incidentId = firstActiveIncident(monitors);
 
   return (
     <div className="w-full pb-8">
@@ -83,6 +93,9 @@ export const ServiceDetailPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+            Edit links
+          </Button>
           {incidentId && (
             <Link to={`/incidents/${incidentId}`}>
               <Button size="sm">Open incident</Button>
@@ -98,10 +111,43 @@ export const ServiceDetailPage = () => {
             </TabsTab>
           ))}
         </TabsList>
-        {Object.keys(TAB_LABELS).map((value) => (
-          <TabsPanel key={value} value={value} />
-        ))}
+        <TabsPanel value="overview">
+          <ServiceOverviewTab service={service} onEditLinks={() => setEditing(true)} />
+        </TabsPanel>
+        <TabsPanel value="monitors" className="flex flex-col gap-4">
+          {monitors.length > 0 ? (
+            <MonitorsTable monitors={monitors} />
+          ) : (
+            <EmptyState
+              title="No monitors linked"
+              description="Link a monitor so its incidents show this service's logs."
+              action={
+                <Button size="sm" onClick={() => setEditing(true)}>
+                  Link a monitor
+                </Button>
+              }
+            />
+          )}
+          {(service.apps ?? []).length > 0 && (
+            <AppsTable apps={service.apps ?? []} now={Date.now()} />
+          )}
+        </TabsPanel>
+        <TabsPanel value="logs">
+          <ServiceLogsTab
+            appIds={(service.apps ?? []).flatMap((app) => (app.id ? [app.id] : []))}
+          />
+        </TabsPanel>
+        <TabsPanel value="resources">
+          <ServiceResourcesTab resources={service.resources ?? []} />
+        </TabsPanel>
+        <TabsPanel value="incidents">
+          <ServiceIncidentsTab monitorIds={monitors.flatMap((m) => (m.id ? [m.id] : []))} />
+        </TabsPanel>
+        <TabsPanel value="settings">
+          <ServiceSettingsTab key={service.updated_at} service={service} />
+        </TabsPanel>
       </Tabs>
+      <EditLinksDialog service={service} open={editing} onOpenChange={setEditing} />
     </div>
   );
 };

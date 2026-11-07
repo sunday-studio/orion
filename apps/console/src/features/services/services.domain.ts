@@ -1,6 +1,7 @@
 // Pure rules for the Services screens. No React and no `@/` imports, so `node --test` runs this file.
 import type {
   ApiApp,
+  ApiIncidentResponse,
   ApiMonitorResponse,
   ServiceAppResourceSeries,
   ServiceServiceInput,
@@ -252,3 +253,14 @@ export const elsewhereNote = (
 
 /** Slug-ish default for a name typed into the new-service form. Core derives its own when blank. */
 export const canCreateService = (name: string) => name.trim().length > 0;
+
+/** Newest first. Matches by monitor, since Core has no service filter on incidents. */
+export const incidentsForMonitors = (
+  incidents: readonly ApiIncidentResponse[],
+  monitorIds: readonly string[],
+) => {
+  const ids = new Set(monitorIds);
+  return incidents
+    .filter((incident) => incident.monitor_id && ids.has(incident.monitor_id))
+    .sort((a, b) => (b.opened_at ?? "").localeCompare(a.opened_at ?? ""));
+};
