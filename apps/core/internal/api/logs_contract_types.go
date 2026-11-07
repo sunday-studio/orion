@@ -186,9 +186,11 @@ type App struct {
 	// DebugSampleRate keeps this fraction (0-1) of trace and debug entries. Default 1.
 	DebugSampleRate float64 `json:"debug_sample_rate" example:"1"`
 	// RateLimitPerSecond is this app's ingest limit in lines per second; 0 uses the server default.
-	RateLimitPerSecond int               `json:"rate_limit_per_second"`
-	Display            DisplayProfile    `json:"display_profile"`
-	Redaction          RedactionSettings `json:"redaction"`
+	RateLimitPerSecond int `json:"rate_limit_per_second"`
+	// MetricSeriesCap is how many distinct metric series this app may report over OTLP; 0 uses the server default (100).
+	MetricSeriesCap int               `json:"metric_series_cap"`
+	Display         DisplayProfile    `json:"display_profile"`
+	Redaction       RedactionSettings `json:"redaction"`
 	// ServiceID is the Service this app is linked to; absent when unlinked.
 	ServiceID    string     `json:"service_id,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
@@ -213,6 +215,7 @@ type AppRequest struct {
 	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
 	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
 	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	MetricSeriesCap    *int               `json:"metric_series_cap,omitempty"`
 	Display            *DisplayProfile    `json:"display_profile,omitempty"`
 	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }
@@ -226,6 +229,7 @@ type AppUpdateRequest struct {
 	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
 	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
 	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	MetricSeriesCap    *int               `json:"metric_series_cap,omitempty"`
 	Display            *DisplayProfile    `json:"display_profile,omitempty"`
 	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }

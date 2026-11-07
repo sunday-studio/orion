@@ -172,6 +172,7 @@ func (s *Server) setupRoutes() {
 			public.POST("/auth/login", s.login)
 			public.POST("/ingest/logs", s.ingestLogs)
 			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)
+			public.POST("/ingest/otlp/v1/metrics", s.ingestOTLPMetrics)
 			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)

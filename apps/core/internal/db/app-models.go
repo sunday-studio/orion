@@ -13,10 +13,12 @@ type App struct {
 	MaxStorageMB    int     `gorm:"not null;default:0"`
 	DebugSampleRate float64 `gorm:"not null;default:1"`
 	// RateLimitPerSecond overrides the server-wide ingest rate for this app (0 = server default).
-	RateLimitPerSecond int    `gorm:"not null;default:0"`
-	DisplayJSON        string `gorm:"column:display_json;not null;default:'{}'"`
-	RedactionJSON      string `gorm:"column:redaction_json;not null;default:'{}'"`
-	LastIngestAt       *time.Time
+	RateLimitPerSecond int `gorm:"not null;default:0"`
+	// MetricSeriesCap is how many distinct metric series the app may report over OTLP (0 = server default).
+	MetricSeriesCap int    `gorm:"not null;default:0"`
+	DisplayJSON     string `gorm:"column:display_json;not null;default:'{}'"`
+	RedactionJSON   string `gorm:"column:redaction_json;not null;default:'{}'"`
+	LastIngestAt    *time.Time
 	// ServiceID links the app to a Service (nil = unlinked).
 	ServiceID *string `gorm:"index:idx_apps_service_id"`
 	CreatedAt time.Time

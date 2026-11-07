@@ -145,6 +145,8 @@ type MetricStore interface {
 	// Enqueue accepts a batch for writing without blocking. It fails with ErrQueueFull rather than
 	// slowing the caller.
 	Enqueue(b Batch) error
+	// AllowSeries says which series keys of an owner may be written under cap (0 = the source's default).
+	AllowSeries(source, nodeID, appID string, keys []string, cap int) (map[string]bool, error)
 	Query(q Query) (QueryResult, error)
 	Rollup(now time.Time) (int, error)
 	Prune(r Retention, now time.Time) (PruneResult, error)
