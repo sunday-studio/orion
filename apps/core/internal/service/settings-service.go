@@ -3,10 +3,12 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
+	"orion/core/internal/metricstore"
 	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -302,4 +304,20 @@ func archiveDirEscapesThroughExistingSymlink(dataRoot string, candidate string) 
 		return false
 	}
 	return !pathStrictlyInside(resolvedDataRoot, resolvedExistingAncestor)
+}
+
+// MetricRetention reads how long metrics.db keeps one-minute and hourly rows. A settings read that
+// fails falls back to the defaults (7 and 90 days), so pruning never stops and never deletes early.
+func MetricRetention(s *SettingsService) metricstore.Retention {
+	days := func(v, fallback int) time.Duration {
+		if v < 1 {
+			v = fallback
+		}
+		return time.Duration(v) * 24 * time.Hour
+	}
+	settings, err := s.GetDataLifecycleSettings()
+	if err != nil {
+		return metricstore.Retention{Raw: days(0, 7), Rollup: days(0, 90)}
+	}
+	return metricstore.Retention{Raw: days(settings.MetricSampleRetentionDays, 7), Rollup: days(settings.MetricRollupRetentionDays, 90)}
 }

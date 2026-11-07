@@ -406,7 +406,7 @@ func TestStoreAppResourcesKeepsServiceLinkForReportedKeys(t *testing.T) {
 		raw, _ := json.Marshal(map[string]any{"interval_seconds": 60, "series": series})
 		return raw
 	}
-	if err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
+	if _, err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.catalog.Link(svc.ID, ServiceLinkRef{Kind: "resource", NodeID: "node-1", Key: "container:a"}); err != nil {
@@ -414,7 +414,7 @@ func TestStoreAppResourcesKeepsServiceLinkForReportedKeys(t *testing.T) {
 	}
 
 	// The next report replaces the set but still carries the link for a.
-	if err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
+	if _, err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
 		t.Fatal(err)
 	}
 	view, err := nodes.GetAppResources("node-1")
@@ -430,10 +430,10 @@ func TestStoreAppResourcesKeepsServiceLinkForReportedKeys(t *testing.T) {
 	}
 
 	// A key that stops being reported loses its row and its link; it does not come back linked.
-	if err := nodes.StoreAppResources("node-1", report("container:b")); err != nil {
+	if _, err := nodes.StoreAppResources("node-1", report("container:b")); err != nil {
 		t.Fatal(err)
 	}
-	if err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
+	if _, err := nodes.StoreAppResources("node-1", report("container:a", "container:b")); err != nil {
 		t.Fatal(err)
 	}
 	view, _ = nodes.GetAppResources("node-1")

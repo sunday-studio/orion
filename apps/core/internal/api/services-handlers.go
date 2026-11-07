@@ -18,6 +18,8 @@ func (s *Server) registerServiceRoutes(frontend *gin.RouterGroup) {
 	frontend.GET("/services", s.listServices)
 	frontend.POST("/services", s.createService)
 	frontend.GET("/services/suggestions", s.listServiceSuggestions)
+	frontend.GET("/services/:id/metrics", s.getServiceMetrics)
+	frontend.GET("/services/:id/log-counts", s.getServiceLogCounts)
 	frontend.GET("/services/:id", s.getService)
 	frontend.PATCH("/services/:id", s.updateService)
 	frontend.DELETE("/services/:id", s.deleteService)
@@ -148,3 +150,41 @@ func (s *Server) linkServiceItem(c *gin.Context) { s.linkServiceItemImpl(c) }
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/services/{id}/links [delete]
 func (s *Server) unlinkServiceItem(c *gin.Context) { s.unlinkServiceItemImpl(c) }
+
+// getServiceMetrics returns the metric history of a service.
+// @Summary      Metric history of a service
+// @Description  The CPU, memory, I/O, network and storage history of the resources linked to the service, plus any app-reported metrics of its linked apps. Ranges up to 48 hours read one-minute samples; longer ranges read hourly rollups. The step widens so a series never returns more than about `max_points` points. Linking or unlinking changes which series are returned, never the stored samples.
+// @Tags         services
+// @Produce      json
+// @Security     BearerAuth
+// @ID           getServiceMetrics
+// @Param        id          path   string  true   "Service ID"
+// @Param        from        query  string  false  "Start: RFC 3339 or relative such as -6h (default one hour before `to`)"
+// @Param        to          query  string  false  "End: RFC 3339 or relative (default now)"
+// @Param        max_points  query  int     false  "Points per series, default 500, max 2000"
+// @Success      200  {object}  utils.APIResponse{data=ServiceMetricsResponse}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      401  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      503  {object}  utils.APIResponse
+// @Router       /v1/services/{id}/metrics [get]
+func (s *Server) getServiceMetrics(c *gin.Context) { s.getServiceMetricsImpl(c) }
+
+// getServiceLogCounts returns how much the service's apps logged, minute by minute.
+// @Summary      Log volume of a service
+// @Description  Entries per bucket and severity for the apps linked to the service, read from the per-minute rollup (no raw rows are scanned). Meant for the error lane of a service timeline; open the logs for the entries themselves.
+// @Tags         services
+// @Produce      json
+// @Security     BearerAuth
+// @ID           getServiceLogCounts
+// @Param        id            path   string  true   "Service ID"
+// @Param        from          query  string  false  "Start: RFC 3339 or relative such as -6h (default one hour before `to`)"
+// @Param        to            query  string  false  "End: RFC 3339 or relative (default now)"
+// @Param        step_seconds  query  int     false  "Bucket size, a multiple of 60 up to 3600 (default 60)"
+// @Success      200  {object}  utils.APIResponse{data=ServiceLogCountsResponse}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      401  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      503  {object}  utils.APIResponse
+// @Router       /v1/services/{id}/log-counts [get]
+func (s *Server) getServiceLogCounts(c *gin.Context) { s.getServiceLogCountsImpl(c) }

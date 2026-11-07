@@ -45,26 +45,60 @@ func (s *Store) Query(q Query) (QueryResult, error) {
 	}
 	res.StepSeconds = int(step)
 
-	for _, ref := range q.Series {
-		var meta []struct {
-			ID                               int64
-			Kind, Name, Metric, Unit, Labels string
-		}
-		if err := s.db.Raw("SELECT id, kind, name, metric, unit, labels FROM series WHERE source = ? AND node_id = ? AND app_id = ? AND key = ?",
-			ref.Source, ref.NodeID, ref.AppID, ref.Key).Scan(&meta).Error; err != nil {
-			return res, err
-		}
-		if len(meta) == 0 {
-			continue
-		}
-		points, err := s.readPoints(sqlText, step, meta[0].ID, q.From.Unix(), q.To.Unix())
+	metas, err := s.findSeries(q)
+	if err != nil {
+		return res, err
+	}
+	for _, m := range metas {
+		points, err := s.readPoints(sqlText, step, m.ID, q.From.Unix(), q.To.Unix())
 		if err != nil {
 			return res, err
 		}
-		res.Series = append(res.Series, SeriesResult{Ref: ref, Kind: meta[0].Kind, Name: meta[0].Name, Metric: meta[0].Metric,
-			Unit: meta[0].Unit, Labels: meta[0].Labels, Points: points})
+		res.Series = append(res.Series, SeriesResult{Ref: SeriesRef{Source: m.Source, NodeID: m.NodeID, AppID: m.AppID, Key: m.Key},
+			Kind: m.Kind, Name: m.Name, Metric: m.Metric, Unit: m.Unit, Labels: m.Labels, Points: points})
 	}
 	return res, nil
+}
+
+type seriesMeta struct {
+	ID                                                           int64
+	Source, NodeID, AppID, Key, Kind, Name, Metric, Unit, Labels string
+}
+
+const seriesColumns = "id, source, node_id, app_id, key, kind, name, metric, unit, labels"
+
+// findSeries resolves the series a query asks for: the listed refs, then the most recently seen
+// OTLP series of the listed apps (at most MaxAppSeries per query).
+func (s *Store) findSeries(q Query) ([]seriesMeta, error) {
+	var out []seriesMeta
+	seen := map[int64]bool{}
+	for _, ref := range q.Series {
+		var found []seriesMeta
+		if err := s.db.Raw("SELECT "+seriesColumns+" FROM series WHERE source = ? AND node_id = ? AND app_id = ? AND key = ?",
+			ref.Source, ref.NodeID, ref.AppID, ref.Key).Scan(&found).Error; err != nil {
+			return nil, err
+		}
+		for _, m := range found {
+			if !seen[m.ID] {
+				seen[m.ID] = true
+				out = append(out, m)
+			}
+		}
+	}
+	if len(q.AppIDs) > 0 {
+		var found []seriesMeta
+		if err := s.db.Raw("SELECT "+seriesColumns+" FROM series WHERE source = ? AND app_id IN ? ORDER BY last_seen DESC, id LIMIT ?",
+			SourceOTLP, q.AppIDs, MaxAppSeries).Scan(&found).Error; err != nil {
+			return nil, err
+		}
+		for _, m := range found {
+			if !seen[m.ID] {
+				seen[m.ID] = true
+				out = append(out, m)
+			}
+		}
+	}
+	return out, nil
 }
 
 func (s *Store) readPoints(sqlText string, step, id, from, to int64) ([]Point, error) {

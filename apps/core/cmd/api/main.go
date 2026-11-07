@@ -4,6 +4,7 @@ import (
 	"context"
 	"orion/core/internal/api"
 	"orion/core/internal/logstore"
+	"orion/core/internal/metricstore"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
 	"orion/core/internal/utils"
@@ -83,6 +84,18 @@ func main() {
 	logger.AttachSink(logstore.NewCoreLogSink(logStore, "api")) // Internal logs
 	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour, logstore.AppRetention{AppID: logstore.InternalAppID, RetentionDays: cfg.InternalLogRetentionDays, MaxStorageMB: cfg.InternalLogMaxStorageMB})
 
+	// Resource history is a bonus: without metrics.db Core still stores latest values and answers 503 on history.
+	metricStore, err := metricstore.Open(cfg.DataDir, logger)
+	if err != nil {
+		logger.Warn("Metrics database unavailable; resource history is disabled", "error", err)
+	} else {
+		server.EnableMetrics(metricStore)
+		lifecycle := service.NewSettingsService(database, logger, cfg.DataDir)
+		go metricstore.RunMaintenance(ctx, metricStore, func() metricstore.Retention {
+			return service.MetricRetention(lifecycle)
+		}, logger, time.Hour)
+	}
+
 	selfMonitor := service.NewSelfMonitorService(database, logger, cfg, server.RuntimeDiagnostics())
 	go selfMonitor.Run(ctx)
 
@@ -93,6 +106,9 @@ func main() {
 
 	logger.Info("Orion Core Server started successfully")
 	startErr := server.Start(ctx, listenAddr)
+	if metricStore != nil {
+		metricStore.Close() // drain queued samples before exit
+	}
 	logStore.Close() // drain queued log entries before exit
 	if startErr != nil {
 		logger.Fatal("Failed to start server", "error", startErr)

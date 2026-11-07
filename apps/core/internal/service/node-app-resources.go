@@ -154,11 +154,12 @@ func clipRunes(s string, n int) string {
 }
 
 // StoreAppResources replaces the node's latest measurements with this report. A thing that is no
-// longer reported disappears; Core keeps no history.
-func (s *NodeService) StoreAppResources(nodeID string, raw json.RawMessage) error {
+// longer reported disappears from this latest-row table; history lives in metrics.db, which the caller
+// feeds with the returned series (nil when the report had no app_resources section).
+func (s *NodeService) StoreAppResources(nodeID string, raw json.RawMessage) ([]AppResourceSeries, error) {
 	in, ok := parseAppResources(raw)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	series := cleanAppResources(in)
 	notes := make([]string, 0, len(in.Notes))
@@ -173,7 +174,7 @@ func (s *NodeService) StoreAppResources(nodeID string, raw json.RawMessage) erro
 		interval = 0
 	}
 	now := time.Now().UTC()
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// The set is replaced below, so a Service link must be read first and written back for the
 		// keys that are still reported; a key that disappears takes its link with it.
 		var linked []db.NodeAppResource
@@ -202,6 +203,10 @@ func (s *NodeService) StoreAppResources(nodeID string, raw json.RawMessage) erro
 		return tx.Clauses(clause.OnConflict{UpdateAll: true}).
 			Create(&db.NodeAppResourceReport{NodeID: nodeID, IntervalSeconds: interval, Notes: string(rawNotes), ReportedAt: now}).Error
 	})
+	if err != nil {
+		return nil, err
+	}
+	return series, nil
 }
 
 // GetAppResources returns the latest report, or nil when the node never sent one.

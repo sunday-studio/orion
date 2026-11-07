@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"orion/core/internal/config"
+	"orion/core/internal/metricstore"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"os"
@@ -45,6 +46,7 @@ type Server struct {
 	lookupHost                   func(ctx context.Context, host string) ([]string, error)
 	router                       *gin.Engine
 	logs                         *productLogs
+	metrics                      metricstore.MetricStore // nil until EnableMetrics; resource history is optional
 	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
 	auditRouteProbe bool
 }

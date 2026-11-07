@@ -16,6 +16,8 @@ const (
 	DefaultSeriesCapPerNode = 200
 	// DefaultSeriesCapPerApp is deliberately low: apps can emit unbounded label sets.
 	DefaultSeriesCapPerApp = 100
+	// MaxAppSeries bounds how many OTLP series a query returns for a set of apps.
+	MaxAppSeries = 50
 	// ActiveSeriesWindow is how recently a series must have reported to count against its cap, so a
 	// container that was redeployed under a new key does not hold a slot for months.
 	ActiveSeriesWindow = 24 * time.Hour
@@ -71,6 +73,8 @@ type SeriesRef struct {
 // Query asks for the history of some series between From and To.
 type Query struct {
 	Series []SeriesRef
+	// AppIDs adds the most recently seen OTLP series of these apps, at most MaxAppSeries in all.
+	AppIDs []string
 	From   time.Time
 	To     time.Time
 	// MaxPoints is about how many points a series returns (at most one more, from bucket alignment); the step grows to fit. 0 means 500, the maximum is 2000.
