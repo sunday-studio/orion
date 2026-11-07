@@ -73,6 +73,10 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		return nil, err
 	}
 
+	if err := checkMetricRetention(settings, payload); err != nil {
+		return nil, err
+	}
+
 	updates := map[string]any{
 		"raw_report_hot_days":   payload.RawReportHotDays,
 		"archive_raw_reports":   payload.ArchiveRawReports,
@@ -320,4 +324,20 @@ func MetricRetention(s *SettingsService) metricstore.Retention {
 		return metricstore.Retention{Raw: days(0, 7), Rollup: days(0, 90)}
 	}
 	return metricstore.Retention{Raw: days(settings.MetricSampleRetentionDays, 7), Rollup: days(settings.MetricRollupRetentionDays, 90)}
+}
+
+// checkMetricRetention keeps hourly rollups at least as long as one-minute rows: a shorter rollup
+// window would prune series whose raw rows are still inside their retention.
+func checkMetricRetention(current *db.DataLifecycleSettings, payload DataLifecycleSettingsPayload) error {
+	sample, rollup := current.MetricSampleRetentionDays, current.MetricRollupRetentionDays
+	if payload.MetricSampleRetentionDays != nil {
+		sample = *payload.MetricSampleRetentionDays
+	}
+	if payload.MetricRollupRetentionDays != nil {
+		rollup = *payload.MetricRollupRetentionDays
+	}
+	if rollup < sample {
+		return errors.New("metric_rollup_retention_days must be at least metric_sample_retention_days")
+	}
+	return nil
 }

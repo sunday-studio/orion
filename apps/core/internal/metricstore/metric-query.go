@@ -55,6 +55,13 @@ func (s *Store) Query(q Query) (QueryResult, error) {
 	if err != nil {
 		return res, err
 	}
+	limit := q.MaxSeries
+	if limit <= 0 {
+		limit = DefaultMaxSeries
+	}
+	if len(metas) > limit {
+		metas, res.Truncated = metas[:limit], true
+	}
 	for _, m := range metas {
 		points, err := s.readPoints(sqlText, step, m.ID, q.From.Unix(), q.To.Unix())
 		if err != nil {

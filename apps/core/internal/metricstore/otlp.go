@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -177,8 +178,17 @@ func numberSample(name, kind, unit string, resource map[string]string, dp *metri
 	for k, val := range resource {
 		labels["resource."+k] = val
 	}
-	count := 0
+	// Take the first maxAttributes by key, not by send order, so a data point with more attributes than
+	// the limit maps to one series however its exporter orders them.
+	attrs := make([]*commonpb.KeyValue, 0, len(dp.GetAttributes()))
 	for _, kv := range dp.GetAttributes() {
+		if kv.GetKey() != "" {
+			attrs = append(attrs, kv)
+		}
+	}
+	sort.SliceStable(attrs, func(i, j int) bool { return attrs[i].GetKey() < attrs[j].GetKey() })
+	count := 0
+	for _, kv := range attrs {
 		if count == maxAttributes {
 			break
 		}

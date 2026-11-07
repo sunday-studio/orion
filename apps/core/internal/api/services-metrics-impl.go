@@ -63,7 +63,7 @@ func (s *Server) getServiceMetricsImpl(c *gin.Context) {
 		utils.InternalError(c, "Failed to read metric history", err)
 		return
 	}
-	out.Resolution, out.StepSeconds = result.Resolution, result.StepSeconds
+	out.Resolution, out.StepSeconds, out.Truncated = result.Resolution, result.StepSeconds, result.Truncated
 	for _, sr := range result.Series {
 		series := ServiceMetricSeries{Source: sr.Ref.Source, NodeID: sr.Ref.NodeID, AppID: sr.Ref.AppID, Key: sr.Ref.Key, Kind: sr.Kind, Name: sr.Name,
 			Metric: sr.Metric, Unit: sr.Unit, Labels: sr.Labels, Points: make([]ServiceMetricPoint, 0, len(sr.Points))}

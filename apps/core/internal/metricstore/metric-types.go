@@ -16,6 +16,8 @@ const (
 	DefaultSeriesCapPerNode = 200
 	// DefaultSeriesCapPerApp is deliberately low: apps can emit unbounded label sets.
 	DefaultSeriesCapPerApp = 100
+	// DefaultMaxSeries bounds the series one query returns.
+	DefaultMaxSeries = 100
 	// MaxAppSeries bounds how many OTLP series a query returns for a set of apps.
 	MaxAppSeries = 50
 	// ActiveSeriesWindow is how recently a series must have reported to count against its cap, so a
@@ -77,6 +79,8 @@ type Query struct {
 	AppIDs []string
 	From   time.Time
 	To     time.Time
+	// MaxSeries bounds how many series come back; 0 means DefaultMaxSeries. QueryResult.Truncated says when more matched.
+	MaxSeries int
 	// MaxPoints is about how many points a series returns (at most one more, from bucket alignment); the step grows to fit. 0 means 500, the maximum is 2000.
 	MaxPoints int
 }
@@ -111,6 +115,8 @@ type SeriesResult struct {
 
 // QueryResult carries the resolution that was used: "raw" (one-minute rows) or "hourly" (rollups).
 type QueryResult struct {
+	// Truncated is true when more series matched than MaxSeries.
+	Truncated   bool
 	Resolution  string
 	StepSeconds int
 	Series      []SeriesResult

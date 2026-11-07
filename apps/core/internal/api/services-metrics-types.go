@@ -40,7 +40,9 @@ type ServiceMetricsResponse struct {
 	From      time.Time `json:"from"`
 	To        time.Time `json:"to"`
 	// Resolution is "raw" (one-minute rows, ranges up to 48 hours) or "hourly" (rollups).
-	Resolution  string                `json:"resolution" enums:"raw,hourly"`
+	Resolution string `json:"resolution" enums:"raw,hourly"`
+	// Truncated is true when the service has more series than the response carries (100).
+	Truncated   bool                  `json:"truncated"`
 	StepSeconds int                   `json:"step_seconds"`
 	Series      []ServiceMetricSeries `json:"series"`
 }

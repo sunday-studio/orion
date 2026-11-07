@@ -192,7 +192,6 @@ func (i *Ingester) ingestParsed(app *AppContext, parsed Parsed, now time.Time) (
 	return result, nil
 }
 
-// touch records last use at most once a minute per key and app.
 // Allow charges n units against the app's ingest rate limit, the one log lines use, and returns a
 // *RateLimitedError when it is exhausted. Metric data points share the budget with log lines.
 func (i *Ingester) Allow(app *AppContext, n int) error {
@@ -202,6 +201,7 @@ func (i *Ingester) Allow(app *AppContext, n int) error {
 	return nil
 }
 
+// touch records last use at most once a minute per key and app.
 func (i *Ingester) touch(app *AppContext, now time.Time) {
 	i.mu.Lock()
 	last := i.lastUsed[app.KeyID]

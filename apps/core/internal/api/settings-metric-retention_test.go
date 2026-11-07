@@ -47,4 +47,11 @@ func TestDataLifecycleMetricRetentionSettings(t *testing.T) {
 			t.Fatalf("metric_sample_retention_days=%d status = %d", bad, resp.Code)
 		}
 	}
+	// Hourly rollups may not be kept for less time than the one-minute rows they summarise.
+	if resp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", base(map[string]any{"metric_sample_retention_days": 30, "metric_rollup_retention_days": 7}), ""); resp.Code != http.StatusBadRequest {
+		t.Fatalf("rollup shorter than raw status = %d", resp.Code)
+	}
+	if resp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", base(map[string]any{"metric_sample_retention_days": 60}), ""); resp.Code != http.StatusBadRequest {
+		t.Fatalf("raw longer than the stored rollup (30) status = %d", resp.Code)
+	}
 }

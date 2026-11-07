@@ -150,3 +150,24 @@ func TestSeriesCacheStaysBounded(t *testing.T) {
 		t.Fatalf("cache grew to %d", len(s.cache))
 	}
 }
+
+func TestQueryTruncatesToMaxSeries(t *testing.T) {
+	s := openTestStore(t)
+	now := time.Now().UTC()
+	var samples []Sample
+	var refs []SeriesRef
+	for i := 0; i < 5; i++ {
+		key := string(rune('a' + i))
+		samples = append(samples, cpuSample(key, 1))
+		refs = append(refs, refOS("n1", key))
+	}
+	s.Enqueue(osBatch("n1", now, samples...))
+	s.Flush()
+	res, err := s.Query(Query{Series: refs, From: now.Add(-time.Hour), To: now.Add(time.Hour), MaxSeries: 3})
+	if err != nil || len(res.Series) != 3 || !res.Truncated {
+		t.Fatalf("result = %d series, truncated %v, %v", len(res.Series), res.Truncated, err)
+	}
+	if res, _ := s.Query(Query{Series: refs, From: now.Add(-time.Hour), To: now.Add(time.Hour)}); len(res.Series) != 5 || res.Truncated {
+		t.Fatalf("default limit = %d series, truncated %v", len(res.Series), res.Truncated)
+	}
+}

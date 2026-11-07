@@ -214,6 +214,12 @@ func dataLifecycleChangedFields(previous *db.DataLifecycleSettings, updated *db.
 	if previous.ArchiveSchedule != updated.ArchiveSchedule {
 		fields = append(fields, "archive_schedule")
 	}
+	if previous.MetricSampleRetentionDays != updated.MetricSampleRetentionDays {
+		fields = append(fields, "metric_sample_retention_days")
+	}
+	if previous.MetricRollupRetentionDays != updated.MetricRollupRetentionDays {
+		fields = append(fields, "metric_rollup_retention_days")
+	}
 	return fields
 }
 

@@ -2,6 +2,7 @@ package metricstore
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -166,4 +167,28 @@ func TestAllowSeriesAdmitsKnownSeriesAndNewOnesUnderTheCap(t *testing.T) {
 	if def, _ := s.AllowSeries(SourceOTLP, "", "app-3", make([]string, 0), 0); len(def) != 0 {
 		t.Fatalf("no keys = %v", def)
 	}
+}
+
+func TestOTLPAttributeLimitDoesNotDependOnSendOrder(t *testing.T) {
+	now := time.Now().UTC()
+	var forward, backward []*commonpb.KeyValue
+	for i := 0; i < maxAttributes+5; i++ {
+		forward = append(forward, strAttr(fmt.Sprintf("attr.%02d", i), "v"))
+	}
+	for i := len(forward) - 1; i >= 0; i-- {
+		backward = append(backward, forward[i])
+	}
+	a, _, _ := ParseOTLPMetrics("application/x-protobuf", mustMarshal(request(nil, gauge("m", "", dpDouble(now, 1, forward...)))), now)
+	b, _, _ := ParseOTLPMetrics("application/x-protobuf", mustMarshal(request(nil, gauge("m", "", dpDouble(now, 1, backward...)))), now)
+	if len(a.Points) != 1 || len(b.Points) != 1 || a.Points[0].Sample.Key != b.Points[0].Sample.Key {
+		t.Fatalf("one data point mapped to two series depending on attribute order:\n%s\n%s", a.Points[0].Sample.Key, b.Points[0].Sample.Key)
+	}
+}
+
+func mustMarshal(m proto.Message) []byte {
+	b, err := proto.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

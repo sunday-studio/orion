@@ -74,6 +74,12 @@ func TestLoadAtTheSeriesCap(t *testing.T) {
 	}
 	t.Logf("rollup: %d hours in %s", hours, time.Since(t1).Round(time.Millisecond))
 	t.Logf("size after rollup: %.1f MiB", float64(s.Stats().DatabaseBytes)/(1<<20))
+	// The steady state: the next hourly run re-reads the last hour and rolls the new one.
+	tSteady := time.Now()
+	if _, err := s.Rollup(end.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("steady-state hourly rollup pass: %s", time.Since(tSteady).Round(time.Millisecond))
 
 	ref := func(n, k int) SeriesRef {
 		return SeriesRef{Source: SourceOS, NodeID: fmt.Sprintf("node-%d", n), Key: fmt.Sprintf("container:%03d", k)}
