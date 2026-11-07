@@ -6675,6 +6675,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/ingest/otlp/v1/metrics": {
+            "post": {
+                "security": [
+                    {
+                        "IngestKey": []
+                    }
+                ],
+                "description": "OpenTelemetry Metrics endpoint (ExportMetricsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed. Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each data point counts as one). Gauges and sums are stored as the app's metric series; histograms and summaries are not supported yet and are reported as rejected. An app may report up to its ` + "`" + `metric_series_cap` + "`" + ` distinct series (default 100): data points of further series are refused and counted in partial_success. Data points older than 24 hours or more than 5 minutes ahead are refused.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest metrics over OTLP/HTTP",
+                "operationId": "ingestOTLPMetrics",
+                "parameters": [
+                    {
+                        "description": "ExportMetricsServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/internal-logs": {
             "get": {
                 "security": [
@@ -18533,6 +18609,10 @@ const docTemplate = `{
                     "description": "MaxStorageMB caps stored log size for this app; the oldest entries are pruned first. 0 means the server default.",
                     "type": "integer"
                 },
+                "metric_series_cap": {
+                    "description": "MetricSeriesCap is how many distinct metric series this app may report over OTLP; 0 uses the server default (100).",
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string",
                     "example": "checkout-api"
@@ -18603,6 +18683,9 @@ const docTemplate = `{
                 "max_storage_mb": {
                     "type": "integer"
                 },
+                "metric_series_cap": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -18633,6 +18716,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "max_storage_mb": {
+                    "type": "integer"
+                },
+                "metric_series_cap": {
                     "type": "integer"
                 },
                 "name": {
