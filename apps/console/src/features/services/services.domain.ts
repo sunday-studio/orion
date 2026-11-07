@@ -1,5 +1,8 @@
 // Pure rules for the Services screens. No React and no `@/` imports, so `node --test` runs this file.
 import type {
+  ApiApp,
+  ApiMonitorResponse,
+  ServiceAppResourceSeries,
   ServiceServiceInput,
   ServiceServiceLinkRef,
   ServiceServiceSuggestion,
@@ -180,3 +183,72 @@ export const describeMove = (
 export const firstActiveIncident = (
   monitors: readonly { active_incident_id?: string; health?: string }[],
 ) => monitors.find((monitor) => monitor.active_incident_id)?.active_incident_id;
+
+export type LinkCandidate = {
+  key: string;
+  ref: ServiceServiceLinkRef;
+  label: string;
+  hint?: string;
+  /** The service this thing belongs to now, when it is not the one being edited. */
+  elsewhere?: string;
+};
+
+const elsewhereOf = (current: string | undefined, serviceId: string | undefined) =>
+  current && current !== serviceId ? current : undefined;
+
+/** Monitors that can be linked. System monitors cannot, and ones already here are left out. */
+export const monitorCandidates = (
+  monitors: readonly ApiMonitorResponse[],
+  serviceId?: string,
+): LinkCandidate[] =>
+  monitors
+    .filter((monitor) => monitor.id && !monitor.system && monitor.service_id !== serviceId)
+    .map((monitor) => ({
+      key: `monitor:${monitor.id}`,
+      ref: { kind: "monitor", id: monitor.id },
+      label: monitor.name ?? monitor.id ?? "",
+      hint: monitor.type,
+      elsewhere: elsewhereOf(monitor.service_id, serviceId),
+    }));
+
+export const appCandidates = (apps: readonly ApiApp[], serviceId?: string): LinkCandidate[] =>
+  apps
+    .filter((app) => app.id && app.service_id !== serviceId)
+    .map((app) => ({
+      key: `app:${app.id}`,
+      ref: { kind: "app", id: app.id },
+      label: app.name ?? app.slug ?? app.id ?? "",
+      hint: app.environment,
+      elsewhere: elsewhereOf(app.service_id, serviceId),
+    }));
+
+export const resourceCandidates = (
+  series: readonly ServiceAppResourceSeries[],
+  node: { id: string; name?: string },
+  serviceId?: string,
+): LinkCandidate[] =>
+  series
+    .filter((item) => item.key && item.service_id !== serviceId)
+    .map((item) => ({
+      key: `resource:${node.id}:${item.key}`,
+      ref: { kind: "resource", node_id: node.id, key: item.key },
+      label: item.name ?? item.key ?? "",
+      hint: [item.kind, node.name && `on ${node.name}`].filter(Boolean).join(" "),
+      elsewhere: elsewhereOf(item.service_id, serviceId),
+    }));
+
+/** Turns ticked candidate keys back into link refs, in list order. */
+export const refsForKeys = (candidates: readonly LinkCandidate[], keys: ReadonlySet<string>) =>
+  candidates.filter((candidate) => keys.has(candidate.key)).map((candidate) => candidate.ref);
+
+/** "Currently in billing" for a candidate that would move, looked up by service id. */
+export const elsewhereNote = (
+  candidate: LinkCandidate,
+  services: readonly ServiceServiceSummary[],
+) =>
+  candidate.elsewhere
+    ? `Moves from ${services.find((service) => service.id === candidate.elsewhere)?.name ?? "another service"}`
+    : undefined;
+
+/** Slug-ish default for a name typed into the new-service form. Core derives its own when blank. */
+export const canCreateService = (name: string) => name.trim().length > 0;

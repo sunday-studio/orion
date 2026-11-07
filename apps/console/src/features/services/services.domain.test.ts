@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  appCandidates,
   defaultSelectedSuggestions,
   describeMove,
+  elsewhereNote,
   environmentsOf,
   filterServices,
   healthCounts,
   memberKey,
+  monitorCandidates,
   planSuggestion,
+  refsForKeys,
+  resourceCandidates,
   serviceHref,
   serviceTabFromParam,
   suggestionLikelihood,
@@ -147,5 +152,53 @@ describe("unlink", () => {
     assert.equal(describeMove(undefined, []), undefined);
     assert.equal(describeMove("s1", [{ id: "s1", name: "billing" }]), "Moved from billing.");
     assert.equal(describeMove("gone", []), "Moved from another service.");
+  });
+});
+
+describe("link candidates", () => {
+  it("leaves out system monitors and monitors already in this service", () => {
+    const candidates = monitorCandidates(
+      [
+        { id: "m1", name: "api", type: "http" },
+        { id: "m2", name: "sys", system: true },
+        { id: "m3", name: "here", service_id: "svc-1" },
+        { id: "m4", name: "other", service_id: "svc-2" },
+      ] as never,
+      "svc-1",
+    );
+    assert.deepEqual(
+      candidates.map((c) => c.label),
+      ["api", "other"],
+    );
+    assert.equal(candidates[1].elsewhere, "svc-2");
+  });
+
+  it("warns that linking a thing from another service moves it", () => {
+    const [candidate] = appCandidates(
+      [{ id: "a1", name: "web", service_id: "svc-2" }] as never,
+      "svc-1",
+    );
+    assert.equal(
+      elsewhereNote(candidate, [{ id: "svc-2", name: "billing" }]),
+      "Moves from billing",
+    );
+    assert.equal(elsewhereNote({ ...candidate, elsewhere: undefined }, []), undefined);
+  });
+
+  it("keys resources by node and key, and turns ticked keys into refs", () => {
+    const candidates = resourceCandidates(
+      [
+        { key: "container:api", name: "api", kind: "container" },
+        { key: "proc:pg", name: "postgres", kind: "process", service_id: "svc-1" },
+      ] as never,
+      { id: "n1", name: "edge-01" },
+      "svc-1",
+    );
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].hint, "container on edge-01");
+    assert.deepEqual(refsForKeys(candidates, new Set(["resource:n1:container:api"])), [
+      { kind: "resource", node_id: "n1", key: "container:api" },
+    ]);
+    assert.deepEqual(refsForKeys(candidates, new Set()), []);
   });
 });

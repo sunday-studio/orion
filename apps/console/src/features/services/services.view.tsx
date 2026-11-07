@@ -1,9 +1,10 @@
 import { Search } from "lucide-react";
 import { parseAsString, useQueryStates } from "nuqs";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
+  Callout,
   EmptyState,
   GridRow,
   GridTable,
@@ -13,7 +14,9 @@ import {
   Select,
   Skeleton,
 } from "@/design-system";
-import { useListServices } from "@/orion-sdk";
+import { useListServiceSuggestions, useListServices } from "@/orion-sdk";
+import { ServiceFormDialog } from "./components/service-form-dialog";
+import { SuggestionsDialog } from "./components/suggestions-dialog";
 import { HealthBadge, HealthDot } from "./components/service-health";
 import {
   type HealthFilter,
@@ -31,6 +34,10 @@ const HEALTH_SEGMENTS: HealthFilter[] = ["all", "down", "degraded", "up"];
 export const ServicesPage = () => {
   const navigate = useNavigate();
   const query = useListServices();
+  const suggestions = useListServiceSuggestions();
+  const suggestionCount = suggestions.data?.suggestions?.length ?? 0;
+  const [creating, setCreating] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [{ q, health, env }, setQuery] = useQueryStates({
     q: parseAsString.withDefault(""),
     health: parseAsString.withDefault("all"),
@@ -56,7 +63,20 @@ export const ServicesPage = () => {
             ? `${plural(services.length, "service")} grouping your checks, logs and resources.`
             : "Nothing grouped yet."
         }
+        actions={
+          <Button size="sm" onClick={() => setCreating(true)}>
+            New service
+          </Button>
+        }
       />
+      {services.length > 0 && suggestionCount > 0 && (
+        <Callout tone="warn" className="mt-2">
+          Orion found {plural(suggestionCount, "group")} you could turn into services.{" "}
+          <button type="button" className="underline" onClick={() => setReviewing(true)}>
+            Review suggestions
+          </button>
+        </Callout>
+      )}
       {query.isPending ? (
         <Skeleton className="mt-3 h-40 w-full rounded-xl" />
       ) : query.isError ? (
@@ -74,7 +94,23 @@ export const ServicesPage = () => {
         <EmptyState
           className="mt-3 min-h-[207px] rounded-xl bg-card"
           title="No services yet"
-          description="A service puts one thing you run in one place: its checks, its logs, and its CPU and memory."
+          description={`A service puts one thing you run in one place: its checks, its logs, and its CPU and memory.${
+            suggestionCount > 0
+              ? ` Orion found ${plural(suggestionCount, "group")} in what you already have.`
+              : ""
+          }`}
+          action={
+            <div className="flex gap-2">
+              {suggestionCount > 0 && (
+                <Button size="sm" onClick={() => setReviewing(true)}>
+                  Review suggestions
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
+                New service
+              </Button>
+            </div>
+          }
         />
       ) : (
         <div className="mt-3 flex flex-col gap-3">
@@ -182,6 +218,12 @@ export const ServicesPage = () => {
           )}
         </div>
       )}
+      <ServiceFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={(id) => navigate(serviceHref(id))}
+      />
+      <SuggestionsDialog open={reviewing} onOpenChange={setReviewing} />
     </div>
   );
 };
