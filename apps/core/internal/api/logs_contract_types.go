@@ -90,6 +90,23 @@ type LogListResponse struct {
 	Truncated bool `json:"truncated"`
 }
 
+// IncidentLogsResponse is the logs that belong to an incident, newest first, and where they came from.
+type IncidentLogsResponse struct {
+	Entries []LogEntry `json:"entries"`
+	// Source says how the app was chosen: service (the incident's monitor is linked to a service with
+	// apps), log_rule (the monitor belongs to a log alert rule), query (app_id was passed) or none.
+	Source string `json:"source" enums:"service,log_rule,query,none"`
+	// ServiceID and ServiceName are set when the incident's monitor is linked to a service, even if it has no app.
+	ServiceID   string `json:"service_id,omitempty"`
+	ServiceName string `json:"service_name,omitempty"`
+	// AppIDs are the apps whose logs were searched.
+	AppIDs []string `json:"app_ids"`
+	// PreIncidentOnly is true when the window stops at the moment the incident opened.
+	PreIncidentOnly bool      `json:"pre_incident_only"`
+	From            time.Time `json:"from"`
+	To              time.Time `json:"to"`
+}
+
 // LogHistogramBucket is the count of entries per severity in one time bucket.
 type LogHistogramBucket struct {
 	Start    time.Time      `json:"start"`

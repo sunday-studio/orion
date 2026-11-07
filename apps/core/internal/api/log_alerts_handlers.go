@@ -69,15 +69,16 @@ func (s *Server) deleteLogAlertRule(c *gin.Context) { s.deleteLogAlertRuleImpl(c
 
 // getIncidentLogs returns logs around an incident.
 // @Summary      Logs around an incident
-// @Description  Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the app's product logs when `app_id` is given or the incident came from a log alert rule. Newest first.
+// @Description  Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the product logs of the incident's app or apps. The apps are `app_id` when given; otherwise those of the service the incident's monitor is linked to (`source` is `service`); otherwise the app of the log alert rule that owns the monitor (`source` is `log_rule`). With `pre_incident_only=true` the window ends when the incident opened, because the cause usually sits before the first failed check. Newest first.
 // @Tags         incidents
 // @Produce      json
 // @Security     BearerAuth
 // @ID           getIncidentLogs
 // @Param        id      path   string  true   "Incident ID"
-// @Param        app_id  query  string  false  "Also include this app's product logs"
+// @Param        app_id  query  string  false  "Use this app's product logs instead of resolving them"
+// @Param        pre_incident_only  query  bool  false  "Stop at the moment the incident opened"
 // @Param        limit   query  int     false  "Maximum entries, default 100, max 200"
-// @Success      200  {object}  utils.APIResponse{data=LogListResponse}
+// @Success      200  {object}  utils.APIResponse{data=IncidentLogsResponse}
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id}/logs [get]

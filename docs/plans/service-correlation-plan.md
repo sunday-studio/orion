@@ -164,6 +164,27 @@ is covered. OTLP traces ingest and a waterfall view need span storage and new UI
 | S6 | Unified incident timeline with metric chart | console | Incident page shows checks, logs and curve together |
 | S7 | Metric threshold rules | core, console | A memory or error-rate rule opens an incident |
 
+### Status of S0 to S2 (Core API, 2026-11-07)
+
+Built in `apps/core`; the Console and navigation work are not started.
+
+- Routes: `GET/POST /v1/services`, `GET/PATCH/DELETE /v1/services/{id}`, `POST/DELETE /v1/services/{id}/links`
+  (an app or monitor by `id`, a resource by `node_id` and `key`; unlink takes the same as query parameters, with
+  `target_id` for the id), `GET /v1/services/suggestions[?service_id=]`. `service_id` is also returned on apps,
+  monitors and node app resources.
+- Linking a thing that belongs to another service moves it and reports `previous_service_id`. System monitors
+  cannot be linked. Deleting a service clears its links and keeps everything that was linked.
+- Suggestions are grouped per service (existing, or a new one started by an unlinked app). Each member carries
+  `matched_on`, `against`, `confidence` and a sentence. Rules: app slug and OTel `service.name` (last 24 hours,
+  newest 5000 log rows) against monitor names, the host a Core monitor checks, and resource names. Exact match is
+  high confidence; a hyphen prefix of 4 or more characters is medium. Apps have no address field, so "monitor
+  host against the app's address" is matched against the app slug and service.name instead. Discovery items are
+  not linkable until they become a monitor or a measured resource, so Node discovery names are matched through
+  `node_app_resources`.
+- `GET /v1/incidents/{id}/logs` resolves `explicit app_id`, else the monitor's service apps, else the log-rule app,
+  and returns `source`, `service_id`, `app_ids` and the window. `pre_incident_only=true` ends the window when the
+  incident opened.
+
 Each phase is independently shippable. S1 to S3 deliver the core request ("see logs when a monitor
 goes wrong") without any new storage.
 

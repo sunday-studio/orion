@@ -5968,7 +5968,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the app's product logs when ` + "`" + `app_id` + "`" + ` is given or the incident came from a log alert rule. Newest first.",
+                "description": "Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the product logs of the incident's app or apps. The apps are ` + "`" + `app_id` + "`" + ` when given; otherwise those of the service the incident's monitor is linked to (` + "`" + `source` + "`" + ` is ` + "`" + `service` + "`" + `); otherwise the app of the log alert rule that owns the monitor (` + "`" + `source` + "`" + ` is ` + "`" + `log_rule` + "`" + `). With ` + "`" + `pre_incident_only=true` + "`" + ` the window ends when the incident opened, because the cause usually sits before the first failed check. Newest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -5987,8 +5987,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Also include this app's product logs",
+                        "description": "Use this app's product logs instead of resolving them",
                         "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Stop at the moment the incident opened",
+                        "name": "pre_incident_only",
                         "in": "query"
                     },
                     {
@@ -6010,7 +6016,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_api.LogListResponse"
+                                            "$ref": "#/definitions/internal_api.IncidentLogsResponse"
                                         }
                                     }
                                 }
@@ -19505,6 +19511,51 @@ const docTemplate = `{
                 },
                 "resolved_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.IncidentLogsResponse": {
+            "type": "object",
+            "properties": {
+                "app_ids": {
+                    "description": "AppIDs are the apps whose logs were searched.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogEntry"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "pre_incident_only": {
+                    "description": "PreIncidentOnly is true when the window stops at the moment the incident opened.",
+                    "type": "boolean"
+                },
+                "service_id": {
+                    "description": "ServiceID and ServiceName are set when the incident's monitor is linked to a service, even if it has no app.",
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Source says how the app was chosen: service (the incident's monitor is linked to a service with\napps), log_rule (the monitor belongs to a log alert rule), query (app_id was passed) or none.",
+                    "type": "string",
+                    "enum": [
+                        "service",
+                        "log_rule",
+                        "query",
+                        "none"
+                    ]
+                },
+                "to": {
+                    "type": "string"
                 }
             }
         },
