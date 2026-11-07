@@ -20,6 +20,9 @@ type NodeAppResource struct {
 	StorageBytes       *uint64
 	StorageCapped      bool      `gorm:"not null"`
 	UpdatedAt          time.Time `gorm:"not null"`
+	// ServiceID links the thing to a Service (nil = unlinked). The row is replaced on every
+	// report, so the node service carries this value over for keys that are still reported.
+	ServiceID *string `gorm:"index:idx_node_app_resources_service_id"`
 }
 
 // NodeAppResourceReport is the envelope of the latest app-resources report for one node.

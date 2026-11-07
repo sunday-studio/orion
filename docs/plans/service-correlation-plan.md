@@ -70,6 +70,13 @@ detected-resource rows, plus **suggestions** so most users only click accept:
 
 A suggestion never links on its own.
 
+Link storage (S0 decisions, see `000058_services.up.sql`): no foreign key, because a stale link must
+never block a delete, a Node report or a monitor change; Core clears the links itself when a service
+is deleted. Unlinking only clears `service_id`: logs (keyed by app), monitor reports and incidents are
+untouched, so history is never lost. `node_app_resources` rows are replaced on every Node report, so
+Core carries `service_id` over for keys that are still reported; a key that stops being reported (a
+process that restarts under a new key, a removed container) loses its link with its row.
+
 Where it shows in the Console: Services is one of three views inside a **Monitoring** tab (Services,
 Monitors, Servers), which keeps the top bar at five items once it ships. An app's setup stays under
 **Logs, Apps** (moved out of Settings by the navigation review), and a service page links to it.
@@ -211,8 +218,13 @@ goes wrong") without any new storage.
 
 ## 10. Open questions
 
-- Can one monitor belong to more than one service (shared database, shared gateway)? If yes, S1 needs
-  the join table from day one.
+- ~~Can one monitor belong to more than one service?~~ **Decided for S0/S1: no.** A monitor, an app and
+  a resource each link to at most one service through a nullable `service_id` column (migration
+  `000058_services`). Linking to a second service moves the link. A shared database or gateway should
+  be its own service for now. If real use shows a monitor must serve several services, add a
+  `service_links` join table and backfill it from the columns; the API shape (`links` on a service)
+  does not change. Why: every consumer in S2 to S5 (incident logs, grouping, series tags) wants one
+  answer to "which service is this monitor", and the join table can be added later without losing data.
 - Should a Service carry its own status-page component mapping, replacing per-monitor mapping later?
 - Which metric names should be first-class (`http.server.request.duration`, `process.memory.usage`) and
   which stay raw?

@@ -193,6 +193,8 @@ type Monitor struct {
 	MaintenanceReason   string     `json:"maintenance_reason" gorm:"not null;default:''"`
 	Health              string     `json:"health" gorm:"not null;index:idx_monitors_health"` // up | down | degraded | unknown
 	Meta                string     `json:"meta" gorm:"type:text"`
+	// ServiceID links the monitor to a Service (nil = unlinked).
+	ServiceID *string `json:"service_id" gorm:"index:idx_monitors_service_id"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

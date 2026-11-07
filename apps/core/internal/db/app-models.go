@@ -17,8 +17,10 @@ type App struct {
 	DisplayJSON        string `gorm:"column:display_json;not null;default:'{}'"`
 	RedactionJSON      string `gorm:"column:redaction_json;not null;default:'{}'"`
 	LastIngestAt       *time.Time
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	// ServiceID links the app to a Service (nil = unlinked).
+	ServiceID *string `gorm:"index:idx_apps_service_id"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // AppIngestKey is a write-only credential for one App; only its SHA-256 is stored.
