@@ -11,7 +11,10 @@ import {
   applyTheme,
   readThemePreference,
 } from "@/design-system";
-import { OPEN_SHORTCUTS_EVENT } from "@/components/shared/global-shortcut-events";
+import {
+  OPEN_SHORTCUTS_EVENT,
+  TOGGLE_SIDEBAR_EVENT,
+} from "@/components/shared/global-shortcut-events";
 import { cn } from "@/utils/cn";
 import { getTimezone, setTimezone } from "@/utils/date";
 
@@ -34,7 +37,12 @@ const timezoneOptions = [
 const itemClass =
   "flex w-full items-center justify-between rounded-md px-1.5 py-1.5 text-left text-[13px] text-ink hover:bg-tray focus-visible:bg-tray focus-visible:outline-none";
 
-export const AccountMenu = () => {
+type AccountMenuProps = {
+  /** "row" shows the avatar and user name (open sidebar); "avatar" shows the avatar alone. */
+  variant?: "row" | "avatar";
+};
+
+export const AccountMenu = ({ variant = "avatar" }: AccountMenuProps) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
@@ -49,15 +57,25 @@ export const AccountMenu = () => {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label="Account menu"
-        className="flex size-6 items-center justify-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-focus"
+        className={cn(
+          "flex items-center outline-none focus-visible:ring-[3px] focus-visible:ring-focus",
+          variant === "row"
+            ? "w-full gap-[9px] rounded-lg px-2 py-1.5 text-left text-[13px] font-medium text-mid hover:bg-field"
+            : "size-6 justify-center rounded-full",
+        )}
       >
         <span
           aria-hidden
-          className="block size-6 rounded-full"
+          className="block size-6 shrink-0 rounded-full"
           style={{ background: "conic-gradient(from 40deg, #6366f1, #14b8a6, #f59e0b, #6366f1)" }}
         />
+        {variant === "row" && <span className="min-w-0 flex-1 truncate">{getUsername()}</span>}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[240px] rounded-xl p-1.5 text-[13px]">
+      <PopoverContent
+        align={variant === "row" ? "start" : "end"}
+        side={variant === "row" ? "top" : "right"}
+        className="w-[240px] rounded-xl p-1.5 text-[13px]"
+      >
         <div className="px-1.5 pb-1.5 pt-1 text-xs text-quiet">Signed in as {getUsername()}</div>
         <button
           type="button"
@@ -77,6 +95,17 @@ export const AccountMenu = () => {
         >
           Keyboard shortcuts
           <span className="text-xs text-faint">?</span>
+        </button>
+        <button
+          type="button"
+          className={itemClass}
+          onClick={() => {
+            setOpen(false);
+            window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT));
+          }}
+        >
+          Hide sidebar
+          <span className="text-xs text-faint">⌘B</span>
         </button>
         <div className="my-1.5 h-px bg-hairline" />
         <div className="px-1.5 pb-1 text-xs text-quiet">Theme</div>
