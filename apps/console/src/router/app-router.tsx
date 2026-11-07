@@ -1,9 +1,10 @@
 import { lazy } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login.view";
 import { Layout } from "@/components/shared/layout";
 import { NotFound } from "@/components/shared/not-found";
 import { RequireAuth } from "@/components/shared/require-auth";
+import { resolveLegacyRedirect } from "./legacy-redirects";
 
 const NodeDetailPage = lazy(() =>
   import("@/features/node-detail/node-detail.view").then((module) => ({
@@ -87,6 +88,9 @@ const LogsPage = lazy(() =>
 const NodesPage = lazy(() =>
   import("@/features/nodes/nodes.view").then((module) => ({ default: module.NodesPage })),
 );
+const AppsPage = lazy(() =>
+  import("@/features/apps/apps-list.view").then((module) => ({ default: module.AppsPage })),
+);
 const SettingsPage = lazy(() =>
   import("@/features/settings/settings.view").then((module) => ({ default: module.SettingsPage })),
 );
@@ -105,6 +109,10 @@ const StatusPagesPage = lazy(() =>
 );
 
 function AppRouter() {
+  // Old URLs (Settings tabs, /apps/new, /alerts?tab=...) are rewritten before routing.
+  const { pathname, search } = useLocation();
+  const legacy = resolveLegacyRedirect(pathname, search);
+  if (legacy) return <Navigate to={legacy} replace />;
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -113,7 +121,10 @@ function AppRouter() {
           <Route index element={<OverviewPage />} />
           <Route path="overview" element={<Navigate to="/" replace />} />
           <Route path="incidents" element={<IncidentsPage />} />
-          <Route path="alerts" element={<AlertsPage />} />
+          <Route path="alerts" element={<AlertsPage tab="logs" />} />
+          <Route path="alerts/channels" element={<AlertsPage tab="channels" />} />
+          <Route path="alerts/rules" element={<AlertsPage tab="rules" />} />
+          <Route path="alerts/routes" element={<AlertsPage tab="routes" />} />
           <Route path="status-pages" element={<StatusPagesPage />} />
           <Route path="status-pages/:pageId" element={<StatusPageDetailPage />} />
           <Route path="logs" element={<LogsPage />} />
@@ -130,10 +141,14 @@ function AppRouter() {
           <Route path="alerts/channels/:channelId" element={<ChannelDetailPage />} />
           <Route path="alerts/deliveries/:deliveryId" element={<DeliveryDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
-          <Route path="apps/new" element={<ConnectAppPage />} />
-          <Route path="settings/apps" element={<Navigate to="/settings?tab=apps" replace />} />
-          <Route path="settings/apps/:appId" element={<AppDetailPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="logs/apps" element={<AppsPage />} />
+          <Route path="logs/apps/new" element={<ConnectAppPage />} />
+          <Route path="logs/apps/:appId" element={<AppDetailPage />} />
+          <Route path="settings/general" element={<SettingsPage section="general" />} />
+          <Route path="settings/lifecycle" element={<SettingsPage section="lifecycle" />} />
+          <Route path="settings/security" element={<SettingsPage section="security" />} />
+          <Route path="settings/system" element={<SettingsPage section="system" />} />
+          <Route path="settings/audit" element={<SettingsPage section="audit" />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>

@@ -46,7 +46,7 @@ export const OverviewFirstRun = ({ onDismiss }: { onDismiss: () => void }) => {
       </div>
       <p className="mt-9 text-[12.5px] min-[1000px]:whitespace-nowrap text-quiet">
         Then connect an alert channel,{" "}
-        <Link className="underline" to="/apps/new">
+        <Link className="underline" to="/logs/apps/new">
           connect an app
         </Link>{" "}
         to see its logs, and publish a status page if you want one.{" "}

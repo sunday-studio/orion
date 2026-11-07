@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Button,
-  FilterToken,
-  PageHeader,
-  Skeleton,
-  Tabs,
-  TabsList,
-  TabsTab,
-  useToast,
-} from "@/design-system";
+import { Button, FilterToken, PageHeader, Skeleton, useToast } from "@/design-system";
 import { useListApps } from "@/orion-sdk";
 import { ExportDialog } from "./components/export-dialog";
 import { FacetSidebar } from "./components/facet-sidebar";
@@ -39,10 +30,15 @@ import {
 } from "./use-log-data";
 import { useLogStream } from "./use-log-stream";
 
+const TITLE: Record<LogKind, string> = {
+  service: "App logs",
+  status: "Events",
+  internal: "Core logs",
+};
 const SUBTITLE: Record<LogKind, string> = {
   service: "Everything your apps and Nodes report",
   status: "What Orion itself saw: checks, incidents, alerts, servers",
-  internal: "Internal logs of the Orion backend: API, worker, scheduler, node gateway",
+  internal: "Orion Core backend: API, worker, scheduler, node gateway",
 };
 const PLACEHOLDER: Record<LogKind, string> = {
   service: "free text, or field:value, like level:error user.id:u_41",
@@ -161,8 +157,6 @@ export const LogsPage = () => {
     .filter(Boolean)
     .join(", ");
 
-  const switchTab = (tab: string) =>
-    void set({ ...CLEARED, tab, view: "list", log: "", limit: state.limit });
   const tokens: { field: string; value: string; clear: Partial<LogQueryState> }[] = [
     state.env && { field: "Environment", value: state.env, clear: { env: "" } },
     selectedSource && { field: "Source", value: selectedSource.label, clear: { source: "" } },
@@ -331,7 +325,8 @@ export const LogsPage = () => {
   return (
     <div className="w-full pb-10">
       <PageHeader
-        title="Logs"
+        className="pb-5"
+        title={TITLE[kind]}
         description={
           view === "live"
             ? "Live tail"
@@ -341,7 +336,7 @@ export const LogsPage = () => {
         }
         actions={
           noApps ? (
-            <Link to="/apps/new">
+            <Link to="/logs/apps/new">
               <Button size="sm">Connect an app</Button>
             </Link>
           ) : (
@@ -349,15 +344,6 @@ export const LogsPage = () => {
           )
         }
       />
-      <div className="pb-4 pt-3">
-        <Tabs value={kind} onValueChange={switchTab}>
-          <TabsList>
-            <TabsTab value="service">Service logs</TabsTab>
-            <TabsTab value="status">Status logs</TabsTab>
-            <TabsTab value="internal">Internal logs</TabsTab>
-          </TabsList>
-        </Tabs>
-      </div>
       {noApps ? (
         <NoApps />
       ) : (

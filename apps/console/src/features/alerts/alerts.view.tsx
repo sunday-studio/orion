@@ -1,6 +1,5 @@
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
-import { Button, PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { Button, PageHeader } from "@/design-system";
 import { Plus } from "lucide-react";
 import type {
   ApiAlertChannelResponse,
@@ -14,10 +13,17 @@ import { RoutesTab } from "./tabs/routes-tab";
 import { RulesTab } from "./tabs/rules-tab";
 import { NotificationLogTab } from "./tabs/notification-log-tab";
 
-const TABS = ["logs", "channels", "rules", "routes"] as const;
+export type AlertsSection = "logs" | "channels" | "rules" | "routes";
 
-export const AlertsPage = () => {
-  const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("logs"));
+const COPY: Record<AlertsSection, { title: string; description: string }> = {
+  logs: { title: "Notifications", description: "Who got told, and whether it worked." },
+  channels: { title: "Channels", description: "Where notifications are sent." },
+  rules: { title: "Rules", description: "Which events send a notification." },
+  routes: { title: "Routes", description: "Which channels each label or monitor reaches." },
+};
+
+/** One Notify page: the notification log, channels, rules or routes, each at its own URL. */
+export const AlertsPage = ({ tab }: { tab: AlertsSection }) => {
   const [dialog, setDialog] = useState<{ open: boolean; channel?: ApiAlertChannelResponse }>({
     open: false,
   });
@@ -32,8 +38,8 @@ export const AlertsPage = () => {
   return (
     <div className="w-full pb-8">
       <PageHeader
-        title="Alerts"
-        description="Who gets told, and whether it worked."
+        title={COPY[tab].title}
+        description={COPY[tab].description}
         actions={
           tab === "channels" ? (
             <Button size="sm" onClick={() => setDialog({ open: true })}>
@@ -50,41 +56,29 @@ export const AlertsPage = () => {
           ) : undefined
         }
       />
-      <Tabs
-        value={tab}
-        onValueChange={(next) => void setTab(next as (typeof TABS)[number])}
-        className="mt-3 gap-3"
-      >
-        <TabsList>
-          <TabsTab value="logs">Notification log</TabsTab>
-          <TabsTab value="channels">Channels</TabsTab>
-          <TabsTab value="rules">Rules</TabsTab>
-          <TabsTab value="routes">Routes</TabsTab>
-        </TabsList>
-        <TabsPanel value="logs">
-          <NotificationLogTab />
-        </TabsPanel>
-        <TabsPanel value="channels">
+      <div className="mt-3">
+        {tab === "logs" && <NotificationLogTab />}
+        {tab === "channels" && (
           <ChannelsTab
             onAdd={() => setDialog({ open: true })}
             onEdit={(channel) => setDialog({ open: true, channel })}
           />
-        </TabsPanel>
-        <TabsPanel value="rules">
+        )}
+        {tab === "rules" && (
           <RulesTab
             channels={channels.data?.channels ?? []}
             editor={ruleEditor}
             onEditorChange={setRuleEditor}
           />
-        </TabsPanel>
-        <TabsPanel value="routes">
+        )}
+        {tab === "routes" && (
           <RoutesTab
             channels={channels.data?.channels ?? []}
             editor={routeEditor}
             onEditorChange={setRouteEditor}
           />
-        </TabsPanel>
-      </Tabs>
+        )}
+      </div>
       <ChannelDialog
         open={dialog.open}
         channel={dialog.channel}

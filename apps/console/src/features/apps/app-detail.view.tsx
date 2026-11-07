@@ -6,11 +6,9 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
+  RecordTabs,
   Skeleton,
   StatusBadge,
-  Tabs,
-  TabsList,
-  TabsTab,
   useToast,
 } from "@/design-system";
 import { getGetAppQueryKey, getListAppsQueryKey, useDeleteApp, useGetApp } from "@/orion-sdk";
@@ -41,7 +39,7 @@ export const AppDetailPage = () => {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getListAppsQueryKey() });
         toast.add({ title: "App deleted" });
-        navigate("/settings?tab=apps");
+        navigate("/logs/apps");
       },
       onError: () => toast.add({ title: "Unable to delete the app" }),
     },
@@ -58,7 +56,7 @@ export const AppDetailPage = () => {
         tone="error"
         title="Unable to load the app"
         action={
-          <Link to="/settings?tab=apps">
+          <Link to="/logs/apps">
             <Button variant="secondary">Back to apps</Button>
           </Link>
         }
@@ -70,6 +68,15 @@ export const AppDetailPage = () => {
     <div className="w-full pb-10">
       <div className="flex flex-wrap items-start justify-between gap-3 pb-2 pt-7">
         <div className="min-w-0">
+          <nav aria-label="Breadcrumb" className="mb-1 text-[13px] text-quiet">
+            <Link to="/logs" className="hover:text-ink">
+              Logs
+            </Link>
+            {" / "}
+            <Link to="/logs/apps" className="hover:text-ink">
+              Apps
+            </Link>
+          </nav>
           <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">{app.name}</h1>
           <div className="mt-1.5 flex items-center gap-2 text-[13.5px] text-quiet">
             <StatusBadge status={appStatusTone(app.status)}>
@@ -92,17 +99,12 @@ export const AppDetailPage = () => {
           </Button>
         </div>
       </div>
-      <div className="pb-4 pt-3">
-        <Tabs value={active} onValueChange={(next) => void setTab(next)}>
-          <TabsList>
-            {TABS.map((item) => (
-              <TabsTab key={item.value} value={item.value}>
-                {item.label}
-              </TabsTab>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+      <RecordTabs
+        value={active}
+        onValueChange={(next) => void setTab(next)}
+        className="pb-4 pt-3"
+        tabs={TABS}
+      />
       {active === "ingest" && <IngestTab appId={appId} appName={app.name ?? ""} />}
       {active === "retention" && <RetentionTab key={app.id} app={app} onSaved={refresh} />}
       {active === "display" && <DisplayTab key={app.id} app={app} onSaved={refresh} />}

@@ -60,7 +60,7 @@ export const NewAppDialog = ({
           setCreated({ appId, secret: key.key?.key ?? "" });
         } catch {
           onOpenChange(false);
-          navigate(`/settings/apps/${appId}`);
+          navigate(`/logs/apps/${appId}`);
         }
       },
       onError: (failure) => setError((failure as Error).message || "Unable to create the app."),
@@ -149,7 +149,7 @@ export const NewAppDialog = ({
             const appId = created.appId;
             reset();
             onOpenChange(false);
-            navigate(`/settings/apps/${appId}`);
+            navigate(`/logs/apps/${appId}`);
           }}
         />
       )}

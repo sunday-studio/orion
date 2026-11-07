@@ -206,7 +206,7 @@ export const DomainDialog = ({
                 {data?.target_known === false && (
                   <Callout tone="warn" lead="Orion does not know its own address yet.">
                     The record needs to point at your Orion instance. Set the Public Core URL in{" "}
-                    <Link to="/settings?tab=general" className="underline">
+                    <Link to="/settings/general" className="underline">
                       Settings, General
                     </Link>
                     , or set ORION_PUBLIC_URL when you deploy Core, then check this again.
