@@ -156,49 +156,67 @@ func (c *ServiceCatalog) Create(in ServiceInput) (ServiceSummary, error) {
 	return summaryOf(row), nil
 }
 
-// Update changes a service's own fields.
+// Update changes a service's own fields. The patch is checked first; the row is then re-read and
+// written inside one transaction, so a concurrent PATCH of another field is not overwritten and a
+// concurrent DELETE is never undone by an upsert.
 func (c *ServiceCatalog) Update(id string, patch ServicePatch) (ServiceSummary, error) {
-	var row db.Service
-	if err := c.db.Where("id = ?", id).First(&row).Error; err != nil {
-		return ServiceSummary{}, notFoundOr(err, "Service not found")
-	}
+	changes := map[string]any{}
 	var err error
+	var name, env, runbook, slug, nodeID string
 	if patch.Name != nil {
-		if row.Name, err = cleanServiceName(*patch.Name); err != nil {
+		if name, err = cleanServiceName(*patch.Name); err != nil {
 			return ServiceSummary{}, err
 		}
+		changes["name"] = name
 	}
 	if patch.Environment != nil {
-		if row.Environment, err = cleanServiceEnvironment(*patch.Environment); err != nil {
+		if env, err = cleanServiceEnvironment(*patch.Environment); err != nil {
 			return ServiceSummary{}, err
 		}
+		changes["environment"] = env
 	}
 	if patch.RunbookURL != nil {
-		if row.RunbookURL, err = cleanServiceRunbook(*patch.RunbookURL); err != nil {
+		if runbook, err = cleanServiceRunbook(*patch.RunbookURL); err != nil {
 			return ServiceSummary{}, err
 		}
+		changes["runbook_url"] = runbook
 	}
 	if patch.NodeID != nil {
-		row.NodeID = strings.TrimSpace(*patch.NodeID)
-		if err := c.checkOwnerNode(row.NodeID); err != nil {
+		nodeID = strings.TrimSpace(*patch.NodeID)
+		if err := c.checkOwnerNode(nodeID); err != nil {
 			return ServiceSummary{}, err
 		}
+		changes["node_id"] = nodeID
 	}
 	if patch.Slug != nil {
-		slug := strings.TrimSpace(*patch.Slug)
+		slug = strings.TrimSpace(*patch.Slug)
 		if !serviceSlugPattern.MatchString(slug) {
 			return ServiceSummary{}, serviceInvalid("slug must be lowercase letters, digits and hyphens (1-63 characters)")
 		}
-		row.Slug = slug
+		changes["slug"] = slug
 	}
-	row.UpdatedAt = time.Now().UTC()
+	changes["updated_at"] = time.Now().UTC()
+
+	var row db.Service
 	err = c.db.Transaction(func(tx *gorm.DB) error {
-		if taken, takenErr := slugTaken(tx, row.Slug, row.ID); takenErr != nil {
-			return takenErr
-		} else if taken {
-			return serviceConflict("A service with that slug already exists")
+		if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+			return notFoundOr(err, "Service not found")
 		}
-		return tx.Save(&row).Error
+		if patch.Slug != nil {
+			if taken, takenErr := slugTaken(tx, slug, row.ID); takenErr != nil {
+				return takenErr
+			} else if taken {
+				return serviceConflict("A service with that slug already exists")
+			}
+		}
+		res := tx.Model(&db.Service{}).Where("id = ?", id).Updates(changes)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return serviceNotFound("Service not found")
+		}
+		return tx.Where("id = ?", id).First(&row).Error
 	})
 	if err != nil {
 		return ServiceSummary{}, err

@@ -134,6 +134,7 @@ func (c *ServiceCatalog) Suggest(serviceID string) ([]ServiceSuggestion, error) 
 		if len(g.out.Members) < minMembers {
 			continue
 		}
+		sortMembers(g.out.Members)
 		if len(g.out.Members) > suggestionMaxMembers {
 			g.out.Members = g.out.Members[:suggestionMaxMembers]
 		}
@@ -181,12 +182,23 @@ func addMember(g *suggestionGroup, cand suggestionCandidate, form candidateForm,
 	m.Confidence = confidence
 	m.Reason = fmt.Sprintf("%s %q %s %s %q", describeForm(m.Kind, form.matchedOn), form.display, how, againstText(key.against), key.label)
 	g.out.Members = append(g.out.Members, m)
-	sort.SliceStable(g.out.Members, func(i, j int) bool { return memberOrder(g.out.Members[i]) < memberOrder(g.out.Members[j]) })
 }
 
-func memberOrder(m ServiceSuggestionMember) string {
-	rank := map[string]string{ServiceLinkApp: "0", ServiceLinkMonitor: "1", ServiceLinkResource: "2"}[m.Kind]
-	return rank + strings.ToLower(m.Name)
+// sortMembers orders a group's members apps first, then monitors, then resources, each by name.
+// It runs once per group, after every member is in, so adding a member stays constant-time.
+func sortMembers(members []ServiceSuggestionMember) {
+	order := make([]string, len(members))
+	rank := map[string]string{ServiceLinkApp: "0", ServiceLinkMonitor: "1", ServiceLinkResource: "2"}
+	idx := make([]int, len(members))
+	for i, m := range members {
+		order[i], idx[i] = rank[m.Kind]+strings.ToLower(m.Name), i
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return order[idx[a]] < order[idx[b]] })
+	sorted := make([]ServiceSuggestionMember, len(members))
+	for i, from := range idx {
+		sorted[i] = members[from]
+	}
+	copy(members, sorted)
 }
 
 func againstText(against string) string {
