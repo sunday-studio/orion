@@ -3139,6 +3139,37 @@ definitions:
       stored:
         type: integer
     type: object
+  internal_api.ServiceLogCountBucket:
+    properties:
+      counts:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      t:
+        type: string
+      total:
+        type: integer
+    type: object
+  internal_api.ServiceLogCountsResponse:
+    properties:
+      app_ids:
+        items:
+          type: string
+        type: array
+      buckets:
+        items:
+          $ref: '#/definitions/internal_api.ServiceLogCountBucket'
+        type: array
+      from:
+        type: string
+      service_id:
+        type: string
+      step_seconds:
+        type: integer
+      to:
+        type: string
+    type: object
   internal_api.ServiceLogEntryResponse:
     properties:
       collected_at:
@@ -3168,6 +3199,85 @@ definitions:
       source:
         type: string
       stream:
+        type: string
+    type: object
+  internal_api.ServiceMetricPoint:
+    properties:
+      cpu_percent:
+        type: number
+      cpu_percent_max:
+        type: number
+      io_read_bytes_per_sec:
+        type: number
+      io_write_bytes_per_sec:
+        type: number
+      memory_bytes:
+        type: number
+      memory_bytes_max:
+        type: number
+      net_rx_bytes_per_sec:
+        type: number
+      net_tx_bytes_per_sec:
+        type: number
+      pids_max:
+        type: integer
+      storage_bytes_max:
+        type: integer
+      t:
+        type: string
+      value:
+        type: number
+      value_max:
+        type: number
+    type: object
+  internal_api.ServiceMetricSeries:
+    properties:
+      app_id:
+        type: string
+      key:
+        type: string
+      kind:
+        type: string
+      labels:
+        type: string
+      metric:
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      points:
+        items:
+          $ref: '#/definitions/internal_api.ServiceMetricPoint'
+        type: array
+      source:
+        enum:
+        - os
+        - otlp
+        type: string
+      unit:
+        type: string
+    type: object
+  internal_api.ServiceMetricsResponse:
+    properties:
+      from:
+        type: string
+      resolution:
+        description: Resolution is "raw" (one-minute rows, ranges up to 48 hours)
+          or "hourly" (rollups).
+        enum:
+        - raw
+        - hourly
+        type: string
+      series:
+        items:
+          $ref: '#/definitions/internal_api.ServiceMetricSeries'
+        type: array
+      service_id:
+        type: string
+      step_seconds:
+        type: integer
+      to:
         type: string
     type: object
   internal_api.StatusLogEntry:
@@ -4581,6 +4691,12 @@ definitions:
         type: string
       last_rollup_run_at:
         type: string
+      metric_rollup_retention_days:
+        type: integer
+      metric_sample_retention_days:
+        description: 'Metric samples live in metrics.db: one-minute rows and hourly
+          rollups are kept for different times.'
+        type: integer
       raw_report_hot_days:
         type: integer
       rollup_retention_days:
@@ -4916,6 +5032,10 @@ definitions:
       audit_event_retention_days:
         type: integer
       incident_event_retention_days:
+        type: integer
+      metric_rollup_retention_days:
+        type: integer
+      metric_sample_retention_days:
         type: integer
       raw_report_hot_days:
         type: integer
@@ -14118,6 +14238,124 @@ paths:
       security:
       - BearerAuth: []
       summary: Link to a service
+      tags:
+      - services
+  /v1/services/{id}/log-counts:
+    get:
+      description: Entries per bucket and severity for the apps linked to the service,
+        read from the per-minute rollup (no raw rows are scanned). Meant for the error
+        lane of a service timeline; open the logs for the entries themselves.
+      operationId: getServiceLogCounts
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Start: RFC 3339 or relative such as -6h (default one hour before
+          `to`)'
+        in: query
+        name: from
+        type: string
+      - description: 'End: RFC 3339 or relative (default now)'
+        in: query
+        name: to
+        type: string
+      - description: Bucket size, a multiple of 60 up to 3600 (default 60)
+        in: query
+        name: step_seconds
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.ServiceLogCountsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Log volume of a service
+      tags:
+      - services
+  /v1/services/{id}/metrics:
+    get:
+      description: The CPU, memory, I/O, network and storage history of the resources
+        linked to the service, plus any app-reported metrics of its linked apps. Ranges
+        up to 48 hours read one-minute samples; longer ranges read hourly rollups.
+        The step widens so a series never returns more than about `max_points` points.
+        Linking or unlinking changes which series are returned, never the stored samples.
+      operationId: getServiceMetrics
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Start: RFC 3339 or relative such as -6h (default one hour before
+          `to`)'
+        in: query
+        name: from
+        type: string
+      - description: 'End: RFC 3339 or relative (default now)'
+        in: query
+        name: to
+        type: string
+      - description: Points per series, default 500, max 2000
+        in: query
+        name: max_points
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.ServiceMetricsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Metric history of a service
       tags:
       - services
   /v1/services/suggestions:

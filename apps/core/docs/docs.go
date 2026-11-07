@@ -13241,6 +13241,184 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/services/{id}/log-counts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Entries per bucket and severity for the apps linked to the service, read from the per-minute rollup (no raw rows are scanned). Meant for the error lane of a service timeline; open the logs for the entries themselves.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Log volume of a service",
+                "operationId": "getServiceLogCounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start: RFC 3339 or relative such as -6h (default one hour before ` + "`" + `to` + "`" + `)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End: RFC 3339 or relative (default now)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Bucket size, a multiple of 60 up to 3600 (default 60)",
+                        "name": "step_seconds",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ServiceLogCountsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/{id}/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The CPU, memory, I/O, network and storage history of the resources linked to the service, plus any app-reported metrics of its linked apps. Ranges up to 48 hours read one-minute samples; longer ranges read hourly rollups. The step widens so a series never returns more than about ` + "`" + `max_points` + "`" + ` points. Linking or unlinking changes which series are returned, never the stored samples.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Metric history of a service",
+                "operationId": "getServiceMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start: RFC 3339 or relative such as -6h (default one hour before ` + "`" + `to` + "`" + `)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End: RFC 3339 or relative (default now)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Points per series, default 500, max 2000",
+                        "name": "max_points",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ServiceMetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/settings/api-tokens": {
             "get": {
                 "security": [
@@ -22067,6 +22245,53 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.ServiceLogCountBucket": {
+            "type": "object",
+            "properties": {
+                "counts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "t": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.ServiceLogCountsResponse": {
+            "type": "object",
+            "properties": {
+                "app_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceLogCountBucket"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.ServiceLogEntryResponse": {
             "type": "object",
             "properties": {
@@ -22110,6 +22335,123 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "stream": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.ServiceMetricPoint": {
+            "type": "object",
+            "properties": {
+                "cpu_percent": {
+                    "type": "number"
+                },
+                "cpu_percent_max": {
+                    "type": "number"
+                },
+                "io_read_bytes_per_sec": {
+                    "type": "number"
+                },
+                "io_write_bytes_per_sec": {
+                    "type": "number"
+                },
+                "memory_bytes": {
+                    "type": "number"
+                },
+                "memory_bytes_max": {
+                    "type": "number"
+                },
+                "net_rx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "net_tx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "pids_max": {
+                    "type": "integer"
+                },
+                "storage_bytes_max": {
+                    "type": "integer"
+                },
+                "t": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "value_max": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_api.ServiceMetricSeries": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "string"
+                },
+                "metric": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceMetricPoint"
+                    }
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "os",
+                        "otlp"
+                    ]
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.ServiceMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "resolution": {
+                    "description": "Resolution is \"raw\" (one-minute rows, ranges up to 48 hours) or \"hourly\" (rollups).",
+                    "type": "string",
+                    "enum": [
+                        "raw",
+                        "hourly"
+                    ]
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceMetricSeries"
+                    }
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "to": {
                     "type": "string"
                 }
             }
@@ -24204,6 +24546,13 @@ const docTemplate = `{
                 "last_rollup_run_at": {
                     "type": "string"
                 },
+                "metric_rollup_retention_days": {
+                    "type": "integer"
+                },
+                "metric_sample_retention_days": {
+                    "description": "Metric samples live in metrics.db: one-minute rows and hourly rollups are kept for different times.",
+                    "type": "integer"
+                },
                 "raw_report_hot_days": {
                     "type": "integer"
                 },
@@ -24703,6 +25052,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "incident_event_retention_days": {
+                    "type": "integer"
+                },
+                "metric_rollup_retention_days": {
+                    "type": "integer"
+                },
+                "metric_sample_retention_days": {
                     "type": "integer"
                 },
                 "raw_report_hot_days": {
