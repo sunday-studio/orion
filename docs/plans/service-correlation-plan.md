@@ -1,7 +1,9 @@
 # Service Correlation: Plan
 
 Status: proposed, awaiting approval. 2026-11-07.
-Related: [product-logs-plan.md](product-logs-plan.md), [incident-detail-information-architecture.md](incident-detail-information-architecture.md), [../architecture/passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [../architecture/incident-reconciliation-flow.md](../architecture/incident-reconciliation-flow.md), [decision-log.md](decision-log.md).
+Related: [product-logs-plan.md](product-logs-plan.md), [incident-detail-information-architecture.md](incident-detail-information-architecture.md), [../architecture/passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [../architecture/incident-reconciliation-flow.md](../architecture/incident-reconciliation-flow.md), [decision-log.md](decision-log.md), [database-evaluation.md](database-evaluation.md) (storage), [information-architecture-review.md](information-architecture-review.md) (navigation).
+
+Updated 2026-11-07 after the database evaluation and the navigation review: sample history now lives in its own `metrics.db` behind an interface, and Services sits under a Monitoring tab. Design boards: Services and Navigation pages of the Orion canvas.
 
 ## 1. Goal
 
@@ -68,6 +70,10 @@ detected-resource rows, plus **suggestions** so most users only click accept:
 
 A suggestion never links on its own.
 
+Where it shows in the Console: Services is one of three views inside a **Monitoring** tab (Services,
+Monitors, Servers), which keeps the top bar at five items once it ships. An app's setup stays under
+**Logs, Apps** (moved out of Settings by the navigation review), and a service page links to it.
+
 ### 4.2 Incident logs resolve through the Service
 
 `GET /v1/incidents/{id}/logs` stops looking for a log rule. It resolves
@@ -80,26 +86,36 @@ or request.
 
 ### 4.3 Resource sample history
 
-Add `node_app_resource_samples(node_id, key, service_id, ts, cpu_percent, memory_bytes, io_read, io_write,
-net_rx, net_tx, pids)` written alongside the existing "latest" upsert, with these rules:
+Samples go in their own SQLite file, `metrics.db`, behind a `MetricStore` interface, the same way
+`logs.db` is separate from `orion.db`. The database evaluation measured about 192 MiB per node for
+7 days of 200 series (roughly 100 bytes a row), so about 10 GB at 50 nodes and about 100 GB at 500 nodes
+(estimate). Keeping that out of `orion.db` also keeps migration backups, which copy `orion.db` up to
+three times, small.
 
+- Shape: a narrow `series` table (node, key, kind, labels) and a `samples` table (series id, ts, value
+  columns). The latest-row table `node_app_resources` stays in `orion.db` as it is today.
 - One-minute resolution, kept 7 days by default; hourly rollups kept 90 days. Both are settings in the
   existing data lifecycle settings, following how `MonitorUptimeRollup` and its backfill already work.
 - Cardinality is already capped on the Node (top N processes, 200 series per host). Core enforces the
   same cap on write and drops the excess rather than failing the report.
-- Samples are written in the same transaction as the latest-row upsert, off the monitor report path, so
-  the request path stays small (see `incident-detail-information-architecture.md`, "What Should Stay
-  In The Request Path").
-- SQLite budget: 200 series x 1,440 samples/day x 7 days is about 2M rows per busy Node. Measure before
-  shipping (see risk R-1). Issue I-005 shows log volume already dominates `orion.db`, so this lands in
-  its own table with its own prune job.
+- Samples are written off the monitor report path, by a single writer, so the request path stays small
+  (see `incident-detail-information-architecture.md`, "What Should Stay In The Request Path"). The two
+  files cannot commit together, so a crash can leave a latest row without its sample. That is fine: the
+  next report fills it.
+- `service_id` is stored on the series, not on every sample, so linking or unlinking a service never
+  rewrites history.
+- Gate before S4 ships: a measured run at the series cap, with `metrics.db` size, prune time and chart
+  query time recorded in `backend-hardening-load-results.md`. Revisit SQLite if `metrics.db` passes
+  20 GB or 200M rows (see `database-evaluation.md`).
 
 ### 4.4 OTLP metrics ingest
 
 `POST /v1/ingest/otlp/v1/metrics` (protobuf and JSON, gzip), same ingest key, auth, size limits and
 rate limiter as logs. Map each metric to a sample row keyed by app and service. Gauges and sums first;
-histograms (latency percentiles) in a second step. Samples land in the same table as the Node's passive
-metrics, tagged by `source` (`os` or `otlp`), so app-reported and OS-measured numbers appear on one chart.
+histograms (latency percentiles) in a second step. Samples land in the same `series` and `samples`
+tables as the Node's passive metrics, tagged by `source` (`os` or `otlp`), so app-reported and
+OS-measured numbers appear on one chart. Start with a low default series cap per app, because apps can
+emit unbounded label sets, and raise it per app.
 
 ### 4.5 Rules that join an existing incident
 
@@ -118,6 +134,10 @@ curve for linked resources, and alert deliveries, all on one time axis with the 
 Built with the OpenStatus data-table pattern for the log list and the existing chart components for the
 curve (Console Table Rules in `AGENTS.md`).
 
+The error-log lane needs counts per minute for an app. Counting raw rows would hit the scan cost the
+database evaluation flagged, so keep a small per-app minute rollup (app, minute, severity, count) in
+`logs.db`, written by the log writer. The same rollup can serve the Logs histogram later.
+
 ### 4.7 Traces (later, optional)
 
 Not part of this plan. With `trace_id` filtering (4.2) and service linking, most of the value of traces
@@ -128,10 +148,11 @@ is covered. OTLP traces ingest and a waterfall view need span storage and new UI
 | Phase | Scope | Owner area | Exit |
 |---|---|---|---|
 | S0 | Spec: `services` schema, link columns, OpenAPI for services and suggestions, update `node-core-contract.md` only if the Node wire contract changes (it should not) | core, docs | OpenAPI reviewed |
-| S1 | Service CRUD, `service_id` on apps, monitors, resources; Console picker and suggestions | core, console | A monitor and an app can be linked and unlinked in the UI |
+| N1 | Navigation step 1 (separate, ships first): Apps move from Settings to Logs, Alerts and Status become Notify, names stop colliding. See `information-architecture-review.md` | console, docs | The bar is six items and old URLs redirect |
+| S1 | Service CRUD, `service_id` on apps, monitors, resources; Console picker and suggestions; Monitoring tab with Services, Monitors, Servers | core, console | A monitor and an app can be linked and unlinked in the UI, and the bar is five items |
 | S2 | Incident logs through the Service, pre-incident filter, trace view | core, console | Incident on a linked monitor shows the app's logs without any log rule |
 | S3 | Alert grouping by service for log-rule incidents | core | A check failure and a log burst for one service produce one grouped notification |
-| S4 | Resource sample history, rollups, prune job, settings | core | Chart data endpoint returns a series for a linked resource |
+| S4 | `metrics.db` and `MetricStore`, resource sample history, rollups, prune job, settings; per-app log minute rollup | core | Chart data endpoint returns a series for a linked resource, and the measured gate in 4.3 is recorded |
 | S5 | OTLP metrics ingest (gauges and sums) | core | An OTel SDK pointed at Orion shows metrics on the service |
 | S6 | Unified incident timeline with metric chart | console | Incident page shows checks, logs and curve together |
 | S7 | Metric threshold rules | core, console | A memory or error-rate rule opens an incident |
@@ -168,14 +189,18 @@ goes wrong") without any new storage.
    keeps both clean and still pages once.
 3. **Metric retention: 7 days at one minute, 90 days hourly, configurable.** Revisit after the load
    test in R-1.
-4. **Suggestions never auto-link.** A wrong link would attach another app's logs to an incident.
-5. **Traces stay out of scope** until S5 is in use and someone asks for them.
+4. **Samples live in `metrics.db`, not `orion.db`.** Size and backup cost, per the database
+   evaluation. Cost: two files that can't commit together, which this design tolerates.
+5. **Services sit under Monitoring, not in their own tab.** Keeps the bar at five. Promoting Services
+   later is a one-line nav change, so this is the reversible choice.
+6. **Suggestions never auto-link.** A wrong link would attach another app's logs to an incident.
+7. **Traces stay out of scope** until S5 is in use and someone asks for them.
 
 ## 9. Risks
 
-- **R-1: SQLite growth.** Sample rows could dominate `orion.db`. Mitigate with the series cap, a
-  separate prune job, rollups, and a measured budget before S4 ships. A separate `metrics.db`, like
-  `logs.db`, is the fallback.
+- **R-1: SQLite growth.** Sample rows are kept out of `orion.db` by using `metrics.db`. Mitigate with
+  the series cap, a separate prune job, rollups, and the measured gate before S4 ships. Revisit the
+  engine at the triggers in `database-evaluation.md`.
 - **R-2: Wrong links.** Name matching can pair unrelated things. Suggestions need a visible reason
   ("same `service.name`") and one-click unlink.
 - **R-3: Alert noise from grouping rules.** Group only within the same service and a bounded overlap
