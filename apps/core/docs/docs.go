@@ -6023,6 +6023,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
@@ -19556,6 +19562,10 @@ const docTemplate = `{
                 },
                 "to": {
                     "type": "string"
+                },
+                "truncated": {
+                    "description": "Truncated is always false here: the incident view is bounded by limit, not by a scan cap. It is\nkept so clients written against the earlier LogListResponse shape keep working.",
+                    "type": "boolean"
                 }
             }
         },
