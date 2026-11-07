@@ -8,6 +8,7 @@ import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -206,7 +207,15 @@ func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 		return
 	}
 	limit := min(utils.QueryInt(c, "limit", 100), logstore.MaxPageSize)
-	preIncidentOnly := c.Query("pre_incident_only") == "true"
+	preIncidentOnly := false
+	if raw := strings.TrimSpace(c.Query("pre_incident_only")); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			utils.BadRequest(c, "pre_incident_only must be true or false")
+			return
+		}
+		preIncidentOnly = parsed
+	}
 	from, to := incidentLogsWindow(incident, preIncidentOnly)
 
 	// An explicit app_id wins; otherwise the incident's monitor decides, through its service and

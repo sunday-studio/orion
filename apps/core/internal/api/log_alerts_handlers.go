@@ -79,6 +79,7 @@ func (s *Server) deleteLogAlertRule(c *gin.Context) { s.deleteLogAlertRuleImpl(c
 // @Param        pre_incident_only  query  bool  false  "Stop at the moment the incident opened"
 // @Param        limit   query  int     false  "Maximum entries, default 100, max 200"
 // @Success      200  {object}  utils.APIResponse{data=IncidentLogsResponse}
+// @Failure      400  {object}  utils.APIResponse
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id}/logs [get]

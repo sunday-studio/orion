@@ -132,3 +132,36 @@ func TestIncidentLogsFallBackToTheLogRuleWhenThereIsNoService(t *testing.T) {
 		t.Fatalf("service without apps = %+v", fallback.Data)
 	}
 }
+
+func TestIncidentLogsPreIncidentOnlyParsesBooleans(t *testing.T) {
+	server, _ := incidentLogsFixture(t)
+	for _, v := range []string{"true", "TRUE", "1", "t"} {
+		if got := getIncidentLogsBody(t, server, "?pre_incident_only="+v); !got.Data.PreIncidentOnly {
+			t.Errorf("pre_incident_only=%s should be on", v)
+		}
+	}
+	for _, v := range []string{"", "false", "0"} {
+		if got := getIncidentLogsBody(t, server, "?pre_incident_only="+v); got.Data.PreIncidentOnly {
+			t.Errorf("pre_incident_only=%q should be off", v)
+		}
+	}
+	if resp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/inc-1/logs?pre_incident_only=maybe", nil, ""); resp.Code != http.StatusBadRequest {
+		t.Fatalf("bad value status = %d", resp.Code)
+	}
+}
+
+func TestIncidentLogsKeepsTheEarlierResponseFields(t *testing.T) {
+	server, _ := incidentLogsFixture(t)
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/inc-1/logs", nil, "")
+	var raw struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"entries", "truncated"} {
+		if _, ok := raw.Data[field]; !ok {
+			t.Errorf("response lost the earlier %q field: %s", field, resp.Body.String())
+		}
+	}
+}

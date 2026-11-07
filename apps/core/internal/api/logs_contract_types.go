@@ -93,6 +93,9 @@ type LogListResponse struct {
 // IncidentLogsResponse is the logs that belong to an incident, newest first, and where they came from.
 type IncidentLogsResponse struct {
 	Entries []LogEntry `json:"entries"`
+	// Truncated is always false here: the incident view is bounded by limit, not by a scan cap. It is
+	// kept so clients written against the earlier LogListResponse shape keep working.
+	Truncated bool `json:"truncated"`
 	// Source says how the app was chosen: service (the incident's monitor is linked to a service with
 	// apps), log_rule (the monitor belongs to a log alert rule), query (app_id was passed) or none.
 	Source string `json:"source" enums:"service,log_rule,query,none"`
