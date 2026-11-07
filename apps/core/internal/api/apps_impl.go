@@ -228,7 +228,8 @@ func (s *Server) updateAppImpl(c *gin.Context) {
 	}
 	applyAppRequest(&app, req)
 	app.UpdatedAt = time.Now().UTC()
-	if err := s.db.Save(&app).Error; err != nil {
+	// service_id belongs to the Services API: saving the whole row must not undo a link made meanwhile.
+	if err := s.db.Omit("service_id").Save(&app).Error; err != nil {
 		utils.InternalError(c, "Failed to update the app", err)
 		return
 	}

@@ -221,15 +221,16 @@ func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 	// An explicit app_id wins; otherwise the incident's monitor decides, through its service and
 	// then through the log alert rule that owns it.
 	out := IncidentLogsResponse{Entries: []LogEntry{}, Source: service.IncidentLogsViaNone, AppIDs: []string{}, PreIncidentOnly: preIncidentOnly, From: from, To: to}
+	src, err := s.serviceCatalog().IncidentLogSource(incident.MonitorID)
+	if err != nil {
+		utils.InternalError(c, "Failed to resolve the incident's app logs", err)
+		return
+	}
+	out.ServiceID, out.ServiceName = src.ServiceID, src.ServiceName
 	if appID := strings.TrimSpace(c.Query("app_id")); appID != "" {
 		out.Source, out.AppIDs = "query", []string{appID}
 	} else {
-		src, err := s.serviceCatalog().IncidentLogSource(incident.MonitorID)
-		if err != nil {
-			utils.InternalError(c, "Failed to resolve the incident's app logs", err)
-			return
-		}
-		out.Source, out.ServiceID, out.ServiceName = src.Via, src.ServiceID, src.ServiceName
+		out.Source = src.Via
 		if len(src.AppIDs) > 0 {
 			out.AppIDs = src.AppIDs
 		}

@@ -97,7 +97,7 @@ func TestIncidentLogsResolveThroughTheMonitorsService(t *testing.T) {
 
 	// An explicit app_id still wins over the service.
 	explicit := getIncidentLogsBody(t, server, "?app_id="+appID)
-	if explicit.Data.Source != "query" || explicit.Data.ServiceID != "" {
+	if explicit.Data.Source != "query" || explicit.Data.ServiceID != svcID || explicit.Data.ServiceName != "Checkout" {
 		t.Fatalf("explicit = %+v", explicit.Data)
 	}
 

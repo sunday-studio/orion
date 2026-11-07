@@ -6,6 +6,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -115,7 +116,8 @@ func (s *Server) linkServiceItemImpl(c *gin.Context) {
 }
 
 func (s *Server) unlinkServiceItemImpl(c *gin.Context) {
-	ref := service.ServiceLinkRef{Kind: c.Query("kind"), ID: c.Query("target_id"), NodeID: c.Query("node_id"), Key: c.Query("key")}
+	ref := service.ServiceLinkRef{Kind: strings.TrimSpace(c.Query("kind")), ID: strings.TrimSpace(c.Query("target_id")),
+		NodeID: strings.TrimSpace(c.Query("node_id")), Key: strings.TrimSpace(c.Query("key"))}
 	if err := s.serviceCatalog().Unlink(c.Param("id"), ref); err != nil {
 		respondServiceError(c, err, "Failed to unlink from the service")
 		return

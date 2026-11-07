@@ -151,7 +151,7 @@ func (c *ServiceCatalog) Create(in ServiceInput) (ServiceSummary, error) {
 		return tx.Create(&row).Error
 	})
 	if err != nil {
-		return ServiceSummary{}, err
+		return ServiceSummary{}, slugConflict(err)
 	}
 	return summaryOf(row), nil
 }
@@ -219,7 +219,7 @@ func (c *ServiceCatalog) Update(id string, patch ServicePatch) (ServiceSummary, 
 		return tx.Where("id = ?", id).First(&row).Error
 	})
 	if err != nil {
-		return ServiceSummary{}, err
+		return ServiceSummary{}, slugConflict(err)
 	}
 	return c.summaryWithCounts(row)
 }
@@ -248,6 +248,15 @@ func (c *ServiceCatalog) Delete(id string) (ServiceDeleteResult, error) {
 		return nil
 	})
 	return out, err
+}
+
+// slugConflict turns the unique-index violation of a concurrent writer into the same conflict
+// answer as the explicit slug check.
+func slugConflict(err error) error {
+	if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: services.slug") {
+		return serviceConflict("A service with that slug already exists")
+	}
+	return err
 }
 
 func notFoundOr(err error, message string) error {
