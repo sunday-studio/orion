@@ -157,3 +157,69 @@ func TestIncidentServiceOfIgnoresAStaleLink(t *testing.T) {
 		t.Fatalf("no monitor = %q %v", id, err)
 	}
 }
+
+func setSeverity(t *testing.T, database *gorm.DB, incidentID, severity string) {
+	t.Helper()
+	if err := database.Model(&db.Incident{}).Where("id = ?", incidentID).Update("severity", severity).Error; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAlertGroupingAWorseIncidentStillPagesAndRaisesTheGroup(t *testing.T) {
+	database, svc, requests := groupingFixture(t)
+	linkedService(t, database, "svc-a", "Checkout")
+	incidentOn(t, database, "inc-warn", "log-alert", "svc-a")
+	setSeverity(t, database, "inc-warn", "medium")
+	incidentOn(t, database, "inc-crit", "http", "svc-a")
+	setSeverity(t, database, "inc-crit", "critical")
+	incidentOn(t, database, "inc-low", "tcp", "svc-a")
+	setSeverity(t, database, "inc-low", "low")
+
+	for _, id := range []string{"inc-warn", "inc-crit", "inc-low"} {
+		if err := queueAndDispatch(svc, id, db.AlertEventIncidentOpened); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := deliveriesByIncident(t, database)
+	if got["inc-warn"].Status != "sent" || got["inc-crit"].Status != "sent" {
+		t.Fatalf("the medium incident and the critical one that follows must both page: %+v / %+v", got["inc-warn"], got["inc-crit"])
+	}
+	if got["inc-low"].Status != "suppressed" {
+		t.Fatalf("a less severe incident joins the group quietly: %+v", got["inc-low"])
+	}
+	if got["inc-warn"].AlertGroupID != got["inc-crit"].AlertGroupID || got["inc-crit"].AlertGroupID != got["inc-low"].AlertGroupID {
+		t.Fatalf("all three belong to one group: %q %q %q", got["inc-warn"].AlertGroupID, got["inc-crit"].AlertGroupID, got["inc-low"].AlertGroupID)
+	}
+	if *requests != 2 {
+		t.Fatalf("webhook requests = %d, want 2 (medium, then critical)", *requests)
+	}
+	var group db.AlertGroup
+	database.Where("id = ?", got["inc-warn"].AlertGroupID).First(&group)
+	if group.Severity != "critical" || group.IncidentCount != 3 {
+		t.Fatalf("group = %+v, want critical with 3 incidents", group)
+	}
+}
+
+func TestAlertGroupingSummaryKeepsNamingTheGroupsServiceAfterALinkChange(t *testing.T) {
+	database, svc, _ := groupingFixture(t)
+	linkedService(t, database, "svc-a", "Checkout")
+	linkedService(t, database, "svc-b", "Billing")
+	incidentOn(t, database, "inc-1", "http", "svc-a")
+	incidentOn(t, database, "inc-2", "tcp", "svc-a")
+	for _, id := range []string{"inc-1", "inc-2"} {
+		if err := queueAndDispatch(svc, id, db.AlertEventIncidentOpened); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The second monitor is moved to another service while its incident is open, then it recovers.
+	database.Model(&db.Monitor{}).Where("id = ?", "monitor-inc-2").Update("service_id", "svc-b")
+	database.Model(&db.Incident{}).Where("id = ?", "inc-2").Update("status", "resolved")
+	if err := queueAndDispatch(svc, "inc-2", db.AlertEventIncidentResolved); err != nil {
+		t.Fatal(err)
+	}
+	var group db.AlertGroup
+	database.Where("group_key = ?", "service:svc-a").First(&group)
+	if group.Summary != "2 incident(s) on service Checkout" {
+		t.Fatalf("summary = %q, want it to keep naming the group's own service", group.Summary)
+	}
+}

@@ -83,8 +83,17 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 		"last_event_at":    now,
 		"summary":          scope.summary(event, nextCount),
 	}
+	// A service group mixes monitor types and severities. An incident that is worse than the group
+	// so far must still page: it raises the group's severity and is notified instead of suppressed.
+	escalates := scope.isService() && incidentSeverityRank(incident.Severity) < incidentSeverityRank(group.Severity)
+	if escalates {
+		updates["severity"] = incident.Severity
+	}
 	if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(updates).Error; err != nil {
 		return alertGroupingDecision{}, err
+	}
+	if escalates {
+		return alertGroupingDecision{GroupID: group.ID, Policy: policy}, nil
 	}
 
 	decision := alertGroupingDecision{
@@ -109,7 +118,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 	}
 
 	now := time.Now().UTC()
-	scope, err := s.alertGroupScopeFor(event, incident)
+	summary, err := s.groupSummary(group, event, group.IncidentCount)
 	if err != nil {
 		return alertGroupingDecision{}, err
 	}
@@ -120,7 +129,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 	if activeCount > 0 {
 		if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
 			"last_event_at": now,
-			"summary":       scope.summary(event, group.IncidentCount),
+			"summary":       summary,
 		}).Error; err != nil {
 			return alertGroupingDecision{}, err
 		}

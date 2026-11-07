@@ -101,3 +101,29 @@ func (s *AlertService) openAlertGroup(scope alertGroupScope, now time.Time) (db.
 	}
 	return db.AlertGroup{}, false, nil
 }
+
+// incidentSeverityRank orders severities from worst (0) to least bad; unknown values rank last.
+func incidentSeverityRank(severity string) int {
+	if rank, ok := severityRank[strings.ToLower(strings.TrimSpace(severity))]; ok {
+		return rank
+	}
+	return len(severityRank)
+}
+
+// groupSummary words an existing group's summary from the group itself, not from the incident's
+// current links: a group of service A keeps naming service A even if the incident was moved since.
+func (s *AlertService) groupSummary(group db.AlertGroup, event AlertRouteContext, count int) (string, error) {
+	serviceID, ok := strings.CutPrefix(group.GroupKey, "service:")
+	if !ok {
+		return alertGroupSummary(event, count), nil
+	}
+	var svc db.Service
+	if err := s.db.Select("name").Where("id = ?", serviceID).Limit(1).Find(&svc).Error; err != nil {
+		return "", err
+	}
+	name := svc.Name
+	if name == "" {
+		name = serviceID // the service was deleted since: the id still says which group this is
+	}
+	return alertGroupScope{ServiceID: serviceID, ServiceName: name}.summary(event, count), nil
+}
