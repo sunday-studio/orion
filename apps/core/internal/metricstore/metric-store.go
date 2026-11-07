@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS samples_hourly (
   PRIMARY KEY (series_id, hour)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS dirty_hours (
+  series_id INTEGER NOT NULL,
+  hour INTEGER NOT NULL,
+  PRIMARY KEY (series_id, hour)
+) WITHOUT ROWID;
 `
 
 type job struct {
@@ -88,6 +93,9 @@ type Store struct {
 	batchesFailed atomic.Int64
 
 	cache map[seriesKey]cachedSeries // touched only by the writer goroutine
+	// rolledThrough is the hour (unix seconds) the last Rollup reached. A sample older than that is
+	// late: its hour is marked dirty so the next Rollup summarises it again.
+	rolledThrough atomic.Int64
 }
 
 var _ MetricStore = (*Store)(nil)
@@ -107,6 +115,9 @@ func OpenWith(database *gorm.DB, logger *utils.Logger) (*Store, error) {
 		return nil, fmt.Errorf("apply metrics schema: %w", err)
 	}
 	s := &Store{db: database, logger: logger, jobs: make(chan job, queueDepth), done: make(chan struct{}), cache: map[seriesKey]cachedSeries{}}
+	if through, ok, err := s.readRolledThrough(); err == nil && ok {
+		s.rolledThrough.Store(through)
+	}
 	go s.writer()
 	return s, nil
 }

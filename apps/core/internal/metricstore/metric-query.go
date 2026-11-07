@@ -16,8 +16,14 @@ const rawQuery = `SELECT (ts / ?) * ? AS t, AVG(cpu_percent), MAX(cpu_percent), 
  AVG(io_read_bps), AVG(io_write_bps), AVG(net_rx_bps), AVG(net_tx_bps), MAX(pids), MAX(storage_bytes), AVG(value), MAX(value)
 FROM samples WHERE series_id = ? AND ts >= ? AND ts < ? GROUP BY t ORDER BY t`
 
-const hourlyQuery = `SELECT (hour / ?) * ? AS t, AVG(cpu_avg), MAX(cpu_max), AVG(mem_avg), MAX(mem_max),
- AVG(io_read_avg), AVG(io_write_avg), AVG(net_rx_avg), AVG(net_tx_avg), MAX(pids_max), MAX(storage_max), AVG(value_avg), MAX(value_max)
+// wavg weights an hourly average by the number of rows it summarises, so a short hour does not count as much as a full one.
+func wavg(col string) string {
+	return "SUM(" + col + " * n) / SUM(CASE WHEN " + col + " IS NOT NULL THEN n END)"
+}
+
+var hourlyQuery = `SELECT (hour / ?) * ? AS t, ` + wavg("cpu_avg") + `, MAX(cpu_max), ` + wavg("mem_avg") + `, MAX(mem_max), ` +
+	wavg("io_read_avg") + `, ` + wavg("io_write_avg") + `, ` + wavg("net_rx_avg") + `, ` + wavg("net_tx_avg") + `, MAX(pids_max), MAX(storage_max), ` +
+	wavg("value_avg") + `, MAX(value_max)
 FROM samples_hourly WHERE series_id = ? AND hour >= ? AND hour < ? GROUP BY t ORDER BY t`
 
 // Query implements MetricStore. It reads one-minute rows for ranges up to 48 hours and hourly

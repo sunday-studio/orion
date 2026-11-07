@@ -15,7 +15,11 @@ type cachedSeries struct {
 	lastSeen int64
 }
 
-const seriesTouchEvery = int64(time.Hour / time.Second)
+const (
+	seriesTouchEvery = int64(time.Hour / time.Second)
+	// maxCachedSeries bounds the writer's id cache; past it the cache starts over (a lookup is cheap).
+	maxCachedSeries = 200_000
+)
 
 const upsertSample = `INSERT INTO samples (series_id, ts, cpu_percent, memory_bytes, io_read_bps, io_write_bps, net_rx_bps, net_tx_bps, pids, storage_bytes, value)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -44,6 +48,9 @@ func (s *Store) writeBatch(b Batch) error {
 				continue
 			}
 			v := smp.Values
+			if err := s.markIfLate(tx, id, ts); err != nil {
+				return err
+			}
 			if err := tx.Exec(upsertSample, id, ts, v.CPUPercent, v.MemoryBytes, v.IOReadBps, v.IOWriteBps, v.NetRxBps, v.NetTxBps, v.Pids, v.StorageBytes, v.Value).Error; err != nil {
 				return err
 			}
@@ -75,13 +82,18 @@ func (s *Store) seriesID(tx *gorm.DB, b Batch, smp Sample, now int64) (int64, bo
 	key := seriesKey{b.Source, b.NodeID, b.AppID, smp.Key}
 	name := strings.TrimSpace(smp.Name)
 	if c, ok := s.cache[key]; ok {
-		if c.name != name || now-c.lastSeen >= seriesTouchEvery {
-			if err := tx.Exec("UPDATE series SET name = ?, kind = ?, unit = ?, last_seen = ? WHERE id = ?", name, smp.Kind, smp.Unit, now, c.id).Error; err != nil {
-				return 0, false, err
-			}
-			s.cache[key] = cachedSeries{id: c.id, name: name, lastSeen: now}
+		if c.name == name && now-c.lastSeen < seriesTouchEvery {
+			return c.id, true, nil
 		}
-		return c.id, true, nil
+		res := tx.Exec("UPDATE series SET name = ?, kind = ?, unit = ?, last_seen = ? WHERE id = ?", name, smp.Kind, smp.Unit, now, c.id)
+		if res.Error != nil {
+			return 0, false, res.Error
+		}
+		if res.RowsAffected > 0 {
+			s.cache[key] = cachedSeries{id: c.id, name: name, lastSeen: now}
+			return c.id, true, nil
+		}
+		delete(s.cache, key) // Prune removed this series while it was idle: look it up or create it again below
 	}
 	var ids []int64
 	if err := tx.Raw("SELECT id FROM series WHERE source = ? AND node_id = ? AND app_id = ? AND key = ?", b.Source, b.NodeID, b.AppID, smp.Key).Scan(&ids).Error; err != nil {
@@ -91,7 +103,7 @@ func (s *Store) seriesID(tx *gorm.DB, b Batch, smp Sample, now int64) (int64, bo
 		if err := tx.Exec("UPDATE series SET name = ?, kind = ?, unit = ?, last_seen = ? WHERE id = ?", name, smp.Kind, smp.Unit, now, ids[0]).Error; err != nil {
 			return 0, false, err
 		}
-		s.cache[key] = cachedSeries{id: ids[0], name: name, lastSeen: now}
+		s.remember(key, cachedSeries{id: ids[0], name: name, lastSeen: now})
 		return ids[0], true, nil
 	}
 	var active int
@@ -110,6 +122,23 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, b.Source, b.NodeID, b.AppID, smp.Key,
 	if err := tx.Raw("SELECT id FROM series WHERE source = ? AND node_id = ? AND app_id = ? AND key = ?", b.Source, b.NodeID, b.AppID, smp.Key).Scan(&id).Error; err != nil {
 		return 0, false, err
 	}
-	s.cache[key] = cachedSeries{id: id, name: name, lastSeen: now}
+	s.remember(key, cachedSeries{id: id, name: name, lastSeen: now})
 	return id, true, nil
+}
+
+func (s *Store) remember(key seriesKey, c cachedSeries) {
+	if len(s.cache) >= maxCachedSeries {
+		s.cache = make(map[seriesKey]cachedSeries, 1024)
+	}
+	s.cache[key] = c
+}
+
+// markIfLate records that a sample landed in an hour the rollup has already passed (an OTLP exporter
+// retrying after an outage, a Node replaying), so the next Rollup summarises that hour again.
+func (s *Store) markIfLate(tx *gorm.DB, seriesID, ts int64) error {
+	through := s.rolledThrough.Load()
+	if through == 0 || ts >= through-3600 { // the current rollup pass already re-reads the last hour
+		return nil
+	}
+	return tx.Exec("INSERT OR IGNORE INTO dirty_hours (series_id, hour) VALUES (?, ?)", seriesID, ts/3600*3600).Error
 }
