@@ -436,7 +436,7 @@ func (l LogsConfig) Validate() error {
 			}
 		}
 		if s.IngestKeyFile == "" && s.IngestKeyEnv == "" {
-			return fmt.Errorf("%s (%s): set ingest_key_file or ingest_key_env (Console, Settings, Apps, create a key)", at, s.Name)
+			return fmt.Errorf("%s (%s): set ingest_key_file or ingest_key_env (Console, Logs, Apps, create a key)", at, s.Name)
 		}
 	}
 	return nil

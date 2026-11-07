@@ -6,7 +6,7 @@ Orion collects *product logs*: what your app says about itself ("user signed up"
 
 ## 1. Get an ingest key
 
-In Orion: Settings, Apps, create an app, then create an ingest key. The key looks like `orion_ik_...`, is shown **once**, and can only write logs for that one app (it cannot read logs or touch monitors). To rotate: create a second key, deploy it, revoke the old one.
+In Orion: Logs, Apps, create an app, then create an ingest key. The key looks like `orion_ik_...`, is shown **once**, and can only write logs for that one app (it cannot read logs or touch monitors). To rotate: create a second key, deploy it, revoke the old one.
 
 Over the API (admin login required): `POST /v1/apps`, then `POST /v1/apps/{id}/keys`.
 
