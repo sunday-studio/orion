@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from "react-router-dom";
-import { EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { EmptyState, RecordTabs, Skeleton, TabsPanel } from "@/design-system";
 import { useNow } from "@/features/overview/overview-time";
 import { useGetMonitor } from "@/orion-sdk";
 import { MonitorTestResultDialog } from "@/features/monitors/create/monitor-test-result-dialog";
@@ -67,11 +67,15 @@ export const MonitorDetailPage = () => {
         onRunAgain={actions.test}
         onClose={actions.clearTestResult}
       />
-      <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
-        <TabsList>
-          <TabsTab value="overview">{heartbeat ? "Setup" : "Overview"}</TabsTab>
-          <TabsTab value="history">Check history</TabsTab>
-        </TabsList>
+      <RecordTabs
+        value={tab}
+        onValueChange={setTab}
+        className="mt-3"
+        tabs={[
+          { value: "overview", label: heartbeat ? "Setup" : "Overview" },
+          { value: "history", label: "Check history" },
+        ]}
+      >
         <TabsPanel value="overview">
           {paused ? (
             <MonitorPaused
@@ -89,7 +93,7 @@ export const MonitorDetailPage = () => {
         <TabsPanel value="history">
           <MonitorHistory monitorId={monitorId} monitorName={monitor.name ?? "Monitor"} />
         </TabsPanel>
-      </Tabs>
+      </RecordTabs>
     </div>
   );
 };

@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import {
-  Callout,
-  EmptyState,
-  Skeleton,
-  TabCount,
-  Tabs,
-  TabsList,
-  TabsPanel,
-  TabsTab,
-} from "@/design-system";
+import { Callout, EmptyState, RecordTabs, Skeleton, TabsPanel } from "@/design-system";
 import { type ServerRow, serverState } from "@/features/nodes/server-format";
 import { useNow } from "@/features/overview/overview-time";
 import { incidentLabel } from "@/features/incidents/incident-format";
@@ -29,12 +20,13 @@ import { ServerOverviewTab } from "./components/server-overview-tab";
 import { ServerRemoveDialog } from "./components/server-remove-dialog";
 import { ServerTokenTab } from "./components/server-token-tab";
 
-const TABS = ["overview", "reports", "monitors", "apps", "detected", "token"] as const;
+const TABS = ["overview", "reports", "monitors", "usage", "detected", "token"] as const;
 type Tab = (typeof TABS)[number];
 
-/** Old links used "logs" and "cpu"; they land on the matching new tab. */
+/** Old links used "logs" and "apps"; they land on the matching new tab. */
 const resolveTab = (value: string | null): Tab => {
   if (value === "logs") return "reports";
+  if (value === "apps") return "usage";
   if (TABS.includes(value as Tab)) return value as Tab;
   return "overview";
 };
@@ -100,18 +92,19 @@ export const NodeDetailPage = () => {
           </Link>
         </Callout>
       )}
-      <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
-        <TabsList>
-          <TabsTab value="overview">Overview</TabsTab>
-          <TabsTab value="reports">Reports</TabsTab>
-          <TabsTab value="monitors">Monitors</TabsTab>
-          <TabsTab value="apps">Apps</TabsTab>
-          <TabsTab value="detected">
-            Detected
-            {(discovery?.suggested ?? 0) > 0 && <TabCount>{discovery?.suggested}</TabCount>}
-          </TabsTab>
-          <TabsTab value="token">Token</TabsTab>
-        </TabsList>
+      <RecordTabs
+        value={tab}
+        onValueChange={setTab}
+        className="mt-3"
+        tabs={[
+          { value: "overview", label: "Overview" },
+          { value: "reports", label: "Reports" },
+          { value: "monitors", label: "Monitors" },
+          { value: "usage", label: "Usage" },
+          { value: "detected", label: "Detected", count: discovery?.suggested },
+          { value: "token", label: "Token" },
+        ]}
+      >
         <TabsPanel value="overview">
           <ServerOverviewTab
             node={node}
@@ -125,7 +118,7 @@ export const NodeDetailPage = () => {
         <TabsPanel value="monitors">
           <NodeMonitorsTab nodeId={nodeId} />
         </TabsPanel>
-        <TabsPanel value="apps">
+        <TabsPanel value="usage">
           <AppsTab
             nodeId={nodeId}
             offline={["stale", "down"].includes(serverState(node))}
@@ -133,12 +126,12 @@ export const NodeDetailPage = () => {
           />
         </TabsPanel>
         <TabsPanel value="detected">
-          <DetectedTab nodeId={nodeId} onOpenApps={() => setTab("apps")} />
+          <DetectedTab nodeId={nodeId} onOpenApps={() => setTab("usage")} />
         </TabsPanel>
         <TabsPanel value="token">
           <ServerTokenTab nodeId={nodeId} name={node.name ?? nodeId} />
         </TabsPanel>
-      </Tabs>
+      </RecordTabs>
       <ServerEditDialog
         open={editing}
         node={node}

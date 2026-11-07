@@ -2,9 +2,9 @@ import type { ServiceNodeDiscoveryItem, ServiceNodeDiscoveryKind } from "@/orion
 
 /** The seven kinds the node reports, in display order. */
 const KINDS = [
-  { kind: "service", title: "Services" },
+  { kind: "service", title: "System services" },
   { kind: "container", title: "Containers" },
-  { kind: "pm2", title: "Apps (pm2)" },
+  { kind: "pm2", title: "PM2 processes" },
   { kind: "port", title: "Ports" },
   { kind: "disk", title: "Disks" },
   { kind: "log", title: "Logs" },

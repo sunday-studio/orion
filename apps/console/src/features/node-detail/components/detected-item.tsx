@@ -95,7 +95,7 @@ export const DetectedItem = ({
           className="whitespace-nowrap text-left text-[13px] text-brand hover:underline"
           onClick={onViewApps}
         >
-          View in Apps
+          View in Usage
         </button>
       ) : (
         <span />
