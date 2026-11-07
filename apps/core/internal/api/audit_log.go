@@ -23,6 +23,27 @@ type auditRoute struct {
 
 const auditMaxBody = 1 << 20
 
+// auditDetailKey is the gin context key under which a handler can leave extra metadata for its audit
+// entry (for example what a link pointed at, or the name of an object that no longer exists once the
+// request is done).
+const auditDetailKey = "audit_detail"
+
+// setAuditDetail adds fields to the metadata of the audit entry recorded for this request.
+func setAuditDetail(c *gin.Context, detail map[string]any) {
+	merged := map[string]any{}
+	if existing, ok := c.Get(auditDetailKey); ok {
+		if m, ok := existing.(map[string]any); ok {
+			for k, v := range m {
+				merged[k] = v
+			}
+		}
+	}
+	for k, v := range detail {
+		merged[k] = v
+	}
+	c.Set(auditDetailKey, merged)
+}
+
 // auditMiddleware records mapped admin actions after they succeeded.
 func (s *Server) auditMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -85,7 +106,15 @@ func (s *Server) recordAudit(c *gin.Context, route auditRoute, body []byte, crea
 	if kind, _ := c.Get(apiTokenKindKey); kind == "api_token" {
 		actorType = "api_token"
 	}
-	metadata, _ := json.Marshal(map[string]any{"target_label": label, "method": c.Request.Method, "route": c.FullPath()})
+	meta := map[string]any{"target_label": label, "method": c.Request.Method, "route": c.FullPath()}
+	if extra, ok := c.Get(auditDetailKey); ok {
+		if m, ok := extra.(map[string]any); ok {
+			for k, v := range m {
+				meta[k] = v
+			}
+		}
+	}
+	metadata, _ := json.Marshal(meta)
 	pageID := ""
 	if route.Object == "status_page" {
 		pageID = id
@@ -147,6 +176,11 @@ func (s *Server) auditTargetLabel(object, id string) string {
 		var r db.LogAlertRule
 		if s.db.Select("name").Where("id = ?", id).Limit(1).Find(&r).RowsAffected > 0 {
 			label = r.Name
+		}
+	case "service":
+		var svc db.Service
+		if s.db.Select("name").Where("id = ?", id).Limit(1).Find(&svc).RowsAffected > 0 {
+			label = svc.Name
 		}
 	case "api_token":
 		var t db.APIToken

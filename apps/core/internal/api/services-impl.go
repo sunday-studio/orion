@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 
@@ -81,6 +82,11 @@ func (s *Server) updateServiceImpl(c *gin.Context) {
 }
 
 func (s *Server) deleteServiceImpl(c *gin.Context) {
+	// The audit entry is written after this handler, when the row is already gone: keep its name now.
+	var existing db.Service
+	if s.db.Select("name").Where("id = ?", c.Param("id")).Limit(1).Find(&existing).RowsAffected > 0 {
+		setAuditDetail(c, map[string]any{"target_label": existing.Name})
+	}
 	unlinked, err := s.serviceCatalog().Delete(c.Param("id"))
 	if err != nil {
 		respondServiceError(c, err, "Failed to delete the service")
@@ -100,6 +106,11 @@ func (s *Server) linkServiceItemImpl(c *gin.Context) {
 		respondServiceError(c, err, "Failed to link to the service")
 		return
 	}
+	detail := map[string]any{"link_kind": result.Kind, "link_target": linkTargetOf(result.ServiceLinkRef)}
+	if result.PreviousServiceID != "" {
+		detail["previous_service_id"] = result.PreviousServiceID
+	}
+	setAuditDetail(c, detail)
 	utils.SuccessResponse(c, http.StatusOK, "Linked to service", gin.H{"link": result})
 }
 
@@ -109,6 +120,7 @@ func (s *Server) unlinkServiceItemImpl(c *gin.Context) {
 		respondServiceError(c, err, "Failed to unlink from the service")
 		return
 	}
+	setAuditDetail(c, map[string]any{"link_kind": ref.Kind, "link_target": linkTargetOf(ref)})
 	utils.SuccessResponse(c, http.StatusOK, "Unlinked from service", nil)
 }
 
@@ -122,4 +134,12 @@ func (s *Server) listServiceSuggestionsImpl(c *gin.Context) {
 		suggestions = []service.ServiceSuggestion{}
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Service suggestions retrieved successfully", gin.H{"suggestions": suggestions})
+}
+
+// linkTargetOf names what a link points at for the audit trail: the id, or "node/key" for a resource.
+func linkTargetOf(ref service.ServiceLinkRef) string {
+	if ref.Kind == service.ServiceLinkResource {
+		return ref.NodeID + "/" + ref.Key
+	}
+	return ref.ID
 }

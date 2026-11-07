@@ -210,7 +210,7 @@ func TestServicesAPILinkFlowShowsUpEverywhere(t *testing.T) {
 	}
 }
 
-func TestServicesAPISuggestionsAreAdviceOnlyAndRecordedInAudit(t *testing.T) {
+func TestServicesAPISuggestionsAreAdviceOnly(t *testing.T) {
 	server := setupLogsServer(t, nil)
 	seedServiceTargets(t, server)
 	id := createServiceVia(t, server, gin.H{"name": "checkout-api"})
@@ -265,5 +265,40 @@ func TestServicesAPIWritesAreAudited(t *testing.T) {
 	server.db.Model(&db.AuditEvent{}).Where("affected_object_type = ?", "service").Order("created_at ASC").Pluck("action", &actions)
 	if strings.Join(actions, ",") != "service_created,service_item_linked,service_deleted" {
 		t.Fatalf("audit actions = %v", actions)
+	}
+}
+
+func TestServicesAPIAuditNamesTheServiceAndWhatWasLinked(t *testing.T) {
+	server := setupTestServer(t)
+	seedServiceTargets(t, server)
+	id := createServiceVia(t, server, gin.H{"name": "Checkout"})
+	other := createServiceVia(t, server, gin.H{"name": "Billing"})
+	performJSONRequest(t, server, http.MethodPost, "/v1/services/"+other+"/links", gin.H{"kind": "app", "id": "app-1"}, "")
+	performJSONRequest(t, server, http.MethodPost, "/v1/services/"+id+"/links", gin.H{"kind": "app", "id": "app-1"}, "") // moves it
+	performJSONRequest(t, server, http.MethodDelete, "/v1/services/"+id+"/links?kind=app&target_id=app-1", nil, "")
+	performJSONRequest(t, server, http.MethodDelete, "/v1/services/"+id, nil, "")
+
+	metaOf := func(action string) map[string]any {
+		var events []db.AuditEvent
+		server.db.Where("action = ? AND affected_object_id = ?", action, id).Order("created_at ASC").Find(&events)
+		if len(events) == 0 {
+			t.Fatalf("no %s audit event for %s", action, id)
+		}
+		var m map[string]any
+		if err := json.Unmarshal([]byte(events[len(events)-1].MetadataJSON), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	linked := metaOf("service_item_linked")
+	if linked["target_label"] != "Checkout" || linked["link_kind"] != "app" || linked["link_target"] != "app-1" || linked["previous_service_id"] != other {
+		t.Errorf("link audit metadata = %v", linked)
+	}
+	unlinked := metaOf("service_item_unlinked")
+	if unlinked["link_kind"] != "app" || unlinked["link_target"] != "app-1" {
+		t.Errorf("unlink audit metadata = %v", unlinked)
+	}
+	if deleted := metaOf("service_deleted"); deleted["target_label"] != "Checkout" {
+		t.Errorf("a deleted service should keep its name in the audit entry, got %v", deleted)
 	}
 }
