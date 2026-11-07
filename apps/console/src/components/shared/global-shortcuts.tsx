@@ -28,8 +28,10 @@ const GO_TARGETS: Record<string, string> = {
   i: "/incidents",
   m: "/monitors",
   s: "/servers",
-  a: "/alerts",
+  v: "/services",
   l: "/logs",
+  n: "/alerts",
+  a: "/alerts",
 };
 
 const focusRow = (direction: 1 | -1) => {
