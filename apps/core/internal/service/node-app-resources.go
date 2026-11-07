@@ -35,6 +35,8 @@ type AppResourceSeries struct {
 	Pids          *int     `json:"pids,omitempty"`
 	StorageBytes  *uint64  `json:"storage_bytes,omitempty"`
 	StorageCapped bool     `json:"storage_capped,omitempty"`
+	// ServiceID is the Service this thing is linked to (set by Core, never read from a node report).
+	ServiceID string `json:"service_id,omitempty"`
 }
 
 // AppResourcesInput is the app_resources section of a node report.
@@ -172,11 +174,21 @@ func (s *NodeService) StoreAppResources(nodeID string, raw json.RawMessage) erro
 	}
 	now := time.Now().UTC()
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		// The set is replaced below, so a Service link must be read first and written back for the
+		// keys that are still reported; a key that disappears takes its link with it.
+		var linked []db.NodeAppResource
+		if err := tx.Select("key", "service_id").Where("node_id = ? AND service_id IS NOT NULL", nodeID).Find(&linked).Error; err != nil {
+			return err
+		}
+		links := make(map[string]*string, len(linked))
+		for _, l := range linked {
+			links[l.Key] = l.ServiceID
+		}
 		rows := make([]db.NodeAppResource, 0, len(series))
 		for _, x := range series {
 			rows = append(rows, db.NodeAppResource{NodeID: nodeID, Key: x.Key, Kind: x.Kind, Name: x.Name, CPUPercent: x.CPUPercent,
 				MemoryBytes: x.MemoryBytes, IOReadBytesPerSec: x.IOReadBps, IOWriteBytesPerSec: x.IOWriteBps, NetRxBytesPerSec: x.NetRxBps,
-				NetTxBytesPerSec: x.NetTxBps, Pids: x.Pids, StorageBytes: x.StorageBytes, StorageCapped: x.StorageCapped, UpdatedAt: now})
+				NetTxBytesPerSec: x.NetTxBps, Pids: x.Pids, StorageBytes: x.StorageBytes, StorageCapped: x.StorageCapped, UpdatedAt: now, ServiceID: links[x.Key]})
 		}
 		// Replace the whole set: a field that is no longer measured must become absent, not keep its old value.
 		if err := tx.Where("node_id = ?", nodeID).Delete(&db.NodeAppResource{}).Error; err != nil {
@@ -210,7 +222,7 @@ func (s *NodeService) GetAppResources(nodeID string) (*NodeAppResourcesView, err
 	for _, r := range rows {
 		view.Series = append(view.Series, AppResourceSeries{Kind: r.Kind, Key: r.Key, Name: r.Name, CPUPercent: r.CPUPercent, MemoryBytes: r.MemoryBytes,
 			IOReadBps: r.IOReadBytesPerSec, IOWriteBps: r.IOWriteBytesPerSec, NetRxBps: r.NetRxBytesPerSec, NetTxBps: r.NetTxBytesPerSec,
-			Pids: r.Pids, StorageBytes: r.StorageBytes, StorageCapped: r.StorageCapped})
+			Pids: r.Pids, StorageBytes: r.StorageBytes, StorageCapped: r.StorageCapped, ServiceID: derefString(r.ServiceID)})
 	}
 	sort.Slice(view.Series, func(i, j int) bool {
 		if view.Series[i].Kind != view.Series[j].Kind {
@@ -219,4 +231,11 @@ func (s *NodeService) GetAppResources(nodeID string) (*NodeAppResourcesView, err
 		return view.Series[i].Key < view.Series[j].Key
 	})
 	return view, nil
+}
+
+func derefString(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

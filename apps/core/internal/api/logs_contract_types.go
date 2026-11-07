@@ -169,9 +169,11 @@ type App struct {
 	RateLimitPerSecond int               `json:"rate_limit_per_second"`
 	Display            DisplayProfile    `json:"display_profile"`
 	Redaction          RedactionSettings `json:"redaction"`
-	CreatedAt          time.Time         `json:"created_at"`
-	LastIngestAt       *time.Time        `json:"last_ingest_at"`
-	KeyCount           int               `json:"key_count"`
+	// ServiceID is the Service this app is linked to; absent when unlinked.
+	ServiceID    string     `json:"service_id,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastIngestAt *time.Time `json:"last_ingest_at"`
+	KeyCount     int        `json:"key_count"`
 	// Status is receiving (a log in the last 5 minutes), quiet or never.
 	Status string `json:"status" enums:"receiving,quiet,never"`
 	// RatePerSecond is the average over the last minute.

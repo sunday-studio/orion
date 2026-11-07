@@ -293,6 +293,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/events", s.listOrionEvents)
 			frontend.GET("/logs/service", s.listServiceLogs)
 			s.registerProductLogRoutes(frontend)
+			s.registerServiceRoutes(frontend)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)

@@ -557,6 +557,9 @@ definitions:
         description: RetentionDays defaults to 14.
         example: 14
         type: integer
+      service_id:
+        description: ServiceID is the Service this app is linked to; absent when unlinked.
+        type: string
       slug:
         example: checkout-api
         type: string
@@ -2416,6 +2419,10 @@ definitions:
       reporting_interval_seconds:
         type: integer
       runbook_url:
+        type: string
+      service_id:
+        description: ServiceID is the Service this monitor is linked to; absent when
+          unlinked.
         type: string
       source:
         type: string
@@ -4761,6 +4768,10 @@ definitions:
         type: number
       pids:
         type: integer
+      service_id:
+        description: ServiceID is the Service this thing is linked to (set by Core,
+          never read from a node report).
+        type: string
       storage_bytes:
         type: integer
       storage_capped:
@@ -5311,6 +5322,163 @@ definitions:
       operation:
         type: string
     type: object
+  orion_core_internal_service.ServiceDeleteResult:
+    properties:
+      unlinked_apps:
+        type: integer
+      unlinked_monitors:
+        type: integer
+      unlinked_resources:
+        type: integer
+    type: object
+  orion_core_internal_service.ServiceDetail:
+    properties:
+      app_count:
+        type: integer
+      apps:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.ServiceLinkedApp'
+        type: array
+      created_at:
+        type: string
+      environment:
+        type: string
+      health:
+        description: Health is the worst known health among the service's monitors
+          (down, degraded, up), or unknown when none report.
+        enum:
+        - up
+        - degraded
+        - down
+        - unknown
+        type: string
+      id:
+        type: string
+      monitor_count:
+        type: integer
+      monitors:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.ServiceLinkedMonitor'
+        type: array
+      name:
+        type: string
+      node_id:
+        type: string
+      open_incident_count:
+        type: integer
+      resource_count:
+        type: integer
+      resources:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.ServiceLinkedResource'
+        type: array
+      runbook_url:
+        type: string
+      slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceInput:
+    properties:
+      environment:
+        example: production
+        type: string
+      name:
+        example: Checkout
+        type: string
+      node_id:
+        description: NodeID is the optional owner node (the server the service mainly
+          runs on).
+        type: string
+      runbook_url:
+        type: string
+      slug:
+        example: checkout
+        type: string
+    type: object
+  orion_core_internal_service.ServiceLinkRef:
+    properties:
+      id:
+        type: string
+      key:
+        type: string
+      kind:
+        enum:
+        - app
+        - monitor
+        - resource
+        type: string
+      node_id:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceLinkResult:
+    properties:
+      id:
+        type: string
+      key:
+        type: string
+      kind:
+        enum:
+        - app
+        - monitor
+        - resource
+        type: string
+      node_id:
+        type: string
+      previous_service_id:
+        type: string
+      service_id:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceLinkedApp:
+    properties:
+      environment:
+        type: string
+      id:
+        type: string
+      last_ingest_at:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceLinkedMonitor:
+    properties:
+      active_incident_id:
+        type: string
+      health:
+        enum:
+        - up
+        - degraded
+        - down
+        - unknown
+        type: string
+      id:
+        type: string
+      lifecycle:
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      type:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceLinkedResource:
+    properties:
+      key:
+        type: string
+      kind:
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
   orion_core_internal_service.ServiceLogBatchPayload:
     properties:
       entries:
@@ -5348,6 +5516,113 @@ definitions:
     required:
     - fingerprint
     - timestamp
+    type: object
+  orion_core_internal_service.ServicePatch:
+    properties:
+      environment:
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      runbook_url:
+        type: string
+      slug:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceSuggestion:
+    properties:
+      environment:
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/orion_core_internal_service.ServiceSuggestionMember'
+        type: array
+      name:
+        type: string
+      service_id:
+        type: string
+      slug:
+        type: string
+    type: object
+  orion_core_internal_service.ServiceSuggestionMember:
+    properties:
+      against:
+        description: 'Against is what it matched: the group''s name or slug, the anchor
+          app''s slug, or a service.name seen in the anchor app''s logs.'
+        enum:
+        - service_slug
+        - service_name
+        - app_slug
+        - otel_service_name
+        type: string
+      confidence:
+        enum:
+        - high
+        - medium
+        type: string
+      id:
+        type: string
+      key:
+        type: string
+      kind:
+        enum:
+        - app
+        - monitor
+        - resource
+        type: string
+      matched_on:
+        description: MatchedOn is the field of this thing that matched.
+        enum:
+        - app_slug
+        - app_service_name
+        - monitor_name
+        - monitor_host
+        - resource_name
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      reason:
+        description: Reason is the sentence to show next to the Accept button.
+        type: string
+    type: object
+  orion_core_internal_service.ServiceSummary:
+    properties:
+      app_count:
+        type: integer
+      created_at:
+        type: string
+      environment:
+        type: string
+      health:
+        description: Health is the worst known health among the service's monitors
+          (down, degraded, up), or unknown when none report.
+        enum:
+        - up
+        - degraded
+        - down
+        - unknown
+        type: string
+      id:
+        type: string
+      monitor_count:
+        type: integer
+      name:
+        type: string
+      node_id:
+        type: string
+      open_incident_count:
+        type: integer
+      resource_count:
+        type: integer
+      runbook_url:
+        type: string
+      slug:
+        type: string
+      updated_at:
+        type: string
     type: object
   orion_core_internal_service.SetMaintenanceModeRequest:
     properties:
@@ -13476,6 +13751,368 @@ paths:
       summary: Search monitors, incidents, servers and apps
       tags:
       - search
+  /v1/services:
+    get:
+      description: Every service with how many apps, monitors and resources are linked
+        to it, the worst known health among its monitors, and its open incident count.
+      operationId: listServices
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    services:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.ServiceSummary'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List services
+      tags:
+      - services
+    post:
+      consumes:
+      - application/json
+      description: A service is one named thing that ties monitors, an app's logs
+        and measured resources together. Creating it links nothing; link things with
+        POST /v1/services/{id}/links. slug is derived from the name when omitted.
+      operationId: createService
+      parameters:
+      - description: Service
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.ServiceInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    service:
+                      $ref: '#/definitions/orion_core_internal_service.ServiceSummary'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a service
+      tags:
+      - services
+  /v1/services/{id}:
+    delete:
+      description: Removes the service and clears every link to it. The apps, monitors,
+        resources, logs, reports and incidents that were linked are kept untouched.
+      operationId: deleteService
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    unlinked:
+                      $ref: '#/definitions/orion_core_internal_service.ServiceDeleteResult'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a service
+      tags:
+      - services
+    get:
+      description: The service with its linked apps, monitors and resources.
+      operationId: getService
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    service:
+                      $ref: '#/definitions/orion_core_internal_service.ServiceDetail'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a service
+      tags:
+      - services
+    patch:
+      consumes:
+      - application/json
+      description: Omitted fields are unchanged; an empty node_id, environment or
+        runbook_url clears it.
+      operationId: updateService
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.ServicePatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    service:
+                      $ref: '#/definitions/orion_core_internal_service.ServiceSummary'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a service
+      tags:
+      - services
+  /v1/services/{id}/links:
+    delete:
+      description: Clears only the link. Logs, monitor reports, incidents and resource
+        data stay as they are. 404 when the thing does not exist or is not linked
+        to this service.
+      operationId: unlinkServiceItem
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: app, monitor or resource
+        enum:
+        - app
+        - monitor
+        - resource
+        in: query
+        name: kind
+        required: true
+        type: string
+      - description: App or monitor ID
+        in: query
+        name: target_id
+        type: string
+      - description: Resource node ID
+        in: query
+        name: node_id
+        type: string
+      - description: Resource key
+        in: query
+        name: key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink from a service
+      tags:
+      - services
+    post:
+      consumes:
+      - application/json
+      description: 'kind is app or monitor (with id) or resource (with node_id and
+        key). A thing belongs to at most one service: linking one that already belongs
+        to another service moves it, and previous_service_id says from where. Linking
+        it to the same service again changes nothing. System monitors cannot be linked.'
+      operationId: linkServiceItem
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: What to link
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orion_core_internal_service.ServiceLinkRef'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    link:
+                      $ref: '#/definitions/orion_core_internal_service.ServiceLinkResult'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Link to a service
+      tags:
+      - services
+  /v1/services/suggestions:
+    get:
+      description: 'Proposes links with the reason for each. Without service_id: unlinked
+        things that match an existing service, and unlinked apps that could start
+        a new service (service_id empty on those). With service_id: only what could
+        join that service. A suggestion is advice only; nothing is linked until you
+        call POST /v1/services/{id}/links. Rules: an app''s slug or OpenTelemetry
+        service.name (seen in its logs in the last 24 hours) against monitor names,
+        the host a Core monitor checks, and resource (process, unit, container) names.
+        Monitors the Node runs are matched by name only.'
+      operationId: listServiceSuggestions
+      parameters:
+      - description: Only suggest links for this service
+        in: query
+        name: service_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    suggestions:
+                      items:
+                        $ref: '#/definitions/orion_core_internal_service.ServiceSuggestion'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest service links
+      tags:
+      - services
   /v1/settings/api-tokens:
     get:
       description: Name, prefix, scope and last use. Secrets are never returned. Not

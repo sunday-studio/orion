@@ -89,7 +89,7 @@ func (s *Server) appResponseWith(app db.App, stats logstore.AppStats) App {
 	out := App{
 		ID: app.ID, Name: app.Name, Slug: app.Slug, Environment: app.Environment, Description: app.Description,
 		RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB, DebugSampleRate: app.DebugSampleRate, RateLimitPerSecond: app.RateLimitPerSecond,
-		CreatedAt: app.CreatedAt, LastIngestAt: app.LastIngestAt,
+		ServiceID: derefString(app.ServiceID), CreatedAt: app.CreatedAt, LastIngestAt: app.LastIngestAt,
 		RatePerSecond: float64(stats.LastMinute) / 60, StorageBytes: stats.Bytes, StorageCapBytes: int64(app.MaxStorageMB) << 20, Lines: stats.Entries,
 	}
 	switch {
