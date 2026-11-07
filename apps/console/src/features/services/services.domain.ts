@@ -96,11 +96,16 @@ export const environmentsOf = (services: readonly ServiceServiceSummary[]) =>
   ].sort();
 
 export const summaryLine = (counts: { monitors?: number; apps?: number; resources?: number }) =>
-  [
-    plural(counts.monitors ?? 0, "monitor"),
-    plural(counts.apps ?? 0, "app"),
-    plural(counts.resources ?? 0, "resource"),
-  ].join(", ");
+  (
+    [
+      ["monitor", counts.monitors],
+      ["app", counts.apps],
+      ["resource", counts.resources],
+    ] as const
+  )
+    .filter(([, count]) => count !== undefined)
+    .map(([noun, count]) => plural(count ?? 0, noun))
+    .join(", ");
 
 export const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
@@ -264,3 +269,62 @@ export const incidentsForMonitors = (
     .filter((incident) => incident.monitor_id && ids.has(incident.monitor_id))
     .sort((a, b) => (b.opened_at ?? "").localeCompare(a.opened_at ?? ""));
 };
+
+export type MonitorLinkChoice = {
+  key: string;
+  /** Link to this existing service. */
+  serviceId?: string;
+  /** Or create this one first. */
+  create?: ServiceServiceInput;
+  name: string;
+  detail?: string;
+  reasons: string[];
+  likelihood?: Likelihood;
+};
+
+/**
+ * Where a monitor could go: services Core suggests for it (each with the reason), then a
+ * brand new service named after the monitor. Suggestions are advice; nothing links until chosen.
+ */
+export const monitorLinkChoices = (
+  suggestions: readonly ServiceServiceSuggestion[],
+  monitor: { id: string; name?: string },
+  services: readonly ServiceServiceSummary[],
+): MonitorLinkChoice[] => {
+  const suggested = suggestions.flatMap((suggestion, index): MonitorLinkChoice[] => {
+    const member = (suggestion.members ?? []).find(
+      (item) => item.kind === "monitor" && item.id === monitor.id,
+    );
+    if (!member) return [];
+    const existing = services.find((service) => service.id === suggestion.service_id);
+    return [
+      {
+        key: suggestionKey(suggestion, index),
+        serviceId: suggestion.service_id,
+        create: suggestion.service_id
+          ? undefined
+          : { name: suggestion.name, slug: suggestion.slug, environment: suggestion.environment },
+        name: existing?.name ?? suggestion.name ?? "service",
+        detail: existing
+          ? [
+              existing.environment,
+              summaryLine({ monitors: existing.monitor_count, apps: existing.app_count }),
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : suggestion.environment,
+        reasons: [memberReason(member)],
+        likelihood: member.confidence === "high" ? "likely" : "maybe",
+      },
+    ];
+  });
+  const name = monitor.name?.trim() || "new service";
+  return [
+    ...suggested,
+    { key: "new", create: { name }, name: "New service", detail: `called ${name}`, reasons: [] },
+  ];
+};
+
+/** The choice to start on: the best suggestion, never the "new service" fallback. */
+export const defaultMonitorChoice = (choices: readonly MonitorLinkChoice[]) =>
+  choices.find((choice) => choice.likelihood === "likely")?.key ?? choices[0]?.key ?? "";

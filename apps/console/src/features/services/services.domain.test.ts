@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   appCandidates,
+  defaultMonitorChoice,
   defaultSelectedSuggestions,
   describeMove,
   elsewhereNote,
@@ -11,6 +12,7 @@ import {
   incidentsForMonitors,
   memberKey,
   monitorCandidates,
+  monitorLinkChoices,
   planSuggestion,
   refsForKeys,
   resourceCandidates,
@@ -217,5 +219,62 @@ describe("service incidents", () => {
       ["i3", "i1"],
     );
     assert.deepEqual(incidentsForMonitors(incidents, []), []);
+  });
+});
+
+describe("monitor link choices", () => {
+  const suggestions = [
+    {
+      service_id: "svc-1",
+      name: "checkout",
+      members: [
+        {
+          kind: "monitor",
+          id: "m1",
+          confidence: "high",
+          reason: "This monitor checks api.example.com",
+        },
+        { kind: "app", id: "a1", confidence: "high" },
+      ],
+    },
+    {
+      name: "web-store",
+      slug: "web-store",
+      members: [{ kind: "monitor", id: "m1", confidence: "medium" }],
+    },
+    {
+      service_id: "svc-3",
+      name: "billing",
+      members: [{ kind: "monitor", id: "other", confidence: "high" }],
+    },
+  ] as never;
+  const services = [
+    { id: "svc-1", name: "checkout", environment: "production", monitor_count: 1, app_count: 2 },
+  ] as never;
+
+  it("offers only groups that name this monitor, each with its reason, then a new service", () => {
+    const choices = monitorLinkChoices(suggestions, { id: "m1", name: "api-https" }, services);
+    assert.deepEqual(
+      choices.map((c) => c.name),
+      ["checkout", "web-store", "New service"],
+    );
+    assert.equal(choices[0].serviceId, "svc-1");
+    assert.deepEqual(choices[0].reasons, ["This monitor checks api.example.com"]);
+    assert.equal(choices[0].detail, "production · 1 monitor, 2 apps");
+    assert.equal(choices[1].serviceId, undefined);
+    assert.deepEqual(choices[1].create, {
+      name: "web-store",
+      slug: "web-store",
+      environment: undefined,
+    });
+    assert.deepEqual(choices[2].create, { name: "api-https" });
+  });
+
+  it("starts on a likely suggestion and never on the new-service fallback when there is one", () => {
+    const choices = monitorLinkChoices(suggestions, { id: "m1", name: "api-https" }, services);
+    assert.equal(defaultMonitorChoice(choices), choices[0].key);
+    const onlyMaybe = choices.filter((c) => c.likelihood !== "likely");
+    assert.equal(defaultMonitorChoice(onlyMaybe), onlyMaybe[0].key);
+    assert.equal(defaultMonitorChoice([]), "");
   });
 });

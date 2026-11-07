@@ -26,6 +26,7 @@ import {
   useSetIncidentResponder,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -66,7 +67,11 @@ export const IncidentDetailPage = () => {
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const now = useNow(1000);
   const publicTargets = useGetIncidentPublicTargets(incidentId);
-  const logs = useGetIncidentLogs(incidentId, { limit: 100 });
+  const [preOnly, setPreOnly] = useQueryState("pre", parseAsBoolean.withDefault(false));
+  const logs = useGetIncidentLogs(incidentId, {
+    limit: 100,
+    pre_incident_only: preOnly || undefined,
+  });
   const logEntries = logs.data?.entries ?? [];
   const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
   const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
@@ -169,6 +174,11 @@ export const IncidentDetailPage = () => {
       <div className="w-full">
         <IncidentDetailHeader
           incident={incident}
+          service={
+            logs.data?.service_id
+              ? { id: logs.data.service_id, name: logs.data.service_name }
+              : undefined
+          }
           now={now}
           actionPending={actionPending}
           canAcknowledge={canAcknowledge}
@@ -245,7 +255,15 @@ export const IncidentDetailPage = () => {
                 />
               </TabsPanel>
               <TabsPanel value="logs">
-                <IncidentLogs entries={logEntries} />
+                <IncidentLogs
+                  response={logs.data}
+                  loading={logs.isPending}
+                  failed={logs.isError}
+                  onRetry={() => void logs.refetch()}
+                  preOnly={preOnly}
+                  onPreOnlyChange={(next) => void setPreOnly(next || null)}
+                  monitorId={incident.monitor_id}
+                />
               </TabsPanel>
               <TabsPanel value="notifications">
                 <DataTable
