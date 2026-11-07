@@ -140,3 +140,33 @@ The benchmark now runs the backfill after deleting every rollup (in batches, as 
 The no-rollups case this replaces was 1.2 s (864k rows) and 9.1 s (5.18M rows) per Overview request. Backfilled days use the same gap accounting as the nightly job, so days before migration 000056 keep `missed_count` 0.
 
 After the staff-review fixes (exact gap counting for today, active-only monitors on the read path), the 100-monitor / 864k-row run measured Overview 35 ms and node uptime 34 ms (was 30 ms), monitor uptime 0.4 ms, backfill 0.64 s. The extra few milliseconds are the read of today's report times.
+
+## metrics.db at the series cap (2026-11-07)
+
+The gate from [service-correlation-plan.md](service-correlation-plan.md) section 4.3, measured with the opt-in `TestLoadAtTheSeriesCap` (`apps/core/internal/metricstore/metric-load_test.go`) on the same laptop (darwin/arm64). Every node reports the full 200 series (CPU, memory, network, pids) once a minute for 7 days: 2.016M rows per node. Samples go through the real writer (one transaction per report); the values are synthetic but fill every column the way a real report does.
+
+`ORION_METRIC_LOAD_NODES=1 go test ./internal/metricstore -run TestLoadAtTheSeriesCap -v -timeout 30m` (and `=5`).
+
+| Measure | 1 node (2.0M rows) | 5 nodes (10.1M rows) |
+|---|---|---|
+| Write throughput through the writer | 62,000 rows/s (32 s) | not captured (see note) |
+| One 200-series report, writer plus flush | p50 2.5 ms, p95 7.3 ms | n/a |
+| Size after writing 7 days | 80.2 MiB, 42 bytes/row | about 408 MiB, about 41 bytes/row |
+| Hourly rollup of 7 days | 168 hours in 1.2 s | 168 hours in 6.5 s |
+| Size after rollup | 82.2 MiB (+2 MiB, about 60 bytes per hourly row) | 417.8 MiB |
+| Chart: 1 series, 24 h, raw (480 points) | p50 1.1 ms | p50 1.1 ms |
+| Chart: 1 series, 7 days, hourly (167 points) | p50 0.3 ms | p50 0.3 ms |
+| Chart: 20 series, 6 h, raw (7,200 points) | p50 12.4 ms | p50 12.9 ms |
+| Chart: 20 series, 7 days, hourly (3,340 points) | p50 6.2 ms | p50 6.3 ms |
+| Prune, deleting half the raw rows | 1.0M rows in 0.2 s | 5.0M rows in 1.3 s |
+| Prune with nothing to remove | 2 ms (200 series) | 11 ms (1,000 series) |
+
+Note: the 5-node run's write phase lines were cut off by the output filter, and other test runs shared the CPU while it ran; its whole run took 271 s. Size, rollup, query and prune figures are unaffected.
+
+Findings:
+
+- **Size.** About 42 bytes per sample row, a bit under half of the 100 bytes the database evaluation assumed, so about 80 MiB per node for 7 days at the cap (the estimate was 192 MiB). Ninety days of hourly rollups add roughly 26 MiB per node (432k rows at about 60 bytes). Extrapolated: about 5 GiB for 50 nodes and about 53 GiB for 500 nodes with every node at the cap. The 200M-row revisit trigger is reached at about 100 nodes at the cap (2.0M raw rows each), earlier than the 20 GB one; most hosts report far fewer than 200 series.
+- **Write.** A node's whole report costs a few milliseconds on the writer, off the request path, so 500 nodes reporting each minute is about 500 x 2.5 ms of writer time per minute, roughly 2% of one core. Throughput is bounded by SQLite's single writer, not by volume.
+- **Reads.** A chart for one resource is about a millisecond and a 20-resource service panel is 12 ms for 6 hours at one-minute resolution; neither grows with the number of other nodes in the file.
+- **Prune and rollup.** Rolling up and pruning a full 7 days is seconds, and the hourly steady-state run touches only the last two hours. The file does not shrink right after a large prune: freed pages are reused by new samples, and `PRAGMA incremental_vacuum(2000)` returns about 8 MiB per run. After lowering retention on a large file, size comes down over several hourly runs rather than at once.
+- **Slow-query log.** The first rollup of a day of raw rows crosses the 200 ms slow-query threshold of the GORM logger and is logged at warn level. Only the first catch-up does; the hourly runs are far below it.

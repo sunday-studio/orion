@@ -1,6 +1,6 @@
 # Service Correlation: Plan
 
-Status: proposed, awaiting approval. 2026-11-07.
+Status: S0 to S5 built in Core (2026-11-07); Console work (S1 UI, S6) and S7 not started.
 Related: [product-logs-plan.md](product-logs-plan.md), [incident-detail-information-architecture.md](incident-detail-information-architecture.md), [../architecture/passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [../architecture/incident-reconciliation-flow.md](../architecture/incident-reconciliation-flow.md), [decision-log.md](decision-log.md), [database-evaluation.md](database-evaluation.md) (storage), [information-architecture-review.md](information-architecture-review.md) (navigation).
 
 Updated 2026-11-07 after the database evaluation and the navigation review: sample history now lives in its own `metrics.db` behind an interface, and Services sits under a Monitoring tab. Design boards: Services and Navigation pages of the Orion canvas.
@@ -184,6 +184,15 @@ Built in `apps/core`; the Console and navigation work are not started.
 - `GET /v1/incidents/{id}/logs` resolves `explicit app_id`, else the monitor's service apps, else the log-rule app,
   and returns `source`, `service_id`, `app_ids` and the window. `pre_incident_only=true` ends the window when the
   incident opened.
+
+### Status of S3 to S5 (Core API, 2026-11-07)
+
+Built in `apps/core`; the Console is still not started. Details for the wire surface are in [../product-metrics.md](../product-metrics.md).
+
+- **S3, grouping.** Incidents group by service in the existing `alert_groups` tables: key `service:<id>`, whatever the monitor type. An incident's service is its monitor's `service_id`, or for a log rule's own monitor the `service_id` of the rule's app, resolved at grouping time instead of copied onto the monitor, so unlinking an app takes effect at once and the monitor never shows up in a service's monitor list. A service group takes a new incident while one of its incidents is active (overlap) or its last event is under 30 minutes old; otherwise a new group starts. Incidents without a service keep the per-node key. Per-incident notifications stay available through the route's `grouping_policy` (`none`).
+- **S4, history.** `metrics.db` and the `MetricStore` interface (`internal/metricstore`), written off the report path by one writer; one-minute rows (7 days) and hourly rollups (90 days), both set in the data lifecycle settings; hourly rollup and prune job in the API process; per-node cap of 200 active series. `GET /v1/services/{id}/metrics` serves the chart data and resolves series from the links at read time, which is how "linking never rewrites history" is met without storing `service_id` on the series (the plan's earlier wording). A per-app minute rollup of log counts lives in `logs.db` (`GET /v1/services/{id}/log-counts`). The measured gate is recorded in [backend-hardening-load-results.md](backend-hardening-load-results.md).
+- **S5, OTLP metrics.** `POST /v1/ingest/otlp/v1/metrics` (protobuf and JSON, gzip) with the app's ingest key, the log body limits and the shared rate limiter. Gauges and sums only; histograms are reported in `partial_success`. Series per app are capped (default 100, `metric_series_cap` per app), and data points over the cap are refused synchronously and counted in `partial_success`. Open question answered: the first-class metric names are not special-cased; every metric is stored as sent.
+- **Left for later:** histograms (latency percentiles), rate conversion for cumulative sums, metric threshold rules (S7), and S6 (the Console timeline).
 
 Each phase is independently shippable. S1 to S3 deliver the core request ("see logs when a monitor
 goes wrong") without any new storage.
