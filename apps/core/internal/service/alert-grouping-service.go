@@ -41,24 +41,23 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 	}
 
 	now := time.Now().UTC()
-	groupKey := alertGroupKey(event)
-	var group db.AlertGroup
-	result := s.db.Where("group_key = ? AND status = ?", groupKey, "open").
-		Order("last_event_at DESC").
-		Limit(1).
-		Find(&group)
-	if result.Error != nil {
-		return alertGroupingDecision{}, result.Error
+	scope, err := s.alertGroupScopeFor(event, incident)
+	if err != nil {
+		return alertGroupingDecision{}, err
+	}
+	group, joined, err := s.openAlertGroup(scope, now)
+	if err != nil {
+		return alertGroupingDecision{}, err
 	}
 
-	if result.RowsAffected == 0 {
+	if !joined {
 		group = db.AlertGroup{
 			ID:              utils.GenerateID("alert_group"),
-			GroupKey:        groupKey,
+			GroupKey:        scope.Key,
 			Status:          "open",
 			EventType:       event.EventType,
 			Severity:        incident.Severity,
-			Summary:         alertGroupSummary(event, 1),
+			Summary:         scope.summary(event, 1),
 			FirstIncidentID: incident.ID,
 			LastIncidentID:  incident.ID,
 			IncidentCount:   1,
@@ -82,7 +81,7 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 		"last_incident_id": incident.ID,
 		"incident_count":   nextCount,
 		"last_event_at":    now,
-		"summary":          alertGroupSummary(event, nextCount),
+		"summary":          scope.summary(event, nextCount),
 	}
 	if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(updates).Error; err != nil {
 		return alertGroupingDecision{}, err
@@ -110,6 +109,10 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 	}
 
 	now := time.Now().UTC()
+	scope, err := s.alertGroupScopeFor(event, incident)
+	if err != nil {
+		return alertGroupingDecision{}, err
+	}
 	activeCount, err := s.activeAlertGroupIncidentCount(group.ID)
 	if err != nil {
 		return alertGroupingDecision{}, err
@@ -117,7 +120,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 	if activeCount > 0 {
 		if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
 			"last_event_at": now,
-			"summary":       alertGroupSummary(event, group.IncidentCount),
+			"summary":       scope.summary(event, group.IncidentCount),
 		}).Error; err != nil {
 			return alertGroupingDecision{}, err
 		}
