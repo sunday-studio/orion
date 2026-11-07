@@ -34,6 +34,8 @@ type DataLifecycleSettingsPayload struct {
 	IncidentEventRetentionDays *int `json:"incident_event_retention_days,omitempty"`
 	AuditEventRetentionDays    *int `json:"audit_event_retention_days,omitempty"`
 	WorkerStatusRetentionDays  *int `json:"worker_status_retention_days,omitempty"`
+	MetricSampleRetentionDays  *int `json:"metric_sample_retention_days,omitempty"`
+	MetricRollupRetentionDays  *int `json:"metric_rollup_retention_days,omitempty"`
 }
 
 type SettingsService struct {
@@ -83,6 +85,8 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		"incident_event_retention_days": payload.IncidentEventRetentionDays,
 		"audit_event_retention_days":    payload.AuditEventRetentionDays,
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
+		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
 	} {
 		if value != nil {
 			updates[column] = *value
@@ -118,6 +122,8 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 		IncidentEventRetentionDays: 365,
 		AuditEventRetentionDays:    365,
 		WorkerStatusRetentionDays:  7,
+		MetricSampleRetentionDays:  7,
+		MetricRollupRetentionDays:  90,
 	}
 	if err := s.db.Create(&settings).Error; err != nil {
 		return nil, err
@@ -161,6 +167,8 @@ func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSett
 		"incident_event_retention_days": payload.IncidentEventRetentionDays,
 		"audit_event_retention_days":    payload.AuditEventRetentionDays,
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
+		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
 	} {
 		if value != nil && (*value < 1 || *value > maxDataLifecycleRetentionDays) {
 			return "", errors.New(name + " must be between 1 and 3650")

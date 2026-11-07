@@ -456,13 +456,16 @@ type DataLifecycleSettings struct {
 	LastArchiveStatus   string     `json:"last_archive_status"`
 	LastArchiveError    string     `json:"last_archive_error" gorm:"type:text"`
 	// Retention windows in days for tables that otherwise grow without bound.
-	ServiceLogRetentionDays    int       `json:"service_log_retention_days" gorm:"not null;default:14"`
-	AlertDeliveryRetentionDays int       `json:"alert_delivery_retention_days" gorm:"not null;default:90"`
-	IncidentEventRetentionDays int       `json:"incident_event_retention_days" gorm:"not null;default:365"`
-	AuditEventRetentionDays    int       `json:"audit_event_retention_days" gorm:"not null;default:365"`
-	WorkerStatusRetentionDays  int       `json:"worker_status_retention_days" gorm:"not null;default:7"`
-	CreatedAt                  time.Time `json:"created_at"`
-	UpdatedAt                  time.Time `json:"updated_at"`
+	ServiceLogRetentionDays    int `json:"service_log_retention_days" gorm:"not null;default:14"`
+	AlertDeliveryRetentionDays int `json:"alert_delivery_retention_days" gorm:"not null;default:90"`
+	IncidentEventRetentionDays int `json:"incident_event_retention_days" gorm:"not null;default:365"`
+	AuditEventRetentionDays    int `json:"audit_event_retention_days" gorm:"not null;default:365"`
+	WorkerStatusRetentionDays  int `json:"worker_status_retention_days" gorm:"not null;default:7"`
+	// Metric samples live in metrics.db: one-minute rows and hourly rollups are kept for different times.
+	MetricSampleRetentionDays int       `json:"metric_sample_retention_days" gorm:"not null;default:7"`
+	MetricRollupRetentionDays int       `json:"metric_rollup_retention_days" gorm:"not null;default:90"`
+	CreatedAt                 time.Time `json:"created_at"`
+	UpdatedAt                 time.Time `json:"updated_at"`
 }
 
 // IncidentCandidateDismissal hides an incident candidate (a failing monitor with no
