@@ -22539,6 +22539,10 @@ const docTemplate = `{
                 },
                 "to": {
                     "type": "string"
+                },
+                "truncated": {
+                    "description": "Truncated is true when the service has more series than the response carries (100).",
+                    "type": "boolean"
                 }
             }
         },

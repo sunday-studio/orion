@@ -3287,6 +3287,10 @@ definitions:
         type: integer
       to:
         type: string
+      truncated:
+        description: Truncated is true when the service has more series than the response
+          carries (100).
+        type: boolean
     type: object
   internal_api.StatusLogEntry:
     properties:
