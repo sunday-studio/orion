@@ -22541,7 +22541,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "truncated": {
-                    "description": "Truncated is true when the service has more series than the response carries (100).",
+                    "description": "Truncated is true when the service has more series than the response carries: 100 in all, of which at most 50 are app-reported (the most recently seen).",
                     "type": "boolean"
                 }
             }
