@@ -123,6 +123,10 @@ jobs:
         run: pnpm run format:check
         working-directory: apps/console
 
+      - name: Test Console navigation logic
+        run: pnpm run test
+        working-directory: apps/console
+
       - name: Build Console
         run: make console-build
 
