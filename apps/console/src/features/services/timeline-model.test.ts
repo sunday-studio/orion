@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   errorsPerMinute,
+  failedChecks,
   formatBytes,
   formatMs,
   hasData,
@@ -81,6 +82,19 @@ describe("timeline model", () => {
       responseLine(points, from).map((p) => p.v),
       [120],
     );
+  });
+
+  it("keeps all-failed buckets off the response line and marks them instead", () => {
+    const from = new Date("2026-11-07T10:00:00Z").getTime();
+    const points = [
+      { at: "2026-11-07T10:05:00Z", avg_ms: 0, checks: 4, failed: 4 },
+      { at: "2026-11-07T10:10:00Z", avg_ms: 180, checks: 4, failed: 1 },
+    ];
+    assert.deepEqual(
+      responseLine(points, from).map((p) => p.v),
+      [180],
+    );
+    assert.equal(failedChecks(points, from).length, 1);
   });
 
   it("rounds axes and formats units", () => {

@@ -62,7 +62,7 @@ const SuggestionGroup = ({
               <li key={key} className="flex items-start gap-2 text-[12.5px]">
                 <Checkbox
                   aria-label={`Include ${member.name}`}
-                  checked={!off}
+                  checked={checked && !off}
                   disabled={!checked}
                   onCheckedChange={() => onSkipMember(key)}
                   className="mt-0.5"

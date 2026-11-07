@@ -13,6 +13,7 @@ import {
   RANGES,
   type RangeValue,
   errorsPerMinute,
+  failedChecks,
   formatBytes,
   formatMs,
   hasData,
@@ -40,9 +41,11 @@ type LaneProps = {
   /** What to say when this lane has nothing to draw. */
   empty: string;
   max?: number;
+  /** Times to mark in red, for example checks that failed. */
+  marks?: number[];
 };
 
-const Lane = ({ title, top, lines, bars, format, from, to, empty, max }: LaneProps) => {
+const Lane = ({ title, top, lines, bars, format, from, to, empty, max, marks = [] }: LaneProps) => {
   const x = (t: number) => LEFT + ((t - from) / Math.max(to - from, 1)) * (W - LEFT);
   const peak = niceMax(max ?? Math.max(0, ...lines.flatMap((l) => l.points.map((p) => p.v))));
   const y = (v: number) => top + LANE_H - (Math.min(v, peak) / peak) * LANE_H;
@@ -54,6 +57,11 @@ const Lane = ({ title, top, lines, bars, format, from, to, empty, max }: LanePro
         {lines.length === 1 && !bars ? ` · ${lines[0]?.label}` : ""}
       </text>
       <line x1={LEFT} x2={W} y1={top + LANE_H} y2={top + LANE_H} className="stroke-hairline" />
+      {marks.map((t) => (
+        <rect key={t} x={x(t) - 1.5} y={top + LANE_H - 12} width={3} height={12} fill="#e5484d">
+          <title>{`${formatDate(new Date(t).toISOString(), TIME_FORMAT)}: checks failed`}</title>
+        </rect>
+      ))}
       {hasData(lines) ? (
         <>
           <line
@@ -92,15 +100,24 @@ const Lane = ({ title, top, lines, bars, format, from, to, empty, max }: LanePro
                 ))}
               </g>
             ) : (
-              <path
-                key={line.id}
-                d={linePath(line.points, x, y)}
-                fill="none"
-                stroke={COLORS[index % COLORS.length]}
-                strokeWidth="2"
-                strokeLinejoin="round"
-                strokeDasharray={title.startsWith("Memory") ? "5 3" : undefined}
-              />
+              <g key={line.id}>
+                {line.points.length === 1 && (
+                  <circle
+                    cx={x(line.points[0]?.t ?? from)}
+                    cy={y(line.points[0]?.v ?? 0)}
+                    r={3}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                )}
+                <path
+                  d={linePath(line.points, x, y)}
+                  fill="none"
+                  stroke={COLORS[index % COLORS.length]}
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeDasharray={title.startsWith("Memory") ? "5 3" : undefined}
+                />
+              </g>
             ),
           )}
         </>
@@ -149,6 +166,7 @@ export const ServiceTimeline = ({
       points: responseLine(response.data?.points ?? [], from),
     },
   ];
+  const failedAt = failedChecks(response.data?.points ?? [], from);
   const errorLines: Line[] = [
     { id: "errors", label: "errors", points: errorsPerMinute(counts.data?.buckets ?? [], step) },
   ];
@@ -227,10 +245,13 @@ export const ServiceTimeline = ({
                 format={formatMs}
                 from={from}
                 to={now}
+                marks={failedAt}
                 empty={
-                  monitor
-                    ? "No checks in this range yet."
-                    : "Link a monitor to chart response time."
+                  failedAt.length > 0
+                    ? "Every check in this range failed, so there is no response time."
+                    : monitor
+                      ? "No checks in this range yet."
+                      : "Link a monitor to chart response time."
                 }
               />
               <Lane

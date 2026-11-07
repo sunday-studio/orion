@@ -63,15 +63,25 @@ export const metricLines = (
         ];
   });
 
-export const responseLine = (
-  points: readonly { at?: string; avg_ms?: number }[],
-  from: number,
-): TimePoint[] =>
+type ResponsePoint = { at?: string; avg_ms?: number; checks?: number; failed?: number };
+
+/** A bucket where every check failed has no real duration (Core reports 0), so it is not a point on the line. */
+const allFailed = (point: ResponsePoint) =>
+  (point.failed ?? 0) > 0 && (point.failed ?? 0) >= (point.checks ?? 0);
+
+export const responseLine = (points: readonly ResponsePoint[], from: number): TimePoint[] =>
   points.flatMap((point) => {
     const t = time(point.at);
-    return t !== undefined && t >= from && typeof point.avg_ms === "number"
+    return t !== undefined && t >= from && typeof point.avg_ms === "number" && !allFailed(point)
       ? [{ t, v: point.avg_ms }]
       : [];
+  });
+
+/** Times of buckets where every check failed, drawn as marks on the response lane. */
+export const failedChecks = (points: readonly ResponsePoint[], from: number): number[] =>
+  points.flatMap((point) => {
+    const t = time(point.at);
+    return t !== undefined && t >= from && allFailed(point) ? [t] : [];
   });
 
 const STEPS = [1, 2, 5, 10];
