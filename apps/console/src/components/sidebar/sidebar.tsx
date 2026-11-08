@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPEN_PALETTE_EVENT } from "@/components/shared/global-shortcut-events";
@@ -24,6 +25,7 @@ type SidebarProps = {
 /** The open sidebar: search, two top-level pages, four groups, issue count and account. */
 export const Sidebar = ({ active, chip, onCollapse }: SidebarProps) => {
   const [overrides, setOverrides] = useState<GroupOverrides>({});
+  const reduceMotion = useReducedMotion();
 
   // Moving into another section starts fresh: that section opens and the others close.
   useEffect(() => setOverrides({}), [active.groupId]);
@@ -103,30 +105,48 @@ export const Sidebar = ({ active, chip, onCollapse }: SidebarProps) => {
               >
                 <NavIcon name={group.icon} className={iconClass} />
                 <span className="flex-1">{group.label}</span>
-                {!open && <ChevronIcon className="shrink-0 text-[#c4c4cc] dark:text-faint" />}
+                <ChevronIcon
+                  className={cn(
+                    "shrink-0 text-[#c4c4cc] transition-[opacity,transform] duration-200 dark:text-faint",
+                    open ? "rotate-90 opacity-0" : "opacity-100",
+                  )}
+                />
               </button>
-              {open && (
-                <div
-                  id={listId}
-                  role="group"
-                  aria-label={group.label}
-                  className="mb-1.5 ml-[17px] mt-0.5 flex flex-col gap-px border-l-[1.5px] border-hairline"
-                >
-                  {group.pages.map((page) => {
-                    const on = here && active.pageId === page.id;
-                    return (
-                      <Link
-                        key={page.id}
-                        to={page.to}
-                        aria-current={on ? "page" : undefined}
-                        className={childClass(on)}
-                      >
-                        {page.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+              <AnimatePresence initial={false}>
+                {open && (
+                  <motion.div
+                    key="pages"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={
+                      reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+                    }
+                    style={{ overflow: "hidden" }}
+                  >
+                    <div
+                      id={listId}
+                      role="group"
+                      aria-label={group.label}
+                      className="mb-1.5 ml-[17px] mt-0.5 flex flex-col gap-px border-l-[1.5px] border-hairline"
+                    >
+                      {group.pages.map((page) => {
+                        const on = here && active.pageId === page.id;
+                        return (
+                          <Link
+                            key={page.id}
+                            to={page.to}
+                            aria-current={on ? "page" : undefined}
+                            className={childClass(on)}
+                          >
+                            {page.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
