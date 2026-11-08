@@ -19,7 +19,13 @@ CORE_PORT=18999 MIRROR_PORT=19100
 GOOS_="$(go env GOOS)" GOARCH_="$(go env GOARCH)"
 ASSET="orion-node-$GOOS_-$GOARCH_"
 PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done; pkill -f "$W/node/bin/orion-node" 2>/dev/null || true; }
+cleanup() {
+  local status=$?
+  for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done
+  pkill -f "$W/node/bin/orion-node" 2>/dev/null || true
+  # Keep the work folder of a failed run: its logs say why.
+  if [ "$status" = 0 ] && [ -n "$W" ] && [ -d "$W" ]; then rm -rf "$W"; else echo "work folder kept: $W"; fi
+}
 trap cleanup EXIT
 fail() { echo "FAIL: $*"; echo "--- supervisor"; cat "$W/supervisor.log" 2>/dev/null; echo "--- node log (tail)"; tail -15 "$W/node.log" 2>/dev/null; exit 1; }
 in_use() { python3 -c "import socket,sys;s=socket.socket();s.settimeout(1);sys.exit(0 if s.connect_ex(('127.0.0.1',int(sys.argv[1]))) == 0 else 1)" "$1"; }
