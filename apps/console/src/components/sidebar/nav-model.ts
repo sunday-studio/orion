@@ -1,5 +1,5 @@
 /*
- * Navigation model for the sidebar (canvas: Sidebar, Navigation > nav-routes).
+ * Navigation model for the sidebar (D-026 and D-027 in docs/plans/decision-log.md).
  * Pure data and functions with no imports, so the active-page and open-group rules
  * can be unit-tested with `node --test`.
  */
