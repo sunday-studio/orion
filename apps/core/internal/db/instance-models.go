@@ -23,6 +23,8 @@ type InstanceSettings struct {
 	UpdateLatestReleasedAt *time.Time
 	UpdateLatestSecurity   bool   `gorm:"not null;default:false"`
 	UpdateLatestURL        string `gorm:"not null;default:''"`
+	// UpdateLatestNotes is the first few bullet points of the release notes, one per line.
+	UpdateLatestNotes string `gorm:"not null;default:''"`
 	UpdateCheckedAt        *time.Time
 	// UpdateCheckError is why the last check failed; empty after a good one.
 	UpdateCheckError string `gorm:"not null;default:''"`

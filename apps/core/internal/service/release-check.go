@@ -19,6 +19,8 @@ type Release struct {
 	ReleasedAt time.Time
 	URL        string
 	Prerelease bool
+	// Highlights are the first bullet points of the release notes.
+	Highlights []string
 	// Security is set when the release notes carry the line "orion-security: true".
 	Security bool
 }
@@ -78,9 +80,31 @@ func (g *GitHubReleases) Latest(ctx context.Context, channel string) (Release, e
 		if _, ok := parseVersion(version); !ok {
 			continue
 		}
-		return Release{Version: version, ReleasedAt: item.PublishedAt.UTC(), URL: item.HTMLURL, Prerelease: item.Prerelease, Security: hasSecurityMarker(item.Body)}, nil
+		return Release{Version: version, ReleasedAt: item.PublishedAt.UTC(), URL: item.HTMLURL, Prerelease: item.Prerelease, Security: hasSecurityMarker(item.Body), Highlights: releaseHighlights(item.Body)}, nil
 	}
 	return Release{}, errors.New("no release found")
+}
+
+// releaseHighlights returns up to five bullet points from the notes, shortened to one line each.
+func releaseHighlights(body string) []string {
+	var out []string
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "- ") && !strings.HasPrefix(line, "* ") {
+			continue
+		}
+		text := strings.TrimSpace(line[2:])
+		if r := []rune(text); len(r) > 120 {
+			text = string(r[:119]) + "…"
+		}
+		if text != "" {
+			out = append(out, text)
+		}
+		if len(out) == 5 {
+			break
+		}
+	}
+	return out
 }
 
 func hasSecurityMarker(body string) bool {

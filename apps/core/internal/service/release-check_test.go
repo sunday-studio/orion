@@ -39,13 +39,13 @@ func TestGitHubReleasesPicksByChannel(t *testing.T) {
 		_, _ = w.Write([]byte(`[
 		 {"tag_name":"v0.9.4-rc1","prerelease":true,"html_url":"https://x/rc","published_at":"2026-10-25T10:00:00Z","body":""},
 		 {"tag_name":"v0.9.9","draft":true,"html_url":"https://x/draft","published_at":"2026-10-24T10:00:00Z"},
-		 {"tag_name":"v0.9.3","html_url":"https://x/093","published_at":"2026-10-21T08:00:00Z","body":"Fixes.\n\nOrion-Security: true\n"},
+		 {"tag_name":"v0.9.3","html_url":"https://x/093","published_at":"2026-10-21T08:00:00Z","body":"Fixes.\n\n- Faster startup\n* Fixes a stuck queue\nOrion-Security: true\n"},
 		 {"tag_name":"v0.9.2","html_url":"https://x/092","published_at":"2026-10-03T08:00:00Z","body":""}]`))
 	}))
 	defer server.Close()
 	g := &GitHubReleases{Repo: "sunday-studio/orion", APIBase: server.URL, Client: server.Client()}
 	stable, err := g.Latest(context.Background(), "stable")
-	if err != nil || stable.Version != "0.9.3" || !stable.Security || stable.URL != "https://x/093" {
+	if err != nil || stable.Version != "0.9.3" || !stable.Security || stable.URL != "https://x/093" || len(stable.Highlights) != 2 || stable.Highlights[0] != "Faster startup" {
 		t.Fatalf("stable = %+v, %v", stable, err)
 	}
 	pre, err := g.Latest(context.Background(), "prerelease")

@@ -5,6 +5,7 @@ ALTER TABLE instance_settings ADD COLUMN update_latest_version TEXT NOT NULL DEF
 ALTER TABLE instance_settings ADD COLUMN update_latest_released_at DATETIME;
 ALTER TABLE instance_settings ADD COLUMN update_latest_security BOOLEAN NOT NULL DEFAULT 0;
 ALTER TABLE instance_settings ADD COLUMN update_latest_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE instance_settings ADD COLUMN update_latest_notes TEXT NOT NULL DEFAULT '';
 ALTER TABLE instance_settings ADD COLUMN update_checked_at DATETIME;
 ALTER TABLE instance_settings ADD COLUMN update_check_error TEXT NOT NULL DEFAULT '';
 ALTER TABLE instance_settings ADD COLUMN update_skipped_version TEXT NOT NULL DEFAULT '';

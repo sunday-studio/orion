@@ -21,10 +21,12 @@ type UpdateSettings struct {
 	// State is the one word the Console shows: up_to_date, available, security (an update that fixes
 	// a vulnerability, which cannot be skipped), skipped, error (the last check failed), off (checks
 	// are off) or unchecked (nothing has been looked up yet).
-	State          string     `json:"state" enums:"up_to_date,available,security,skipped,error,off,unchecked"`
-	LatestVersion  string     `json:"latest_version,omitempty" example:"0.9.3"`
-	ReleasedAt     *time.Time `json:"released_at,omitempty"`
-	ReleaseURL     string     `json:"release_url,omitempty"`
+	State         string     `json:"state" enums:"up_to_date,available,security,skipped,error,off,unchecked"`
+	LatestVersion string     `json:"latest_version,omitempty" example:"0.9.3"`
+	ReleasedAt    *time.Time `json:"released_at,omitempty"`
+	ReleaseURL    string     `json:"release_url,omitempty"`
+	// Highlights are the first bullet points of the release notes.
+	Highlights     []string   `json:"highlights,omitempty"`
 	Security       bool       `json:"security"`
 	SkippedVersion string     `json:"skipped_version,omitempty"`
 	CheckedAt      *time.Time `json:"checked_at,omitempty"`
@@ -44,6 +46,9 @@ func updateSettingsResponse(row db.InstanceSettings) UpdateSettings {
 		CurrentVersion: buildinfo.Version, AutoCheck: row.UpdateCheckEnabled, Channel: row.UpdateChannel,
 		LatestVersion: row.UpdateLatestVersion, ReleasedAt: row.UpdateLatestReleasedAt, ReleaseURL: row.UpdateLatestURL,
 		Security: row.UpdateLatestSecurity, SkippedVersion: row.UpdateSkippedVersion, CheckedAt: row.UpdateCheckedAt, Error: row.UpdateCheckError,
+	}
+	if row.UpdateLatestNotes != "" {
+		out.Highlights = strings.Split(row.UpdateLatestNotes, "\n")
 	}
 	newer := false
 	if row.UpdateLatestVersion != "" {
@@ -101,7 +106,7 @@ func (s *Server) saveUpdateSettingsImpl(c *gin.Context) {
 		if *req.Channel != row.UpdateChannel {
 			// What was found belongs to the old channel; the next check fills it in again.
 			row.UpdateChannel = *req.Channel
-			row.UpdateLatestVersion, row.UpdateLatestReleasedAt, row.UpdateLatestSecurity, row.UpdateLatestURL = "", nil, false, ""
+			row.UpdateLatestVersion, row.UpdateLatestReleasedAt, row.UpdateLatestSecurity, row.UpdateLatestURL, row.UpdateLatestNotes = "", nil, false, "", ""
 			row.UpdateCheckedAt, row.UpdateCheckError, row.UpdateSkippedVersion = nil, "", ""
 		}
 	}
@@ -136,6 +141,7 @@ func (s *Server) checkForUpdate(ctx context.Context) (db.InstanceSettings, error
 	} else {
 		released := release.ReleasedAt
 		row.UpdateLatestVersion, row.UpdateLatestReleasedAt, row.UpdateLatestSecurity, row.UpdateLatestURL = release.Version, &released, release.Security, release.URL
+		row.UpdateLatestNotes = strings.Join(release.Highlights, "\n")
 		row.UpdateCheckedAt, row.UpdateCheckError = &now, ""
 	}
 	return row, s.db.Save(&row).Error

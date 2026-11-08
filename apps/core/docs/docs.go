@@ -24264,6 +24264,13 @@ const docTemplate = `{
                 "error": {
                     "type": "string"
                 },
+                "highlights": {
+                    "description": "Highlights are the first bullet points of the release notes.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "latest_version": {
                     "type": "string",
                     "example": "0.9.3"

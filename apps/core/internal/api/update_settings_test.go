@@ -31,7 +31,7 @@ func TestUpdateSettingsLifecycle(t *testing.T) {
 	buildinfo.Version = "0.9.2"
 	t.Cleanup(func() { buildinfo.Version = previous })
 	server, jwt := authedServer(t)
-	fake := &fakeReleases{release: service.Release{Version: "0.9.3", ReleasedAt: time.Date(2026, 10, 21, 8, 0, 0, 0, time.UTC), URL: "https://example.test/093"}}
+	fake := &fakeReleases{release: service.Release{Version: "0.9.3", ReleasedAt: time.Date(2026, 10, 21, 8, 0, 0, 0, time.UTC), URL: "https://example.test/093", Highlights: []string{"Faster startup"}}}
 	server.releases = fake
 	read := func(method, path string, body any) UpdateSettings {
 		t.Helper()
@@ -50,7 +50,7 @@ func TestUpdateSettingsLifecycle(t *testing.T) {
 		t.Fatalf("defaults = %+v", got)
 	}
 	got := read(http.MethodPost, "/v1/settings/updates/check", nil)
-	if got.State != "available" || got.LatestVersion != "0.9.3" || got.CheckedAt == nil || got.ReleaseURL == "" || fake.channel != "stable" {
+	if got.State != "available" || got.LatestVersion != "0.9.3" || got.CheckedAt == nil || got.ReleaseURL == "" || len(got.Highlights) != 1 || fake.channel != "stable" {
 		t.Fatalf("after check = %+v (channel %q)", got, fake.channel)
 	}
 
