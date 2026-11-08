@@ -41,6 +41,7 @@ func runNode(ctx context.Context, opts *Options) error {
 		if beginErr != nil {
 			logging.Warnf("Could not check the last update: %v", beginErr)
 		}
+		afterUpdateBegin()
 	}
 	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
 	if err != nil {
