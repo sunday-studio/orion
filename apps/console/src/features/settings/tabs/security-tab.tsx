@@ -118,9 +118,18 @@ export const SecurityTab = () => {
       )}
       <FieldPanel
         compact
+        centerHeader
         title="API tokens"
-        aside="For scripts and integrations"
         className="mt-3.5"
+        aside={
+          <span className="flex items-center gap-3">
+            <span>For scripts and integrations</span>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="size-3.5" />
+              New token
+            </Button>
+          </span>
+        }
       >
         {tokens.isPending ? (
           <Skeleton className="h-24 w-full" />
@@ -158,10 +167,6 @@ export const SecurityTab = () => {
             </RaisedCard>
           )
         )}
-        <Button size="sm" className="mt-3" onClick={() => setCreating(true)}>
-          <Plus className="size-3.5" />
-          New token
-        </Button>
       </FieldPanel>
       <TokenDialog open={creating} onOpenChange={setCreating} onCreated={refreshTokens} />
       <ConfirmDialog

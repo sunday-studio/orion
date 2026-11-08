@@ -71,7 +71,20 @@ export const AppsPage = () => {
             }
           />
         </div>
-        <FieldPanel title="Apps" aside="Each app has its own keys, retention and rules">
+        <FieldPanel
+          compact
+          centerHeader
+          title="Apps"
+          aside={
+            <span className="flex items-center gap-3">
+              <span>Each app has its own keys, retention and rules</span>
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <Plus className="size-3.5" />
+                New app
+              </Button>
+            </span>
+          }
+        >
           {apps.isPending ? (
             <Skeleton className="h-32 w-full" />
           ) : apps.isError ? (
@@ -121,10 +134,6 @@ export const AppsPage = () => {
               </GridTable>
             </RaisedCard>
           )}
-          <Button size="sm" className="mt-3" onClick={() => setCreating(true)}>
-            <Plus className="size-3.5" />
-            New app
-          </Button>
         </FieldPanel>
         <NewAppDialog open={creating} onOpenChange={setCreating} />
       </div>

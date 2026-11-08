@@ -84,7 +84,7 @@ export const SetupTab = ({
         </FieldPanel>
       )}
       <FieldPanel title="Page">
-        <RaisedCard className="grid gap-3.5 p-4">
+        <div className="grid gap-3.5">
           <label>
             <span className={label}>Title</span>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -106,10 +106,10 @@ export const SetupTab = ({
               </small>
             )}
           </label>
-        </RaisedCard>
+        </div>
       </FieldPanel>
-      <FieldPanel compact title="Branding">
-        <RaisedCard className="grid gap-3.5 p-4">
+      <FieldPanel title="Branding">
+        <div className="grid gap-3.5">
           <div className="grid gap-1.5">
             <span className={label}>Accent color</span>
             <ColorField aria-label="Accent color" value={accent} onChange={setAccent} />
@@ -131,7 +131,7 @@ export const SetupTab = ({
               ?compact=1 to any public page URL to preview it.
             </small>
           </div>
-        </RaisedCard>
+        </div>
       </FieldPanel>
       <DomainPanel pageId={pageId} domain={page.custom_domain} onChanged={onSaved} />
       <div className="flex justify-end">

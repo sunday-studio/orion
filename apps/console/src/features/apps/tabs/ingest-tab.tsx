@@ -99,7 +99,20 @@ export const IngestTab = ({ appId, appName }: { appId: string; appName: string }
 
   return (
     <div className="flex flex-col gap-3.5">
-      <FieldPanel title="Ingest keys" aside="Write-only. A key cannot read logs or touch monitors">
+      <FieldPanel
+        compact
+        centerHeader
+        title="Ingest keys"
+        aside={
+          <span className="flex items-center gap-3">
+            <span>Write-only. A key cannot read logs or touch monitors</span>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="size-3.5" />
+              New key
+            </Button>
+          </span>
+        }
+      >
         {keys.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : keys.isError ? (
@@ -166,10 +179,6 @@ export const IngestTab = ({ appId, appName }: { appId: string; appName: string }
             </RaisedCard>
           )
         )}
-        <Button size="sm" className="mt-3" onClick={() => setCreating(true)}>
-          <Plus className="size-3.5" />
-          New key
-        </Button>
       </FieldPanel>
       <FieldPanel compact title="Endpoints" aside="Use the one your app already speaks">
         <RaisedCard>

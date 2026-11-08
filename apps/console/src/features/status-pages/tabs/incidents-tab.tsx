@@ -89,10 +89,10 @@ export const IncidentsTab = ({
       </FieldPanel>
       {current && (
         <FieldPanel title="Post an update" aside={current.title}>
-          <RaisedCard className="grid gap-3 p-4">
+          <div className="grid gap-3">
             <Segmented
               aria-label="Update status"
-              surface="card"
+              surface="field"
               options={STEPS}
               value={status}
               onValueChange={setStatus}
@@ -117,7 +117,7 @@ export const IncidentsTab = ({
                 Post update
               </Button>
             </div>
-          </RaisedCard>
+          </div>
         </FieldPanel>
       )}
     </div>
