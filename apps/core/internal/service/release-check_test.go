@@ -62,3 +62,28 @@ func TestGitHubReleasesReportsFailures(t *testing.T) {
 		t.Fatal("want an error for a 403")
 	}
 }
+
+func TestGitHubReleasesReadsTheChecksumsOfARelease(t *testing.T) {
+	sum := "9f2c1a7e5b8d4c3a6e0f1b2d3c4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v0.9.3/SHA256SUMS" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(sum + "  orion-node-linux-amd64\n" + sum[:60] + "bad  broken\nnot a line\n" + "ABCDEF" + sum[6:] + " *orion-node-darwin-arm64\n"))
+	}))
+	defer server.Close()
+	g := &GitHubReleases{Repo: "x/y", DownloadBase: server.URL, Client: server.Client()}
+	sums, err := g.Checksums(context.Background(), "v0.9.3")
+	if err != nil || sums["orion-node-linux-amd64"] != sum || sums["orion-node-darwin-arm64"] != "abcdef"+sum[6:] || len(sums) != 2 {
+		t.Fatalf("sums = %v, %v", sums, err)
+	}
+	if _, err := g.Checksums(context.Background(), "v9.9.9"); err == nil {
+		t.Error("a release with no SHA256SUMS must be an error")
+	}
+	for _, bad := range []string{"../etc", "v0.9.3/../../x", "latest", ""} {
+		if _, err := g.Checksums(context.Background(), bad); err == nil {
+			t.Errorf("tag %q should be refused", bad)
+		}
+	}
+}

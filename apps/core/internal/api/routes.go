@@ -201,6 +201,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/nodes/:id/app-resources", s.getNodeAppResources)
 			frontend.GET("/nodes/:id/discovery/requests", s.listNodeDiscoveryRequests)
 			frontend.POST("/nodes/:node_id/discovery/requests", s.createNodeDiscoveryRequest)
+			frontend.POST("/nodes/:node_id/update", s.requestNodeUpdate)
 			frontend.DELETE("/nodes/:id/discovery/requests/:request_id", s.cancelNodeDiscoveryRequest)
 			frontend.POST("/nodes/:node_id/discovery/accept", s.acceptDiscoveredItems)
 			frontend.GET("/nodes/:id/monitor-definitions", s.listNodeMonitorDefinitions)

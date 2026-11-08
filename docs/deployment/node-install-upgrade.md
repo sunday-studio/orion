@@ -188,6 +188,16 @@ It downloads the matching release, verifies its checksum, swaps the binary, rest
 waits until the Node reports healthy. Config and state are kept, so the machine keeps its identity;
 do not delete `state.db`. `orion-node update --version 0.3.0` installs a specific release.
 
+**From the Console.** When a Node is behind Core, its server page offers **Update from here**. The
+Node downloads its own file from the GitHub release, checks it against the checksums in the release
+and the ones Core read, swaps it in and restarts. It reports back once the new version has stayed up,
+and puts the old binary back if the new one cannot start. This is on by default. Turn it off for one
+Node with `remote_update: false` in its config. It needs the binary to sit in a folder the Node can
+write, which new installs do (`/opt/orion` on Linux, `/usr/local/lib/orion` on macOS, linked from
+`/usr/local/bin/orion-node`). On a Node installed earlier, run `sudo orion-node update` once; it moves
+the binary there, and the server page then offers the update. Update Core first: a Node is only
+offered the release Core runs.
+
 **Undo it:**
 
 ```sh

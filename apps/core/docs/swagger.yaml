@@ -13885,6 +13885,58 @@ paths:
       summary: Unregister a monitor
       tags:
       - monitors
+  /v1/nodes/{node_id}/update:
+    post:
+      description: 'Queues an update_node request that tells the node to update itself
+        to the release this Core runs (nodes should never be newer than Core, so update
+        Core first). The node downloads the file for its own platform from the GitHub
+        release and installs it only if the checksum Core read from the release''s
+        SHA256SUMS matches the file and the release''s own list. The node must advertise
+        the self_update capability (a release build, not in a container, installed
+        where it can replace its own binary, with remote_update on). Follow the request
+        with GET /v1/nodes/{id}/discovery/requests: the node reports applied once
+        the new version has stayed up, or failed with the reason.'
+      operationId: requestNodeUpdate
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    request:
+                      $ref: '#/definitions/orion_core_internal_service.NodeDiscoveryRequestView'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Update a node from the Console
+      tags:
+      - nodes
   /v1/nodes/summary:
     get:
       consumes:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,14 +29,24 @@ type Release struct {
 // ReleaseLookup finds the newest release on a channel ("stable" or "prerelease").
 type ReleaseLookup interface {
 	Latest(ctx context.Context, channel string) (Release, error)
+	// Checksums returns the SHA-256 of each file in a release, by file name, as published in its
+	// SHA256SUMS. tag is the release tag, for example "v0.9.3".
+	Checksums(ctx context.Context, tag string) (map[string]string, error)
 }
 
 // GitHubReleases reads the public releases of a repository. It sends no credentials.
 type GitHubReleases struct {
 	Repo    string
 	APIBase string
-	Client  *http.Client
+	// DownloadBase replaces https://github.com/<repo>/releases/download in tests.
+	DownloadBase string
+	Client       *http.Client
 }
+
+var (
+	releaseTagPattern = regexp.MustCompile(`^v?\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.]{1,32})?$`)
+	releaseSumPattern = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
+)
 
 func NewGitHubReleases(repo string) *GitHubReleases {
 	return &GitHubReleases{Repo: repo, APIBase: "https://api.github.com", Client: &http.Client{Timeout: 10 * time.Second}}
@@ -105,6 +116,42 @@ func releaseHighlights(body string) []string {
 		}
 	}
 	return out
+}
+
+// Checksums reads the SHA256SUMS file of one release.
+func (g *GitHubReleases) Checksums(ctx context.Context, tag string) (map[string]string, error) {
+	if !releaseTagPattern.MatchString(tag) {
+		return nil, fmt.Errorf("%q is not a release tag", tag)
+	}
+	url := "https://github.com/" + g.Repo + "/releases/download/" + tag + "/SHA256SUMS"
+	if g.DownloadBase != "" {
+		url = strings.TrimRight(g.DownloadBase, "/") + "/" + tag + "/SHA256SUMS"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "orion-core")
+	resp, err := g.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not reach GitHub: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("the release has no SHA256SUMS (GitHub answered %d)", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 2 && releaseSumPattern.MatchString(f[0]) {
+			out[strings.TrimPrefix(f[1], "*")] = strings.ToLower(f[0])
+		}
+	}
+	return out, nil
 }
 
 func hasSecurityMarker(body string) bool {

@@ -1,6 +1,6 @@
 # Updating a Node from the Console
 
-Status: plan, nothing built. It needs a decision on the approach (below) and a security review before
+Status: phases 0 to 2 built (Node, installer, Core); phase 3 (Console) and phase 4 (signature check) remaining. It needs a decision on the approach (below) and a security review before
 code. The Console already shows the command to run on the server (see
 [console-canvas-alignment.md](console-canvas-alignment.md)); this plan replaces that with an
 **Update from here** button.
@@ -49,9 +49,10 @@ The rest of this plan assumes B. If B is rejected, A reuses everything except Ph
 
 ## Design (B)
 
-**Opt in.** Off by default. `orion-node config set allow_remote_update true` (also offered by the
-installer and `orion-node setup`). The Node advertises the capability `self_update` only when it is
-on, and `orion-node status` says so. A container or `ORION_CONTAINER` Node never advertises it.
+**Opt out, not opt in.** On by default, decided by the owner. `remote_update: false` in the Node's
+config turns it off. The Node advertises the capability `self_update` only when it is on, the
+binary is in a folder it can write and it is a release build. A container or `ORION_CONTAINER` Node
+never advertises it.
 
 **Request.** `POST /v1/nodes/{id}/update` (Console, admin) queues a request of type `update_node`.
 Core checks that the Node advertises `self_update`, that the requested version is the one Core found
@@ -105,7 +106,7 @@ feature is announced.
 |---|---|
 | A compromised Core names a malicious release | Version must be newer; the file comes from the GitHub release and must match its signed checksums (phase 4); the Node opts in |
 | A compromised GitHub release | Core's checksum has to agree with the file; signature check in phase 4 |
-| A Console login updates every Node | Opt-in per Node; audited; one open update per Node |
+| A Console login updates every Node | On by default (owner decision); `remote_update: false` per Node; audited; one open update per Node |
 | Downgrade to a vulnerable version | Only newer versions; rollback stays a root CLI action |
 | A bad release takes Nodes offline | Unhealthy start restores the previous binary; Core sees the failure |
 | The daemon rewrites its own binary | Runs as `orion` already; no root, no new capability |

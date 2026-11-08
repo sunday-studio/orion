@@ -30,6 +30,8 @@ const (
 	ReqSetKind         = "set_kind"
 	ReqTrackPath       = "track_storage"
 	ReqCreateLogSource = "create_log_source"
+	// ReqUpdateNode asks the node to update itself; it is queued only by RequestNodeUpdate.
+	ReqUpdateNode = "update_node"
 )
 
 // Request states: queued -> delivered -> applied | failed; or expired, unsupported, cancelled.
@@ -133,6 +135,14 @@ func validateRequest(in NodeDiscoveryRequestInput) (map[string]any, error) {
 			return nil, err
 		}
 		p["paths"] = paths
+	case ReqUpdateNode:
+		version, _ := in.Payload["version"].(string)
+		tag, _ := in.Payload["tag"].(string)
+		sum, _ := in.Payload["sha256"].(string)
+		if !releaseTagPattern.MatchString(version) || strings.HasPrefix(version, "v") || tag != "v"+version || !releaseSumPattern.MatchString(sum) {
+			return nil, fmt.Errorf("%w: an update needs a version, its tag and the SHA-256 of the node's file", ErrRequestInvalid)
+		}
+		p["version"], p["tag"], p["sha256"] = version, tag, strings.ToLower(sum)
 	case ReqCreateLogSource:
 		return nil, fmt.Errorf("%w: creating log sources from the Console is not available yet", ErrRequestInvalid)
 	default:
@@ -149,7 +159,9 @@ func (s *NodeService) expireRequests(nodeID string, now time.Time) {
 	s.db.Where("node_id = ? AND finished_at IS NOT NULL AND finished_at < ?", nodeID, now.Add(-requestRetention)).Delete(&db.NodeDiscoveryRequest{})
 }
 
-func (s *NodeService) nodeCanTakeRequests(nodeID string) bool {
+func (s *NodeService) nodeCanTakeRequests(nodeID string) bool { return s.nodeHasCapability(nodeID, "requests") }
+
+func (s *NodeService) nodeHasCapability(nodeID, capability string) bool {
 	var row db.NodeDiscovery
 	if err := s.db.Where("node_id = ?", nodeID).First(&row).Error; err != nil {
 		return false
@@ -157,7 +169,7 @@ func (s *NodeService) nodeCanTakeRequests(nodeID string) bool {
 	var caps []string
 	_ = json.Unmarshal([]byte(row.Capabilities), &caps)
 	for _, c := range caps {
-		if c == "requests" {
+		if c == capability {
 			return true
 		}
 	}
@@ -167,6 +179,13 @@ func (s *NodeService) nodeCanTakeRequests(nodeID string) bool {
 // CreateDiscoveryRequest queues a request for the node. A node that has not
 // said it can take requests gets it stored as unsupported, so the Console can say so.
 func (s *NodeService) CreateDiscoveryRequest(nodeID string, in NodeDiscoveryRequestInput, actor string) (*NodeDiscoveryRequestView, error) {
+	if in.Type == ReqUpdateNode {
+		return nil, fmt.Errorf("%w: update a node with POST /v1/nodes/{id}/update", ErrRequestInvalid)
+	}
+	return s.createRequest(nodeID, in, actor)
+}
+
+func (s *NodeService) createRequest(nodeID string, in NodeDiscoveryRequestInput, actor string) (*NodeDiscoveryRequestView, error) {
 	payload, err := validateRequest(in)
 	if err != nil {
 		return nil, err

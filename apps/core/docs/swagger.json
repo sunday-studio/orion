@@ -12446,6 +12446,77 @@
                 }
             }
         },
+        "/v1/nodes/{node_id}/update": {
+            "post": {
+                "description": "Queues an update_node request that tells the node to update itself to the release this Core runs (nodes should never be newer than Core, so update Core first). The node downloads the file for its own platform from the GitHub release and installs it only if the checksum Core read from the release's SHA256SUMS matches the file and the release's own list. The node must advertise the self_update capability (a release build, not in a container, installed where it can replace its own binary, with remote_update on). Follow the request with GET /v1/nodes/{id}/discovery/requests: the node reports applied once the new version has stayed up, or failed with the reason.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "nodes"
+                ],
+                "summary": "Update a node from the Console",
+                "operationId": "requestNodeUpdate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "node_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "request": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.NodeDiscoveryRequestView"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/nodes/{node_id}/{monitor_id}/report": {
             "post": {
                 "security": [

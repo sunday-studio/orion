@@ -17,7 +17,13 @@ type fakeReleases struct {
 	release service.Release
 	err     error
 	calls   int
+	sums    map[string]string
+	sumsErr error
 	channel string
+}
+
+func (f *fakeReleases) Checksums(_ context.Context, tag string) (map[string]string, error) {
+	return f.sums, f.sumsErr
 }
 
 func (f *fakeReleases) Latest(_ context.Context, channel string) (service.Release, error) {
