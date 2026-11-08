@@ -41,35 +41,20 @@ export const coreWorkerDiagnosticsFromPayload = (
   return (payload as CoreWorkerDiagnosticsPayload | undefined)?.worker;
 };
 
-export const shouldWarnForCoreWorker = (worker?: CoreWorkerDiagnostics) => {
-  const status = worker?.status ?? "unknown";
-  const workerCount = worker?.worker_count ?? 0;
-  const onlineCount = worker?.online_count ?? 0;
-  const staleCount = worker?.stale_count ?? 0;
-
-  return (
-    status === "unknown" ||
-    status === "degraded" ||
-    workerCount === 0 ||
-    onlineCount === 0 ||
-    staleCount > 0
-  );
-};
+/**
+ * Whether the banner has anything to say. A missing or offline worker is not reported here: Core
+ * managed monitors still list and edit fine, and a local Core often runs without a separate worker.
+ */
+export const shouldWarnForCoreWorker = (worker?: CoreWorkerDiagnostics) =>
+  describeCoreWorkerWarning(worker) !== undefined;
 
 /** A short lead-in and one sentence, shown in the design-system warning banner. */
 const describeCoreWorkerWarning = (worker?: CoreWorkerDiagnostics) => {
   const workerCount = worker?.worker_count ?? 0;
   const onlineCount = worker?.online_count ?? 0;
-  const staleCount = worker?.stale_count ?? 0;
+  if (!worker || workerCount === 0 || onlineCount === 0) return undefined;
 
-  if (!worker || worker.status === "unknown" || workerCount === 0 || onlineCount === 0) {
-    return {
-      lead: "No Core worker is online.",
-      text: "Core-managed monitors will not run until a worker is online.",
-    };
-  }
-
-  if (staleCount > 0) {
+  if ((worker.stale_count ?? 0) > 0) {
     return {
       lead: "Some Core worker heartbeats are stale.",
       text: "Core-managed checks may be delayed or incomplete.",
