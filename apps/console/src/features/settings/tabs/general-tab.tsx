@@ -7,8 +7,6 @@ import {
   useUpdateGeneralSettings,
 } from "@/orion-sdk";
 import { setTimezone } from "@/utils/date";
-import { useUpdates } from "@/features/updates/use-updates";
-import { VersionRows } from "@/features/updates/version-row";
 import { Labeled, SettingsFooter, SettingsSection } from "../components-ui";
 
 const zones = () => {
@@ -28,7 +26,6 @@ export const GeneralTab = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const query = useGetGeneralSettings();
-  const updates = useUpdates().data;
   const data = query.data;
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -74,11 +71,6 @@ export const GeneralTab = () => {
   const fromEnvironment = data?.public_url_source === "environment";
   return (
     <div className="flex flex-col">
-      {updates && (
-        <SettingsSection title="Version" hint="The release you are running.">
-          <VersionRows updates={updates} />
-        </SettingsSection>
-      )}
       <SettingsSection title="Instance" hint="Shown in emails and status pages.">
         <div className="grid gap-4">
           <Labeled label="Instance name">
