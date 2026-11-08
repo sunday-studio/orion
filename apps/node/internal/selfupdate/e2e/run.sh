@@ -52,7 +52,7 @@ step "start the mirror, Core and a supervised Node 0.9.2"
 SUM3="$(release 0.9.3 "$W/build/node-0.9.3" ca)"
 SUM4="$(release 0.9.4 "$W/build/node-0.9.4" ca)"
 (cd "$W/release" && exec python3 -m http.server "$MIRROR_PORT" --bind 127.0.0.1 >"$W/mirror.log" 2>&1) & PIDS+=($!)
-ORION_DATA_DIR="$W/core" ORION_PORT="$CORE_PORT" ORION_REQUIRE_FRONTEND_AUTH=true ORION_ADMIN_USERNAME=admin ORION_ADMIN_PASSWORD=e2e-admin-password-2026 \
+ORION_DATA_DIR="$W/core" ORION_LISTEN_HOST=127.0.0.1 ORION_PORT="$CORE_PORT" ORION_REQUIRE_FRONTEND_AUTH=true ORION_ADMIN_USERNAME=admin ORION_ADMIN_PASSWORD=e2e-admin-password-2026 \
   ORION_JWT_SECRET=e2e-jwt-secret-for-the-update-test-2026 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=e2e-subscriber-secret-2026 \
   "$W/build/core" >"$W/core.log" 2>&1 & PIDS+=($!)
 for _ in $(seq 30); do python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:$CORE_PORT/health',timeout=2)" 2>/dev/null && break; sleep 1; done

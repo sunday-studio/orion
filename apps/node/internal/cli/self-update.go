@@ -36,7 +36,7 @@ const (
 var errUpdateRestart = errors.New("restarting to finish the update")
 
 // These are the only places a test build changes how an update finds and trusts a release (see
-// self-update_e2e.go, compiled only with the orion_e2e build tag). Release builds never reassign them.
+// self-update-e2e.go, compiled only with the orion_e2e build tag). Release builds never reassign them.
 var (
 	releaseBase   = releaseBaseURL
 	verifyRelease = func(sums, sig, cert []byte) error {
