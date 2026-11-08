@@ -1,9 +1,9 @@
 # Updating a Node from the Console
 
-Status: phases 0 to 2 built (Node, installer, Core); phase 3 (Console) and phase 4 (signature check) remaining. It needs a decision on the approach (below) and a security review before
-code. The Console already shows the command to run on the server (see
-[console-canvas-alignment.md](console-canvas-alignment.md)); this plan replaces that with an
-**Update from here** button.
+Status: approach B chosen, on by default (owner decision). Phases 0 to 2 are built (Node, installer,
+Core). Phase 3 (Console) and phase 4 (release signature check) remain, and the whole thing needs a
+security review before it is pushed. The Console shows the command to run on the server until phase 3
+lands (see [console-canvas-alignment.md](console-canvas-alignment.md)).
 
 ## What exists
 
@@ -61,7 +61,7 @@ Node's. Core records the checksum it read from the release's `SHA256SUMS` in the
 audited and limited to one open update per Node.
 
 **On the Node.**
-1. Refuse unless `allow_remote_update` is on and the version is newer than the running one.
+1. Refuse unless `remote_update` is on and the version is newer than the running one.
 2. Download the asset for its own OS and architecture from the GitHub release, never from a URL in the
    request. The download must match the checksum in the request **and** the one in the release's
    `SHA256SUMS`. Two sources have to agree.
@@ -97,7 +97,7 @@ reports `applied` without doing anything, so a restart mid-update never loops.
    signature on `SHA256SUMS`. Before turning this on for real, verify the signature in the Node too,
    so a compromised GitHub account alone cannot ship a binary.
 
-Phases 1 to 3 can be built in that order and merged behind the opt-in. Phase 4 should land before the
+Phases 1 to 3 can be built in that order and merged in that order. Phase 4 should land before the
 feature is announced.
 
 ## Threats the review should cover
