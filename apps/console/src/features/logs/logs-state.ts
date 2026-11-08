@@ -31,6 +31,8 @@ export const useLogQuery = () => {
     monitor: parseAsString.withDefault(""),
     component: parseAsString.withDefault(""),
     attr: parseAsString.withDefault(""),
+    trace: parseAsString.withDefault(""),
+    request: parseAsString.withDefault(""),
     limit: parseAsString.withDefault("25"),
     log: parseAsString.withDefault(""),
   });
@@ -77,6 +79,9 @@ export const filterParams = (state: LogQueryState, kind: LogKind) => {
       ? {
           app_id: state.source || undefined,
           event: state.event || undefined,
+          // Exact ids, not free text: every log that carries this trace or request id.
+          trace_id: state.trace || undefined,
+          request_id: state.request || undefined,
         }
       : {}),
   };

@@ -35,6 +35,21 @@ const Meta = ({
 
 const small = "h-7 rounded-md px-2 text-xs";
 
+const HALF_DAY = 12 * 3600_000;
+
+/** Every log of one trace: exact trace id, over a window around this line so none fall outside the range. */
+const traceFilter = (trace?: string, at?: string): Partial<LogQueryState> => {
+  const base = { trace: trace ?? "", log: "" };
+  const time = at ? new Date(at).getTime() : Number.NaN;
+  if (Number.isNaN(time)) return base;
+  return {
+    ...base,
+    range: "custom",
+    from: new Date(time - HALF_DAY).toISOString(),
+    to: new Date(time + HALF_DAY).toISOString(),
+  };
+};
+
 const ServiceDetail = ({
   id,
   kind,
@@ -106,7 +121,7 @@ const ServiceDetail = ({
                 size="sm"
                 variant="secondary"
                 className={small}
-                onClick={() => onFilter({ q: data.request_id ?? "", log: "" })}
+                onClick={() => onFilter({ request: data.request_id ?? "", log: "" })}
               >
                 Filter
               </Button>
@@ -123,7 +138,7 @@ const ServiceDetail = ({
                 size="sm"
                 variant="secondary"
                 className={small}
-                onClick={() => onFilter({ q: data.trace_id ?? "", log: "" })}
+                onClick={() => onFilter(traceFilter(data.trace_id, data.timestamp))}
               >
                 Open trace
               </Button>
@@ -201,10 +216,11 @@ const ServiceDetail = ({
                 type="button"
                 className="w-fit text-[13px] underline"
                 onClick={() =>
-                  onFilter({
-                    q: (relatedBy === "trace_id" ? data.trace_id : data.request_id) ?? "",
-                    log: "",
-                  })
+                  onFilter(
+                    relatedBy === "trace_id"
+                      ? traceFilter(data.trace_id, data.timestamp)
+                      : { request: data.request_id ?? "", log: "" },
+                  )
                 }
               >
                 Show all {related.data?.total} logs for {related.data?.value}

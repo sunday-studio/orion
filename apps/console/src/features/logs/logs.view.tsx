@@ -57,6 +57,8 @@ const FILTER_KEYS: (keyof LogQueryState)[] = [
   "monitor",
   "component",
   "attr",
+  "trace",
+  "request",
 ];
 
 const SAVED_KEYS = ["app_id", "severity", "event", "q", "from", "to", "attr"];
@@ -183,6 +185,8 @@ export const LogsPage = () => {
     },
     state.component && { field: "Component", value: state.component, clear: { component: "" } },
     state.attr && { field: "Field", value: state.attr.split(",").join(", "), clear: { attr: "" } },
+    state.trace && { field: "Trace", value: state.trace, clear: { trace: "" } },
+    state.request && { field: "Request", value: state.request, clear: { request: "" } },
   ].filter(Boolean) as { field: string; value: string; clear: Partial<LogQueryState> }[];
 
   const actions = (
