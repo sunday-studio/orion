@@ -44,7 +44,9 @@ hardened systemd unit (`ProtectSystem=strict`, `NoNewPrivileges`), so it cannot 
 `/usr/local/bin/orion-node` or restart itself. It needs a small root helper that the daemon can
 trigger, for example a systemd path unit that runs `orion-node update` when the daemon writes a flag
 file. That widens what a Console login can do to a host, so it needs an explicit decision and a
-security review first. Until then the Node dialog shows the command to run on the server.
+security review first. The plan, with the two approaches and a recommendation, is in
+[node-update-from-console.md](node-update-from-console.md). Until then the Node dialog shows the
+command to run on the server.
 
 ## C. Visual pass against the canvas
 
