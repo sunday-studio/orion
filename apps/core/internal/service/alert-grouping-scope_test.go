@@ -223,3 +223,22 @@ func TestAlertGroupingSummaryKeepsNamingTheGroupsServiceAfterALinkChange(t *test
 		t.Fatalf("summary = %q, want it to keep naming the group's own service", group.Summary)
 	}
 }
+
+// A log rule stores its monitor_id only after its first incident has opened and been grouped, so the
+// service must also be found from the rule's monitor name alone.
+func TestIncidentServiceOfFindsAFreshLogRuleBeforeItStoresItsMonitorID(t *testing.T) {
+	database, _, _ := groupingFixture(t)
+	linkedService(t, database, "svc-checkout", "Checkout")
+	now := time.Now().UTC()
+	sid := "svc-checkout"
+	database.Create(&db.App{ID: "app-1", Name: "checkout-api", Slug: "checkout-api", ServiceID: &sid, CreatedAt: now, UpdatedAt: now})
+	database.Create(&db.LogAlertRule{ID: "rule-2", Name: "errors", AppID: "app-1", Mode: "threshold", WindowSeconds: 300, Enabled: true, CreatedAt: now, UpdatedAt: now})
+
+	id, name, err := incidentServiceOf(database, logAlertMonitorID+"rule-2")
+	if err != nil || id != "svc-checkout" || name != "Checkout" {
+		t.Fatalf("incidentServiceOf = %q, %q, %v; want svc-checkout, Checkout", id, name, err)
+	}
+	if id, _, _ := incidentServiceOf(database, "monitor-other"); id != "" {
+		t.Fatalf("an unrelated monitor resolved to service %q", id)
+	}
+}

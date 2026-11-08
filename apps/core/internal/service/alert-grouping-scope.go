@@ -58,10 +58,16 @@ func incidentServiceOf(tx *gorm.DB, monitorID string) (id, name string, err erro
 	}
 	serviceID := derefString(monitor.ServiceID)
 	if serviceID == "" {
+		// The rule's own monitor is named after the rule, and the rule stores its monitor_id only
+		// after its first incident has opened and been grouped, so match on the name as well.
+		ruleID := ""
+		if id, ok := strings.CutPrefix(monitorID, logAlertMonitorID); ok {
+			ruleID = id
+		}
 		var app db.App
 		err := tx.Table("apps").Select("apps.service_id").
 			Joins("JOIN log_alert_rules ON log_alert_rules.app_id = apps.id").
-			Where("log_alert_rules.monitor_id = ?", monitorID).Limit(1).Find(&app).Error
+			Where("log_alert_rules.monitor_id = ? OR log_alert_rules.id = ?", monitorID, ruleID).Limit(1).Find(&app).Error
 		if err != nil {
 			return "", "", err
 		}
