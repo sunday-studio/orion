@@ -1,3 +1,4 @@
+import { NodeUpdateNotice } from "@/features/updates/node-update";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Callout, EmptyState, RecordTabs, Skeleton, TabsPanel } from "@/design-system";
@@ -80,6 +81,11 @@ export const NodeDetailPage = () => {
         now={now}
         onEdit={() => setEditing(true)}
         onToken={() => setTab("token")}
+      />
+      <NodeUpdateNotice
+        name={node.name ?? nodeId}
+        nodeVersion={node.node_version ?? latest?.node_version}
+        className="mt-2"
       />
       {activeIncident && (
         <Callout tone="down" className="mt-2 flex items-center justify-between gap-3">

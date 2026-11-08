@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { SecurityUpdateNotice } from "@/features/updates/security-notice";
 import { Button, EmptyState, FieldPanel, PageHeader, RaisedCard, Skeleton } from "@/design-system";
 import { useGetHealthIssues, useGetMe, useGetOverview } from "@/orion-sdk";
 import { AttentionBox, OngoingBox, RecentIncidentsBox, StatColumn } from "./overview-boxes";
@@ -67,55 +68,58 @@ export const OverviewPage = () => {
           }
         />
       ) : (
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_300px] items-start gap-4 max-lg:grid-cols-1">
-          <div className="flex flex-col gap-3">
-            {overview.isLoading ? (
-              <Skeleton className="h-40 w-full rounded-[14px]" />
-            ) : data?.needs_you ? (
-              <NeedsYouNow incident={data.needs_you} now={now} />
-            ) : (
-              allClear && (
-                <FieldPanel
-                  compact
-                  title="All systems normal"
-                  aside={checkedAgo(now, overview.dataUpdatedAt)}
-                >
-                  <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
-                    <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />
-                    {pluralize(stats?.monitors_up ?? 0, "monitor")} passing,{" "}
-                    {pluralize(stats?.servers_reporting ?? 0, "server")} reporting
-                  </RaisedCard>
-                </FieldPanel>
-              )
-            )}
-            {issueList.length > 0 && (
-              <AttentionBox
-                issues={issueList}
-                total={data?.health_issue_count ?? issues.data?.count ?? issueList.length}
-              />
-            )}
-            {ongoing.length > 0 && (
-              <OngoingBox
-                incidents={ongoing}
-                count={data?.ongoing_incident_count ?? ongoing.length}
-                now={now}
-                topId={data?.needs_you?.id}
-              />
-            )}
-          </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2.5">
-              <StatColumn
-                monitorsUp={stats?.monitors_up ?? 0}
-                monitorsTotal={stats?.monitors_total ?? 0}
-                serversUp={stats?.servers_reporting ?? 0}
-                serversTotal={stats?.servers_total ?? 0}
-                openIncidents={data?.ongoing_incident_count ?? ongoing.length}
-              />
+        <>
+          <SecurityUpdateNotice className="mt-3" />
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_300px] items-start gap-4 max-lg:grid-cols-1">
+            <div className="flex flex-col gap-3">
+              {overview.isLoading ? (
+                <Skeleton className="h-40 w-full rounded-[14px]" />
+              ) : data?.needs_you ? (
+                <NeedsYouNow incident={data.needs_you} now={now} />
+              ) : (
+                allClear && (
+                  <FieldPanel
+                    compact
+                    title="All systems normal"
+                    aside={checkedAgo(now, overview.dataUpdatedAt)}
+                  >
+                    <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
+                      <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />
+                      {pluralize(stats?.monitors_up ?? 0, "monitor")} passing,{" "}
+                      {pluralize(stats?.servers_reporting ?? 0, "server")} reporting
+                    </RaisedCard>
+                  </FieldPanel>
+                )
+              )}
+              {issueList.length > 0 && (
+                <AttentionBox
+                  issues={issueList}
+                  total={data?.health_issue_count ?? issues.data?.count ?? issueList.length}
+                />
+              )}
+              {ongoing.length > 0 && (
+                <OngoingBox
+                  incidents={ongoing}
+                  count={data?.ongoing_incident_count ?? ongoing.length}
+                  now={now}
+                  topId={data?.needs_you?.id}
+                />
+              )}
             </div>
-            {recent.length > 0 && <RecentIncidentsBox incidents={recent} now={now} />}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
+                <StatColumn
+                  monitorsUp={stats?.monitors_up ?? 0}
+                  monitorsTotal={stats?.monitors_total ?? 0}
+                  serversUp={stats?.servers_reporting ?? 0}
+                  serversTotal={stats?.servers_total ?? 0}
+                  openIncidents={data?.ongoing_incident_count ?? ongoing.length}
+                />
+              </div>
+              {recent.length > 0 && <RecentIncidentsBox incidents={recent} now={now} />}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

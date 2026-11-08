@@ -17,6 +17,8 @@ import {
   useClientPagination,
 } from "@/design-system";
 import { formatWhen, useNow } from "@/features/overview/overview-time";
+import { nodeCanUpdate } from "@/features/updates/update-model";
+import { useUpdates } from "@/features/updates/use-updates";
 import { useGetNodes } from "@/orion-sdk";
 import {
   type ServerRow,
@@ -49,13 +51,16 @@ export const NodeList = () => {
     () => [...((nodesQuery.data?.nodes ?? []) as ServerRow[])].sort(byAttention),
     [nodesQuery.data],
   );
+  const updates = useUpdates().data;
   const attention = all.filter(needsAttention).length;
+  const behind = all.filter((node) => nodeCanUpdate(node.node_version, updates)).length;
   const platforms = [...new Set(all.map(platformLabel))].sort();
 
   const text = q.trim().toLowerCase();
   const rows = all.filter(
     (node) =>
       (view !== "attention" || needsAttention(node)) &&
+      (view !== "update" || nodeCanUpdate(node.node_version, updates)) &&
       (!platform || platformLabel(node) === platform) &&
       (!text || (node.name ?? "").toLowerCase().includes(text)),
   );
@@ -113,6 +118,9 @@ export const NodeList = () => {
           options={[
             { value: "all", label: `All ${all.length}` },
             { value: "attention", label: `Needs attention ${attention}` },
+            ...(behind > 0 || view === "update"
+              ? [{ value: "update", label: `Update available ${behind}` }]
+              : []),
           ]}
           value={view}
           onValueChange={(next) => void setQuery({ view: next })}

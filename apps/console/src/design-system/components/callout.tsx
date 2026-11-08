@@ -7,6 +7,7 @@ const calloutStyles = cva("block rounded-lg px-3.5 py-2.5 text-[13px] leading-[1
     tone: {
       down: "bg-[var(--tone-down-bg)] text-[var(--tone-down-fg)]",
       up: "bg-[var(--tone-up-bg)] text-[var(--tone-up-fg)]",
+      info: "bg-[var(--tone-info-bg)] text-[var(--tone-info-fg)]",
       warn: "bg-[var(--tone-degraded-bg)] text-[var(--tone-degraded-fg)]",
     },
   },

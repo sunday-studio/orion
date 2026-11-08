@@ -25,18 +25,26 @@ line with it, and says what each group needs from Core and the Node. Done work i
 
 ## B. Updates (Core, Console, Node)
 
-The canvas moved Updates into Settings. None of this exists in Core yet, so it needs the API first.
+The canvas moved Updates into Settings.
 
-1. **Core:** a release check (latest version, release date, security flag, last checked), settings
-   for auto-check and channel, and a "check now" action. Contract change in
-   `docs/node-core-contract.md` and the OpenAPI spec.
-2. **Console:** a Version row on General with the new version and its date, the System page's
-   Updates section, update states, the sidebar "Update available" pill with its popover.
-3. **Nodes:** a Node reports its version already; the Servers list gets an "update available"
-   filter and the server page a notice.
-4. **Update from the Console:** Core queues an update for a Node, the Node downloads the release,
-   checks it, restarts and rolls back if it is unhealthy. Needs an opt-in in the Node config. This
-   is a Core and Node change and a security review before any Console work.
+| Item | State |
+|---|---|
+| Core: release check, auto-check and channel settings, check now (`/v1/settings/updates`) | done |
+| Console: Version row on General and System, Updates section on System | done |
+| Console: Core update dialog (notes, Compose command, skip, remind me later) | done |
+| Console: "Update available" pill and popover in the sidebar | done |
+| Console: security notice on the Overview | done |
+| Console: Servers list "Update available" filter; Node update notice and dialog on the server page | done |
+| Update a Node from the Console | not built: needs a decision, see below |
+
+**Update a Node from the Console.** The Node already has `orion-node update`, with checksum
+verification and rollback, and the Console can already reach a Node through the request queue
+(`discovery/requests`). What is missing is permission. The daemon runs as an unprivileged user under a
+hardened systemd unit (`ProtectSystem=strict`, `NoNewPrivileges`), so it cannot replace
+`/usr/local/bin/orion-node` or restart itself. It needs a small root helper that the daemon can
+trigger, for example a systemd path unit that runs `orion-node update` when the daemon writes a flag
+file. That widens what a Console login can do to a host, so it needs an explicit decision and a
+security review first. Until then the Node dialog shows the command to run on the server.
 
 ## C. Visual pass against the canvas
 

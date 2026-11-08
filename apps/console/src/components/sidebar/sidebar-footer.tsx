@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { getToken } from "@/api/client";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { cn } from "@/utils/cn";
+import { UpdatePill } from "./update-pill";
 import type { HealthChip } from "./use-health-chip";
 
 const DOT: Record<HealthChip["tone"], string> = {
@@ -31,6 +32,7 @@ export const SidebarFooter = ({ chip }: { chip: HealthChip }) => {
   );
   return (
     <div className="mt-auto flex flex-col">
+      {getToken() && <UpdatePill />}
       {chip.tone === "issues" ? (
         <Link to="/health-issues" className={cn(pillClass(chip.tone), "no-underline")}>
           {body}
