@@ -32,6 +32,8 @@ type requestApplier struct {
 
 	reloadPending bool // the file changed but the daemon has not confirmed a reload yet
 
+	updater *selfUpdater // nil when this Node cannot update itself
+
 	unsupportedUntil time.Time // an older Core: stop asking for a while
 }
 
@@ -71,6 +73,9 @@ func (a *requestApplier) poll(ctx context.Context) error {
 	if err != nil || !st.IsRegistered() || st.NodeID == "" {
 		return err
 	}
+	if a.updater != nil {
+		a.updater.flush(func(id, status, text string) error { return a.report(st, id, status, text) })
+	}
 	reqs, err := a.pull(st)
 	if errors.Is(err, transport.ErrDiscoveryUnsupported) {
 		a.unsupportedUntil = time.Now().Add(discoveryResendEvery)
@@ -81,6 +86,9 @@ func (a *requestApplier) poll(ctx context.Context) error {
 	}
 	for _, r := range reqs {
 		status, text := a.apply(ctx, r)
+		if status == "" {
+			continue // an update is restarting the Node; the new version reports the result
+		}
 		if err := a.report(st, r.ID, status, text); err != nil {
 			// Core redelivers an unconfirmed request; every handler is safe to repeat.
 			logging.Warnf("Could not report the result of Console request %s: %v", r.ID, err)
@@ -93,6 +101,8 @@ func (a *requestApplier) poll(ctx context.Context) error {
 func (a *requestApplier) apply(ctx context.Context, r transport.PulledRequest) (status, text string) {
 	text, err := a.handle(ctx, r)
 	switch {
+	case errors.Is(err, errUpdateRestart):
+		return "", ""
 	case errors.Is(err, errUnsupportedRequest):
 		return "unsupported", err.Error()
 	case err != nil:
@@ -111,6 +121,11 @@ func (a *requestApplier) handle(ctx context.Context, r transport.PulledRequest) 
 			return "", err
 		}
 		return fmt.Sprintf("Scanned: %d item(s) found", len(d.Items)), nil
+	case "update_node":
+		if a.updater == nil {
+			return "", errUnsupportedRequest
+		}
+		return a.updater.handle(r)
 	case "dismiss", "restore":
 		return a.dismissOrRestore(r)
 	case "ignore", "unignore":

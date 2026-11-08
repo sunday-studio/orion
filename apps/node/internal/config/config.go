@@ -159,7 +159,15 @@ type UserConfig struct {
 	AppResources    AppResourcesConfig `yaml:"app_resources,omitempty"`
 	Logs            LogsConfig         `yaml:"logs,omitempty"`
 	Discovery       DiscoveryConfig    `yaml:"discovery,omitempty"`
-	Monitors        []UserMonitor      `yaml:"monitors"`
+	// RemoteUpdate lets Core tell this Node to update itself to a newer release. On by default; the
+	// Node still needs to be installed where it can replace its own binary.
+	RemoteUpdate *bool         `yaml:"remote_update,omitempty"`
+	Monitors     []UserMonitor `yaml:"monitors"`
+}
+
+// RemoteUpdateEnabled reports whether Core may update this Node (default yes).
+func (c *UserConfig) RemoteUpdateEnabled() bool {
+	return c == nil || c.RemoteUpdate == nil || *c.RemoteUpdate
 }
 
 // DiscoveryConfig controls the read-only scan that proposes what to monitor.

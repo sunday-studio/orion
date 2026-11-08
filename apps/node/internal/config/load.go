@@ -466,6 +466,9 @@ func mergeSections(base, part *UserConfig) {
 			base.Discovery.Ignore = append(base.Discovery.Ignore, id)
 		}
 	}
+	if part.RemoteUpdate != nil {
+		base.RemoteUpdate = part.RemoteUpdate
+	}
 	a, p := &base.AppResources, part.AppResources
 	if p.Enabled != nil {
 		a.Enabled = p.Enabled

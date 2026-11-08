@@ -1,0 +1,168 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	node "orion/node/internal"
+	"orion/node/internal/logging"
+	"orion/node/internal/selfupdate"
+	"orion/node/internal/transport"
+)
+
+const (
+	// updateRestartExit is how the daemon leaves after swapping in a new binary. The service manager
+	// restarts a daemon that exits with a failure, which is what loads the new version.
+	updateRestartExit = 75
+	// updateConfirmAfter is how long the new version must stay up before the update counts as done.
+	updateConfirmAfter = 90 * time.Second
+	releaseRepo        = "sunday-studio/orion"
+)
+
+// errUpdateRestart tells the request applier that the binary was swapped and no result is reported
+// yet: the new version reports it once it has stayed up.
+var errUpdateRestart = errors.New("restarting to finish the update")
+
+func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("find the running binary: %w", err)
+	}
+	if exe, err = filepath.EvalSymlinks(exe); err != nil {
+		return nil, fmt.Errorf("resolve the running binary: %w", err)
+	}
+	return &selfupdate.Env{
+		Executable: exe,
+		StateDir:   filepath.Dir(statePath),
+		Current:    node.Version,
+		GOOS:       runtime.GOOS,
+		GOARCH:     runtime.GOARCH,
+		Fetch:      downloadFile,
+		Version:    binaryVersion,
+		BaseURL:    func(tag string) string { return releaseBaseURL(releaseRepo, tag) },
+	}, nil
+}
+
+// selfUpdateReady is true when this Node can take an update from the Console: it is not in a
+// container and it can replace its own binary.
+func selfUpdateReady() bool {
+	if os.Getenv("ORION_CONTAINER") != "" {
+		return false
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	return selfupdate.Ready(exe, node.Version)
+}
+
+// selfUpdater runs update_node requests inside the daemon.
+type selfUpdater struct {
+	env     *selfupdate.Env
+	enabled func() bool
+	restart func()
+
+	mu      sync.Mutex
+	pending *selfupdate.Outcome // an outcome waiting to be reported to Core
+}
+
+func newSelfUpdater(statePath string, enabled func() bool, restart func()) (*selfUpdater, error) {
+	env, err := selfUpdateEnv(statePath)
+	if err != nil {
+		return nil, err
+	}
+	return &selfUpdater{env: env, enabled: enabled, restart: restart}, nil
+}
+
+// start looks at what an earlier run left behind. It returns restart=true when a new version failed
+// to start and the old one was put back, so the caller must exit and let the service manager run it.
+func (u *selfUpdater) start(ctx context.Context) (restart bool, err error) {
+	out, restart, err := u.env.Startup()
+	if err != nil || restart {
+		return restart, err
+	}
+	if out != nil {
+		u.setPending(out)
+		return false, nil
+	}
+	if m, _ := u.env.ReadMarker(); m != nil && m.State == selfupdate.StateSwapped {
+		go func() {
+			select {
+			case <-ctx.Done():
+			case <-time.After(updateConfirmAfter):
+				confirmed, err := u.env.Confirm()
+				if err != nil || confirmed == nil {
+					return
+				}
+				u.setPending(confirmed)
+			}
+		}()
+	}
+	return false, nil
+}
+
+func (u *selfUpdater) setPending(out *selfupdate.Outcome) {
+	u.mu.Lock()
+	u.pending = out
+	u.mu.Unlock()
+}
+
+// flush reports a finished update to Core; the marker is removed only once Core has the answer.
+func (u *selfUpdater) flush(report func(id, status, text string) error) {
+	u.mu.Lock()
+	out := u.pending
+	u.mu.Unlock()
+	if out == nil {
+		return
+	}
+	if err := report(out.RequestID, out.Status, out.Text); err != nil {
+		logging.Warnf("Could not report the update result yet: %v", err)
+		return
+	}
+	u.setPending(nil)
+	if err := u.env.ClearMarker(); err != nil {
+		logging.Warnf("Could not clear the update marker: %v", err)
+	}
+}
+
+// handle carries out one update_node request.
+func (u *selfUpdater) handle(r transport.PulledRequest) (string, error) {
+	if !u.enabled() {
+		return "", errors.New("remote updates are turned off on this Node (remote_update: false in its config)")
+	}
+	if os.Getenv("ORION_CONTAINER") != "" {
+		return "", errors.New("this Node runs in a container; replace the container with a newer image")
+	}
+	plan := selfupdate.Plan{
+		RequestID: r.ID,
+		Version:   strings.TrimSpace(stringField(r.Payload, "version")),
+		Tag:       strings.TrimSpace(stringField(r.Payload, "tag")),
+		SHA256:    strings.TrimSpace(stringField(r.Payload, "sha256")),
+	}
+	switch err := u.env.Apply(plan); {
+	case errors.Is(err, selfupdate.ErrAlreadyCurrent):
+		return "Already on " + plan.Version, nil
+	case err != nil:
+		return "", err
+	}
+	logging.Infof("Updated the binary from %s to %s; restarting", u.env.Current, plan.Version)
+	u.restart()
+	return "", errUpdateRestart
+}
+
+func stringField(payload map[string]any, key string) string {
+	if v, ok := payload[key].(string); ok {
+		return v
+	}
+	return ""
+}

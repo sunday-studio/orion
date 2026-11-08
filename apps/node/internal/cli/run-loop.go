@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -32,6 +33,30 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	}
 	debug.SetGCPercent(40)
 	debug.SetMemoryLimit(48 << 20)
+
+	// An update swaps the binary and then leaves with updateRestartExit so the service manager starts
+	// the new version. updateRestart records that this exit is deliberate.
+	ctx, stopDaemon := context.WithCancel(ctx)
+	defer stopDaemon()
+	var updateRestart atomic.Bool
+	updater, err := newSelfUpdater(opts.StatePath, func() bool { return userConfigRemoteUpdate(opts) }, func() {
+		updateRestart.Store(true)
+		stopDaemon()
+	})
+	switch {
+	case err != nil:
+		logging.Warnf("Updates from the Console are unavailable: %v", err)
+		updater = nil
+	default:
+		restore, startErr := updater.start(ctx)
+		if startErr != nil {
+			logging.Errorf("Could not check the last update: %v", startErr)
+		}
+		if restore {
+			logging.Errorf("The new version could not start; the old one was restored. Restarting.")
+			return &CommandError{Summary: "the update did not start and was rolled back", ExitCode: updateRestartExit, Silent: true}
+		}
+	}
 
 	ctrl := newDaemonControl(opts, userConfig, store)
 	server := control.NewServer(opts.SocketPath, ctrl)
@@ -62,7 +87,9 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	fn := requestReload
 	ctrl.reload.Store(&fn)
 
-	go newRequestApplier(store, opts.ConfigPath, ctrl.scan, requestReload).run(ctx, consoleRequestPollInterval)
+	applier := newRequestApplier(store, opts.ConfigPath, ctrl.scan, requestReload)
+	applier.updater = updater
+	go applier.run(ctx, consoleRequestPollInterval)
 
 	hup := make(chan os.Signal, 1)
 	signal.Notify(hup, syscall.SIGHUP)
@@ -156,6 +183,10 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			}
 			continue
 		}
+		if updateRestart.Load() {
+			fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Node restarting", Detail: "to finish an update"}}))
+			return &CommandError{Summary: "restarting to finish an update", ExitCode: updateRestartExit, Silent: true}
+		}
 		if runErr != nil {
 			logging.Errorf("Node stopped with error: %v", runErr)
 			if transport.IsAuthError(runErr) {
@@ -182,4 +213,11 @@ func requestReloadNoValidate(ch chan struct{}) error {
 	default:
 	}
 	return nil
+}
+
+// userConfigRemoteUpdate reads the setting from the config file, so turning it off takes effect
+// without a restart.
+func userConfigRemoteUpdate(opts *Options) bool {
+	cfg, _, err := config.Load(opts.ConfigPath)
+	return err != nil || cfg.RemoteUpdateEnabled()
 }

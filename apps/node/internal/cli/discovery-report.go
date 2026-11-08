@@ -14,11 +14,16 @@ import (
 )
 
 // nodeCapabilities is what this node tells Core it can do: "requests" (it takes queued Console
-// requests) and "app_resources" (it sends per-app usage with its reports, unless turned off).
+// requests), "app_resources" (it sends per-app usage with its reports, unless turned off) and
+// "self_update" (Core may tell it to update itself: it is a release build, not in a container, and it
+// can replace its own binary).
 func nodeCapabilities(cfg *config.UserConfig) []string {
 	caps := []string{"requests"}
 	if cfg != nil && cfg.AppResources.IsEnabled() {
 		caps = append(caps, "app_resources")
+	}
+	if cfg.RemoteUpdateEnabled() && selfUpdateReady() {
+		caps = append(caps, "self_update")
 	}
 	return caps
 }
