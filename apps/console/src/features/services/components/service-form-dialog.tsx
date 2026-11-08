@@ -29,7 +29,6 @@ export const ServiceFormDialog = ({
 }) => {
   const [name, setName] = useState("");
   const [environment, setEnvironment] = useState("");
-  const [runbook, setRunbook] = useState("");
   const [monitors, setMonitors] = useState<ServiceServiceLinkRef[]>([]);
   const [apps, setApps] = useState<ServiceServiceLinkRef[]>([]);
   const [error, setError] = useState("");
@@ -40,7 +39,6 @@ export const ServiceFormDialog = ({
   const reset = () => {
     setName("");
     setEnvironment("");
-    setRunbook("");
     setMonitors([]);
     setApps([]);
     setError("");
@@ -54,7 +52,6 @@ export const ServiceFormDialog = ({
         create: {
           name: name.trim(),
           environment: environment.trim() || undefined,
-          runbook_url: runbook.trim() || undefined,
         },
         refs: [...monitors, ...apps],
       },
@@ -100,14 +97,6 @@ export const ServiceFormDialog = ({
               placeholder="production"
               value={environment}
               onChange={(event) => setEnvironment(event.target.value)}
-            />
-          </label>
-          <label className="grid gap-1.5 text-[12.5px] font-medium">
-            Runbook link, optional
-            <Input
-              placeholder="https://"
-              value={runbook}
-              onChange={(event) => setRunbook(event.target.value)}
             />
           </label>
         </div>

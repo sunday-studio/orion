@@ -12,14 +12,11 @@ export const ServiceSettingsTab = ({ service }: { service: ServiceServiceDetail 
   const refresh = useRefreshServices();
   const [name, setName] = useState(service.name ?? "");
   const [environment, setEnvironment] = useState(service.environment ?? "");
-  const [runbook, setRunbook] = useState(service.runbook_url ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const dirty =
-    name.trim() !== (service.name ?? "") ||
-    environment.trim() !== (service.environment ?? "") ||
-    runbook.trim() !== (service.runbook_url ?? "");
+    name.trim() !== (service.name ?? "") || environment.trim() !== (service.environment ?? "");
 
   const save = async () => {
     setPending(true);
@@ -28,7 +25,6 @@ export const ServiceSettingsTab = ({ service }: { service: ServiceServiceDetail 
       await updateService(serviceId, {
         name: name.trim(),
         environment: environment.trim(),
-        runbook_url: runbook.trim(),
       });
       refresh(serviceId);
       toast.add({ title: "Service saved" });
@@ -60,14 +56,6 @@ export const ServiceSettingsTab = ({ service }: { service: ServiceServiceDetail 
       <label className="grid gap-1.5 text-[12.5px] font-medium">
         Environment
         <Input value={environment} onChange={(event) => setEnvironment(event.target.value)} />
-      </label>
-      <label className="grid gap-1.5 text-[12.5px] font-medium">
-        Runbook link
-        <Input
-          placeholder="https://"
-          value={runbook}
-          onChange={(event) => setRunbook(event.target.value)}
-        />
       </label>
       {error && (
         <p role="alert" className="text-[12.5px] text-[#be123c]">
