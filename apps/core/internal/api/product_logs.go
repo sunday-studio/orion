@@ -33,13 +33,16 @@ func (s *Server) requireLogs(c *gin.Context) bool {
 	return false
 }
 
-// parseLogTime reads an RFC 3339 time or a relative offset such as -1h or -15m.
+// parseLogTime reads an RFC 3339 time, "now", or a relative offset such as -1h or -15m.
 func parseLogTime(value string, now time.Time) (time.Time, bool) {
 	if value == "" {
 		return time.Time{}, true
 	}
 	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
 		return t.UTC(), true
+	}
+	if value == "now" {
+		return now, true
 	}
 	if len(value) > 1 && value[0] == '-' {
 		if d, err := time.ParseDuration(value[1:]); err == nil {

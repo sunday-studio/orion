@@ -25,7 +25,7 @@ Storage is behind the `MetricStore` interface (`apps/core/internal/metricstore`)
 
 ## 3. Reading history
 
-`GET /v1/services/{id}/metrics?from=-6h&max_points=500` (`from` and `to` are RFC 3339 times or relative offsets such as `-6h` or `-7d`; `to` defaults to now) returns the series of the service's linked resources and of its linked apps' OTLP metrics. Ranges up to 48 hours read one-minute rows; longer ranges (up to 90 days) read hourly rollups. The step widens so a series returns about `max_points` points (default 500, at most 2,000). A field that was not measured is absent, never zero.
+`GET /v1/services/{id}/metrics?from=-6h&to=now&max_points=500` (`from` and `to` are RFC 3339 times, `now`, or relative offsets such as `-6h` or `-7d`; `to` defaults to now) returns the series of the service's linked resources and of its linked apps' OTLP metrics. Ranges up to 48 hours read one-minute rows; longer ranges (up to 90 days) read hourly rollups. The step widens so a series returns about `max_points` points (default 500, at most 2,000). A field that was not measured is absent, never zero.
 
 `GET /v1/services/{id}/log-counts?from=-6h&step_seconds=60` returns the apps' log entries per bucket and severity from a per-minute rollup kept in `logs.db`, so a timeline's error lane never counts raw rows. Ranges are limited to 7 days and 2,000 buckets.
 
