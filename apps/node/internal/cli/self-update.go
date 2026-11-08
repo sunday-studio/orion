@@ -35,6 +35,16 @@ const (
 // yet: the new version reports it once it has stayed up.
 var errUpdateRestart = errors.New("restarting to finish the update")
 
+// These are the only places a test build changes how an update finds and trusts a release (see
+// self-update_e2e.go, compiled only with the orion_e2e build tag). Release builds never reassign them.
+var (
+	releaseBase   = releaseBaseURL
+	verifyRelease = func(sums, sig, cert []byte) error {
+		return selfupdate.VerifySignature(sums, sig, cert, selfupdate.GitHubWorkflowIdentity(releaseRepo, releaseWorkflow, releaseRef))
+	}
+	afterUpdateBegin = func() {}
+)
+
 func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -51,10 +61,8 @@ func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
 		GOARCH:     runtime.GOARCH,
 		Fetch:      downloadFile,
 		Version:    binaryVersionWithin(30 * time.Second),
-		BaseURL:    func(tag string) string { return releaseBaseURL(releaseRepo, tag) },
-		Verify: func(sums, sig, cert []byte) error {
-			return selfupdate.VerifySignature(sums, sig, cert, selfupdate.GitHubWorkflowIdentity(releaseRepo, releaseWorkflow, releaseRef))
-		},
+		BaseURL:    func(tag string) string { return releaseBase(releaseRepo, tag) },
+		Verify:     func(sums, sig, cert []byte) error { return verifyRelease(sums, sig, cert) },
 	}, nil
 }
 

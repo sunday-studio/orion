@@ -58,6 +58,12 @@ func VerifySignature(data, sig, cert []byte, id Identity) error {
 	return verifySignature(data, sig, cert, id, fulcioRootsPEM)
 }
 
+// VerifySignatureWithRoots is VerifySignature with other trusted certificate authorities. It exists
+// for tests that sign with their own authority; the Node itself always uses the embedded Sigstore roots.
+func VerifySignatureWithRoots(data, sig, cert []byte, id Identity, rootsPEM []byte) error {
+	return verifySignature(data, sig, cert, id, rootsPEM)
+}
+
 func verifySignature(data, sig, cert []byte, id Identity, rootsPEM []byte) error {
 	certs, err := parseCertificates(cert)
 	if err != nil || len(certs) == 0 {
