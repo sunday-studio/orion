@@ -80,14 +80,6 @@ export const AccountMenu = ({ variant = "avatar" }: AccountMenuProps) => {
         <button
           type="button"
           className={itemClass}
-          disabled
-          title="Profile and sessions arrive with Settings"
-        >
-          <span className="opacity-60">Profile and sessions</span>
-        </button>
-        <button
-          type="button"
-          className={itemClass}
           onClick={() => {
             setOpen(false);
             window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT));
@@ -104,7 +96,7 @@ export const AccountMenu = ({ variant = "avatar" }: AccountMenuProps) => {
             window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT));
           }}
         >
-          Hide sidebar
+          {variant === "row" ? "Collapse sidebar" : "Expand sidebar"}
           <span className="text-xs text-faint">⌘B</span>
         </button>
         <div className="my-1.5 h-px bg-hairline" />
