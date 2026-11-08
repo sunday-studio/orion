@@ -14,16 +14,30 @@ import (
 )
 
 type fakeReleases struct {
-	release service.Release
-	err     error
-	calls   int
-	sums    map[string]string
-	sumsErr error
-	channel string
+	release     service.Release
+	err         error
+	calls       int
+	sums        map[string]string
+	checksumTag string
+	tag         string
+	tagErr      error
+	sumsErr     error
+	channel     string
 }
 
 func (f *fakeReleases) Checksums(_ context.Context, tag string) (map[string]string, error) {
+	f.checksumTag = tag
 	return f.sums, f.sumsErr
+}
+
+func (f *fakeReleases) ReleaseTag(_ context.Context, version string) (string, error) {
+	if f.tagErr != nil {
+		return "", f.tagErr
+	}
+	if f.tag != "" {
+		return f.tag, nil
+	}
+	return version, nil // Orion's real tags have no "v"
 }
 
 func (f *fakeReleases) Latest(_ context.Context, channel string) (service.Release, error) {

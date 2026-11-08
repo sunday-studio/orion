@@ -87,3 +87,21 @@ func TestGitHubReleasesReadsTheChecksumsOfARelease(t *testing.T) {
 		}
 	}
 }
+
+func TestGitHubReleasesFindsTheTagOfAVersionAsWritten(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"tag_name":"0.3.0"},{"tag_name":"v0.4.0"},{"tag_name":"0.5.0","draft":true},{"tag_name":"nightly"}]`))
+	}))
+	defer server.Close()
+	g := &GitHubReleases{Repo: "x/y", APIBase: server.URL, Client: server.Client()}
+	for version, want := range map[string]string{"0.3.0": "0.3.0", "0.4.0": "v0.4.0"} {
+		if got, err := g.ReleaseTag(context.Background(), version); err != nil || got != want {
+			t.Errorf("ReleaseTag(%s) = %q, %v; want %q", version, got, err, want)
+		}
+	}
+	for _, missing := range []string{"0.5.0", "9.9.9"} {
+		if _, err := g.ReleaseTag(context.Background(), missing); err == nil {
+			t.Errorf("%s is a draft or unknown and must not resolve", missing)
+		}
+	}
+}

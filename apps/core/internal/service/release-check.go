@@ -29,6 +29,8 @@ type Release struct {
 // ReleaseLookup finds the newest release on a channel ("stable" or "prerelease").
 type ReleaseLookup interface {
 	Latest(ctx context.Context, channel string) (Release, error)
+	// ReleaseTag returns the tag GitHub lists for a version, exactly as written ("0.3.0" or "v0.3.0").
+	ReleaseTag(ctx context.Context, version string) (string, error)
 	// Checksums returns the SHA-256 of each file in a release, by file name, as published in its
 	// SHA256SUMS. tag is the release tag, for example "v0.9.3".
 	Checksums(ctx context.Context, tag string) (map[string]string, error)
@@ -116,6 +118,36 @@ func releaseHighlights(body string) []string {
 		}
 	}
 	return out
+}
+
+// ReleaseTag finds the tag of a published release by its version. Tags are not all spelled the same
+// way ("0.3.0", "v0.3.0"), and the download address needs the one GitHub has.
+func (g *GitHubReleases) ReleaseTag(ctx context.Context, version string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(g.APIBase, "/")+"/repos/"+g.Repo+"/releases?per_page=100", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "orion-core")
+	resp, err := g.Client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("could not reach GitHub: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub answered %d", resp.StatusCode)
+	}
+	var list []githubRelease
+	if err := json.NewDecoder(io.LimitReader(resp.Body, releaseBodyLimit)).Decode(&list); err != nil {
+		return "", errors.New("GitHub sent a release list Core could not read")
+	}
+	for _, item := range list {
+		tag := strings.TrimSpace(item.TagName)
+		if !item.Draft && releaseTagPattern.MatchString(tag) && strings.TrimPrefix(tag, "v") == version {
+			return tag, nil
+		}
+	}
+	return "", fmt.Errorf("GitHub has no published release %s", version)
 }
 
 // Checksums reads the SHA256SUMS file of one release.

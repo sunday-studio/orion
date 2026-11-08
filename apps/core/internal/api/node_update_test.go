@@ -28,7 +28,7 @@ func updateFixture(t *testing.T, caps []string, nodeVersion string) (*Server, st
 }
 
 func TestUpdateNodeQueuesAnUpdateWithTheChecksumForItsPlatform(t *testing.T) {
-	server, id, token, _ := updateFixture(t, []string{"requests", "self_update"}, "0.9.2")
+	server, id, token, fake := updateFixture(t, []string{"requests", "self_update"}, "0.9.2")
 	var got reqResp
 	resp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+id+"/update", nil, "")
 	decodeResponse(t, resp, &got)
@@ -36,7 +36,7 @@ func TestUpdateNodeQueuesAnUpdateWithTheChecksumForItsPlatform(t *testing.T) {
 		t.Fatalf("update = %d %+v", resp.Code, got.Data.Request)
 	}
 	payload := got.Data.Request.Payload
-	if payload["version"] != "0.9.3" || payload["tag"] != "v0.9.3" || payload["sha256"] != nodeSum {
+	if payload["version"] != "0.9.3" || payload["tag"] != "0.9.3" || payload["sha256"] != nodeSum || fake.checksumTag != "0.9.3" {
 		t.Fatalf("payload = %v", payload)
 	}
 	// The node pulls the same payload.
@@ -61,7 +61,9 @@ func TestUpdateNodeRefusals(t *testing.T) {
 		text  string
 	}{
 		{"node cannot self update", []string{"requests"}, "0.9.2", nil, http.StatusBadRequest, "cannot update itself"},
-		{"node already current", []string{"requests", "self_update"}, "", nil, http.StatusConflict, "already on"},
+		{"node already current", []string{"requests", "self_update"}, "0.9.2", func(f *fakeReleases) { buildinfo.Version = "0.9.2" }, http.StatusConflict, "already on"},
+		{"node has not reported a version", []string{"requests", "self_update"}, "", nil, http.StatusBadRequest, "not reported"},
+		{"release not published", []string{"requests", "self_update"}, "0.9.2", func(f *fakeReleases) { f.tagErr = errors.New("no published release") }, http.StatusBadGateway, "Could not find release"},
 		{"release has no file for the platform", []string{"requests", "self_update"}, "0.9.2", func(f *fakeReleases) { f.sums = map[string]string{} }, http.StatusBadGateway, "no file named"},
 		{"release list unreachable", []string{"requests", "self_update"}, "0.9.2", func(f *fakeReleases) { f.sumsErr = errors.New("offline") }, http.StatusBadGateway, "offline"},
 	}
@@ -96,5 +98,15 @@ func TestGenericRequestRouteCannotQueueAnUpdate(t *testing.T) {
 	body := map[string]any{"type": "update_node", "payload": map[string]any{"version": "9.9.9", "tag": "v9.9.9", "sha256": nodeSum}}
 	if resp := performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+id+"/discovery/requests", body, ""); resp.Code != http.StatusBadRequest {
 		t.Errorf("generic update = %d, want 400", resp.Code)
+	}
+}
+
+func TestUpdateNodeUsesTheTagGitHubHasEvenWithAV(t *testing.T) {
+	server, id, _, fake := updateFixture(t, []string{"requests", "self_update"}, "0.9.2")
+	fake.tag = "v0.9.3"
+	var got reqResp
+	decodeResponse(t, performJSONRequest(t, server, http.MethodPost, "/v1/nodes/"+id+"/update", nil, ""), &got)
+	if got.Data.Request.Payload["tag"] != "v0.9.3" || fake.checksumTag != "v0.9.3" {
+		t.Fatalf("payload = %v, checksums asked for %q", got.Data.Request.Payload, fake.checksumTag)
 	}
 }

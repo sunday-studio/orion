@@ -43,7 +43,12 @@ func (s *Server) requestNodeUpdate(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
-	sums, err := s.releases.Checksums(ctx, "v"+version)
+	tag, err := s.releases.ReleaseTag(ctx, version)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadGateway, "Could not find release "+version+": "+err.Error(), nil)
+		return
+	}
+	sums, err := s.releases.Checksums(ctx, tag)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadGateway, "Could not read the checksums of release "+version+": "+err.Error(), nil)
 		return
@@ -53,13 +58,13 @@ func (s *Server) requestNodeUpdate(c *gin.Context) {
 		utils.ErrorResponse(c, http.StatusBadGateway, "Release "+version+" has no file named "+asset, nil)
 		return
 	}
-	v, err := s.nodeService.RequestNodeUpdate(node.ID, service.NodeUpdateTarget{Version: version, SHA256: sum}, frontendActorID(c))
+	v, err := s.nodeService.RequestNodeUpdate(node.ID, service.NodeUpdateTarget{Version: version, Tag: tag, SHA256: sum}, frontendActorID(c))
 	switch {
 	case err == nil:
 		utils.SuccessResponse(c, http.StatusCreated, "Update queued", gin.H{"request": v})
 	case errors.Is(err, service.ErrNodeNotFound):
 		utils.NotFound(c, "Node not found")
-	case errors.Is(err, service.ErrNodeCannotSelfUpdate):
+	case errors.Is(err, service.ErrNodeCannotSelfUpdate), errors.Is(err, service.ErrNodeVersionUnknown):
 		utils.BadRequest(c, err.Error())
 	case errors.Is(err, service.ErrNodeUpToDate), errors.Is(err, service.ErrUpdateInFlight):
 		utils.ErrorResponse(c, http.StatusConflict, err.Error(), nil)

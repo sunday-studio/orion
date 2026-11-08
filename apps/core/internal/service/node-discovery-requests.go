@@ -139,7 +139,7 @@ func validateRequest(in NodeDiscoveryRequestInput) (map[string]any, error) {
 		version, _ := in.Payload["version"].(string)
 		tag, _ := in.Payload["tag"].(string)
 		sum, _ := in.Payload["sha256"].(string)
-		if !releaseTagPattern.MatchString(version) || strings.HasPrefix(version, "v") || tag != "v"+version || !releaseSumPattern.MatchString(sum) {
+		if !releaseTagPattern.MatchString(version) || strings.HasPrefix(version, "v") || (tag != version && tag != "v"+version) || !releaseSumPattern.MatchString(sum) {
 			return nil, fmt.Errorf("%w: an update needs a version, its tag and the SHA-256 of the node's file", ErrRequestInvalid)
 		}
 		p["version"], p["tag"], p["sha256"] = version, tag, strings.ToLower(sum)
@@ -159,7 +159,9 @@ func (s *NodeService) expireRequests(nodeID string, now time.Time) {
 	s.db.Where("node_id = ? AND finished_at IS NOT NULL AND finished_at < ?", nodeID, now.Add(-requestRetention)).Delete(&db.NodeDiscoveryRequest{})
 }
 
-func (s *NodeService) nodeCanTakeRequests(nodeID string) bool { return s.nodeHasCapability(nodeID, "requests") }
+func (s *NodeService) nodeCanTakeRequests(nodeID string) bool {
+	return s.nodeHasCapability(nodeID, "requests")
+}
 
 func (s *NodeService) nodeHasCapability(nodeID, capability string) bool {
 	var row db.NodeDiscovery

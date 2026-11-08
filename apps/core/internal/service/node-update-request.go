@@ -13,6 +13,8 @@ var (
 	ErrNodeCannotSelfUpdate = errors.New("this node cannot update itself from the Console")
 	// ErrNodeUpToDate means the node already runs the release, or a newer one.
 	ErrNodeUpToDate = errors.New("this node is already on that release or a newer one")
+	// ErrNodeVersionUnknown means the node has not reported a version Core can compare.
+	ErrNodeVersionUnknown = errors.New("this node has not reported a release version yet, so Core cannot tell whether it is behind")
 	// ErrUpdateInFlight means an update for this node is already waiting or running.
 	ErrUpdateInFlight = errors.New("an update for this node is already waiting")
 )
@@ -21,7 +23,9 @@ var (
 // node's operating system and architecture as published with the release.
 type NodeUpdateTarget struct {
 	Version string
-	SHA256  string
+	// Tag is the release tag exactly as GitHub lists it.
+	Tag    string
+	SHA256 string
 }
 
 // NodeAssetName is the release file for a node's platform.
@@ -58,7 +62,11 @@ func (s *NodeService) RequestNodeUpdate(nodeID string, target NodeUpdateTarget, 
 	if !s.nodeHasCapability(nodeID, "self_update") {
 		return nil, ErrNodeCannotSelfUpdate
 	}
-	if cmp, ok := CompareVersions(s.NodeVersion(nodeID), target.Version); !ok || cmp >= 0 {
+	cmp, ok := CompareVersions(s.NodeVersion(nodeID), target.Version)
+	if !ok {
+		return nil, ErrNodeVersionUnknown
+	}
+	if cmp >= 0 {
 		return nil, ErrNodeUpToDate
 	}
 	var open int64
@@ -68,6 +76,6 @@ func (s *NodeService) RequestNodeUpdate(nodeID string, target NodeUpdateTarget, 
 		return nil, ErrUpdateInFlight
 	}
 	return s.createRequest(nodeID, NodeDiscoveryRequestInput{Type: ReqUpdateNode, Payload: map[string]any{
-		"version": target.Version, "tag": "v" + target.Version, "sha256": target.SHA256,
+		"version": target.Version, "tag": target.Tag, "sha256": target.SHA256,
 	}}, actor)
 }
