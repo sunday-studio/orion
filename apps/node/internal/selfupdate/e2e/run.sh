@@ -22,6 +22,11 @@ PIDS=()
 cleanup() { for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done; pkill -f "$W/node/bin/orion-node" 2>/dev/null || true; }
 trap cleanup EXIT
 fail() { echo "FAIL: $*"; echo "--- supervisor"; cat "$W/supervisor.log" 2>/dev/null; echo "--- node log (tail)"; tail -15 "$W/node.log" 2>/dev/null; exit 1; }
+in_use() { python3 -c "import socket,sys;s=socket.socket();s.settimeout(1);sys.exit(0 if s.connect_ex(('127.0.0.1',int(sys.argv[1]))) == 0 else 1)" "$1"; }
+for port in "$CORE_PORT" "$MIRROR_PORT"; do
+  # A server left over from an earlier run would answer in place of this run's, with other signatures.
+  if in_use "$port"; then echo "FAIL: port $port is already in use; stop the leftover server from an earlier run"; exit 1; fi
+done
 step() { printf '\n== %s\n' "$*"; }
 sql() { sqlite3 "$W/core/orion.db" "$@"; }
 wait_for() { # description, sql query, expected, seconds
@@ -46,7 +51,7 @@ cp "$W/build/node-0.9.2" "$W/node/bin/orion-node"
 step "start the mirror, Core and a supervised Node 0.9.2"
 SUM3="$(release 0.9.3 "$W/build/node-0.9.3" ca)"
 SUM4="$(release 0.9.4 "$W/build/node-0.9.4" ca)"
-(cd "$W/release" && python3 -m http.server "$MIRROR_PORT" --bind 127.0.0.1 >"$W/mirror.log" 2>&1) & PIDS+=($!)
+(cd "$W/release" && exec python3 -m http.server "$MIRROR_PORT" --bind 127.0.0.1 >"$W/mirror.log" 2>&1) & PIDS+=($!)
 ORION_DATA_DIR="$W/core" ORION_PORT="$CORE_PORT" ORION_REQUIRE_FRONTEND_AUTH=true ORION_ADMIN_USERNAME=admin ORION_ADMIN_PASSWORD=e2e-admin-password-2026 \
   ORION_JWT_SECRET=e2e-jwt-secret-for-the-update-test-2026 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=e2e-subscriber-secret-2026 \
   "$W/build/core" >"$W/core.log" 2>&1 & PIDS+=($!)
