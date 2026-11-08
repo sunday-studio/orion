@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { ApiLogHistogramBucket, ApiServiceLogCountBucket } from "../../orion-sdk/index.ts";
 import {
   errorRate,
   errorsPerMinute,
@@ -27,7 +28,7 @@ describe("timeline model", () => {
   });
 
   it("counts error and fatal lines per minute and ignores other levels", () => {
-    const buckets = [
+    const buckets: ApiServiceLogCountBucket[] = [
       { t: "2026-11-07T10:00:00Z", counts: { error: 3, fatal: 1, info: 90 } },
       { t: "2026-11-07T10:05:00Z", counts: { warn: 4 } },
       { t: "not a date", counts: { error: 9 } },
@@ -132,7 +133,7 @@ describe("timeline model", () => {
   });
 
   it("turns a histogram into lines per second and errors per minute", () => {
-    const buckets = [
+    const buckets: ApiLogHistogramBucket[] = [
       { total: 300, severity: { error: 10, info: 290 } },
       { total: 300, severity: { fatal: 5, warn: 295 } },
     ];

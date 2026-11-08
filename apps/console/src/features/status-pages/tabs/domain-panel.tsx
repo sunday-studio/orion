@@ -160,7 +160,7 @@ export const DomainPanel = ({
       {data?.target_known === false && (
         <p className="mt-2 text-[13px] text-mid">
           Orion does not know its own address yet. Set the Public Core URL in{" "}
-          <Link to="/settings?tab=general" className="underline">
+          <Link to="/settings/general" className="underline">
             Settings, General
           </Link>
           .

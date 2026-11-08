@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   OPEN_PALETTE_EVENT,
   OPEN_SHORTCUTS_EVENT,
+  TOGGLE_SIDEBAR_EVENT,
 } from "@/components/shared/global-shortcut-events";
 const CommandPalette = lazy(() =>
   import("@/components/shared/command-palette").then((m) => ({ default: m.CommandPalette })),
@@ -27,8 +28,10 @@ const GO_TARGETS: Record<string, string> = {
   i: "/incidents",
   m: "/monitors",
   s: "/servers",
-  a: "/alerts",
+  v: "/services",
   l: "/logs",
+  n: "/alerts",
+  a: "/alerts",
 };
 
 const focusRow = (direction: 1 | -1) => {
@@ -51,6 +54,11 @@ export const GlobalShortcuts = () => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setPaletteOpen((open) => !open);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT));
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;

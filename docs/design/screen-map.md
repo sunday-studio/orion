@@ -3,7 +3,7 @@
 Inventory of every Console screen: existing (E), partially present (P), and implied but missing (N).
 Sources: `apps/console/src/router/app-router.tsx`, `apps/console/src/features/*`, `apps/core/openapi.yaml`, `docs/architecture/*`.
 
-Terminology: the UI says "Servers" for what Core calls Nodes (`/servers`, `/v1/nodes`). Navigation is the top bar: Overview, Incidents, Servers, Monitors, Alerts, Status, Logs, Settings, with a command palette on `⌘K`.
+Terminology: the UI says "Servers" for what Core calls Nodes (`/servers`, `/v1/nodes`). Navigation is a sidebar (open, collapsed to icons, or closed; D-026, D-027): Overview and Incidents, then the groups Monitoring (Services, Monitors, Servers), Logs (App logs, Events, Core logs, Apps), Notify (Notifications, Channels, Rules, Routes, Status pages) and Settings (General, Data lifecycle, Security, System, Audit log), with search and the command palette on `⌘K`. Sibling pages are sidebar links with their own URLs; tabs appear only inside a record (server, app, status page, service).
 
 ## 1. Existing routes
 
@@ -13,13 +13,13 @@ Terminology: the UI says "Servers" for what Core calls Nodes (`/servers`, `/v1/n
 | 2 | `/incidents` | Incidents list + summary cards | E | `GET /v1/incidents`, `/v1/health/summary` |
 | 3 | `/incidents/:id` | Incident detail (timeline, ack/cover/resolve/reopen dialogs) | E | `/v1/incidents/{id}`, `/timeline`, actions |
 | 4 | `/servers` | Servers (Nodes) list, summary, filters | E | `GET /v1/nodes`, `/v1/nodes/summary` |
-| 5 | `/servers/:id` | Server detail, tabs: Server Reports, Service Logs, Monitors, System Metrics; token panel; health summary | E | `/v1/nodes/{id}/*` |
+| 5 | `/servers/:id` | Server detail, tabs: Overview, Reports, Monitors, Usage (`?tab=usage`; `?tab=apps` redirects), Detected, Token | E | `/v1/nodes/{id}/*` |
 | 6 | `/monitors` | Monitors list, summary, core-worker diagnostics, create dialog, heartbeat setup | E | `/v1/monitors`, `/v1/diagnostics/*` |
 | 7 | `/monitors/:id` | Monitor detail: overview, uptime, history, operational data, report inspection drawer | E | `/v1/monitors/{id}/*` |
-| 8 | `/alerts` | Alerts, tabs: Notification Log, Channels, Rules (flow node editor) | E | `/v1/alerts/*` |
+| 8 | `/alerts`, `/alerts/channels`, `/alerts/rules`, `/alerts/routes` | Notify pages: Notifications (log), Channels, Rules (flow node editor), Routes; `/alerts?tab=` redirects | E | `/v1/alerts/*` |
 | 9 | `/status-pages` | Status pages admin: sidebar, setup, components, incidents, subscribers, preview | E | `/v1/status-pages/*` |
-| 10 | `/logs` | Logs, tabs: Operational Events, Service Logs | E | `/v1/events`, `/v1/logs/service` |
-| 11 | `/settings` | Settings: data lifecycle (retention, rollup, archive) | E | `/v1/settings/data-lifecycle*` |
+| 10 | `/logs`, `/logs/apps`, `/logs/apps/new`, `/logs/apps/:id` | Logs pages: App logs (`?tab=service`), Events (`?tab=status`), Core logs (`?tab=internal`), and Apps (list, connect wizard, per-app Ingest, Retention, Display, Redaction); `/settings/apps*` and `/apps/new` redirect here | E | `/v1/events`, `/v1/logs/service` |
+| 11 | `/settings/general`, `/settings/lifecycle`, `/settings/security`, `/settings/system`, `/settings/audit` | Settings pages; `/settings?tab=` redirects | E | `/v1/settings/data-lifecycle*` |
 | 12 | `/agents`, `/agents/:id` | Redirects to `/servers` | E | none |
 
 ## 2. Overlays on existing screens (dialogs, drawers, panels)

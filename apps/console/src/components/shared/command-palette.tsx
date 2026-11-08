@@ -39,20 +39,24 @@ const hitTarget = (hit: ApiSearchHitResponse) =>
       ? `/incidents/${hit.id}`
       : hit.type === "server"
         ? `/servers/${hit.id}`
-        : "/settings/apps";
+        : `/logs/apps/${hit.id}`;
 
 const actions: PaletteItem[] = [
   { id: "a-monitor", group: "Actions", label: "New monitor", to: "/monitors?new=1", hint: "N" },
   { id: "a-server", group: "Actions", label: "Add server", to: "/servers/new", hint: "S" },
-  { id: "a-app", group: "Actions", label: "Connect an app", to: "/apps/new" },
+  { id: "a-app", group: "Actions", label: "Connect an app", to: "/logs/apps/new" },
   { id: "g-overview", group: "Actions", label: "Go to Overview", to: "/", hint: "G O" },
   { id: "g-incidents", group: "Actions", label: "Go to Incidents", to: "/incidents", hint: "G I" },
-  { id: "g-servers", group: "Actions", label: "Go to Servers", to: "/servers", hint: "G S" },
+  { id: "g-services", group: "Actions", label: "Go to Services", to: "/services", hint: "G V" },
   { id: "g-monitors", group: "Actions", label: "Go to Monitors", to: "/monitors", hint: "G M" },
-  { id: "g-alerts", group: "Actions", label: "Go to Alerts", to: "/alerts", hint: "G A" },
-  { id: "g-status", group: "Actions", label: "Go to Status", to: "/status-pages" },
+  { id: "g-servers", group: "Actions", label: "Go to Servers", to: "/servers", hint: "G S" },
   { id: "g-logs", group: "Actions", label: "Go to Logs", to: "/logs", hint: "G L" },
-  { id: "g-settings", group: "Actions", label: "Go to Settings", to: "/settings" },
+  { id: "g-events", group: "Actions", label: "Go to Events", to: "/logs?tab=status" },
+  { id: "g-apps", group: "Actions", label: "Go to Apps", to: "/logs/apps" },
+  { id: "g-notify", group: "Actions", label: "Go to Notify", to: "/alerts", hint: "G N" },
+  { id: "g-channels", group: "Actions", label: "Go to Channels", to: "/alerts/channels" },
+  { id: "g-status", group: "Actions", label: "Go to Status pages", to: "/status-pages" },
+  { id: "g-settings", group: "Actions", label: "Go to Settings", to: "/settings/general" },
 ];
 
 const GROUPS: PaletteItem["group"][] = ["Monitors", "Incidents", "Servers", "Apps", "Actions"];

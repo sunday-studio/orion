@@ -5,12 +5,10 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   Button,
   EmptyState,
+  RecordTabs,
   Skeleton,
   StatusBadge,
-  Tabs,
-  TabsList,
   TabsPanel,
-  TabsTab,
   useToast,
 } from "@/design-system";
 import {
@@ -173,15 +171,19 @@ export const StatusPageDetailPage = () => {
           )}
         </div>
       </div>
-      <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
-        <TabsList>
-          <TabsTab value="setup">Setup</TabsTab>
-          <TabsTab value="components">Components</TabsTab>
-          <TabsTab value="incidents">Incidents</TabsTab>
-          <TabsTab value="maintenance">Maintenance</TabsTab>
-          <TabsTab value="subscribers">Subscribers</TabsTab>
-          <TabsTab value="preview">Preview</TabsTab>
-        </TabsList>
+      <RecordTabs
+        value={tab}
+        onValueChange={setTab}
+        className="mt-3"
+        tabs={[
+          { value: "setup", label: "Setup" },
+          { value: "components", label: "Components" },
+          { value: "incidents", label: "Incidents" },
+          { value: "maintenance", label: "Maintenance" },
+          { value: "subscribers", label: "Subscribers" },
+          { value: "preview", label: "Preview" },
+        ]}
+      >
         <TabsPanel value="setup">
           <SetupTab
             key={page.updated_at ?? pageId}
@@ -210,7 +212,7 @@ export const StatusPageDetailPage = () => {
             url={row?.public_url ?? `/status/${page.slug}`}
           />
         </TabsPanel>
-      </Tabs>
+      </RecordTabs>
       <PublishDialog
         open={publishing}
         title={page.title ?? "this page"}

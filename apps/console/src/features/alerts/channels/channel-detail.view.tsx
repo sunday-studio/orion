@@ -108,7 +108,7 @@ export const ChannelDetailPage = () => {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getGetAlertChannelsQueryKey() });
         toast.add({ title: `${channel?.name} deleted` });
-        navigate("/alerts?tab=channels", { replace: true });
+        navigate("/alerts/channels", { replace: true });
       },
       onError: () => toast.add({ title: "Unable to delete the channel" }),
     },
@@ -130,7 +130,7 @@ export const ChannelDetailPage = () => {
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5 pb-2 pt-7">
         <div className="min-w-0">
           <div className="text-[13.5px] text-quiet">
-            <Link to="/alerts?tab=channels" className="hover:text-ink">
+            <Link to="/alerts/channels" className="hover:text-ink">
               Alerts
             </Link>{" "}
             / Channels
@@ -309,7 +309,7 @@ export const ChannelDetailPage = () => {
                 >
                   <b className="truncate font-medium">{rule.name}</b>
                   <span className="truncate text-faint">{rule.summary}</span>
-                  <Link to="/alerts?tab=rules">
+                  <Link to="/alerts/rules">
                     <Button size="sm" variant="secondary">
                       Open
                     </Button>

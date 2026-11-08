@@ -121,7 +121,7 @@ export const ConnectAppPage = () => {
 
   const appName = name.trim() || "your app";
   const cancel = (
-    <Link to="/settings/apps">
+    <Link to="/logs/apps">
       <Button size="sm" variant="ghost">
         Cancel
       </Button>

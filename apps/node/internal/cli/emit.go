@@ -69,7 +69,7 @@ func resolveIngestTarget(opts *Options, source, keyFile, endpoint, app string) (
 	case t.Endpoint == "":
 		return t, errors.New("no Core URL: set core_url in the config, ORION_CORE_URL, or pass --endpoint")
 	case t.Key == "":
-		return t, errors.New("no ingest key: pass --key-file, set ORION_INGEST_KEY, or use a configured logs source (Console, Settings, Apps, create a key)")
+		return t, errors.New("no ingest key: pass --key-file, set ORION_INGEST_KEY, or use a configured logs source (Console, Logs, Apps, create a key)")
 	}
 	return t, nil
 }

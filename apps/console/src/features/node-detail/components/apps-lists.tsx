@@ -17,6 +17,7 @@ export const TopApps = ({ rows, total }: { rows: ServiceAppResourceSeries[]; tot
   return (
     <FieldPanel
       title="Top apps"
+      compact
       aside={`${rows.length} of ${total} · CPU is a share of one core · - not measured`}
     >
       <RaisedCard>

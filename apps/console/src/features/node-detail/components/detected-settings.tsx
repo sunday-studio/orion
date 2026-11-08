@@ -5,7 +5,7 @@ import { kindScan, kindTitle } from "../detected-model";
 const DETAIL: Record<string, string> = {
   service: "systemd units",
   container: "Docker containers",
-  pm2: "pm2 apps",
+  pm2: "PM2 processes",
   port: "Listening TCP ports",
   disk: "Mounts and usage",
   log: "Common log files",

@@ -88,7 +88,7 @@ export const NoApps = () => (
     title="No logs yet"
     description="Connect an app and its logs appear here within seconds. Any app works: curl, OpenTelemetry, or a plain log line."
     action={
-      <Link to="/apps/new">
+      <Link to="/logs/apps/new">
         <Button>Connect your first app</Button>
       </Link>
     }

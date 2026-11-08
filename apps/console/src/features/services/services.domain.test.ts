@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { ServiceServiceSuggestion } from "../../orion-sdk/index.ts";
 import {
   appCandidates,
   defaultMonitorChoice,
@@ -90,7 +91,7 @@ describe("suggestions", () => {
     slug: "checkout",
     environment: "production",
     members: [member("app", "a1", "high"), member("monitor", "m1", "high")],
-  } as never;
+  } as unknown as ServiceServiceSuggestion;
   const maybe = {
     name: "nightly",
     slug: "nightly",
@@ -137,7 +138,7 @@ describe("suggestions", () => {
   });
 
   it("leaves out members the person unticked", () => {
-    const plan = planSuggestion(likely, new Set([memberKey(likely.members[0])]));
+    const plan = planSuggestion(likely, new Set([memberKey(likely.members![0])]));
     assert.deepEqual(plan.refs, [{ kind: "monitor", id: "m1" }]);
   });
 });

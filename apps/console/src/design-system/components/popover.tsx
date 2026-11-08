@@ -9,12 +9,16 @@ export const PopoverClose = PopoverPrimitive.Close;
 export const PopoverContent = ({
   className,
   align = "start",
+  side,
   sideOffset = 6,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Popup> &
-  Pick<React.ComponentProps<typeof PopoverPrimitive.Positioner>, "align" | "sideOffset">) => (
+  Pick<
+    React.ComponentProps<typeof PopoverPrimitive.Positioner>,
+    "align" | "side" | "sideOffset"
+  >) => (
   <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Positioner align={align} sideOffset={sideOffset} className="z-50">
+    <PopoverPrimitive.Positioner align={align} side={side} sideOffset={sideOffset} className="z-50">
       <PopoverPrimitive.Popup
         data-slot="ds-popover"
         className={cn(

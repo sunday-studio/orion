@@ -39,19 +39,28 @@ export const FieldPanel = ({
   aside,
   children,
   className,
+  compact = false,
   ...props
 }: Omit<React.ComponentProps<"section">, "title"> & {
   title: React.ReactNode;
   aside?: React.ReactNode;
+  /** Tight panel for a table: 12px on top, 4px on the other sides (canvas `.field` with a `.gt`). */
+  compact?: boolean;
 }) => (
   <section
     className={cn(
-      "rounded-[14px] border border-hairline bg-field p-5 dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]",
+      "rounded-[14px] border border-hairline bg-field dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]",
+      compact ? "px-1 pb-1 pt-3" : "p-5",
       className,
     )}
     {...props}
   >
-    <div className="mx-0.5 mb-3 flex items-baseline justify-between">
+    <div
+      className={cn(
+        "flex items-baseline justify-between",
+        compact ? "mx-2.5 mb-2.5" : "mx-0.5 mb-3",
+      )}
+    >
       <h2 className="text-sm font-medium">{title}</h2>
       {aside !== undefined && <span className="text-[12.5px] text-faint">{aside}</span>}
     </div>
@@ -63,7 +72,7 @@ export const FieldPanel = ({
 export const RaisedCard = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "overflow-hidden rounded-[10px] border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-6px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_8px_18px_-10px_rgba(0,0,0,0.7)]",
+      "overflow-hidden rounded-[10px] border border-hairline bg-card shadow-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
       className,
     )}
     {...props}
@@ -82,7 +91,12 @@ export const StatBox = ({
   of?: React.ReactNode;
   className?: string;
 }) => (
-  <div className={cn("rounded-xl border border-hairline bg-card px-3.5 py-3", className)}>
+  <div
+    className={cn(
+      "rounded-xl border border-hairline bg-card px-3.5 py-3 shadow-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+      className,
+    )}
+  >
     <span className="block text-xs leading-[18px] text-quiet">{label}</span>
     <b className="block text-xl font-semibold leading-[30px] tracking-[-0.02em]">
       {value}
