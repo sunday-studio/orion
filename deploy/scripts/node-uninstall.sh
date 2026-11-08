@@ -295,11 +295,24 @@ else
 fi
 
 step "Binary"
-if [ -f "$INSTALL_DIR/orion-node" ]; then
+if [ -f "$INSTALL_DIR/orion-node" ] || [ -L "$INSTALL_DIR/orion-node" ]; then
   run_cmd rm -f "$INSTALL_DIR/orion-node"
   ok "removed $INSTALL_DIR/orion-node"
 else
   skip "binary not found"
+fi
+# Where a system install keeps the binary so the Node can update itself (see node-install.sh).
+for owned_dir in /opt/orion /usr/local/lib/orion; do
+  if [ -d "$owned_dir" ]; then
+    run_cmd rm -rf "$owned_dir"
+    ok "removed $owned_dir"
+  fi
+done
+if [ -f "/etc/systemd/system/$SERVICE_NAME.service.d/self-update.conf" ]; then
+  run_cmd rm -f "/etc/systemd/system/$SERVICE_NAME.service.d/self-update.conf"
+  run_cmd rmdir "/etc/systemd/system/$SERVICE_NAME.service.d" 2>/dev/null || true
+  run_cmd systemctl daemon-reload
+  ok "removed the self-update drop-in"
 fi
 
 step "Config"

@@ -419,13 +419,27 @@ prepare_log_file() {
   ok "prepared log file at $log_path"
 }
 
+# install_binary BINARY [BIN_DIR OWNER GROUP]
+# A system install keeps the binary in BIN_DIR, which the service user owns, so the Node can replace
+# itself when Core asks. $INSTALL_DIR/orion-node is a link to it, so everything that runs the old
+# path keeps working.
 install_binary() {
   local binary="$1"
+  local bin_dir="${2:-}"
+  local owner="${3:-}"
+  local group="${4:-}"
 
   step "Binary"
   run_cmd install -d -m 0755 "$INSTALL_DIR"
-  run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-node"
-  ok "install binary to $INSTALL_DIR/orion-node"
+  if [ -n "$bin_dir" ]; then
+    run_cmd install -d -m 0755 -o "$owner" -g "$group" "$bin_dir"
+    run_cmd install -m 0755 -o "$owner" -g "$group" "$binary" "$bin_dir/orion-node"
+    run_cmd ln -sfn "$bin_dir/orion-node" "$INSTALL_DIR/orion-node"
+    ok "install binary to $bin_dir/orion-node, linked from $INSTALL_DIR/orion-node"
+  else
+    run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-node"
+    ok "install binary to $INSTALL_DIR/orion-node"
+  fi
 }
 
 configure_linux_docker_access() {
@@ -511,7 +525,7 @@ install_linux() {
   run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$state_dir"
   ok "prepared $config_dir and $state_dir"
 
-  install_binary "$binary"
+  install_binary "$binary" /opt/orion "$LINUX_USER" "$LINUX_GROUP"
 
   install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
@@ -622,7 +636,7 @@ install_macos() {
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$socket_dir"
   ok "prepared $config_dir, $state_dir, $log_dir, and $socket_dir"
 
-  install_binary "$binary"
+  install_binary "$binary" /usr/local/lib/orion "$MACOS_USER" "$MACOS_GROUP"
 
   install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
   initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"

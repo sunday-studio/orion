@@ -199,6 +199,9 @@ func runUpdate(_ context.Context, opts *Options) error {
 	}); err != nil {
 		return NewCommandError("could not update Orion Node", err)
 	}
+	if !opts.UpdateRollback {
+		migrateAfterUpdate(opts)
+	}
 	return nil
 }
 
