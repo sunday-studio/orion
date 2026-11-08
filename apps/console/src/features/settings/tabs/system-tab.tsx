@@ -1,7 +1,7 @@
-import { Button, Callout, FieldPanel, RaisedCard, Skeleton, StatusBadge } from "@/design-system";
+import { Button, Callout, RaisedCard, Skeleton, StatusBadge } from "@/design-system";
 import { useGetSystemSettings } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
-import { SettingRow } from "../components-ui";
+import { SettingRow, SettingsSection } from "../components-ui";
 
 const size = (bytes?: number) =>
   (bytes ?? 0) >= 1_073_741_824
@@ -22,7 +22,7 @@ export const SystemTab = () => {
   if (query.isError || !data) return <Callout tone="down">Unable to load system status.</Callout>;
   const worker = data.worker;
   return (
-    <FieldPanel title="System" aside={`Core ${data.version ?? ""}`}>
+    <SettingsSection title="System" hint={`Core ${data.version ?? ""}.`}>
       <RaisedCard>
         <SettingRow
           label="Core worker"
@@ -56,6 +56,6 @@ export const SystemTab = () => {
           )}
         </SettingRow>
       </RaisedCard>
-    </FieldPanel>
+    </SettingsSection>
   );
 };

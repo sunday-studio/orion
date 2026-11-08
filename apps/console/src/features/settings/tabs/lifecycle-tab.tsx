@@ -1,15 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Callout,
-  ConfirmDialog,
-  FieldPanel,
-  Input,
-  Select,
-  Skeleton,
-  useToast,
-} from "@/design-system";
+import { Button, Callout, ConfirmDialog, Input, Select, Skeleton, useToast } from "@/design-system";
 import {
   type ServiceDataLifecycleSettingsPayload,
   getGetDataLifecycleSettingsQueryKey,
@@ -19,7 +10,7 @@ import {
   useUpdateDataLifecycleSettings,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
-import { Labeled } from "../components-ui";
+import { Labeled, SettingsFooter, SettingsSection } from "../components-ui";
 import { archiveCount, asNumber } from "../settings.domain";
 
 const SCHEDULES = [
@@ -109,8 +100,8 @@ export const LifecycleTab = () => {
     return <Callout tone="down">Unable to load data lifecycle settings.</Callout>;
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <FieldPanel title="Retention" aside="How long Core keeps history online">
+    <div className="flex flex-col">
+      <SettingsSection title="Retention" hint="How long Core keeps history online.">
         <div className="grid grid-cols-2 gap-4">
           <Labeled label="Raw report days" error={errors.raw}>
             <Input inputMode="numeric" value={raw} onChange={(e) => setRaw(e.target.value)} />
@@ -119,8 +110,8 @@ export const LifecycleTab = () => {
             <Input inputMode="numeric" value={rollup} onChange={(e) => setRollup(e.target.value)} />
           </Labeled>
         </div>
-      </FieldPanel>
-      <FieldPanel title="Archive" aside="Where eligible raw reports go">
+      </SettingsSection>
+      <SettingsSection title="Archive" hint="Where eligible raw reports go.">
         <div className="grid grid-cols-2 gap-4">
           <Labeled label="Archive directory">
             <Input value={dir} onChange={(e) => setDir(e.target.value)} />
@@ -135,8 +126,8 @@ export const LifecycleTab = () => {
             />
           </Labeled>
         </div>
-      </FieldPanel>
-      <FieldPanel title="Run now" aside="Without changing the schedule">
+      </SettingsSection>
+      <SettingsSection title="Run now" hint="Without changing the schedule.">
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -161,15 +152,15 @@ export const LifecycleTab = () => {
           {settings.last_archive_error ? ` (${settings.last_archive_error})` : ""}.
           {ran ? ` ${ran}` : ""}
         </p>
-      </FieldPanel>
-      <div className="flex justify-end">
+      </SettingsSection>
+      <SettingsFooter>
         <Button
           disabled={save.isPending || !dirty || Boolean(errors.raw || errors.rollup)}
           onClick={submit}
         >
           Save settings
         </Button>
-      </div>
+      </SettingsFooter>
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}

@@ -22,7 +22,7 @@ import {
   useRotateRegistrationToken,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
-import { SettingRow } from "../components-ui";
+import { SettingRow, SettingsSection } from "../components-ui";
 import { TokenDialog } from "./token-dialog";
 
 const COLUMNS = "minmax(0,1.2fr) 100px 110px 80px 90px";
@@ -70,14 +70,14 @@ export const SecurityTab = () => {
   const signIn = system.data?.sign_in;
   const list = tokens.data?.tokens ?? [];
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col">
       {system.isPending ? (
         <Skeleton className="h-40 w-full rounded-xl" />
       ) : system.isError ? (
         <Callout tone="down">Unable to load security settings.</Callout>
       ) : (
         <>
-          <FieldPanel title="Console sign-in" aside="Set on the Core host">
+          <SettingsSection title="Console sign-in" hint="Set on the Core host.">
             <RaisedCard>
               <SettingRow label="Username" detail="ORION_ADMIN_USERNAME">
                 <b className="font-medium">{signIn?.username ?? "admin"}</b>
@@ -86,8 +86,8 @@ export const SecurityTab = () => {
                 <b className="font-medium">{signIn?.session_hours ?? 12} hours</b>
               </SettingRow>
             </RaisedCard>
-          </FieldPanel>
-          <FieldPanel title="Node registration" aside="Nodes register with this token">
+          </SettingsSection>
+          <SettingsSection title="Node registration" hint="Nodes register with this token.">
             <div className="flex gap-2">
               <Input
                 readOnly
@@ -113,10 +113,15 @@ export const SecurityTab = () => {
                 Rotate
               </Button>
             </div>
-          </FieldPanel>
+          </SettingsSection>
         </>
       )}
-      <FieldPanel title="API tokens" aside="For scripts and integrations">
+      <FieldPanel
+        compact
+        title="API tokens"
+        aside="For scripts and integrations"
+        className="mt-3.5"
+      >
         {tokens.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : tokens.isError ? (

@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Callout, FieldPanel, Input, Select, Skeleton, useToast } from "@/design-system";
+import { Button, Callout, Input, Select, Skeleton, useToast } from "@/design-system";
 import {
   getGetGeneralSettingsQueryKey,
   useGetGeneralSettings,
   useUpdateGeneralSettings,
 } from "@/orion-sdk";
 import { setTimezone } from "@/utils/date";
-import { Labeled } from "../components-ui";
+import { Labeled, SettingsFooter, SettingsSection } from "../components-ui";
 
 const zones = () => {
   try {
@@ -70,8 +70,8 @@ export const GeneralTab = () => {
   if (query.isError) return <Callout tone="down">Unable to load general settings.</Callout>;
   const fromEnvironment = data?.public_url_source === "environment";
   return (
-    <div className="flex flex-col gap-3.5">
-      <FieldPanel title="Instance" aside="Shown in emails and status pages">
+    <div className="flex flex-col">
+      <SettingsSection title="Instance" hint="Shown in emails and status pages.">
         <div className="grid gap-4">
           <Labeled label="Instance name">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -87,8 +87,8 @@ export const GeneralTab = () => {
             <Input value={url} onChange={(e) => setUrl(e.target.value)} />
           </Labeled>
         </div>
-      </FieldPanel>
-      <FieldPanel title="Time">
+      </SettingsSection>
+      <SettingsSection title="Time" hint="How Console shows dates.">
         <div className="grid grid-cols-2 gap-4">
           <Labeled label="Timezone">
             <Select
@@ -112,8 +112,8 @@ export const GeneralTab = () => {
             />
           </Labeled>
         </div>
-      </FieldPanel>
-      <div className="flex justify-end">
+      </SettingsSection>
+      <SettingsFooter>
         <Button
           disabled={save.isPending || !name.trim() || !dirty}
           onClick={() =>
@@ -129,7 +129,7 @@ export const GeneralTab = () => {
         >
           Save settings
         </Button>
-      </div>
+      </SettingsFooter>
     </div>
   );
 };
