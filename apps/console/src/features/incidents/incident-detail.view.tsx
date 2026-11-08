@@ -20,6 +20,7 @@ import {
   useGetIncident,
   useGetIncidentLogs,
   useGetIncidentPublicTargets,
+  useGetService,
   useReopenIncident,
   useResolveIncident,
   useRetryAlertDelivery,
@@ -73,6 +74,9 @@ export const IncidentDetailPage = () => {
     pre_incident_only: preOnly || undefined,
   });
   const logEntries = logs.data?.entries ?? [];
+  const linkedService = useGetService(logs.data?.service_id ?? "", {
+    query: { enabled: Boolean(logs.data?.service_id) },
+  });
   const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
   const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
   const retryDelivery = useRetryAlertDelivery({ mutation: { onSuccess: refreshIncident } });
@@ -284,6 +288,7 @@ export const IncidentDetailPage = () => {
             related={relatedIncidents}
             deliveries={alertDeliveries}
             subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
+            service={linkedService.data?.service}
             onDraftUpdate={() => setPublicUpdateOpen(true)}
             onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
           />

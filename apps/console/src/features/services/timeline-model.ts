@@ -37,6 +37,29 @@ export const totalErrors = (buckets: readonly ApiServiceLogCountBucket[]) =>
     0,
   );
 
+/** Errors per minute across a window of `minutes`, rounded to one decimal under 10 and to a whole number above. */
+export const errorRate = (buckets: readonly ApiServiceLogCountBucket[], minutes: number) => {
+  const rate = totalErrors(buckets) / Math.max(minutes, 1);
+  return rate >= 10 ? Math.round(rate) : Math.round(rate * 10) / 10;
+};
+
+/**
+ * How the last hour compares with the hourly average before it, from one day of buckets.
+ * Undefined when the day before was quiet, since a ratio against nothing says nothing.
+ */
+export const timesNormal = (
+  day: readonly ApiServiceLogCountBucket[],
+  now: number,
+): number | undefined => {
+  const hourAgo = now - 3_600_000;
+  const recent = day.filter((bucket) => (time(bucket.t) ?? 0) >= hourAgo);
+  const before = day.filter((bucket) => (time(bucket.t) ?? 0) < hourAgo);
+  const usual = totalErrors(before) / 23;
+  if (usual < 1) return undefined;
+  const ratio = totalErrors(recent) / usual;
+  return ratio >= 2 ? Math.round(ratio) : undefined;
+};
+
 export type Line = { id: string; label: string; points: TimePoint[] };
 
 const operatingSystem = (series: ApiServiceMetricSeries) => series.source !== "otlp";

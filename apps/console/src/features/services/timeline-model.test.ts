@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  errorRate,
   errorsPerMinute,
   failedChecks,
   formatBytes,
@@ -11,6 +12,7 @@ import {
   niceMax,
   rangeFromParam,
   responseLine,
+  timesNormal,
   totalErrors,
 } from "./timeline-model.ts";
 
@@ -95,6 +97,28 @@ describe("timeline model", () => {
       [180],
     );
     assert.equal(failedChecks(points, from).length, 1);
+  });
+
+  it("rates errors per minute over a window", () => {
+    const buckets = [
+      { t: "2026-11-08T10:00:00Z", counts: { error: 40, fatal: 2 } },
+      { t: "2026-11-08T10:01:00Z", counts: { error: 8, info: 90 } },
+    ] as never;
+    assert.equal(errorRate(buckets, 5), 10);
+    assert.equal(errorRate([], 5), 0);
+    assert.equal(errorRate([{ t: "2026-11-08T10:00:00Z", counts: { error: 3 } }] as never, 5), 0.6);
+  });
+
+  it("compares the last hour with the usual hour, and stays quiet without a baseline", () => {
+    const now = Date.parse("2026-11-08T12:00:00Z");
+    const day = (usual: number, recent: number) =>
+      [
+        { t: "2026-11-08T03:00:00Z", counts: { error: usual } },
+        { t: "2026-11-08T11:30:00Z", counts: { error: recent } },
+      ] as never;
+    assert.equal(timesNormal(day(46, 24), now), 12);
+    assert.equal(timesNormal(day(0, 24), now), undefined);
+    assert.equal(timesNormal(day(46, 3), now), undefined);
   });
 
   it("rounds axes and formats units", () => {

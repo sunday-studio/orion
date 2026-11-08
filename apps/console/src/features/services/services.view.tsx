@@ -15,6 +15,7 @@ import {
   Skeleton,
 } from "@/design-system";
 import { useListServiceSuggestions, useListServices } from "@/orion-sdk";
+import { ServiceErrorRate } from "./components/service-error-rate";
 import { ServiceFormDialog } from "./components/service-form-dialog";
 import { SuggestionsDialog } from "./components/suggestions-dialog";
 import { HealthBadge, HealthDot } from "./components/service-health";
@@ -28,7 +29,7 @@ import {
   serviceHref,
 } from "./services.domain";
 
-const COLUMNS = "18px minmax(0,1.4fr) 90px 70px 90px 100px 120px";
+const COLUMNS = "18px minmax(0,1.4fr) 90px 70px 100px 130px";
 const HEALTH_SEGMENTS: HealthFilter[] = ["all", "down", "degraded", "up"];
 
 export const ServicesPage = () => {
@@ -173,8 +174,7 @@ export const ServicesPage = () => {
                   <span>Name</span>
                   <span>Monitors</span>
                   <span>Apps</span>
-                  <span>Resources</span>
-                  <span>Incidents</span>
+                  <span>Errors/min</span>
                   <span>Status</span>
                 </GridRow>
                 {visible.map((service) => {
@@ -203,12 +203,16 @@ export const ServicesPage = () => {
                       </span>
                       <span className="tabular-nums text-quiet">{service.monitor_count ?? 0}</span>
                       <span className="tabular-nums text-quiet">{service.app_count ?? 0}</span>
-                      <span className="tabular-nums text-quiet">{service.resource_count ?? 0}</span>
-                      <span className={open > 0 ? "text-[#be123c]" : "text-faint"}>
-                        {open > 0 ? `${open} open` : "None"}
-                      </span>
                       <span>
+                        <ServiceErrorRate
+                          serviceId={id}
+                          appCount={service.app_count ?? 0}
+                          health={service.health}
+                        />
+                      </span>
+                      <span className="flex items-center gap-2">
                         <HealthBadge health={service.health} />
+                        {open > 0 && <span className="text-xs text-[#be123c]">{open} open</span>}
                       </span>
                     </GridRow>
                   );
