@@ -73,9 +73,12 @@ body {
   color: var(--color-ink);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 1px;
+/* In the base layer so a component's own `outline-none` and focus ring win over it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 1px;
+  }
 }
 
 /* Text detail: balanced headings, no orphaned last words in paragraphs. */
