@@ -83,7 +83,12 @@ export const MonitorDetailPage = () => {
           ) : heartbeat ? (
             <MonitorHeartbeat monitorId={monitorId} summary={summary} now={now} />
           ) : (
-            <MonitorOverview monitorId={monitorId} summary={summary} now={now} />
+            <MonitorOverview
+              monitorId={monitorId}
+              summary={summary}
+              now={now}
+              serviceId={monitor?.service_id}
+            />
           )}
         </TabsPanel>
         <TabsPanel value="history">

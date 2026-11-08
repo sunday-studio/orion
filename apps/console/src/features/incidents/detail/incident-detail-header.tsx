@@ -5,6 +5,8 @@ import { type NumberedIncident, incidentLabel, statusLabel } from "../incident-f
 
 type Props = {
   incident: NumberedIncident;
+  /** The service the incident's monitor belongs to, when it is linked to one. */
+  service?: { id: string; name?: string };
   now: number;
   actionPending: boolean;
   canAcknowledge: boolean;
@@ -20,6 +22,7 @@ type Props = {
 /** Breadcrumb, 28px title, status badges and lifecycle actions (canvas incident-detail `.phd`). */
 export const IncidentDetailHeader = ({
   incident,
+  service,
   now,
   actionPending,
   canAcknowledge,
@@ -51,6 +54,14 @@ export const IncidentDetailHeader = ({
           <StatusBadge status={incident.severity}>{incident.severity ?? "unknown"}</StatusBadge>
           <span className="text-[13.5px] text-quiet">
             {incident.resolved_at ? `Lasted ${span}` : `Open for ${span}`}
+            {service && (
+              <>
+                {" · service "}
+                <Link to={`/services/${service.id}`} className="underline hover:text-ink">
+                  {service.name ?? "linked"}
+                </Link>
+              </>
+            )}
           </span>
         </div>
       </div>
