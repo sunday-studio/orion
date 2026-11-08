@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Callout,
@@ -13,6 +13,9 @@ import {
   useToast,
 } from "@/design-system";
 import {
+  getGetNodeDiscoveryQueryKey,
+  getGetNodeQueryKey,
+  getGetNodesQueryKey,
   getListNodeDiscoveryRequestsQueryKey,
   useGetNodeDiscovery,
   useListNodeDiscoveryRequests,
@@ -188,9 +191,22 @@ export const NodeUpdateNotice = ({
     },
   }).data?.requests;
   const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const last = requests?.find((r) => r.type === "update_node");
+  // When an update finishes, the Node reports a new version. Fetch it instead of waiting for a refocus,
+  // or this page keeps offering the update that just happened.
+  const wasOpen = useRef(false);
+  const isOpen = OPEN.has(last?.status ?? "");
+  useEffect(() => {
+    if (wasOpen.current && !isOpen) {
+      void queryClient.invalidateQueries({ queryKey: getGetNodeQueryKey(nodeId) });
+      void queryClient.invalidateQueries({ queryKey: getGetNodesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getGetNodeDiscoveryQueryKey(nodeId) });
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen, nodeId, queryClient]);
   if (!updates || !nodeCanUpdate(nodeVersion, updates)) return null;
   const to = updates.current_version ?? "";
-  const last = requests?.find((r) => r.type === "update_node");
   const canUpdateHere = Boolean(discovery?.capabilities?.includes("self_update"));
   const style = cn("flex items-center justify-between gap-3", className);
 
