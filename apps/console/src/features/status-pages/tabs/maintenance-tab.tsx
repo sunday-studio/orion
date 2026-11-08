@@ -201,7 +201,7 @@ export const MaintenanceTab = ({
           description="Planned work shows on the page ahead of time."
         />
       ) : (
-        <FieldPanel title="Maintenance windows" aside={`${windows.length}`}>
+        <FieldPanel compact title="Maintenance windows" aside={`${windows.length}`}>
           <RaisedCard>
             {windows.map((item) => (
               <div

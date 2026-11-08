@@ -86,7 +86,7 @@ export const DetectedRequests = ({
   const requests = (query.data?.requests ?? []).slice(0, 6);
   if (requests.length === 0) return null;
   return (
-    <FieldPanel title="Waiting actions">
+    <FieldPanel compact title="Waiting actions">
       <RaisedCard>
         {requests.map((request) => {
           const info = describe(request);

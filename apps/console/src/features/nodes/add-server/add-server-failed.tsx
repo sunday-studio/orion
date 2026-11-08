@@ -23,7 +23,7 @@ export const AddServerFailed = ({
       <Callout tone="down" lead="Not connected.">
         The install command may not have finished, or the server cannot reach Core.
       </Callout>
-      <FieldPanel title="Check these" aside="In order">
+      <FieldPanel compact title="Check these" aside="In order">
         <RaisedCard>
           <StepRows
             rows={[

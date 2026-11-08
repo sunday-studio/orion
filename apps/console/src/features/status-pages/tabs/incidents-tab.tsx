@@ -55,7 +55,7 @@ export const IncidentsTab = ({
   }
   return (
     <div className="flex flex-col gap-4">
-      <FieldPanel title="Public incidents" aside={`${incidents.length}`}>
+      <FieldPanel compact title="Public incidents" aside={`${incidents.length}`}>
         <RaisedCard>
           {incidents.map((incident) => (
             <div

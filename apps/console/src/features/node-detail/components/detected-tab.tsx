@@ -243,7 +243,7 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
       ) : (
         <>
           {groupItems(active).map(([kind, group]) => (
-            <FieldPanel key={kind} title={kindTitle(kind)} aside={`${group.length}`}>
+            <FieldPanel compact key={kind} title={kindTitle(kind)} aside={`${group.length}`}>
               <RaisedCard>
                 {group.map((item) => (
                   <DetectedItem
@@ -280,7 +280,7 @@ export const DetectedTab = ({ nodeId, onOpenApps }: { nodeId: string; onOpenApps
         </>
       )}
       {dismissed.length > 0 && (
-        <FieldPanel title="Dismissed" aside={`${dismissed.length}`}>
+        <FieldPanel compact title="Dismissed" aside={`${dismissed.length}`}>
           <RaisedCard>
             {dismissed.map((item) => (
               <DetectedItem

@@ -178,7 +178,7 @@ export const NodeMonitorSetupPage = () => {
             </div>
           </div>
         </FieldPanel>
-        <FieldPanel title="First report" aside="After you create it">
+        <FieldPanel compact title="First report" aside="After you create it">
           <RaisedCard>
             <div className="grid grid-cols-[12px_auto_1fr] items-center gap-3 px-3.5 py-2.5 text-[13px]">
               <Dot color={definition?.state === "reporting" ? "#2a9f69" : "#a1a1aa"} />

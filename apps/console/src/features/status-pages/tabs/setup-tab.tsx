@@ -65,6 +65,7 @@ export const SetupTab = ({
     <div className="flex flex-col gap-4">
       {readiness && (
         <FieldPanel
+          compact
           title="Ready to publish"
           aside={`${readiness.passed ?? 0} of ${readiness.total ?? 0}`}
         >
@@ -107,7 +108,7 @@ export const SetupTab = ({
           </label>
         </RaisedCard>
       </FieldPanel>
-      <FieldPanel title="Branding">
+      <FieldPanel compact title="Branding">
         <RaisedCard className="grid gap-3.5 p-4">
           <div className="grid gap-1.5">
             <span className={label}>Accent color</span>
@@ -152,7 +153,7 @@ export const SetupTab = ({
         </Button>
       </div>
       {badges.data?.page && (
-        <FieldPanel title="Badge" aside={badges.data.note}>
+        <FieldPanel compact title="Badge" aside={badges.data.note}>
           <RaisedCard className="flex items-center justify-between gap-3 p-4">
             <code className="min-w-0 truncate font-mono text-xs text-mid">
               {badges.data.page.svg_url}

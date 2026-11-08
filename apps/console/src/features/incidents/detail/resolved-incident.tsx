@@ -90,7 +90,7 @@ export const ResolvedIncident = ({
         <StatBox label="Time to resolve" value={span(summary?.time_to_resolve_seconds)} />
         <StatBox label="Failed checks" value={summary?.failed_checks ?? "-"} />
       </div>
-      <FieldPanel title="Lifecycle" className="mt-3">
+      <FieldPanel compact title="Lifecycle" className="mt-3">
         <RaisedCard>
           <div className="px-4 py-5">
             <LifecycleTrack steps={lifecycleSteps(incident, moments, now)} />
@@ -98,6 +98,7 @@ export const ResolvedIncident = ({
         </RaisedCard>
       </FieldPanel>
       <FieldPanel
+        compact
         title="Timeline"
         aside={`${events.length} ${events.length === 1 ? "event" : "events"}`}
         className="mt-3"

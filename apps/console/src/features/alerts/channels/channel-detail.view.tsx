@@ -181,7 +181,7 @@ export const ChannelDetailPage = () => {
             {detail.alert}
           </Callout>
         )}
-        <FieldPanel title="Configuration" aside="Secrets are never shown in full">
+        <FieldPanel compact title="Configuration" aside="Secrets are never shown in full">
           <RaisedCard>
             <FactRow label="Type">{channelTypeLabel(channel.type)}</FactRow>
             {email ? (
@@ -230,7 +230,7 @@ export const ChannelDetailPage = () => {
             )}
           </RaisedCard>
         </FieldPanel>
-        <FieldPanel title="Recent deliveries" aside="This channel only">
+        <FieldPanel compact title="Recent deliveries" aside="This channel only">
           <RaisedCard>
             {deliveries.length === 0 ? (
               <p className="px-3.5 py-4 text-[13px] text-quiet">Nothing has been delivered yet.</p>
@@ -295,7 +295,7 @@ export const ChannelDetailPage = () => {
             )}
           </RaisedCard>
         </FieldPanel>
-        <FieldPanel title="Rules using this channel" aside={String(rules.length)}>
+        <FieldPanel compact title="Rules using this channel" aside={String(rules.length)}>
           <RaisedCard>
             {rules.length === 0 ? (
               <p className="px-3.5 py-4 text-[13px] text-quiet">

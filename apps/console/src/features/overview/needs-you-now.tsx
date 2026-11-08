@@ -57,6 +57,7 @@ export const NeedsYouNow = ({
 
   return (
     <FieldPanel
+      compact
       title="Needs you now"
       aside={`Open for ${formatSpan(openedMs, now, true)}`}
       aria-label="Needs you now"

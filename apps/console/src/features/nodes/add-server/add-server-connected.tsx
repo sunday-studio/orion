@@ -29,7 +29,7 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
         description="The Node registered and sent its first report."
       />
       <div className="mt-3 flex flex-col gap-3">
-        <FieldPanel title="Server" aside="Just registered">
+        <FieldPanel compact title="Server" aside="Just registered">
           <RaisedCard className="flex items-center gap-3 px-4 py-3 text-[13px]">
             <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#2a9f69]" />
             <b className="font-medium">{name}</b>
@@ -46,7 +46,7 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
             <StatusBadge status="up">Reporting</StatusBadge>
           </RaisedCard>
         </FieldPanel>
-        <FieldPanel title="Next" aside="Optional">
+        <FieldPanel compact title="Next" aside="Optional">
           <RaisedCard>
             <Row
               title="Add default monitors"

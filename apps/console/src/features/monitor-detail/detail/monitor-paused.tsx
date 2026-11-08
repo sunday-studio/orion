@@ -44,7 +44,7 @@ export const MonitorPaused = ({
         <StatBox label="Paused at" value={at} />
         <StatBox label="Resumes" value="Manually" />
       </div>
-      <FieldPanel title="History while paused" aside="No checks were run">
+      <FieldPanel compact title="History while paused" aside="No checks were run">
         <RaisedCard>
           <div className="grid grid-cols-[12px_auto_1fr] items-center gap-3 px-3.5 py-2.5 text-[13px]">
             <Dot color="#a1a1aa" />

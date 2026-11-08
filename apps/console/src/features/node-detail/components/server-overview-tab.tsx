@@ -85,7 +85,7 @@ export const ServerOverviewTab = ({ node, latest, onOpenMonitors }: Props) => {
             Put in maintenance
           </Button>
         </Callout>
-        <FieldPanel title="What to check" aside="Most likely first">
+        <FieldPanel compact title="What to check" aside="Most likely first">
           <RaisedCard>
             {CHECKS.map(([title, hint]) => (
               <div
@@ -100,6 +100,7 @@ export const ServerOverviewTab = ({ node, latest, onOpenMonitors }: Props) => {
           </RaisedCard>
         </FieldPanel>
         <FieldPanel
+          compact
           title="Last reports"
           aside={
             node.reporting_interval_seconds
@@ -144,6 +145,7 @@ export const ServerOverviewTab = ({ node, latest, onOpenMonitors }: Props) => {
       </div>
       {attention.length > 0 && (
         <FieldPanel
+          compact
           title="Needs attention"
           aside={`${attention.length} of ${total} monitors on this server`}
         >

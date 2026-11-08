@@ -76,6 +76,7 @@ export const OverviewPage = () => {
             ) : (
               allClear && (
                 <FieldPanel
+                  compact
                   title="All systems normal"
                   aside={checkedAgo(now, overview.dataUpdatedAt)}
                 >

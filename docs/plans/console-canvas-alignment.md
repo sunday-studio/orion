@@ -18,9 +18,10 @@ line with it, and says what each group needs from Core and the Node. Done work i
 | Logs fields list: no type tags, values as indented rows | done |
 | Send a log examples: curl and OpenTelemetry only, since Orion has no SDKs | done |
 | Empty states: centred, narrower description | done |
-| Detected: log key dialog as option cards, applying rows at 40px, states card without the label column | todo |
-| Incident page: the log filter row flat and aligned with the table | todo |
-| Apps: the send-a-test card as one card with curl and OpenTelemetry tabs | todo |
+| Cards that hold only a table or list use the compact padding (12px top, 4px elsewhere) | done |
+| Apps: send a test log as one card with curl and OpenTelemetry tabs | done |
+| Detected: log key dialog as option cards, states card without the label column | check against the Console |
+| Incident page: the log filter row flat and aligned with the table | check against the Console |
 
 ## B. Updates (Core, Console, Node)
 

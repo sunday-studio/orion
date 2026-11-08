@@ -84,7 +84,7 @@ export const ServerTokenTab = ({ nodeId, name }: { nodeId: string; name: string 
 
   return (
     <div className="flex flex-col gap-3">
-      <FieldPanel title="Server token" aside="Orion stores a hash, never the secret">
+      <FieldPanel compact title="Server token" aside="Orion stores a hash, never the secret">
         <RaisedCard>
           <Row label="Status">
             <StatusBadge status={revoked ? "down" : hasToken ? "up" : "unknown"}>

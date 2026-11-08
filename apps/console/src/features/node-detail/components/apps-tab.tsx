@@ -88,7 +88,7 @@ export const AppsTab = ({
   if (!data) {
     const expected = Boolean(discovery?.capabilities?.includes("app_resources"));
     return (
-      <FieldPanel title="App usage">
+      <FieldPanel compact title="App usage">
         <RaisedCard>
           {expected ? (
             <StateRow

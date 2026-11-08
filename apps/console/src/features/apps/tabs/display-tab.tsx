@@ -74,7 +74,7 @@ export const DisplayTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => void 
       <FieldPanel title="Hidden fields" aside="Never shown in lists or the drawer">
         <ChipInput label="Hidden fields" chips={hidden} suggestions={fields} onChange={setHidden} />
       </FieldPanel>
-      <FieldPanel title="Preview" aside="How two recent lines will look">
+      <FieldPanel compact title="Preview" aside="How two recent lines will look">
         <RaisedCard>
           <GridTable>
             <GridRow columns={COLUMNS} header>

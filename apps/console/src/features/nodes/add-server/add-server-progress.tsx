@@ -8,7 +8,7 @@ import type { ApiEnrollmentResponse } from "@/orion-sdk";
 export const AddServerProgress = ({ enrollment }: { enrollment: ApiEnrollmentResponse }) => {
   const name = enrollment.node_name;
   return (
-    <FieldPanel title="The command will:" aside="Static list">
+    <FieldPanel compact title="The command will:" aside="Static list">
       <RaisedCard>
         <StepRows
           rows={[

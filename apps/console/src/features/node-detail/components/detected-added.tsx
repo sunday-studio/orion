@@ -63,6 +63,7 @@ export const DetectedAdded = ({ nodeId }: { nodeId: string }) => {
   const count = (state: string) => definitions.filter((d) => d.state === state).length;
   return (
     <FieldPanel
+      compact
       title="Added from Detected"
       aside={`${definitions.length} requested · ${count("reporting")} reporting · ${count("failed")} failed`}
     >

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Button,
   Callout,
-  CodeBlock,
+  CodeTabs,
   ConfirmDialog,
   FieldPanel,
   GridRow,
@@ -14,6 +14,7 @@ import {
   StatusBadge,
   useToast,
 } from "@/design-system";
+import type { CodeTab } from "@/design-system";
 import { getApiBase } from "@/api/client";
 import {
   getListIngestKeysQueryKey,
@@ -29,40 +30,20 @@ import { KeyRevealDialog, NewKeyDialog } from "../dialogs/key-dialogs";
 
 const COLUMNS = "minmax(0,1.2fr) 110px 90px 90px 150px";
 
-const snippets = (origin: string, app: string) => [
+const snippets = (origin: string, app: string): CodeTab[] => [
   {
+    id: "curl",
     label: "curl",
     code: `curl -X POST ${origin}/v1/ingest/logs \\
   -H "Authorization: Bearer $ORION_KEY" \\
   -d '{"event":"payment.failed","severity":"error","body":"upstream 502"}'`,
   },
   {
-    label: "OpenTelemetry environment variables",
+    id: "otel",
+    label: "OpenTelemetry",
     code: `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${origin}/v1/ingest/otlp/v1/logs
 OTEL_EXPORTER_OTLP_LOGS_HEADERS=Authorization=Bearer $ORION_KEY
 OTEL_SERVICE_NAME=${app}`,
-  },
-  {
-    label: "TypeScript",
-    code: `await fetch("${origin}/v1/ingest/logs", {
-  method: "POST",
-  headers: { Authorization: \`Bearer \${process.env.ORION_KEY}\` },
-  body: JSON.stringify({ event: "payment.failed", severity: "error", body: "upstream 502" }),
-});`,
-  },
-  {
-    label: "Go",
-    code: `req, _ := http.NewRequest("POST", "${origin}/v1/ingest/logs",
-    strings.NewReader(\`{"event":"payment.failed","severity":"error"}\`))
-req.Header.Set("Authorization", "Bearer "+os.Getenv("ORION_KEY"))
-http.DefaultClient.Do(req)`,
-  },
-  {
-    label: "Python",
-    code: `import os, requests
-requests.post("${origin}/v1/ingest/logs",
-    headers={"Authorization": f"Bearer {os.environ['ORION_KEY']}"},
-    json={"event": "payment.failed", "severity": "error"})`,
   },
 ];
 
@@ -75,7 +56,6 @@ export const IngestTab = ({ appId, appName }: { appId: string; appName: string }
   const [revoking, setRevoking] = useState<{ id: string; name: string }>();
   const [rotating, setRotating] = useState<{ id: string; name: string }>();
   const [rotated, setRotated] = useState<{ secret: string; until?: string }>();
-  const [showSnippets, setShowSnippets] = useState(false);
   const [sentAt, setSentAt] = useState<number>();
   const origin = general.data?.public_url || getApiBase() || window.location.origin;
   const refresh = () =>
@@ -191,7 +171,7 @@ export const IngestTab = ({ appId, appName }: { appId: string; appName: string }
           New key
         </Button>
       </FieldPanel>
-      <FieldPanel title="Endpoints" aside="Use the one your app already speaks">
+      <FieldPanel compact title="Endpoints" aside="Use the one your app already speaks">
         <RaisedCard>
           {endpoints.map((endpoint) => (
             <div
@@ -211,33 +191,9 @@ export const IngestTab = ({ appId, appName }: { appId: string; appName: string }
           ))}
         </RaisedCard>
       </FieldPanel>
-      <FieldPanel
-        title="Send a test log"
-        aside={showSnippets ? "Pick what your app already uses" : "Check the app is wired up"}
-      >
-        {showSnippets && (
-          <div className="mb-3 grid gap-2.5">
-            {snippets(origin, appName).map((snippet) => (
-              <div key={snippet.label} className="grid gap-1.5">
-                <div className="flex items-center justify-between text-[13px]">
-                  <span>{snippet.label}</span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => copy(snippet.code, snippet.label)}
-                  >
-                    Copy
-                  </Button>
-                </div>
-                <CodeBlock>{snippet.code}</CodeBlock>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setShowSnippets((v) => !v)}>
-            {showSnippets ? "Hide snippets" : "Open snippets"}
-          </Button>
+      <FieldPanel title="Send a test log" aside="Run it on your app's host, or send one from here">
+        <CodeTabs aria-label="Test log" tabs={snippets(origin, appName)} />
+        <div className="mt-3 flex gap-2">
           <Button size="sm" disabled={test.isPending} onClick={() => test.mutate({ id: appId })}>
             Send a test log now
           </Button>
