@@ -39,9 +39,9 @@ export const isBehind = (current: string | undefined, latest: string | undefined
 export const nodeCanUpdate = (nodeVersion: string | undefined, settings?: ApiUpdateSettings) =>
   isBehind(nodeVersion, settings?.current_version);
 
-/** The GitHub page of a release, for its notes. */
+/** The GitHub page of a release, for its notes. Orion's release tags are the bare version. */
 export const releaseNotesUrl = (version: string) =>
-  `https://github.com/sunday-studio/orion/releases/tag/v${version.replace(/^v/, "")}`;
+  `https://github.com/sunday-studio/orion/releases/tag/${version.replace(/^v/, "")}`;
 
 /** The update worth telling the person about: not skipped, not already installed. */
 export const pendingUpdate = (settings?: ApiUpdateSettings) =>

@@ -39,8 +39,8 @@ becomes a symlink so the CLI still works. The daemon downloads, verifies and swa
 exits so the service manager restarts it (`Restart=on-failure` already does, `launchd` `KeepAlive`
 too).
 
-- No new privilege. A compromised daemon can already run code as `orion`; being able to rewrite its
-  own binary adds persistence under that user, not root.
+- No privilege for the daemon itself. It already runs as `orion`; rewriting its own binary adds
+  persistence under that user. But see "Accepted risk" below: the root CLI also runs this file.
 - `ReadWritePaths` already includes `/var/lib/orion`, so the unit needs no loosening.
 - Cost: existing installs have to move once (see Phase 0), and the unit and launchd plist change.
 
@@ -112,10 +112,26 @@ feature is announced.
 | A Console login updates every Node | On by default (owner decision); `remote_update: false` per Node; audited; one open update per Node |
 | Downgrade to a vulnerable version | Only newer versions; rollback stays a root CLI action |
 | A bad release takes Nodes offline | Unhealthy start restores the previous binary; Core sees the failure |
-| The daemon rewrites its own binary | Runs as `orion` already; no root, no new capability |
+| The daemon rewrites its own binary | **Accepted risk, see below.** It can no longer be said that this adds no privilege |
 
 ## Open questions
 
 - Is moving the binary acceptable for packaged installs (a future `.deb` would put it elsewhere)?
 - Should Core update every Node behind in one action? Proposed: not in the first version.
 - Do we want a maintenance window or "update when idle"? Proposed: no, the restart takes seconds.
+
+## Accepted risk: root commands run a binary the service user can replace
+
+With this layout `/usr/local/bin/orion-node` is a link to `/opt/orion/orion-node` (macOS:
+`/usr/local/lib/orion/orion-node`), and that file is owned by the service user. An administrator who
+runs `sudo orion-node ...` (`update`, `start`, `stop`, `restart`, the migration step) executes it as
+root. A compromised daemon could plant a binary there and get root the next time someone does.
+Before this change the file was root-owned, so that path did not exist.
+
+This was missed in the first version of this plan and found in review. It is accepted for now because
+the daemon is already the thing being defended, and because the alternative is a root helper, which
+has its own cost (see approach A). Mitigations in place: root code never opens an existing file for
+writing (it writes a fresh file and renames it, so it cannot be tricked into writing through a link),
+the migration refuses a link where the folder should be, and a Node updates only to a release whose
+signature verifies. A cheap further mitigation, not built, is a root-owned copy of the binary used by
+`sudo` commands.

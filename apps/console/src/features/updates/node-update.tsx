@@ -205,7 +205,11 @@ export const NodeUpdateNotice = ({
       </Callout>
     );
   }
-  const failed = last?.status === "failed" || last?.status === "unsupported" ? last : undefined;
+  // A failure from days ago is old news; show it only while it is recent.
+  const recent =
+    last?.finished_at && Date.now() - new Date(last.finished_at).getTime() < 24 * 3600_000;
+  const failed =
+    recent && (last?.status === "failed" || last?.status === "unsupported") ? last : undefined;
   return (
     <>
       <Callout

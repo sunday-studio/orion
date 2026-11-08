@@ -38,11 +38,11 @@ describe("versions", () => {
   it("links to the notes of a release", () => {
     assert.equal(
       releaseNotesUrl("0.9.3"),
-      "https://github.com/sunday-studio/orion/releases/tag/v0.9.3",
+      "https://github.com/sunday-studio/orion/releases/tag/0.9.3",
     );
     assert.equal(
       releaseNotesUrl("v0.9.3"),
-      "https://github.com/sunday-studio/orion/releases/tag/v0.9.3",
+      "https://github.com/sunday-studio/orion/releases/tag/0.9.3",
     );
   });
 });
