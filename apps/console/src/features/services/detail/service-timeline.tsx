@@ -43,18 +43,38 @@ type LaneProps = {
   max?: number;
   /** Times to mark in red, for example checks that failed. */
   marks?: number[];
+  /** Drawn dashed against its own scale on the right, for a second unit in the same lane. */
+  secondary?: Line[];
+  secondaryFormat?: (value: number) => string;
 };
 
-const Lane = ({ title, top, lines, bars, format, from, to, empty, max, marks = [] }: LaneProps) => {
+const Lane = ({
+  title,
+  top,
+  lines,
+  bars,
+  format,
+  from,
+  to,
+  empty,
+  max,
+  marks = [],
+  secondary = [],
+  secondaryFormat = String,
+}: LaneProps) => {
   const x = (t: number) => LEFT + ((t - from) / Math.max(to - from, 1)) * (W - LEFT);
   const peak = niceMax(max ?? Math.max(0, ...lines.flatMap((l) => l.points.map((p) => p.v))));
   const y = (v: number) => top + LANE_H - (Math.min(v, peak) / peak) * LANE_H;
+  const peak2 = niceMax(Math.max(0, ...secondary.flatMap((l) => l.points.map((p) => p.v))));
+  const y2 = (v: number) => top + LANE_H - (Math.min(v, peak2) / peak2) * LANE_H;
+  const drawn = [...lines, ...secondary];
   return (
     <g>
       <text x={LEFT} y={top - 8} className="fill-quiet" fontSize="11">
         {title}
-        {lines.length > 1 && !bars ? ` · ${lines.map((l) => l.label).join(", ")}` : ""}
-        {lines.length === 1 && !bars ? ` · ${lines[0]?.label}` : ""}
+        {!bars && drawn.length > 0
+          ? ` · ${[...new Set(drawn.map((l) => l.label))].join(", ")}`
+          : ""}
       </text>
       <line x1={LEFT} x2={W} y1={top + LANE_H} y2={top + LANE_H} className="stroke-hairline" />
       {marks.map((t) => (
@@ -62,7 +82,7 @@ const Lane = ({ title, top, lines, bars, format, from, to, empty, max, marks = [
           <title>{`${formatDate(new Date(t).toISOString(), TIME_FORMAT)}: checks failed`}</title>
         </rect>
       ))}
-      {hasData(lines) ? (
+      {hasData(drawn) ? (
         <>
           <line
             x1={LEFT}
@@ -84,6 +104,22 @@ const Lane = ({ title, top, lines, bars, format, from, to, empty, max, marks = [
           >
             0
           </text>
+          {secondary.length > 0 && (
+            <text x={W - 4} y={top + 4} textAnchor="end" className="fill-faint" fontSize="10">
+              {secondaryFormat(peak2)}
+            </text>
+          )}
+          {secondary.map((line, index) => (
+            <path
+              key={line.id}
+              d={linePath(line.points, x, y2)}
+              fill="none"
+              stroke={COLORS[(index + lines.length) % COLORS.length]}
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeDasharray="5 3"
+            />
+          ))}
           {lines.map((line, index) =>
             bars ? (
               <g key={line.id} fill="#e5484d" opacity=".85">
@@ -115,7 +151,6 @@ const Lane = ({ title, top, lines, bars, format, from, to, empty, max, marks = [
                   stroke={COLORS[index % COLORS.length]}
                   strokeWidth="2"
                   strokeLinejoin="round"
-                  strokeDasharray={title.startsWith("Memory") ? "5 3" : undefined}
                 />
               </g>
             ),
@@ -174,7 +209,7 @@ export const ServiceTimeline = ({
   const memory = metricLines(metrics.data?.series ?? [], "memory_bytes");
 
   const lane = (n: number) => 18 + n * (LANE_H + GAP);
-  const height = lane(4) - GAP + 24;
+  const height = lane(3) - GAP + 24;
   const opened = incidentOpenedAt ? new Date(incidentOpenedAt).getTime() : undefined;
   const openedX =
     opened !== undefined && opened >= from && opened <= now
@@ -265,29 +300,19 @@ export const ServiceTimeline = ({
                 empty="No error logs in this range, or no app is linked."
               />
               <Lane
-                title="CPU"
+                title="CPU and memory"
                 top={lane(2)}
                 lines={cpu}
+                secondary={memory}
                 format={(v) => `${v}%`}
+                secondaryFormat={formatBytes}
                 from={from}
                 to={now}
+                max={100}
                 empty={
                   noMetrics
                     ? "History is not collected yet. It appears once a linked resource has reported."
-                    : "No CPU history for the linked resources."
-                }
-              />
-              <Lane
-                title="Memory"
-                top={lane(3)}
-                lines={memory}
-                format={formatBytes}
-                from={from}
-                to={now}
-                empty={
-                  noMetrics
-                    ? "History is not collected yet. It appears once a linked resource has reported."
-                    : "No memory history for the linked resources."
+                    : "No CPU or memory history for the linked resources."
                 }
               />
               <text x={LEFT} y={height - 6} className="fill-faint" fontSize="10">

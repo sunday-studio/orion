@@ -1,6 +1,7 @@
 import { StatBox } from "@/design-system";
 import type { ApiMonitorDetailSummary } from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
+import { MonitorErrorsLane } from "@/features/services/components/monitor-errors-lane";
 import {
   MonitorAppErrorsStat,
   MonitorRecentAppLogs,
@@ -51,6 +52,7 @@ export const MonitorOverview = ({
         {serviceId && <MonitorAppErrorsStat serviceId={serviceId} />}
       </div>
       <ResponseTimeChart monitorId={monitorId} />
+      {serviceId && <MonitorErrorsLane serviceId={serviceId} />}
       {serviceId && <MonitorRecentAppLogs serviceId={serviceId} />}
       <AvailabilityTable monitorId={monitorId} />
     </div>

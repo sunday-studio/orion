@@ -4,10 +4,13 @@ import {
   errorRate,
   errorsPerMinute,
   failedChecks,
+  formatAvailability,
   formatBytes,
   formatMs,
   hasData,
+  histogramRates,
   linePath,
+  lowestAvailability,
   metricLines,
   niceMax,
   rangeFromParam,
@@ -119,6 +122,22 @@ describe("timeline model", () => {
     assert.equal(timesNormal(day(46, 24), now), 12);
     assert.equal(timesNormal(day(0, 24), now), undefined);
     assert.equal(timesNormal(day(46, 3), now), undefined);
+  });
+
+  it("takes the weakest monitor as the service's availability", () => {
+    assert.equal(lowestAvailability([99.9, 99.2, undefined, 100]), 99.2);
+    assert.equal(lowestAvailability([undefined]), undefined);
+    assert.equal(formatAvailability(99.2), "99.20%");
+    assert.equal(formatAvailability(100), "100%");
+  });
+
+  it("turns a histogram into lines per second and errors per minute", () => {
+    const buckets = [
+      { total: 300, severity: { error: 10, info: 290 } },
+      { total: 300, severity: { fatal: 5, warn: 295 } },
+    ];
+    assert.deepEqual(histogramRates(buckets, 300), { linesPerSecond: 2, errorsPerMinute: 3 });
+    assert.deepEqual(histogramRates([], 300), { linesPerSecond: 0, errorsPerMinute: 0 });
   });
 
   it("rounds axes and formats units", () => {

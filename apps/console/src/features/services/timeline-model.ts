@@ -60,6 +60,31 @@ export const timesNormal = (
   return ratio >= 2 ? Math.round(ratio) : undefined;
 };
 
+/** A service is only as available as its weakest monitor. Undefined when no monitor reported. */
+export const lowestAvailability = (percents: readonly (number | undefined)[]) => {
+  const known = percents.filter((value): value is number => typeof value === "number");
+  return known.length > 0 ? Math.min(...known) : undefined;
+};
+
+export const formatAvailability = (percent: number) =>
+  `${percent >= 100 ? "100" : percent.toFixed(2)}%`;
+
+/** Lines per second and errors per minute from a log histogram that covers `seconds`. */
+export const histogramRates = (
+  buckets: readonly { total?: number; severity?: Record<string, number> }[],
+  seconds: number,
+) => {
+  const total = buckets.reduce((sum, bucket) => sum + (bucket.total ?? 0), 0);
+  const errors = buckets.reduce(
+    (sum, bucket) => sum + (bucket.severity?.error ?? 0) + (bucket.severity?.fatal ?? 0),
+    0,
+  );
+  const perSecond = total / Math.max(seconds, 1);
+  const perMinute = (errors * 60) / Math.max(seconds, 1);
+  const round = (value: number) => (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10);
+  return { linesPerSecond: round(perSecond), errorsPerMinute: round(perMinute) };
+};
+
 export type Line = { id: string; label: string; points: TimePoint[] };
 
 const operatingSystem = (series: ApiServiceMetricSeries) => series.source !== "otlp";

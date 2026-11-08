@@ -11,9 +11,14 @@ import {
   useListServiceSuggestions,
 } from "@/orion-sdk";
 import { firstActiveIncident, memberKey, memberReason, memberRef } from "../services.domain";
-import { timesNormal, totalErrors } from "../timeline-model";
+import {
+  formatAvailability,
+  lowestAvailability,
+  timesNormal,
+  totalErrors,
+} from "../timeline-model";
 import { useRefreshServices } from "../use-service-mutations";
-import { AppsTable, MonitorsTable, SectionHead } from "./linked-tables";
+import { AppsTable, MonitorsTable, SectionHead, useAvailability30d } from "./linked-tables";
 import { ServiceResourcesTab } from "./service-resources-tab";
 import { ServiceTimeline } from "./service-timeline";
 
@@ -72,6 +77,9 @@ export const ServiceOverviewTab = ({
     .flatMap((suggestion) => suggestion.members ?? [])
     .filter((member) => !dismissed.has(memberKey(member)));
   const down = monitors.filter((monitor) => monitor.health === "down").length;
+  const availability = lowestAvailability([
+    ...useAvailability30d(monitors.map((monitor) => monitor.id ?? "")).values(),
+  ]);
   const hasApps = (service.apps ?? []).length > 0;
   const normal = hasApps ? timesNormal(day.data?.buckets ?? [], now) : undefined;
   const openedAt = incident.data?.incident?.opened_at;
@@ -79,7 +87,11 @@ export const ServiceOverviewTab = ({
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <StatBox
+          label="Availability, 30 days"
+          value={availability === undefined ? "-" : formatAvailability(availability)}
+        />
         <StatBox
           label="Errors, last hour"
           value={

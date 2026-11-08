@@ -49,6 +49,7 @@ import { ExpectedActual } from "./detail/expected-actual";
 import { IncidentDetailHeader } from "./detail/incident-detail-header";
 import { incidentMoments, lifecycleSteps } from "./detail/incident-lifecycle";
 import { IncidentLogs } from "./detail/incident-logs";
+import { ServiceTimeline } from "@/features/services/detail/service-timeline";
 import { IncidentSidePanel } from "./detail/incident-side-panel";
 import { IncidentTimeline, NoteComposer } from "./detail/incident-timeline";
 
@@ -215,6 +216,13 @@ export const IncidentDetailPage = () => {
               report={latestReport}
               now={now}
             />
+            {linkedService.data?.service && (
+              <ServiceTimeline
+                serviceId={linkedService.data.service.id ?? ""}
+                monitors={linkedService.data.service.monitors ?? []}
+                incidentOpenedAt={incident.opened_at}
+              />
+            )}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
               <TabsList>
                 <TabsTab value="timeline">Timeline</TabsTab>
