@@ -108,7 +108,7 @@ export const EmailForm = ({
       </label>
       <div className={label}>
         <label htmlFor="email-recipients">Recipients</label>
-        <div className="flex min-h-[64px] flex-wrap content-start items-center gap-1.5 rounded-md border border-input-border bg-card px-2 py-2">
+        <div className="flex min-h-[64px] flex-wrap content-start items-center gap-1.5 rounded-md border border-input-border bg-card px-2 py-2 focus-within:ring-2 focus-within:ring-focus">
           {rows.map((row) => (
             <span
               key={row.id ?? row.email}

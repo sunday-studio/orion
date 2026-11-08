@@ -101,7 +101,7 @@ export const ServerEditDialog = ({ open, node, onOpenChange, onRemove }: Props) 
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             <label htmlFor="server-labels">Labels</label>
-            <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input-border bg-card px-2 py-1">
+            <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input-border bg-card px-2 py-1 focus-within:ring-2 focus-within:ring-focus">
               {labels.map((label) => (
                 <span
                   key={label}
