@@ -401,11 +401,13 @@ func copyFile(source string, destination string, mode os.FileMode) error {
 		_ = os.Remove(tmp)
 		return err
 	}
-	if err := out.Close(); err != nil {
+	// Set the mode on the open file, never by path: a path can be swapped for a link before the call.
+	if err := out.Chmod(mode); err != nil {
+		_ = out.Close()
 		_ = os.Remove(tmp)
 		return err
 	}
-	if err := os.Chmod(tmp, mode); err != nil {
+	if err := out.Close(); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}
@@ -425,7 +427,7 @@ func installBinary(source string, destination string) error {
 		_ = os.Remove(stagePath)
 		return err
 	}
-	return os.Chmod(destination, 0o755)
+	return nil // copyFile already set the mode on the open file
 }
 
 // failHeadline says why an update was abandoned, in the board's words.

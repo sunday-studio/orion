@@ -193,9 +193,10 @@ Node downloads its own file from the GitHub release, checks it against the check
 and the ones Core read, swaps it in and restarts. It reports back once the new version has stayed up,
 and puts the old binary back if the new one cannot start. This is on by default. Turn it off for one
 Node with `remote_update: false` in its config. It needs the binary to sit in a folder the Node can
-write, which new installs do (`/opt/orion` on Linux, `/usr/local/lib/orion` on macOS, linked from
-`/usr/local/bin/orion-node`). On a Node installed earlier, run `sudo orion-node update` once; it moves
-the binary there, and the server page then offers the update. Update Core first: a Node is only
+write, which new installs do (`/opt/orion-node` on Linux, `/usr/local/lib/orion-node` on macOS, linked from
+`/usr/local/bin/orion-node`). On a Node installed earlier, run `sudo orion-node update` twice: the first run installs
+this release, and the second, now running the new code, moves the binary there (it says "already on"
+and migrates). Re-running the installer does the same. The server page then offers the update. Update Core first: a Node is only
 offered the release Core runs.
 
 **Undo it:**

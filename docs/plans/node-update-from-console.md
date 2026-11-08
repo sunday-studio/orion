@@ -122,8 +122,8 @@ feature is announced.
 
 ## Accepted risk: root commands run a binary the service user can replace
 
-With this layout `/usr/local/bin/orion-node` is a link to `/opt/orion/orion-node` (macOS:
-`/usr/local/lib/orion/orion-node`), and that file is owned by the service user. An administrator who
+With this layout `/usr/local/bin/orion-node` is a link to `/opt/orion-node/orion-node` (macOS:
+`/usr/local/lib/orion-node/orion-node`), and that file is owned by the service user. An administrator who
 runs `sudo orion-node ...` (`update`, `start`, `stop`, `restart`, the migration step) executes it as
 root. A compromised daemon could plant a binary there and get root the next time someone does.
 Before this change the file was root-owned, so that path did not exist.

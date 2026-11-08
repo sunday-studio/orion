@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 )
 
@@ -35,10 +36,10 @@ type layoutOps struct {
 func defaultLayoutPlan(statePath string) layoutPlan {
 	p := layoutPlan{Link: "/usr/local/bin/orion-node", StateDir: filepath.Dir(statePath)}
 	if runtime.GOOS == "darwin" {
-		p.Dir = "/usr/local/lib/orion"
+		p.Dir = "/usr/local/lib/orion-node"
 		return p
 	}
-	p.Dir = "/opt/orion"
+	p.Dir = "/opt/orion-node"
 	p.DropIn = "/etc/systemd/system/orion-node.service.d/self-update.conf"
 	return p
 }
@@ -83,6 +84,12 @@ func migrateLayout(p layoutPlan, ops layoutOps) (moved bool, err error) {
 	if info, err := os.Lstat(p.Dir); err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
 		// A link or a file where the folder should be could make root write somewhere else.
 		return false, fmt.Errorf("%s exists but is not a plain folder; remove it and run the update again", p.Dir)
+	}
+	if foreign, err := foreignEntries(p.Dir); err != nil {
+		return false, err
+	} else if len(foreign) > 0 {
+		// Never hand a folder that holds someone else's files to the service user.
+		return false, fmt.Errorf("%s already holds %s, which are not the Node's; move them elsewhere and run the update again", p.Dir, strings.Join(foreign, ", "))
 	}
 	if err := os.MkdirAll(p.Dir, 0o755); err != nil {
 		return false, fmt.Errorf("create %s: %w", p.Dir, err)
@@ -149,4 +156,26 @@ func migrateAfterUpdate(opts *Options) {
 	case moved:
 		fmt.Fprintln(outputWriter, "   "+theme.Pass()+" "+theme.Muted("the binary now lives where the Node can update itself from the Console"))
 	}
+}
+
+// foreignEntries lists what is in dir that the Node did not put there. A folder that does not exist
+// has none. The Node's own files are the binary, its kept copy and the temporary names used while
+// writing them.
+func foreignEntries(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", dir, err)
+	}
+	var foreign []string
+	for _, e := range entries {
+		name := e.Name()
+		if name == "orion-node" || strings.HasPrefix(name, "orion-node.") {
+			continue
+		}
+		foreign = append(foreign, name)
+	}
+	return foreign, nil
 }

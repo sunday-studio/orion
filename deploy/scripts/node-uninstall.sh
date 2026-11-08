@@ -302,10 +302,19 @@ else
   skip "binary not found"
 fi
 # Where a system install keeps the binary so the Node can update itself (see node-install.sh).
-for owned_dir in /opt/orion /usr/local/lib/orion; do
+# Remove only what the Node put there, then the folder if that leaves it empty.
+for owned_dir in /opt/orion-node /usr/local/lib/orion-node; do
   if [ -d "$owned_dir" ]; then
-    run_cmd rm -rf "$owned_dir"
-    ok "removed $owned_dir"
+    run_cmd rm -f "$owned_dir/orion-node"
+    for leftover in "$owned_dir"/orion-node.*; do
+      [ -e "$leftover" ] || [ -L "$leftover" ] || continue
+      run_cmd rm -f "$leftover"
+    done
+    if run_cmd rmdir "$owned_dir" 2>/dev/null; then
+      ok "removed $owned_dir"
+    else
+      skip "kept $owned_dir because it holds other files"
+    fi
   fi
 done
 if [ -f "/etc/systemd/system/$SERVICE_NAME.service.d/self-update.conf" ]; then

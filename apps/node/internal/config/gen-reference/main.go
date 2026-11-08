@@ -39,6 +39,7 @@ monitors: []
 | ` + "`interval`" + ` | 60s | System report interval; positive Go duration. ` + "`ORION_INTERVAL`" + ` overrides it. |
 | ` + "`enrollment_token`" + ` | empty | First-registration token. Prefer ` + "`ORION_ENROLLMENT_TOKEN`" + ` or installer input. |
 | ` + "`geo_location`" + ` | false | Include optional host location metadata. |
+| ` + "`remote_update`" + ` | true | Let Core update this Node from the Console. The Node also needs a binary in a folder it can write (new installs have one), a release build and a service manager; it advertises ` + "`self_update`" + ` only then. Set ` + "`false`" + ` to refuse. |
 
 ## Runtime logging
 

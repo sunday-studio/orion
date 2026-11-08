@@ -256,11 +256,13 @@ func copyFile(source, destination string, mode os.FileMode) error {
 		_ = os.Remove(tmp)
 		return err
 	}
-	if err := out.Close(); err != nil {
+	// Set the mode on the open file, never by path: a path can be swapped for a link before the call.
+	if err := out.Chmod(mode); err != nil {
+		_ = out.Close()
 		_ = os.Remove(tmp)
 		return err
 	}
-	if err := os.Chmod(tmp, mode); err != nil {
+	if err := out.Close(); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}

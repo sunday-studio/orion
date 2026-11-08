@@ -61,7 +61,12 @@ func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
 // supervised is true when a service manager runs this process, so exiting makes it start again. A
 // Node started by hand would just stop.
 func supervised() bool {
-	return os.Getenv("INVOCATION_ID") != "" || os.Getppid() == 1 || os.Getenv("XPC_SERVICE_NAME") == "com.orion.node"
+	if os.Getenv("INVOCATION_ID") != "" || os.Getenv("XPC_SERVICE_NAME") == "com.orion.node" {
+		return true
+	}
+	// A parent of 1 is launchd on macOS. On Linux it also describes a Node started with nohup or under
+	// a container init, which nothing restarts, so it does not count there.
+	return runtime.GOOS == "darwin" && os.Getppid() == 1
 }
 
 // selfUpdateReady is true when this Node can take an update from the Console: it is not in a
@@ -167,6 +172,11 @@ func (u *selfUpdater) handle(r transport.PulledRequest) (string, error) {
 	}
 	if os.Getenv("ORION_CONTAINER") != "" {
 		return "", errors.New("this Node runs in a container; replace the container with a newer image")
+	}
+	// A request queued while a service manager ran this Node can arrive after a manual restart. Swapping
+	// the binary then would leave the Node stopped with nothing to start it.
+	if !supervised() {
+		return "", errors.New("this Node was not started by a service manager, so it cannot restart itself; run orion-node update on the server")
 	}
 	plan := selfupdate.Plan{
 		RequestID: r.ID,

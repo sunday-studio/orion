@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ const updatedBinary = "#!/bin/sh\necho orion-node 0.9.3\n"
 
 func updaterFixture(t *testing.T, enabled bool) (*selfUpdater, *int, string) {
 	t.Helper()
+	t.Setenv("INVOCATION_ID", "test") // as if systemd started this Node
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "orion-node")
 	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
@@ -200,10 +202,22 @@ func TestUnreadableConfigDoesNotTurnUpdatesOn(t *testing.T) {
 func TestANodeNobodySupervisesDoesNotOfferToUpdate(t *testing.T) {
 	t.Setenv("INVOCATION_ID", "")
 	t.Setenv("XPC_SERVICE_NAME", "")
-	if os.Getppid() == 1 {
-		t.Skip("running as a child of init")
+	if runtime.GOOS == "darwin" && os.Getppid() == 1 {
+		t.Skip("running as a child of launchd")
 	}
 	if selfUpdateReady() {
 		t.Error("exiting would stop a Node that nothing restarts")
+	}
+}
+
+func TestAQueuedUpdateIsRefusedByANodeNobodySupervises(t *testing.T) {
+	u, _, _ := updaterFixture(t, true)
+	t.Setenv("INVOCATION_ID", "")
+	t.Setenv("XPC_SERVICE_NAME", "")
+	if runtime.GOOS == "darwin" && os.Getppid() == 1 {
+		t.Skip("running as a child of launchd")
+	}
+	if _, err := u.handle(updateRequest("abc")); err == nil || errors.Is(err, errUpdateRestart) {
+		t.Errorf("handle = %v, want a refusal: nothing would restart this Node", err)
 	}
 }

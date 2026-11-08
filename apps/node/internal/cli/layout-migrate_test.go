@@ -20,7 +20,7 @@ func layoutFixture(t *testing.T, uid int) (layoutPlan, layoutOps, *opLog) {
 	log := &opLog{}
 	p := layoutPlan{
 		Link:     filepath.Join(root, "usr-local-bin", "orion-node"),
-		Dir:      filepath.Join(root, "opt-orion"),
+		Dir:      filepath.Join(root, "opt-orion-node"),
 		StateDir: filepath.Join(root, "var-lib-orion"),
 		DropIn:   filepath.Join(root, "systemd", "orion-node.service.d", "self-update.conf"),
 	}
@@ -113,5 +113,25 @@ func TestMigrateLayoutSaysWhenOnlyTheStartFailed(t *testing.T) {
 	moved, err := migrateLayout(p, ops)
 	if !moved || err == nil || !strings.Contains(err.Error(), "did not start") {
 		t.Fatalf("migrate = %v %v: the move happened and the start failed, and the message must say so", moved, err)
+	}
+}
+
+func TestMigrateLayoutRefusesAFolderHoldingSomeoneElsesFiles(t *testing.T) {
+	p, ops, log := layoutFixture(t, 999)
+	if err := os.MkdirAll(p.Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Dir, "docker-compose.yml"), []byte("core"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := migrateLayout(p, ops)
+	if moved || err == nil || !strings.Contains(err.Error(), "docker-compose.yml") {
+		t.Fatalf("migrate = %v %v, want a refusal naming the foreign file", moved, err)
+	}
+	if len(log.chowns) != 0 || log.stopped != 0 {
+		t.Errorf("nothing should change hands or restart: chowns=%v stopped=%d", log.chowns, log.stopped)
+	}
+	if info, _ := os.Lstat(p.Link); info == nil || info.Mode()&os.ModeSymlink != 0 {
+		t.Error("the binary must stay where it was")
 	}
 }

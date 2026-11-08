@@ -46,6 +46,10 @@ Publish Node binaries from GitHub Actions:
 - required input: `version`, which becomes the release tag, for example `v0.1.0` (installers and `orion-node update --version` use the same string);
 - optional input: `prerelease`.
 
+Run it from `main`. Nodes accept a release for Console updates only when its Sigstore signature names
+`node-binaries.yml` on `refs/heads/main`; a release dispatched from another branch is refused by every
+Node (it fails closed, with no message beyond the failed request).
+
 This creates or updates the GitHub release and uploads:
 
 ```txt
