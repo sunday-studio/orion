@@ -1,8 +1,8 @@
 # Updating a Node from the Console
 
-Status: approach B chosen, on by default (owner decision). Phases 0 to 3 are built (Node, installer,
-Core, Console). Phase 4 (release signature check) remains, and the whole thing needs a security
-review before it is pushed or announced.
+Status: approach B chosen, on by default (owner decision). All phases are built (Node, installer, Core,
+Console, release signature check). It still needs a security review before it is pushed or
+announced.
 
 ## What exists
 
@@ -92,9 +92,13 @@ reports `applied` without doing anything, so a restart mid-update never loops.
 2. **Core.** Request type and validation, `POST /v1/nodes/{id}/update`, audit, the `self_update`
    capability, OpenAPI, `docs/node-core-contract.md`.
 3. **Console.** The dialog option, request state on the server page, tests.
-4. **Signatures.** `update` checks only the SHA-256 today; only the installer verifies the cosign
-   signature on `SHA256SUMS`. Before turning this on for real, verify the signature in the Node too,
-   so a compromised GitHub account alone cannot ship a binary.
+4. **Signatures (built).** The Node verifies the Sigstore keyless signature on `SHA256SUMS` itself,
+   offline: the Fulcio certificate chain against embedded roots, the OIDC issuer, the workflow
+   identity and the signature. It does not consult the transparency log; the certificate is checked as
+   of its issue time, and a replayed older release is refused by the newer-than-running rule. The
+   roots are in `apps/node/internal/selfupdate/fulcio-roots.pem`; refresh them with
+   `go run ./internal/selfupdate/gen-roots` when Sigstore rotates its CA, or checks fail closed.
+   `orion-node update` (the root CLI) still checks only the checksum.
 
 Phases 1 to 3 can be built in that order and merged in that order. Phase 4 should land before the
 feature is announced.
@@ -104,7 +108,7 @@ feature is announced.
 | Threat | Mitigation |
 |---|---|
 | A compromised Core names a malicious release | Version must be newer; the file comes from the GitHub release and must match its signed checksums (phase 4); the Node opts in |
-| A compromised GitHub release | Core's checksum has to agree with the file; signature check in phase 4 |
+| A compromised GitHub release | The signature on `SHA256SUMS` has to verify as the release workflow, and Core's checksum has to agree with the file |
 | A Console login updates every Node | On by default (owner decision); `remote_update: false` per Node; audited; one open update per Node |
 | Downgrade to a vulnerable version | Only newer versions; rollback stays a root CLI action |
 | A bad release takes Nodes offline | Unhealthy start restores the previous binary; Core sees the failure |

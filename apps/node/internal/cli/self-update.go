@@ -47,6 +47,9 @@ func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
 		Fetch:      downloadFile,
 		Version:    binaryVersion,
 		BaseURL:    func(tag string) string { return releaseBaseURL(releaseRepo, tag) },
+		Verify: func(sums, sig, cert []byte) error {
+			return selfupdate.VerifySignature(sums, sig, cert, selfupdate.GitHubWorkflowIdentity(releaseRepo, "node-binaries.yml"))
+		},
 	}, nil
 }
 

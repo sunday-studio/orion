@@ -29,6 +29,7 @@ func updaterFixture(t *testing.T, enabled bool) (*selfUpdater, *int, string) {
 	env := &selfupdate.Env{
 		Executable: exe, StateDir: dir, Current: "0.9.2", GOOS: "linux", GOARCH: "amd64",
 		BaseURL: func(tag string) string { return "https://releases.test/" + tag },
+		Verify:  func(sums, sig, cert []byte) error { return nil },
 		Fetch: func(url, dest string) error {
 			if strings.HasSuffix(url, "SHA256SUMS") {
 				return os.WriteFile(dest, []byte(sums), 0o644)

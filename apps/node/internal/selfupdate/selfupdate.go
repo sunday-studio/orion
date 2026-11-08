@@ -53,7 +53,10 @@ type Env struct {
 	Version func(path string) (string, error)
 	// BaseURL is where the files of a release live.
 	BaseURL func(tag string) string
-	Now     func() time.Time
+	// Verify checks the release's signature over SHA256SUMS. It is required: an update never installs
+	// a release whose signature has not been checked.
+	Verify func(sums, sig, cert []byte) error
+	Now    func() time.Time
 }
 
 func (e *Env) now() time.Time {
@@ -131,6 +134,9 @@ func (e *Env) Apply(p Plan) error {
 	if err := e.Fetch(base+"/"+asset, bin); err != nil {
 		return fmt.Errorf("download %s: %w", asset, err)
 	}
+	if err := e.verifySignature(base, work, sums); err != nil {
+		return err
+	}
 	listed, err := checksumFor(sums, asset)
 	if err != nil {
 		return err
@@ -172,6 +178,31 @@ func (e *Env) Apply(p Plan) error {
 		return fmt.Errorf("swap in the new binary: %w", err)
 	}
 	return nil
+}
+
+// verifySignature fetches the release's signature and certificate and checks them against the
+// checksums that were just downloaded.
+func (e *Env) verifySignature(base, work, sums string) error {
+	if e.Verify == nil {
+		return errors.New("no signature check is configured; nothing was installed")
+	}
+	sigFile, certFile := filepath.Join(work, "SHA256SUMS.sig"), filepath.Join(work, "SHA256SUMS.pem")
+	if err := e.Fetch(base+"/SHA256SUMS.sig", sigFile); err != nil {
+		return fmt.Errorf("the release has no signature (%v); nothing was installed", err)
+	}
+	if err := e.Fetch(base+"/SHA256SUMS.pem", certFile); err != nil {
+		return fmt.Errorf("the release has no signing certificate (%v); nothing was installed", err)
+	}
+	data, sig, cert := mustRead(sums), mustRead(sigFile), mustRead(certFile)
+	if err := e.Verify(data, sig, cert); err != nil {
+		return fmt.Errorf("the release signature does not verify: %w; nothing was installed", err)
+	}
+	return nil
+}
+
+func mustRead(path string) []byte {
+	data, _ := os.ReadFile(path)
+	return data
 }
 
 func checksumFor(sumsFile, asset string) (string, error) {

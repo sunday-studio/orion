@@ -39,8 +39,8 @@ The canvas moved Updates into Settings.
 
 **Update a Node from the Console.** The Node replaces its own binary from inside the daemon, so
 system installs keep the binary in a folder the service user owns. A Node is offered the release Core
-runs, so Core is updated first. The release signature is not checked yet (phase 4 of the plan), so
-this needs a security review before it is announced.
+runs, so Core is updated first. The Node verifies the release signature before installing. This
+needs a security review before it is announced.
 
 ## C. Visual pass against the canvas
 

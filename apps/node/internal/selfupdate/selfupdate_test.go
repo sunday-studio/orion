@@ -39,7 +39,10 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{exe: exe, asset: "orion-node-linux-amd64", files: map[string]string{}}
 	f.files["/SHA256SUMS"] = sum(newBinary) + "  " + f.asset + "\n"
 	f.files["/"+f.asset] = newBinary
+	f.files["/SHA256SUMS.sig"] = "sig"
+	f.files["/SHA256SUMS.pem"] = "cert"
 	f.env = &Env{
+		Verify:     func(sums, sig, cert []byte) error { return nil },
 		Executable: exe, StateDir: state, Current: "0.9.2", GOOS: "linux", GOARCH: "amd64",
 		BaseURL: func(tag string) string { return "https://releases.test/" + tag },
 		Fetch: func(url, dest string) error {
@@ -111,6 +114,12 @@ func TestApplyRefusesAndLeavesTheBinaryAlone(t *testing.T) {
 		"missing checksum": func(f *fixture, p *Plan) { p.SHA256 = "" },
 		"tag mismatch":     func(f *fixture, p *Plan) { p.Tag = "v0.9.4" },
 		"download fails":   func(f *fixture, p *Plan) { delete(f.files, "/"+f.asset) },
+		"signature does not verify": func(f *fixture, p *Plan) {
+			f.env.Verify = func(sums, sig, cert []byte) error { return errors.New("bad signature") }
+		},
+		"release has no signature":   func(f *fixture, p *Plan) { delete(f.files, "/SHA256SUMS.sig") },
+		"release has no certificate": func(f *fixture, p *Plan) { delete(f.files, "/SHA256SUMS.pem") },
+		"no verifier configured":     func(f *fixture, p *Plan) { f.env.Verify = nil },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -281,5 +290,20 @@ func TestVersionOrder(t *testing.T) {
 	}
 	if _, err := AssetName("windows", "amd64"); err == nil {
 		t.Error("windows is not supported")
+	}
+}
+
+func TestTheSignatureIsCheckedAgainstTheDownloadedChecksums(t *testing.T) {
+	f := newFixture(t)
+	var gotSums, gotSig, gotCert string
+	f.env.Verify = func(sums, sig, cert []byte) error {
+		gotSums, gotSig, gotCert = string(sums), string(sig), string(cert)
+		return nil
+	}
+	if err := f.env.Apply(plan()); err != nil {
+		t.Fatal(err)
+	}
+	if gotSums != f.files["/SHA256SUMS"] || gotSig != "sig" || gotCert != "cert" {
+		t.Errorf("verified %q %q %q", gotSums, gotSig, gotCert)
 	}
 }
