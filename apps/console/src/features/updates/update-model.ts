@@ -32,9 +32,16 @@ export const compareVersions = (a: string | undefined, b: string | undefined) =>
 export const isBehind = (current: string | undefined, latest: string | undefined) =>
   compareVersions(current, latest) === -1;
 
-/** A Node that runs an older release than the newest one Core found. */
+/**
+ * A Node that runs an older release than Core. A Node is only ever updated to the release Core runs,
+ * so update Core first; that release is `settings.current_version`.
+ */
 export const nodeCanUpdate = (nodeVersion: string | undefined, settings?: ApiUpdateSettings) =>
-  Boolean(settings?.latest_version) && isBehind(nodeVersion, settings?.latest_version);
+  isBehind(nodeVersion, settings?.current_version);
+
+/** The GitHub page of a release, for its notes. */
+export const releaseNotesUrl = (version: string) =>
+  `https://github.com/sunday-studio/orion/releases/tag/v${version.replace(/^v/, "")}`;
 
 /** The update worth telling the person about: not skipped, not already installed. */
 export const pendingUpdate = (settings?: ApiUpdateSettings) =>

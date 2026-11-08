@@ -1,9 +1,8 @@
 # Updating a Node from the Console
 
-Status: approach B chosen, on by default (owner decision). Phases 0 to 2 are built (Node, installer,
-Core). Phase 3 (Console) and phase 4 (release signature check) remain, and the whole thing needs a
-security review before it is pushed. The Console shows the command to run on the server until phase 3
-lands (see [console-canvas-alignment.md](console-canvas-alignment.md)).
+Status: approach B chosen, on by default (owner decision). Phases 0 to 3 are built (Node, installer,
+Core, Console). Phase 4 (release signature check) remains, and the whole thing needs a security
+review before it is pushed or announced.
 
 ## What exists
 

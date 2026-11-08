@@ -83,6 +83,7 @@ export const NodeDetailPage = () => {
         onToken={() => setTab("token")}
       />
       <NodeUpdateNotice
+        nodeId={nodeId}
         name={node.name ?? nodeId}
         nodeVersion={node.node_version ?? latest?.node_version}
         className="mt-2"

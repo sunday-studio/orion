@@ -35,18 +35,12 @@ The canvas moved Updates into Settings.
 | Console: "Update available" pill and popover in the sidebar | done |
 | Console: security notice on the Overview | done |
 | Console: Servers list "Update available" filter; Node update notice and dialog on the server page | done |
-| Update a Node from the Console | not built: needs a decision, see below |
+| Update a Node from the Console | done, on by default; see [node-update-from-console.md](node-update-from-console.md) |
 
-**Update a Node from the Console.** The Node already has `orion-node update`, with checksum
-verification and rollback, and the Console can already reach a Node through the request queue
-(`discovery/requests`). What is missing is permission. The daemon runs as an unprivileged user under a
-hardened systemd unit (`ProtectSystem=strict`, `NoNewPrivileges`), so it cannot replace
-`/usr/local/bin/orion-node` or restart itself. It needs a small root helper that the daemon can
-trigger, for example a systemd path unit that runs `orion-node update` when the daemon writes a flag
-file. That widens what a Console login can do to a host, so it needs an explicit decision and a
-security review first. The plan, with the two approaches and a recommendation, is in
-[node-update-from-console.md](node-update-from-console.md). Until then the Node dialog shows the
-command to run on the server.
+**Update a Node from the Console.** The Node replaces its own binary from inside the daemon, so
+system installs keep the binary in a folder the service user owns. A Node is offered the release Core
+runs, so Core is updated first. The release signature is not checked yet (phase 4 of the plan), so
+this needs a security review before it is announced.
 
 ## C. Visual pass against the canvas
 

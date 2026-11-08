@@ -6,6 +6,7 @@ import {
   isBehind,
   nodeCanUpdate,
   pendingUpdate,
+  releaseNotesUrl,
   stateBadge,
 } from "./update-model.ts";
 
@@ -24,12 +25,25 @@ describe("versions", () => {
     assert.equal(isBehind(undefined, "0.9.3"), false);
   });
 
-  it("finds the Nodes that can update", () => {
-    const settings = { latest_version: "0.9.3" };
+  it("offers a Node the release Core runs, never a newer one", () => {
+    const settings = { current_version: "0.9.3", latest_version: "0.9.4" };
     assert.equal(nodeCanUpdate("0.9.1", settings), true);
     assert.equal(nodeCanUpdate("0.9.3", settings), false);
+    assert.equal(nodeCanUpdate("0.9.4", settings), false);
     assert.equal(nodeCanUpdate("0.9.1", {}), false);
     assert.equal(nodeCanUpdate("dev", settings), false);
+    assert.equal(nodeCanUpdate("0.9.1", { current_version: "dev" }), false);
+  });
+
+  it("links to the notes of a release", () => {
+    assert.equal(
+      releaseNotesUrl("0.9.3"),
+      "https://github.com/sunday-studio/orion/releases/tag/v0.9.3",
+    );
+    assert.equal(
+      releaseNotesUrl("v0.9.3"),
+      "https://github.com/sunday-studio/orion/releases/tag/v0.9.3",
+    );
   });
 });
 
