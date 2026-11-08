@@ -119,11 +119,24 @@ func (s *Server) saveUpdateSettingsImpl(c *gin.Context) {
 		row.UpdateSkippedVersion = skipped
 	}
 	row.UpdatedBy, row.UpdatedAt = frontendActorID(c), time.Now().UTC()
-	if err := s.db.Save(&row).Error; err != nil {
+	if err := s.saveUpdateColumns(row, "UpdatedBy", "UpdatedAt"); err != nil {
 		utils.InternalError(c, "Failed to save settings", err)
 		return
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Update settings saved", updateSettingsResponse(row))
+}
+
+// updateColumns are the only instance_settings columns the update settings and checks may write, so
+// a check that waits on GitHub never puts back an old public URL, timezone or registration token.
+var updateColumns = []string{
+	"UpdateCheckEnabled", "UpdateChannel", "UpdateLatestVersion", "UpdateLatestReleasedAt",
+	"UpdateLatestSecurity", "UpdateLatestURL", "UpdateLatestNotes", "UpdateCheckedAt",
+	"UpdateCheckError", "UpdateSkippedVersion",
+}
+
+func (s *Server) saveUpdateColumns(row db.InstanceSettings, extra ...string) error {
+	cols := append(append([]string{}, updateColumns...), extra...)
+	return s.db.Model(&db.InstanceSettings{}).Where("id = ?", row.ID).Select(cols).Updates(&row).Error
 }
 
 // checkForUpdate asks the release source once and stores what it found, or why it could not.
@@ -132,10 +145,19 @@ func (s *Server) checkForUpdate(ctx context.Context) (db.InstanceSettings, error
 	if err != nil {
 		return row, err
 	}
+	channel := row.UpdateChannel
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	release, lookupErr := s.releases.Latest(ctx, row.UpdateChannel)
+	release, lookupErr := s.releases.Latest(ctx, channel)
 	now := time.Now().UTC()
+	// The lookup can take seconds. Start again from what is stored now, so nothing changed meanwhile is lost.
+	row, err = s.loadInstanceSettings()
+	if err != nil {
+		return row, err
+	}
+	if row.UpdateChannel != channel {
+		return row, nil // the channel changed while we looked; what we found belongs to the old one
+	}
 	if lookupErr != nil {
 		row.UpdateCheckError = lookupErr.Error()
 	} else {
@@ -144,7 +166,7 @@ func (s *Server) checkForUpdate(ctx context.Context) (db.InstanceSettings, error
 		row.UpdateLatestNotes = strings.Join(release.Highlights, "\n")
 		row.UpdateCheckedAt, row.UpdateCheckError = &now, ""
 	}
-	return row, s.db.Save(&row).Error
+	return row, s.saveUpdateColumns(row)
 }
 
 func (s *Server) checkUpdatesNowImpl(c *gin.Context) {

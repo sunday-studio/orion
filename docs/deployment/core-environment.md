@@ -86,6 +86,13 @@ Public status page subscriber mail uses its own sender and is off by default. Pa
 | `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` | empty | API | Encrypts subscriber addresses. Without it Core stores only hashes, so operators cannot see, export or import full addresses. |
 | `ORION_STATUS_PAGES_CNAME_TARGET` | the host of the status origin, then of `ORION_PUBLIC_URL` | API | The host or IP address custom status page domains must point at (a `CNAME` for a hostname, an `A` or `AAAA` record for an IP address). |
 
+## Update checks
+
+Core asks the GitHub releases of `sunday-studio/orion` for the newest release about once a day. It sends
+no credentials and nothing about your installation. It is on by default, including on installs upgraded
+from earlier releases. Turn it off under Settings, System (or `PUT /v1/settings/updates` with
+`auto_check: false`) on a host that must not reach `api.github.com`.
+
 ## Image-level
 
 `GIN_MODE=release` is set in the image. Docker Compose also reads `ORION_CORE_IMAGE`, `ORION_HTTP_PORT` and the `ORION_CORE_*` and `ORION_WORKER_*` memory and CPU limits; those are Compose settings, not Core settings. See [Core Docker deployment](core-docker.md).

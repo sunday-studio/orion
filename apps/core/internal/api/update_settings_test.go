@@ -129,3 +129,62 @@ func TestUpdateSettingsDevBuildNeverClaimsAnUpdate(t *testing.T) {
 		t.Fatalf("dev build = %+v", out.Data)
 	}
 }
+
+// slowReleases changes another setting while the lookup is still waiting on the network.
+type slowReleases struct {
+	fakeReleases
+	during func()
+}
+
+func (f *slowReleases) Latest(ctx context.Context, channel string) (service.Release, error) {
+	if f.during != nil {
+		f.during()
+	}
+	return f.fakeReleases.Latest(ctx, channel)
+}
+
+func TestUpdateCheckDoesNotPutBackSettingsChangedWhileItWaited(t *testing.T) {
+	server, jwt := authedServer(t)
+	slow := &slowReleases{fakeReleases: fakeReleases{release: service.Release{Version: "0.9.3"}}}
+	slow.during = func() {
+		row, err := server.loadInstanceSettings()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		row.RegistrationToken, row.PublicURL = "rotated-token", "https://new.example.test"
+		if err := server.db.Save(&row).Error; err != nil {
+			t.Error(err)
+		}
+	}
+	server.releases = slow
+	if resp := bearer(t, server, http.MethodPost, "/v1/settings/updates/check", jwt, nil); resp.Code != http.StatusOK {
+		t.Fatalf("check = %d %s", resp.Code, resp.Body.String())
+	}
+	row, err := server.loadInstanceSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.RegistrationToken != "rotated-token" || row.PublicURL != "https://new.example.test" {
+		t.Errorf("the check reverted a setting: token=%q url=%q", row.RegistrationToken, row.PublicURL)
+	}
+	if row.UpdateLatestVersion != "0.9.3" {
+		t.Errorf("latest = %q, the result of the check should still be stored", row.UpdateLatestVersion)
+	}
+}
+
+func TestUpdateCheckDropsAResultForAChannelSwitchedAwayFrom(t *testing.T) {
+	server, jwt := authedServer(t)
+	slow := &slowReleases{fakeReleases: fakeReleases{release: service.Release{Version: "0.9.4-rc.1"}}}
+	slow.during = func() {
+		row, _ := server.loadInstanceSettings()
+		row.UpdateChannel = "prerelease"
+		_ = server.db.Save(&row).Error
+	}
+	server.releases = slow
+	bearer(t, server, http.MethodPost, "/v1/settings/updates/check", jwt, nil)
+	row, _ := server.loadInstanceSettings()
+	if row.UpdateLatestVersion != "" {
+		t.Errorf("latest = %q; a result found for the old channel must not be stored under the new one", row.UpdateLatestVersion)
+	}
+}

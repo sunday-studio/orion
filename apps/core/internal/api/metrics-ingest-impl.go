@@ -73,7 +73,7 @@ func (s *Server) ingestOTLPMetricsImpl(c *gin.Context) {
 			messages = append(messages, "app reached its metric series limit of "+strconv.Itoa(seriesCap)+"; raise metric_series_cap on the app to accept more")
 		}
 		for _, b := range batches {
-			if err := s.metrics.Enqueue(b); err != nil {
+			if err := s.enqueueMetricBatch(b); err != nil {
 				c.Header("Retry-After", "1")
 				utils.ErrorResponse(c, http.StatusTooManyRequests, "Metric write queue is full; retry shortly", nil)
 				return
@@ -132,4 +132,18 @@ func (s *Server) planMetricBatches(appID string, points []metricstore.TimedSampl
 		batches = append(batches, *byMinute[m])
 	}
 	return batches, over, nil
+}
+
+// enqueueMetricBatch hands a batch to the writer. A request with points spread over many minutes makes
+// more batches than the queue holds, so a full queue is waited on briefly (the writer drains it in
+// milliseconds) before the client is told to retry.
+func (s *Server) enqueueMetricBatch(b metricstore.Batch) error {
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		err := s.metrics.Enqueue(b)
+		if !errors.Is(err, metricstore.ErrQueueFull) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }

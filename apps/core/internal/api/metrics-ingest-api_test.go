@@ -215,3 +215,31 @@ func TestOTLPMetricsWithoutAMetricStoreIs503(t *testing.T) {
 		t.Fatalf("status = %d, want 503", got)
 	}
 }
+
+// One request can carry a day of points, each in its own minute, so it makes more batches than the
+// write queue holds. It must be accepted whole rather than answered with 429 halfway.
+func TestOTLPMetricsRequestSpreadOverMoreMinutesThanTheQueueHolds(t *testing.T) {
+	server, store := metricsServer(t)
+	_, key := createAppWithKey(t, server, "checkout-api")
+	const minutes = 1300
+	start := time.Now().UTC().Add(-time.Duration(minutes+5) * time.Minute)
+	var points []*metricspb.NumberDataPoint
+	for i := 0; i < minutes; i++ {
+		at := start.Add(time.Duration(i) * time.Minute)
+		points = append(points, &metricspb.NumberDataPoint{TimeUnixNano: uint64(at.UnixNano()), Value: &metricspb.NumberDataPoint_AsDouble{AsDouble: float64(i)}})
+	}
+	body, _ := proto.Marshal(&collmetrics.ExportMetricsServiceRequest{ResourceMetrics: []*metricspb.ResourceMetrics{{
+		Resource: &resourcepb.Resource{Attributes: []*commonpb.KeyValue{strKV("service.name", "checkout-api")}},
+		ScopeMetrics: []*metricspb.ScopeMetrics{{Metrics: []*metricspb.Metric{{Name: "app.backfill", Unit: "1", Data: &metricspb.Metric_Gauge{
+			Gauge: &metricspb.Gauge{DataPoints: points},
+		}}}}},
+	}}})
+	resp := postOTLPMetrics(server, key, "application/x-protobuf", body, false)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", resp.Code, resp.Body.String())
+	}
+	if n, msg := rejectedPoints(t, resp, true); n != 0 {
+		t.Fatalf("rejected %d (%s)", n, msg)
+	}
+	store.Flush()
+}

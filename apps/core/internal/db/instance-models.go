@@ -25,7 +25,7 @@ type InstanceSettings struct {
 	UpdateLatestURL        string `gorm:"not null;default:''"`
 	// UpdateLatestNotes is the first few bullet points of the release notes, one per line.
 	UpdateLatestNotes string `gorm:"not null;default:''"`
-	UpdateCheckedAt        *time.Time
+	UpdateCheckedAt   *time.Time
 	// UpdateCheckError is why the last check failed; empty after a good one.
 	UpdateCheckError string `gorm:"not null;default:''"`
 	// UpdateSkippedVersion is a release the operator chose not to hear about again.
