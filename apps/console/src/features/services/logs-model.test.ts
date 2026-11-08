@@ -33,7 +33,8 @@ describe("service logs", () => {
   it("falls back to two hours and links to the Logs screen with every app", () => {
     assert.equal(logRangeFromParam("nope"), "2h");
     assert.equal(logRangeFromParam("24h"), "24h");
-    assert.equal(openInLogsHref(["a", "b"], "2h"), "/logs?range=2h&source=a%2Cb");
+    assert.equal(openInLogsHref(["a", "b"], "2h"), "/logs?range=24h&source=a%2Cb");
+    assert.equal(openInLogsHref(["a"], "7d"), "/logs?range=7d&source=a");
     assert.equal(openInLogsHref([], "1h"), "/logs?range=1h");
   });
 });

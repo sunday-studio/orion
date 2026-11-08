@@ -143,7 +143,21 @@ export const LogsPage = () => {
       )
     : facets.groups;
   const sourceOptions = groups.find((group) => group.key === "source")?.items ?? [];
-  const selectedSource = sourceOptions.find((item) => item.value === state.source);
+  // "Open in Logs" from a service sends several app ids at once; show them as one entry.
+  const sourceChoices =
+    state.source.includes(",") && !sourceOptions.some((item) => item.value === state.source)
+      ? [
+          ...sourceOptions,
+          {
+            value: state.source,
+            label: state.source
+              .split(",")
+              .map((id) => sourceOptions.find((item) => item.value === id)?.label ?? id)
+              .join(", "),
+          },
+        ]
+      : sourceOptions;
+  const selectedSource = sourceChoices.find((item) => item.value === state.source);
   const plainOnly =
     kind === "service" &&
     Boolean(state.source) &&
@@ -362,7 +376,7 @@ export const LogsPage = () => {
             {kind === "service" && view === "list" && (
               <SourceSelect
                 value={state.source}
-                options={sourceOptions.map((item) => ({ value: item.value, label: item.label }))}
+                options={sourceChoices.map((item) => ({ value: item.value, label: item.label }))}
                 onChange={(source) => patch({ source })}
               />
             )}

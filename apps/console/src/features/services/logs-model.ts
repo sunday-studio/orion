@@ -41,9 +41,15 @@ export const mergeLogs = (batches: readonly (readonly ApiLogEntry[])[], limit = 
   return merged.sort((a, b) => stamp(b) - stamp(a)).slice(0, limit);
 };
 
+/** The ranges the Logs screen offers. The service tab also has 2h, which Logs rounds up to 24h. */
+const LOGS_PAGE_RANGES = ["15m", "1h", "24h", "7d"];
+
+export const logsPageRange = (range: string) =>
+  LOGS_PAGE_RANGES.includes(range) ? range : range === "2h" ? "24h" : "1h";
+
 /** Link for "Open in Logs": the Logs screen takes several app ids in `source`. */
 export const openInLogsHref = (appIds: readonly string[], range: string) => {
-  const params = new URLSearchParams({ range });
+  const params = new URLSearchParams({ range: logsPageRange(range) });
   if (appIds.length > 0) params.set("source", appIds.join(","));
   return `/logs?${params.toString()}`;
 };
