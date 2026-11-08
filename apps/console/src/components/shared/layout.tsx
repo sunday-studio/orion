@@ -4,7 +4,6 @@ import { GlobalShortcuts } from "@/components/shared/global-shortcuts";
 import { ToastProvider } from "@/design-system";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { RouteErrorBoundary } from "@/components/shared/route-error-boundary";
-import { cn } from "@/utils/cn";
 import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
@@ -20,13 +19,7 @@ export const Layout = () => {
         <div className="flex min-w-0 flex-1 flex-col">
           <OfflineBanner />
           <div className="min-h-0 flex-1 overflow-y-auto bg-page">
-            <main
-              className={cn(
-                "mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-6 pb-8",
-                // The reopen button floats over the top-left corner; keep titles clear of it.
-                mode === "closed" && "max-[1160px]:pl-16",
-              )}
-            >
+            <main className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-6 pb-8">
               <Suspense fallback={<div className="py-3 text-sm text-neutral-600">Loading...</div>}>
                 <RouteErrorBoundary key={pathname}>
                   <div className="flex flex-col gap-3 animate-in fade-in duration-150 motion-reduce:animate-none">

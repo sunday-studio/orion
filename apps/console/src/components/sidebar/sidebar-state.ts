@@ -1,16 +1,16 @@
 /*
- * Sidebar display state (canvas: open, collapsed to icons, closed). Persisted in local storage.
+ * Sidebar display state (open, or collapsed to an icon rail). Persisted in local storage.
  * No imports, so it can be unit-tested with `node --test`.
  */
 
-export type SidebarMode = "open" | "collapsed" | "closed";
+export type SidebarMode = "open" | "collapsed";
 
 export const SIDEBAR_STORAGE_KEY = "orion.console.sidebar";
 
 /** Below this width the sidebar starts collapsed when nothing is stored yet. */
 export const NARROW_VIEWPORT = 768;
 
-const MODES: readonly SidebarMode[] = ["open", "collapsed", "closed"];
+const MODES: readonly SidebarMode[] = ["open", "collapsed"];
 
 export const isSidebarMode = (value: unknown): value is SidebarMode =>
   typeof value === "string" && (MODES as readonly string[]).includes(value);
@@ -18,6 +18,8 @@ export const isSidebarMode = (value: unknown): value is SidebarMode =>
 /** Reads a stored value; anything unknown falls back to the default for the viewport. */
 export const parseSidebarMode = (raw: string | null, viewportWidth: number): SidebarMode => {
   if (isSidebarMode(raw)) return raw;
+  // An earlier version also had a fully hidden state; the icon rail replaces it.
+  if (raw === "closed") return "collapsed";
   return viewportWidth < NARROW_VIEWPORT ? "collapsed" : "open";
 };
 

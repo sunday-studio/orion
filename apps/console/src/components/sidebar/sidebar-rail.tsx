@@ -169,16 +169,3 @@ export const SidebarRail = ({ active, chip, onExpand }: RailProps) => {
     </aside>
   );
 };
-
-/** Closed state: the rail is gone and one button brings it back. */
-export const SidebarReopen = ({ onOpen }: { onOpen: () => void }) => (
-  <button
-    type="button"
-    aria-label="Open the sidebar"
-    title="Open the sidebar"
-    onClick={onOpen}
-    className="absolute left-3.5 top-3.5 z-30 flex size-[34px] items-center justify-center rounded-[10px] border border-input-border bg-card text-faint outline-none hover:bg-field focus-visible:ring-[3px] focus-visible:ring-focus"
-  >
-    <PanelIcon direction="open" />
-  </button>
-);
