@@ -1,37 +1,40 @@
-import type * as React from "react";
+import * as React from "react";
 import { cn } from "@/utils/cn";
 
-/** Bordered panel with a quiet header bar (canvas `.box` / `.bh`). */
-export const Box = ({ className, ...props }: React.ComponentProps<"section">) => (
-  <section
-    data-slot="ds-box"
-    className={cn(
-      "overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-      className,
-    )}
-    {...props}
-  />
-);
-
-export const BoxHeader = ({
-  title,
-  aside,
+/**
+ * A titled panel in the canvas card design: a pale tray with the title on top and the content on a
+ * raised white card (`.field` + `.pc`). The first `BoxHeader` child supplies the title; everything
+ * else sits on the raised card.
+ */
+export const Box = ({
   className,
-}: {
-  title: React.ReactNode;
-  aside?: React.ReactNode;
-  className?: string;
-}) => (
-  <div
-    className={cn(
-      "flex items-center justify-between border-b border-hairline bg-field px-3.5 py-2 text-[13px] font-medium",
-      className,
-    )}
-  >
-    <h2 className="text-[13px] font-medium">{title}</h2>
-    {aside !== undefined && <span className="font-normal text-faint">{aside}</span>}
-  </div>
-);
+  children,
+  ...props
+}: Omit<React.ComponentProps<"section">, "title">) => {
+  const items = React.Children.toArray(children);
+  const header = items.find(
+    (child): child is React.ReactElement<BoxHeaderProps> =>
+      React.isValidElement(child) && child.type === BoxHeader,
+  );
+  const body = items.filter((child) => child !== header);
+  return (
+    <FieldPanel
+      compact
+      centerHeader
+      title={header?.props.title ?? ""}
+      aside={header?.props.aside}
+      className={className}
+      {...props}
+    >
+      <RaisedCard>{body}</RaisedCard>
+    </FieldPanel>
+  );
+};
+
+type BoxHeaderProps = { title: React.ReactNode; aside?: React.ReactNode; className?: string };
+
+/** Marks the title of a `Box`. It renders nothing itself; `Box` reads its props. */
+export const BoxHeader = (_props: BoxHeaderProps): React.ReactNode => null;
 
 /** Pale container holding raised cards (canvas `.field`). */
 export const FieldPanel = ({
@@ -40,8 +43,11 @@ export const FieldPanel = ({
   children,
   className,
   compact = false,
+  centerHeader = false,
   ...props
 }: Omit<React.ComponentProps<"section">, "title"> & {
+  /** Centre the title row on the cross axis (for controls in the aside). */
+  centerHeader?: boolean;
   title: React.ReactNode;
   aside?: React.ReactNode;
   /** Tight panel for a table: 12px on top, 4px on the other sides (canvas `.field` with a `.gt`). */
@@ -57,7 +63,8 @@ export const FieldPanel = ({
   >
     <div
       className={cn(
-        "flex items-baseline justify-between",
+        "flex justify-between",
+        centerHeader ? "items-center" : "items-baseline",
         compact ? "mx-2.5 mb-2.5" : "mx-0.5 mb-3",
       )}
     >
