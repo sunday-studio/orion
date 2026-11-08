@@ -19,6 +19,9 @@ type Marker struct {
 	Starts int `json:"starts"`
 	// State is "swapped" until the new version is confirmed, then "rolled_back" after a restore.
 	State string `json:"state"`
+	// Confirmed is set once the new version has stayed up. A confirmed update that still waits to be
+	// reported to Core never counts as a failed start.
+	Confirmed bool `json:"confirmed,omitempty"`
 	// Reason is why the update was rolled back.
 	Reason string `json:"reason,omitempty"`
 }

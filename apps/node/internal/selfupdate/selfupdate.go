@@ -31,7 +31,7 @@ var shaPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 type Plan struct {
 	RequestID string
 	Version   string
-	// Tag is the GitHub release tag, normally "v"+Version.
+	// Tag is the GitHub release tag exactly as GitHub lists it: the version, with or without a "v".
 	Tag string
 	// SHA256 is the checksum Core read for this machine's file. It has to match the release's own list.
 	SHA256 string
@@ -87,7 +87,7 @@ func (e *Env) Validate(p Plan) error {
 	if _, ok := parseVersion(p.Version); !ok || strings.HasPrefix(p.Version, "v") {
 		return fmt.Errorf("%q is not a release version", p.Version)
 	}
-	if Tag(p.Version) != p.Tag {
+	if p.Tag != p.Version && p.Tag != "v"+p.Version {
 		return fmt.Errorf("release tag %q does not match version %q", p.Tag, p.Version)
 	}
 	if !shaPattern.MatchString(strings.ToLower(p.SHA256)) {
@@ -232,37 +232,55 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
+// copyFile writes destination by creating a fresh file next to it and renaming it into place. It
+// never opens an existing destination, so a file left behind by another user, a read-only file or a
+// link cannot get in the way or be written through.
 func copyFile(source, destination string, mode os.FileMode) error {
 	in, err := os.Open(source)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+	tmp := fmt.Sprintf("%s.tmp-%d-%d", destination, os.Getpid(), time.Now().UnixNano())
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		_ = out.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		_ = out.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
-	return os.Chmod(destination, mode)
+	if err := os.Chmod(tmp, mode); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, destination); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // Restore puts the kept binary back in place of the current one.
-func (e *Env) Restore() error {
-	stage := e.Executable + ".swap"
-	if err := copyFile(e.PrevPath(), stage, 0o755); err != nil {
-		return fmt.Errorf("read the old binary: %w", err)
+// It refuses a kept binary that does not run, so a truncated copy never replaces a binary that starts.
+func (e *Env) Restore(want string) error {
+	if e.Version != nil {
+		got, err := e.Version(e.PrevPath())
+		if err != nil || strings.TrimPrefix(got, "v") != strings.TrimPrefix(want, "v") {
+			return fmt.Errorf("the kept binary %s is not version %s (%v)", e.PrevPath(), want, err)
+		}
 	}
-	if err := os.Rename(stage, e.Executable); err != nil {
-		_ = os.Remove(stage)
-		return fmt.Errorf("restore the old binary: %w", err)
-	}
-	return nil
+	return copyFile(e.PrevPath(), e.Executable, 0o755)
 }
 
 // Ready says whether a binary can be updated this way at all: it is a release build, and the folder

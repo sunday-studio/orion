@@ -56,7 +56,7 @@ func systemLayoutOps() layoutOps {
 			}
 			return int(st.Uid), int(st.Gid), nil
 		},
-		chown: os.Chown,
+		chown: os.Lchown,
 		stop:  StopService,
 		start: StartService,
 		reloadSystemd: func() error {
@@ -79,6 +79,10 @@ func migrateLayout(p layoutPlan, ops layoutOps) (moved bool, err error) {
 	uid, gid, err := ops.owner(p.StateDir)
 	if err != nil || uid == 0 {
 		return false, nil // no service user to hand the binary to
+	}
+	if info, err := os.Lstat(p.Dir); err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
+		// A link or a file where the folder should be could make root write somewhere else.
+		return false, fmt.Errorf("%s exists but is not a plain folder; remove it and run the update again", p.Dir)
 	}
 	if err := os.MkdirAll(p.Dir, 0o755); err != nil {
 		return false, fmt.Errorf("create %s: %w", p.Dir, err)
@@ -103,7 +107,7 @@ func migrateLayout(p layoutPlan, ops layoutOps) (moved bool, err error) {
 		if err := os.MkdirAll(filepath.Dir(p.DropIn), 0o755); err != nil {
 			return false, err
 		}
-		body := "[Service]\nReadWritePaths=" + p.Dir + "\n"
+		body := "[Service]\nReadWritePaths=-" + p.Dir + "\n"
 		if err := os.WriteFile(p.DropIn, []byte(body), 0o644); err != nil {
 			return false, fmt.Errorf("let the service write %s: %w", p.Dir, err)
 		}
@@ -125,7 +129,10 @@ func migrateLayout(p layoutPlan, ops layoutOps) (moved bool, err error) {
 		return false, fmt.Errorf("replace %s with a link: %w", p.Link, err)
 	}
 	_ = os.Remove(prevPath(p.Link))
-	return true, ops.start()
+	if err := ops.start(); err != nil {
+		return true, fmt.Errorf("the binary was moved but the service did not start (start it with: orion-node start): %w", err)
+	}
+	return true, nil
 }
 
 // migrateAfterUpdate runs after a successful `orion-node update` as root on a system install.
@@ -135,6 +142,8 @@ func migrateAfterUpdate(opts *Options) {
 	}
 	moved, err := migrateLayout(defaultLayoutPlan(opts.StatePath), systemLayoutOps())
 	switch {
+	case err != nil && moved:
+		fmt.Fprintln(outputWriter, "   "+theme.Muted(err.Error()))
 	case err != nil:
 		fmt.Fprintln(outputWriter, "   "+theme.Muted("could not move the binary so the Node can update itself: "+err.Error()))
 	case moved:

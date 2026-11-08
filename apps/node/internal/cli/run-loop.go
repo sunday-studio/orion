@@ -25,7 +25,7 @@ import (
 // runDaemon is the long-running mode: register (retrying while Core is down),
 // run the collection loop, and rebuild it in place on SIGHUP or a control
 // socket reload instead of exiting.
-func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig, store *nodestate.Store) error {
+func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig, store *nodestate.Store, updater *selfUpdater) error {
 	// A monitoring daemon should stay small: collect garbage earlier and cap the
 	// heap softly (budget: RSS under 30 MB with 20 monitors).
 	if os.Getenv("GOMAXPROCS") == "" {
@@ -39,23 +39,12 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	ctx, stopDaemon := context.WithCancel(ctx)
 	defer stopDaemon()
 	var updateRestart atomic.Bool
-	updater, err := newSelfUpdater(opts.StatePath, func() bool { return userConfigRemoteUpdate(opts) }, func() {
-		updateRestart.Store(true)
-		stopDaemon()
-	})
-	switch {
-	case err != nil:
-		logging.Warnf("Updates from the Console are unavailable: %v", err)
-		updater = nil
-	default:
-		restore, startErr := updater.start(ctx)
-		if startErr != nil {
-			logging.Errorf("Could not check the last update: %v", startErr)
+	if updater != nil {
+		updater.restart = func() {
+			updateRestart.Store(true)
+			stopDaemon()
 		}
-		if restore {
-			logging.Errorf("The new version could not start; the old one was restored. Restarting.")
-			return &CommandError{Summary: "the update did not start and was rolled back", ExitCode: updateRestartExit, Silent: true}
-		}
+		updater.watch(ctx)
 	}
 
 	ctrl := newDaemonControl(opts, userConfig, store)
@@ -124,6 +113,9 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		userConfig = effective(fileConfig, remote.current())
 		if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil {
 			if ctx.Err() != nil {
+				if updateRestart.Load() {
+					return &CommandError{Summary: "restarting to finish an update", ExitCode: updateRestartExit, Silent: true}
+				}
 				return nil
 			}
 			return NewCommandError("could not register node and monitors", err)
@@ -219,5 +211,5 @@ func requestReloadNoValidate(ch chan struct{}) error {
 // without a restart.
 func userConfigRemoteUpdate(opts *Options) bool {
 	cfg, _, err := config.Load(opts.ConfigPath)
-	return err != nil || cfg.RemoteUpdateEnabled()
+	return err == nil && cfg.RemoteUpdateEnabled() // a config nobody can read does not switch updates on
 }

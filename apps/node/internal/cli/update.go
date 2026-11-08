@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -356,6 +357,19 @@ func downloadFile(url string, outputPath string) error {
 	return nil
 }
 
+// binaryVersionWithin is binaryVersion that gives up after a time, for a binary that hangs.
+func binaryVersionWithin(limit time.Duration) func(string) (string, error) {
+	return func(path string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), limit)
+		defer cancel()
+		output, err := exec.CommandContext(ctx, path, "version").CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("read binary version for %s: %w: %s", path, err, strings.TrimSpace(string(output)))
+		}
+		return strings.TrimPrefix(strings.TrimSpace(string(output)), "orion-node "), nil
+	}
+}
+
 func binaryVersion(path string) (string, error) {
 	output, err := exec.Command(path, "version").CombinedOutput()
 	if err != nil {
@@ -364,24 +378,42 @@ func binaryVersion(path string) (string, error) {
 	return strings.TrimPrefix(strings.TrimSpace(string(output)), "orion-node "), nil
 }
 
+// copyFile writes destination by creating a fresh file beside it and renaming it into place, so an
+// existing destination, a read-only file or a link is replaced and never opened or written through.
 func copyFile(source string, destination string, mode os.FileMode) error {
 	in, err := os.Open(source)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+	tmp := fmt.Sprintf("%s.tmp-%d-%d", destination, os.Getpid(), time.Now().UnixNano())
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		_ = out.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		_ = out.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
-	return os.Chmod(destination, mode)
+	if err := os.Chmod(tmp, mode); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, destination); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 func installBinary(source string, destination string) error {

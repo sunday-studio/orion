@@ -49,7 +49,7 @@ func TestRealReleaseSignatureIsRefusedWhenAnythingIsOff(t *testing.T) {
 	tampered := []byte(strings.Replace(string(sums), "a", "b", 1))
 	cases := map[string]error{
 		"changed checksums":          VerifySignature(tampered, sig, cert, cosignRelease),
-		"another project's workflow": VerifySignature(sums, sig, cert, GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml")),
+		"another project's workflow": VerifySignature(sums, sig, cert, GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml", "refs/heads/main")),
 		"another subject":            VerifySignature(sums, sig, cert, Identity{Subject: regexp.MustCompile(`^someone@example\.com$`), Issuer: cosignRelease.Issuer}),
 		"another issuer":             VerifySignature(sums, sig, cert, Identity{Subject: cosignRelease.Subject, Issuer: "https://token.actions.githubusercontent.com"}),
 		"garbage signature":          VerifySignature(sums, []byte("AAAA"), cert, cosignRelease),
@@ -72,7 +72,7 @@ func TestCertificateFromAnotherAuthorityIsRefused(t *testing.T) {
 	caDER, _ := x509.CreateCertificate(rand.Reader, caTmpl, caTmpl, &caKey.PublicKey, caKey)
 	ca, _ := x509.ParseCertificate(caDER)
 	leafKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	uri, _ := url.Parse("https://github.com/sunday-studio/orion/.github/workflows/node-binaries.yml@refs/tags/v0.9.3")
+	uri, _ := url.Parse("https://github.com/sunday-studio/orion/.github/workflows/node-binaries.yml@refs/heads/main")
 	issuer, _ := asn1.Marshal("https://token.actions.githubusercontent.com")
 	leafTmpl := &x509.Certificate{SerialNumber: big.NewInt(2), Subject: pkix.Name{CommonName: "x"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Minute),
 		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning}, URIs: []*url.URL{uri},
@@ -83,7 +83,7 @@ func TestCertificateFromAnotherAuthorityIsRefused(t *testing.T) {
 	digest := sha256.Sum256(data)
 	rawSig, _ := ecdsa.SignASN1(rand.Reader, leafKey, digest[:])
 	sig := []byte(base64.StdEncoding.EncodeToString(rawSig))
-	id := GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml")
+	id := GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml", "refs/heads/main")
 
 	if err := VerifySignature(data, sig, certPEM, id); err == nil || !strings.Contains(err.Error(), "not from Sigstore") {
 		t.Fatalf("a certificate from another authority = %v", err)
@@ -96,5 +96,23 @@ func TestCertificateFromAnotherAuthorityIsRefused(t *testing.T) {
 	}
 	if err := verifySignature([]byte("changed"), sig, certPEM, id, caPEM); err == nil {
 		t.Error("changed data must be refused")
+	}
+}
+
+// The fixtures are the real files of Orion's own release 0.3.0.
+func TestOrionReleaseSignatureVerifiesForMainOnly(t *testing.T) {
+	sums, sig, cert := signedFile(t, "orion-0.3.0_SHA256SUMS"), signedFile(t, "orion-0.3.0_SHA256SUMS.sig"), signedFile(t, "orion-0.3.0_SHA256SUMS.pem")
+	if err := VerifySignature(sums, sig, cert, GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml", "refs/heads/main")); err != nil {
+		t.Fatalf("Orion's own release must verify: %v", err)
+	}
+	for name, id := range map[string]Identity{
+		"another branch": GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml", "refs/heads/feature"),
+		"a tag":          GitHubWorkflowIdentity("sunday-studio/orion", "node-binaries.yml", "refs/tags/0.3.0"),
+		"a fork":         GitHubWorkflowIdentity("someone/orion", "node-binaries.yml", "refs/heads/main"),
+		"another file":   GitHubWorkflowIdentity("sunday-studio/orion", "core-image.yml", "refs/heads/main"),
+	} {
+		if err := VerifySignature(sums, sig, cert, id); err == nil {
+			t.Errorf("%s must be refused", name)
+		}
 	}
 }

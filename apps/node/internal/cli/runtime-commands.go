@@ -28,6 +28,20 @@ func runNode(ctx context.Context, opts *Options) error {
 		what = "foreground, one cycle"
 	}
 	fmt.Fprint(outputWriter, runHeader(theme, what))
+	// An update that left a marker is looked at before anything else can fail, so a new version that
+	// cannot even load its config is counted and rolled back.
+	var updater *selfUpdater
+	if !opts.Once {
+		var restore bool
+		var beginErr error
+		updater, restore, beginErr = beginSelfUpdate(opts)
+		if restore {
+			return &CommandError{Summary: "the update did not start and was rolled back", ExitCode: updateRestartExit, Silent: true}
+		}
+		if beginErr != nil {
+			logging.Warnf("Could not check the last update: %v", beginErr)
+		}
+	}
 	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
 	if err != nil {
 		return NewCommandError("could not load user config", err)
@@ -55,7 +69,7 @@ func runNode(ctx context.Context, opts *Options) error {
 	defer cancel()
 
 	if !opts.Once {
-		return runDaemon(ctx, opts, userConfig, stateStore)
+		return runDaemon(ctx, opts, userConfig, stateStore, updater)
 	}
 
 	if err := registration.New(userConfig, opts.ConfigPath, stateStore).RegisterNodeIfNeeded(); err != nil {

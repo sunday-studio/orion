@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const newBinary = "#!/bin/sh\necho orion-node 0.9.3\n"
@@ -46,7 +48,7 @@ func newFixture(t *testing.T) *fixture {
 		Executable: exe, StateDir: state, Current: "0.9.2", GOOS: "linux", GOARCH: "amd64",
 		BaseURL: func(tag string) string { return "https://releases.test/" + tag },
 		Fetch: func(url, dest string) error {
-			content, ok := f.files[strings.TrimPrefix(url, "https://releases.test/v0.9.3")]
+			content, ok := f.files["/"+path.Base(url)]
 			if !ok {
 				return errors.New("404")
 			}
@@ -59,6 +61,9 @@ func newFixture(t *testing.T) *fixture {
 			}
 			if strings.Contains(string(data), "0.9.3") {
 				return "0.9.3", nil
+			}
+			if string(data) == "old binary" {
+				return "0.9.2", nil
 			}
 			return "", errors.New("does not run")
 		},
@@ -305,5 +310,119 @@ func TestTheSignatureIsCheckedAgainstTheDownloadedChecksums(t *testing.T) {
 	}
 	if gotSums != f.files["/SHA256SUMS"] || gotSig != "sig" || gotCert != "cert" {
 		t.Errorf("verified %q %q %q", gotSums, gotSig, gotCert)
+	}
+}
+
+func TestApplyAcceptsTheTagGitHubReallyUses(t *testing.T) {
+	f := newFixture(t)
+	p := plan()
+	p.Tag = "0.9.3" // Orion's release tags have no "v"
+	var fetched []string
+	inner := f.env.Fetch
+	f.env.Fetch = func(url, dest string) error { fetched = append(fetched, url); return inner(url, dest) }
+	if err := f.env.Apply(p); err != nil {
+		t.Fatalf("Apply with a bare tag: %v", err)
+	}
+	if len(fetched) == 0 || !strings.HasPrefix(fetched[0], "https://releases.test/0.9.3/") {
+		t.Errorf("fetched %v: the download must use the tag as given", fetched)
+	}
+	other := plan()
+	other.Tag = "release-9"
+	if err := newFixture(t).env.Validate(other); err == nil {
+		t.Error("a tag that is neither the version nor v+version must be refused")
+	}
+}
+
+func TestApplyReplacesAKeptBinaryItCannotWrite(t *testing.T) {
+	f := newFixture(t)
+	// The root CLI left a read-only .prev behind; the service user must still be able to replace it.
+	if err := os.WriteFile(f.env.PrevPath(), []byte("older"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.env.Apply(plan()); err != nil {
+		t.Fatalf("Apply with a read-only .prev: %v", err)
+	}
+	if read(t, f.env.PrevPath()) != "old binary" {
+		t.Error(".prev should hold the binary that was running")
+	}
+}
+
+func TestApplyNeverWritesThroughALink(t *testing.T) {
+	f := newFixture(t)
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, f.env.PrevPath()); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.env.Apply(plan()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if read(t, victim) != "keep" {
+		t.Error("a link at .prev must be replaced, not written through")
+	}
+}
+
+func TestConfirmedUpdateIsNotRolledBackWhileItWaitsToBeReported(t *testing.T) {
+	f := newFixture(t)
+	if err := f.env.Apply(plan()); err != nil {
+		t.Fatal(err)
+	}
+	next := f.restartAs("0.9.3")
+	if out, _ := next.Confirm(); out == nil {
+		t.Fatal("Confirm should report the update")
+	}
+	// Core is unreachable, so the result is never reported and the daemon restarts again and again.
+	for i := 0; i < 3*MaxUnconfirmedStarts; i++ {
+		out, restart, err := next.Startup()
+		if err != nil || restart {
+			t.Fatalf("start %d: restart=%v err=%v", i, restart, err)
+		}
+		if out == nil || out.Status != "applied" {
+			t.Fatalf("start %d: the confirmed update should still be reported as applied, got %+v", i, out)
+		}
+	}
+	if read(t, f.exe) != newBinary {
+		t.Error("a confirmed update must keep the new binary")
+	}
+}
+
+func TestRestoreRefusesAKeptBinaryThatDoesNotRun(t *testing.T) {
+	f := newFixture(t)
+	if err := f.env.Apply(plan()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(f.env.PrevPath(), []byte("truncated"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.env.Version = func(path string) (string, error) { return "", errors.New("does not run") }
+	if err := f.env.Restore("0.9.2"); err == nil {
+		t.Fatal("a kept binary that does not run must not replace the one in place")
+	}
+	if read(t, f.exe) != newBinary {
+		t.Error("the binary in place changed")
+	}
+}
+
+func TestOldWorkspacesAreCleanedUp(t *testing.T) {
+	f := newFixture(t)
+	stale := filepath.Join(f.env.StateDir, "update-123")
+	fresh := filepath.Join(f.env.StateDir, "update-456")
+	for _, d := range []string{stale, fresh} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	f.env.CleanWorkspaces()
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Error("a workspace from hours ago should be removed")
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Error("a recent workspace may belong to an update in progress")
 	}
 }

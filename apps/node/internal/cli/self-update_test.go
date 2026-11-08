@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"orion/node/internal/config"
 	"orion/node/internal/selfupdate"
@@ -108,7 +110,7 @@ func TestFinishedUpdateIsReportedOnceAndThenForgotten(t *testing.T) {
 	next := *u.env
 	next.Current = "0.9.3"
 	u.env = &next
-	if restart, err := u.start(context.Background()); err != nil || restart {
+	if restart, err := u.begin(); err != nil || restart {
 		t.Fatalf("start = %v %v", restart, err)
 	}
 	out, err := u.env.Confirm()
@@ -161,4 +163,47 @@ func hasCap(list []string, name string) bool {
 		}
 	}
 	return false
+}
+
+func TestAReportNobodyIsWaitingForIsDropped(t *testing.T) {
+	u, _, sha := updaterFixture(t, true)
+	if _, err := u.handle(updateRequest(sha)); !errors.Is(err, errUpdateRestart) {
+		t.Fatal(err)
+	}
+	m, _ := u.env.ReadMarker()
+	m.At = m.At.Add(-26 * time.Hour) // Core dropped the request long ago
+	data, _ := json.Marshal(m)
+	if err := os.WriteFile(filepath.Join(u.env.StateDir, "update-pending.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u.setPending(&selfupdate.Outcome{RequestID: "req-1", Status: "applied", Text: "Updated"})
+	reported := 0
+	u.flush(func(id, status, text string) error { reported++; return errors.New("core says the request is gone") })
+	if reported != 0 {
+		t.Error("a result nobody is waiting for must not be sent again")
+	}
+	if m, _ := u.env.ReadMarker(); m != nil {
+		t.Error("the marker should be cleared")
+	}
+}
+
+func TestUnreadableConfigDoesNotTurnUpdatesOn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("core_url: [unterminated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if userConfigRemoteUpdate(&Options{ConfigPath: path}) {
+		t.Error("a config that cannot be read must not enable remote updates")
+	}
+}
+
+func TestANodeNobodySupervisesDoesNotOfferToUpdate(t *testing.T) {
+	t.Setenv("INVOCATION_ID", "")
+	t.Setenv("XPC_SERVICE_NAME", "")
+	if os.Getppid() == 1 {
+		t.Skip("running as a child of init")
+	}
+	if selfUpdateReady() {
+		t.Error("exiting would stop a Node that nothing restarts")
+	}
 }

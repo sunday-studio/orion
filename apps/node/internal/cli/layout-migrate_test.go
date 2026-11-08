@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,7 +61,7 @@ func TestMigrateLayoutMovesTheBinaryAndLeavesALink(t *testing.T) {
 	if dest, err := os.Readlink(p.Link); err != nil || dest != target {
 		t.Errorf("link = %q %v, want %q", dest, err, target)
 	}
-	if body, _ := os.ReadFile(p.DropIn); string(body) != "[Service]\nReadWritePaths="+p.Dir+"\n" {
+	if body, _ := os.ReadFile(p.DropIn); string(body) != "[Service]\nReadWritePaths=-"+p.Dir+"\n" {
 		t.Errorf("drop-in = %q", body)
 	}
 	if log.stopped != 1 || log.started != 1 || log.reload != 1 {
@@ -88,5 +89,29 @@ func TestMigrateLayoutIsRepeatableAndSkipsWhatItShouldNot(t *testing.T) {
 	_ = os.Remove(missing.Link)
 	if moved, err := migrateLayout(missing, missingOps); err != nil || moved {
 		t.Errorf("no binary: %v %v", moved, err)
+	}
+}
+
+func TestMigrateLayoutRefusesALinkWhereTheFolderShouldBe(t *testing.T) {
+	p, ops, log := layoutFixture(t, 999)
+	elsewhere := t.TempDir()
+	if err := os.Symlink(elsewhere, p.Dir); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := migrateLayout(p, ops)
+	if err == nil || moved || log.stopped != 0 {
+		t.Fatalf("migrate = %v %v stopped=%d: a link at the folder must stop the move", moved, err, log.stopped)
+	}
+	if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
+		t.Error("nothing may be written through the link")
+	}
+}
+
+func TestMigrateLayoutSaysWhenOnlyTheStartFailed(t *testing.T) {
+	p, ops, _ := layoutFixture(t, 999)
+	ops.start = func() error { return os.ErrPermission }
+	moved, err := migrateLayout(p, ops)
+	if !moved || err == nil || !strings.Contains(err.Error(), "did not start") {
+		t.Fatalf("migrate = %v %v: the move happened and the start failed, and the message must say so", moved, err)
 	}
 }

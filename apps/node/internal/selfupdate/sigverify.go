@@ -37,10 +37,12 @@ type Identity struct {
 	Issuer string
 }
 
-// GitHubWorkflowIdentity is the identity of a repository's workflow file.
-func GitHubWorkflowIdentity(repo, workflow string) Identity {
+// GitHubWorkflowIdentity is the identity of a repository's workflow file run on one ref. The ref is
+// pinned: anyone who can start the workflow on some other branch can get a valid signature from
+// Sigstore, so a certificate for another ref is not accepted.
+func GitHubWorkflowIdentity(repo, workflow, ref string) Identity {
 	return Identity{
-		Subject: regexp.MustCompile("^https://github\\.com/" + regexp.QuoteMeta(repo) + "/\\.github/workflows/" + regexp.QuoteMeta(workflow) + "@"),
+		Subject: regexp.MustCompile("^https://github\\.com/" + regexp.QuoteMeta(repo) + "/\\.github/workflows/" + regexp.QuoteMeta(workflow) + "@" + regexp.QuoteMeta(ref) + "$"),
 		Issuer:  "https://token.actions.githubusercontent.com",
 	}
 }

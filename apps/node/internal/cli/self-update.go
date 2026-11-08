@@ -23,7 +23,12 @@ const (
 	updateRestartExit = 75
 	// updateConfirmAfter is how long the new version must stay up before the update counts as done.
 	updateConfirmAfter = 90 * time.Second
-	releaseRepo        = "sunday-studio/orion"
+	// requestGiveUp is when an unreported result is dropped: Core expires requests after 24 hours.
+	requestGiveUp = 25 * time.Hour
+	releaseRepo   = "sunday-studio/orion"
+	// Releases are signed by this workflow on this ref; a signature for anything else is refused.
+	releaseWorkflow = "node-binaries.yml"
+	releaseRef      = "refs/heads/main"
 )
 
 // errUpdateRestart tells the request applier that the binary was swapped and no result is reported
@@ -45,18 +50,24 @@ func selfUpdateEnv(statePath string) (*selfupdate.Env, error) {
 		GOOS:       runtime.GOOS,
 		GOARCH:     runtime.GOARCH,
 		Fetch:      downloadFile,
-		Version:    binaryVersion,
+		Version:    binaryVersionWithin(30 * time.Second),
 		BaseURL:    func(tag string) string { return releaseBaseURL(releaseRepo, tag) },
 		Verify: func(sums, sig, cert []byte) error {
-			return selfupdate.VerifySignature(sums, sig, cert, selfupdate.GitHubWorkflowIdentity(releaseRepo, "node-binaries.yml"))
+			return selfupdate.VerifySignature(sums, sig, cert, selfupdate.GitHubWorkflowIdentity(releaseRepo, releaseWorkflow, releaseRef))
 		},
 	}, nil
+}
+
+// supervised is true when a service manager runs this process, so exiting makes it start again. A
+// Node started by hand would just stop.
+func supervised() bool {
+	return os.Getenv("INVOCATION_ID") != "" || os.Getppid() == 1 || os.Getenv("XPC_SERVICE_NAME") == "com.orion.node"
 }
 
 // selfUpdateReady is true when this Node can take an update from the Console: it is not in a
 // container and it can replace its own binary.
 func selfUpdateReady() bool {
-	if os.Getenv("ORION_CONTAINER") != "" {
+	if os.Getenv("ORION_CONTAINER") != "" || !supervised() {
 		return false
 	}
 	exe, err := os.Executable()
@@ -79,39 +90,43 @@ type selfUpdater struct {
 	pending *selfupdate.Outcome // an outcome waiting to be reported to Core
 }
 
-func newSelfUpdater(statePath string, enabled func() bool, restart func()) (*selfUpdater, error) {
+func newSelfUpdater(statePath string, enabled func() bool) (*selfUpdater, error) {
 	env, err := selfUpdateEnv(statePath)
 	if err != nil {
 		return nil, err
 	}
-	return &selfUpdater{env: env, enabled: enabled, restart: restart}, nil
+	return &selfUpdater{env: env, enabled: enabled}, nil
 }
 
-// start looks at what an earlier run left behind. It returns restart=true when a new version failed
-// to start and the old one was put back, so the caller must exit and let the service manager run it.
-func (u *selfUpdater) start(ctx context.Context) (restart bool, err error) {
+// begin looks at what an earlier run left behind. It runs before the config and state are loaded, so
+// a new version that cannot get that far is still counted. It returns restart=true when the old
+// binary was put back and the caller must exit so the service manager starts it.
+func (u *selfUpdater) begin() (restart bool, err error) {
 	out, restart, err := u.env.Startup()
 	if err != nil || restart {
 		return restart, err
 	}
 	if out != nil {
 		u.setPending(out)
-		return false, nil
-	}
-	if m, _ := u.env.ReadMarker(); m != nil && m.State == selfupdate.StateSwapped {
-		go func() {
-			select {
-			case <-ctx.Done():
-			case <-time.After(updateConfirmAfter):
-				confirmed, err := u.env.Confirm()
-				if err != nil || confirmed == nil {
-					return
-				}
-				u.setPending(confirmed)
-			}
-		}()
 	}
 	return false, nil
+}
+
+// watch confirms the update once the new version has stayed up.
+func (u *selfUpdater) watch(ctx context.Context) {
+	m, _ := u.env.ReadMarker()
+	if m == nil || m.State != selfupdate.StateSwapped || m.Confirmed {
+		return
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-time.After(updateConfirmAfter):
+			if confirmed, err := u.env.Confirm(); err == nil && confirmed != nil {
+				u.setPending(confirmed)
+			}
+		}
+	}()
 }
 
 func (u *selfUpdater) setPending(out *selfupdate.Outcome) {
@@ -126,6 +141,13 @@ func (u *selfUpdater) flush(report func(id, status, text string) error) {
 	out := u.pending
 	u.mu.Unlock()
 	if out == nil {
+		return
+	}
+	if m, _ := u.env.ReadMarker(); m != nil && time.Since(m.At) > requestGiveUp {
+		// Core drops a request after a day, so nobody is waiting for this answer any more.
+		logging.Warnf("Giving up on reporting the update to %s: Core no longer holds the request", m.To)
+		u.setPending(nil)
+		_ = u.env.ClearMarker()
 		return
 	}
 	if err := report(out.RequestID, out.Status, out.Text); err != nil {
@@ -168,4 +190,15 @@ func stringField(payload map[string]any, key string) string {
 		return v
 	}
 	return ""
+}
+
+// beginSelfUpdate builds the updater for a daemon and looks at the last update. updater is nil when
+// updates from the Console cannot work here.
+func beginSelfUpdate(opts *Options) (updater *selfUpdater, restore bool, err error) {
+	u, err := newSelfUpdater(opts.StatePath, func() bool { return userConfigRemoteUpdate(opts) })
+	if err != nil {
+		return nil, false, err
+	}
+	restore, err = u.begin()
+	return u, restore, err
 }
