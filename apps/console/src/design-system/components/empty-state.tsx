@@ -27,7 +27,9 @@ export const EmptyState = ({
   >
     <div className="space-y-1">
       <p className="text-sm font-medium">{title}</p>
-      {description && <p className="text-xs text-quiet">{description}</p>}
+      {description && (
+        <p className="mx-auto max-w-[440px] text-xs leading-relaxed text-quiet">{description}</p>
+      )}
     </div>
     {action}
   </div>

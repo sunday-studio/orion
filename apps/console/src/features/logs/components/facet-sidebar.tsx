@@ -108,7 +108,7 @@ export const FacetSidebar = ({
         })}
       {fields.length > 0 && !plainOnly && (
         <section>
-          <h3 className={`${caption} mb-1.5`}>Fields from the field catalog</h3>
+          <h3 className={`${caption} mb-1.5`}>Fields</h3>
           {fields.slice(0, 8).map((field) => (
             <div key={field.key}>
               <button
@@ -117,29 +117,29 @@ export const FacetSidebar = ({
                 onClick={() => onPickField(activeField === field.key ? undefined : field.key)}
               >
                 <span className="min-w-0 flex-1 truncate">{field.key}</span>
-                <code className="rounded bg-sub px-1 text-[10px] text-faint">
-                  {field.type === "number" ? "num" : "str"}
-                </code>
                 <span className="text-xs tabular-nums text-faint">
                   {compact(field.cardinality ?? 0)}
                 </span>
               </button>
-              {activeField === field.key &&
-                fieldValues.map((value) => (
-                  <Row
-                    key={value.value}
-                    item={value}
-                    checked={state.attr === `${field.key}:${value.value}`}
-                    onToggle={() =>
-                      onChange({
-                        attr:
-                          state.attr === `${field.key}:${value.value}`
-                            ? ""
-                            : `${field.key}:${value.value}`,
-                      })
-                    }
-                  />
-                ))}
+              {activeField === field.key && (
+                <div className="mb-1 ml-3 border-l-[1.5px] border-hairline pl-3">
+                  {fieldValues.map((value) => (
+                    <Row
+                      key={value.value}
+                      item={value}
+                      checked={state.attr === `${field.key}:${value.value}`}
+                      onToggle={() =>
+                        onChange({
+                          attr:
+                            state.attr === `${field.key}:${value.value}`
+                              ? ""
+                              : `${field.key}:${value.value}`,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </section>
