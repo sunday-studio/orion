@@ -45,3 +45,22 @@ func (s *Server) ingestLogs(c *gin.Context) { s.ingestLogsImpl(c) }
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/ingest/otlp/v1/logs [post]
 func (s *Server) ingestOTLPLogs(c *gin.Context) { s.ingestOTLPLogsImpl(c) }
+
+// ingestOTLPMetrics Ingest metrics over OTLP/HTTP.
+// @Summary      Ingest metrics over OTLP/HTTP
+// @Description  OpenTelemetry Metrics endpoint (ExportMetricsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed. Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each data point counts as one). Gauges and sums are stored as the app's metric series; histograms and summaries are not supported yet and are reported as rejected. An app may report up to its `metric_series_cap` distinct series (default 100): data points of further series are refused and counted in partial_success. Data points older than 24 hours or more than 5 minutes ahead are refused.
+// @Tags         ingest
+// @Accept       json
+// @Produce      json
+// @Security     IngestKey
+// @ID           ingestOTLPMetrics
+// @Param        request body object true "ExportMetricsServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)"
+// @Success      200  {object}  object
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      401  {object}  utils.APIResponse
+// @Failure      413  {object}  utils.APIResponse
+// @Failure      415  {object}  utils.APIResponse
+// @Failure      429  {object}  utils.APIResponse
+// @Failure      503  {object}  utils.APIResponse
+// @Router       /v1/ingest/otlp/v1/metrics [post]
+func (s *Server) ingestOTLPMetrics(c *gin.Context) { s.ingestOTLPMetricsImpl(c) }

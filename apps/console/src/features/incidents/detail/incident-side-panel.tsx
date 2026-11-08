@@ -1,10 +1,12 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, Input, StatusBadge } from "@/design-system";
+import { incidentServiceFacts } from "@/features/services/components/incident-service-section";
 import type {
   ApiAlertDeliveryResponse,
   ApiIncidentDetailSummary,
   ApiIncidentRelatedIncidentResponse,
+  ServiceServiceDetail,
 } from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
 import { formatDate } from "@/utils/date";
@@ -85,6 +87,7 @@ type Props = {
   related: ApiIncidentRelatedIncidentResponse[];
   deliveries: ApiAlertDeliveryResponse[];
   subscriberCount?: number;
+  service?: ServiceServiceDetail;
   onDraftUpdate: () => void;
   onSetResponder: (name: string) => void;
 };
@@ -99,6 +102,7 @@ export const IncidentSidePanel = ({
   related,
   deliveries,
   subscriberCount,
+  service,
   onDraftUpdate,
   onSetResponder,
 }: Props) => {
@@ -117,6 +121,18 @@ export const IncidentSidePanel = ({
   const updates = summary?.status_page?.published_updates ?? 0;
   return (
     <aside aria-label="Incident details" className="h-fit rounded-xl bg-[#f7f7f6] dark:bg-card">
+      {service && (
+        <Section title="Service">
+          <Facts>
+            {incidentServiceFacts(service).map(([label, value]) => (
+              <Fragment key={label}>
+                <span>{label}</span>
+                {value}
+              </Fragment>
+            ))}
+          </Facts>
+        </Section>
+      )}
       <Section title="Source">
         <Facts>
           <span>Monitor</span>

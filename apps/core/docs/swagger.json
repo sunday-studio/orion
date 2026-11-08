@@ -5962,7 +5962,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the app's product logs when `app_id` is given or the incident came from a log alert rule. Newest first.",
+                "description": "Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the node's service logs, plus the product logs of the incident's app or apps. The apps are `app_id` when given; otherwise those of the service the incident's monitor is linked to (`source` is `service`); otherwise the app of the log alert rule that owns the monitor (`source` is `log_rule`). With `pre_incident_only=true` the window ends when the incident opened, because the cause usually sits before the first failed check. Newest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -5981,8 +5981,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "Also include this app's product logs",
+                        "description": "Use this app's product logs instead of resolving them",
                         "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Stop at the moment the incident opened",
+                        "name": "pre_incident_only",
                         "in": "query"
                     },
                     {
@@ -6004,11 +6010,17 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_api.LogListResponse"
+                                            "$ref": "#/definitions/internal_api.IncidentLogsResponse"
                                         }
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
@@ -6650,6 +6662,82 @@
                     },
                     "501": {
                         "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/ingest/otlp/v1/metrics": {
+            "post": {
+                "security": [
+                    {
+                        "IngestKey": []
+                    }
+                ],
+                "description": "OpenTelemetry Metrics endpoint (ExportMetricsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed. Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each data point counts as one). Gauges and sums are stored as the app's metric series; histograms and summaries are not supported yet and are reported as rejected. An app may report up to its `metric_series_cap` distinct series (default 100): data points of further series are refused and counted in partial_success. Data points older than 24 hours or more than 5 minutes ahead are refused.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest metrics over OTLP/HTTP",
+                "operationId": "ingestOTLPMetrics",
+                "parameters": [
+                    {
+                        "description": "ExportMetricsServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -12657,6 +12745,750 @@
                 }
             }
         },
+        "/v1/services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Every service with how many apps, monitors and resources are linked to it, the worst known health among its monitors, and its open incident count.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "List services",
+                "operationId": "listServices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "services": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/orion_core_internal_service.ServiceSummary"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A service is one named thing that ties monitors, an app's logs and measured resources together. Creating it links nothing; link things with POST /v1/services/{id}/links. slug is derived from the name when omitted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Create a service",
+                "operationId": "createService",
+                "parameters": [
+                    {
+                        "description": "Service",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_service.ServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "service": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.ServiceSummary"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/suggestions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Proposes links with the reason for each. Without service_id: unlinked things that match an existing service, and unlinked apps that could start a new service (service_id empty on those). With service_id: only what could join that service. A suggestion is advice only; nothing is linked until you call POST /v1/services/{id}/links. Rules: an app's slug or OpenTelemetry service.name (seen in its logs in the last 24 hours) against monitor names, the host a Core monitor checks, and resource (process, unit, container) names. Monitors the Node runs are matched by name only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Suggest service links",
+                "operationId": "listServiceSuggestions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Only suggest links for this service",
+                        "name": "service_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "suggestions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/orion_core_internal_service.ServiceSuggestion"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The service with its linked apps, monitors and resources.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Get a service",
+                "operationId": "getService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "service": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.ServiceDetail"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the service and clears every link to it. The apps, monitors, resources, logs, reports and incidents that were linked are kept untouched.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Delete a service",
+                "operationId": "deleteService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "unlinked": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.ServiceDeleteResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Omitted fields are unchanged; an empty node_id, environment or runbook_url clears it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Update a service",
+                "operationId": "updateService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_service.ServicePatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "service": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.ServiceSummary"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/{id}/links": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "kind is app or monitor (with id) or resource (with node_id and key). A thing belongs to at most one service: linking one that already belongs to another service moves it, and previous_service_id says from where. Linking it to the same service again changes nothing. System monitors cannot be linked.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Link to a service",
+                "operationId": "linkServiceItem",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "What to link",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_service.ServiceLinkRef"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "link": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.ServiceLinkResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Clears only the link. Logs, monitor reports, incidents and resource data stay as they are. 404 when the thing does not exist or is not linked to this service.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Unlink from a service",
+                "operationId": "unlinkServiceItem",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "app",
+                            "monitor",
+                            "resource"
+                        ],
+                        "type": "string",
+                        "description": "app, monitor or resource",
+                        "name": "kind",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App or monitor ID",
+                        "name": "target_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource node ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource key",
+                        "name": "key",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/{id}/log-counts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Entries per bucket and severity for the apps linked to the service, read from the per-minute rollup (no raw rows are scanned). Meant for the error lane of a service timeline; open the logs for the entries themselves.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Log volume of a service",
+                "operationId": "getServiceLogCounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start: RFC 3339 or relative such as -6h (default one hour before `to`)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End: RFC 3339 or relative (default now)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Bucket size, a multiple of 60 up to 3600 (default 60)",
+                        "name": "step_seconds",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ServiceLogCountsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/services/{id}/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The CPU, memory, I/O, network and storage history of the resources linked to the service, plus any app-reported metrics of its linked apps. Ranges up to 48 hours read one-minute samples; longer ranges read hourly rollups. The step widens so a series never returns more than about `max_points` points. Linking or unlinking changes which series are returned, never the stored samples.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Metric history of a service",
+                "operationId": "getServiceMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start: RFC 3339 or relative such as -6h (default one hour before `to`)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End: RFC 3339 or relative (default now)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Points per series, default 500, max 2000",
+                        "name": "max_points",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ServiceMetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/settings/api-tokens": {
             "get": {
                 "security": [
@@ -17771,6 +18603,10 @@
                     "description": "MaxStorageMB caps stored log size for this app; the oldest entries are pruned first. 0 means the server default.",
                     "type": "integer"
                 },
+                "metric_series_cap": {
+                    "description": "MetricSeriesCap is how many distinct metric series this app may report over OTLP; 0 uses the server default (100).",
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string",
                     "example": "checkout-api"
@@ -17790,6 +18626,10 @@
                     "description": "RetentionDays defaults to 14.",
                     "type": "integer",
                     "example": 14
+                },
+                "service_id": {
+                    "description": "ServiceID is the Service this app is linked to; absent when unlinked.",
+                    "type": "string"
                 },
                 "slug": {
                     "type": "string",
@@ -17837,6 +18677,9 @@
                 "max_storage_mb": {
                     "type": "integer"
                 },
+                "metric_series_cap": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -17867,6 +18710,9 @@
                     "type": "string"
                 },
                 "max_storage_mb": {
+                    "type": "integer"
+                },
+                "metric_series_cap": {
                     "type": "integer"
                 },
                 "name": {
@@ -18929,6 +19775,55 @@
                 },
                 "resolved_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.IncidentLogsResponse": {
+            "type": "object",
+            "properties": {
+                "app_ids": {
+                    "description": "AppIDs are the apps whose logs were searched.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogEntry"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "pre_incident_only": {
+                    "description": "PreIncidentOnly is true when the window stops at the moment the incident opened.",
+                    "type": "boolean"
+                },
+                "service_id": {
+                    "description": "ServiceID and ServiceName are set when the incident's monitor is linked to a service, even if it has no app.",
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Source says how the app was chosen: service (the incident's monitor is linked to a service with\napps), log_rule (the monitor belongs to a log alert rule), query (app_id was passed) or none.",
+                    "type": "string",
+                    "enum": [
+                        "service",
+                        "log_rule",
+                        "query",
+                        "none"
+                    ]
+                },
+                "to": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "description": "Truncated is always false here: the incident view is bounded by limit, not by a scan cap. It is\nkept so clients written against the earlier LogListResponse shape keep working.",
+                    "type": "boolean"
                 }
             }
         },
@@ -20446,6 +21341,10 @@
                 "runbook_url": {
                     "type": "string"
                 },
+                "service_id": {
+                    "description": "ServiceID is the Service this monitor is linked to; absent when unlinked.",
+                    "type": "string"
+                },
                 "source": {
                     "type": "string"
                 },
@@ -21426,6 +22325,53 @@
                 }
             }
         },
+        "internal_api.ServiceLogCountBucket": {
+            "type": "object",
+            "properties": {
+                "counts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "t": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.ServiceLogCountsResponse": {
+            "type": "object",
+            "properties": {
+                "app_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceLogCountBucket"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.ServiceLogEntryResponse": {
             "type": "object",
             "properties": {
@@ -21470,6 +22416,127 @@
                 },
                 "stream": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.ServiceMetricPoint": {
+            "type": "object",
+            "properties": {
+                "cpu_percent": {
+                    "type": "number"
+                },
+                "cpu_percent_max": {
+                    "type": "number"
+                },
+                "io_read_bytes_per_sec": {
+                    "type": "number"
+                },
+                "io_write_bytes_per_sec": {
+                    "type": "number"
+                },
+                "memory_bytes": {
+                    "type": "number"
+                },
+                "memory_bytes_max": {
+                    "type": "number"
+                },
+                "net_rx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "net_tx_bytes_per_sec": {
+                    "type": "number"
+                },
+                "pids_max": {
+                    "type": "integer"
+                },
+                "storage_bytes_max": {
+                    "type": "integer"
+                },
+                "t": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "value_max": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_api.ServiceMetricSeries": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "string"
+                },
+                "metric": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceMetricPoint"
+                    }
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "os",
+                        "otlp"
+                    ]
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.ServiceMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "resolution": {
+                    "description": "Resolution is \"raw\" (one-minute rows, ranges up to 48 hours) or \"hourly\" (rollups).",
+                    "type": "string",
+                    "enum": [
+                        "raw",
+                        "hourly"
+                    ]
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceMetricSeries"
+                    }
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "description": "Truncated is true when the service has more series than the response carries (100).",
+                    "type": "boolean"
                 }
             }
         },
@@ -23563,6 +24630,13 @@
                 "last_rollup_run_at": {
                     "type": "string"
                 },
+                "metric_rollup_retention_days": {
+                    "type": "integer"
+                },
+                "metric_sample_retention_days": {
+                    "description": "Metric samples live in metrics.db: one-minute rows and hourly rollups are kept for different times.",
+                    "type": "integer"
+                },
                 "raw_report_hot_days": {
                     "type": "integer"
                 },
@@ -23906,6 +24980,10 @@
                 "pids": {
                     "type": "integer"
                 },
+                "service_id": {
+                    "description": "ServiceID is the Service this thing is linked to (set by Core, never read from a node report).",
+                    "type": "string"
+                },
                 "storage_bytes": {
                     "type": "integer"
                 },
@@ -24058,6 +25136,12 @@
                     "type": "integer"
                 },
                 "incident_event_retention_days": {
+                    "type": "integer"
+                },
+                "metric_rollup_retention_days": {
+                    "type": "integer"
+                },
+                "metric_sample_retention_days": {
                     "type": "integer"
                 },
                 "raw_report_hot_days": {
@@ -24706,6 +25790,235 @@
                 }
             }
         },
+        "orion_core_internal_service.ServiceDeleteResult": {
+            "type": "object",
+            "properties": {
+                "unlinked_apps": {
+                    "type": "integer"
+                },
+                "unlinked_monitors": {
+                    "type": "integer"
+                },
+                "unlinked_resources": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceDetail": {
+            "type": "object",
+            "properties": {
+                "app_count": {
+                    "type": "integer"
+                },
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.ServiceLinkedApp"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "health": {
+                    "description": "Health is the worst known health among the service's monitors (down, degraded, up), or unknown when none report.",
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "degraded",
+                        "down",
+                        "unknown"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "monitor_count": {
+                    "type": "integer"
+                },
+                "monitors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.ServiceLinkedMonitor"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "open_incident_count": {
+                    "type": "integer"
+                },
+                "resource_count": {
+                    "type": "integer"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.ServiceLinkedResource"
+                    }
+                },
+                "runbook_url": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceInput": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Checkout"
+                },
+                "node_id": {
+                    "description": "NodeID is the optional owner node (the server the service mainly runs on).",
+                    "type": "string"
+                },
+                "runbook_url": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "checkout"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceLinkRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "app",
+                        "monitor",
+                        "resource"
+                    ]
+                },
+                "node_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceLinkResult": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "app",
+                        "monitor",
+                        "resource"
+                    ]
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "previous_service_id": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceLinkedApp": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_ingest_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceLinkedMonitor": {
+            "type": "object",
+            "properties": {
+                "active_incident_id": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "degraded",
+                        "down",
+                        "unknown"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lifecycle": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceLinkedResource": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "orion_core_internal_service.ServiceLogBatchPayload": {
             "type": "object",
             "required": [
@@ -24759,6 +26072,157 @@
                     "type": "string"
                 },
                 "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServicePatch": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "runbook_url": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceSuggestion": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_core_internal_service.ServiceSuggestionMember"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceSuggestionMember": {
+            "type": "object",
+            "properties": {
+                "against": {
+                    "description": "Against is what it matched: the group's name or slug, the anchor app's slug, or a service.name seen in the anchor app's logs.",
+                    "type": "string",
+                    "enum": [
+                        "service_slug",
+                        "service_name",
+                        "app_slug",
+                        "otel_service_name"
+                    ]
+                },
+                "confidence": {
+                    "type": "string",
+                    "enum": [
+                        "high",
+                        "medium"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "app",
+                        "monitor",
+                        "resource"
+                    ]
+                },
+                "matched_on": {
+                    "description": "MatchedOn is the field of this thing that matched.",
+                    "type": "string",
+                    "enum": [
+                        "app_slug",
+                        "app_service_name",
+                        "monitor_name",
+                        "monitor_host",
+                        "resource_name"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Reason is the sentence to show next to the Accept button.",
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.ServiceSummary": {
+            "type": "object",
+            "properties": {
+                "app_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "health": {
+                    "description": "Health is the worst known health among the service's monitors (down, degraded, up), or unknown when none report.",
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "degraded",
+                        "down",
+                        "unknown"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                },
+                "monitor_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "open_incident_count": {
+                    "type": "integer"
+                },
+                "resource_count": {
+                    "type": "integer"
+                },
+                "runbook_url": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

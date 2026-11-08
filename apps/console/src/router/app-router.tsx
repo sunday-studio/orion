@@ -102,6 +102,16 @@ const StatusPageDetailPage = lazy(() =>
     default: module.StatusPageDetailPage,
   })),
 );
+const ServicesPage = lazy(() =>
+  import("@/features/services/services.view").then((module) => ({
+    default: module.ServicesPage,
+  })),
+);
+const ServiceDetailPage = lazy(() =>
+  import("@/features/services/service-detail.view").then((module) => ({
+    default: module.ServiceDetailPage,
+  })),
+);
 const StatusPagesPage = lazy(() =>
   import("@/features/status-pages/status-pages.view").then((module) => ({
     default: module.StatusPagesPage,
@@ -131,6 +141,8 @@ function AppRouter() {
           <Route path="servers" element={<NodesPage />} />
           <Route path="servers/new" element={<AddServerPage />} />
           <Route path="servers/:nodeId" element={<NodeDetailPage />} />
+          <Route path="services" element={<ServicesPage />} />
+          <Route path="services/:serviceId" element={<ServiceDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
           <Route path="monitors/new/node" element={<NodeMonitorSetupPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />

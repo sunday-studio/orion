@@ -28,6 +28,7 @@ func (s *Store) Prune(policies []AppRetention, now time.Time) (PruneResult, erro
 	for _, p := range policies {
 		if p.RetentionDays > 0 {
 			cutoff := now.AddDate(0, 0, -p.RetentionDays).UnixNano()
+			s.pruneMinuteCounts(p.AppID, now.AddDate(0, 0, -p.RetentionDays))
 			n, err := s.deleteBatched("app_id = ? AND ts < ?", p.AppID, cutoff)
 			result.Expired += n
 			if err != nil {
@@ -62,6 +63,7 @@ func (s *Store) Prune(policies []AppRetention, now time.Time) (PruneResult, erro
 
 // DeleteApp removes every entry of an app.
 func (s *Store) DeleteApp(appID string) (int64, error) {
+	s.db.Exec("DELETE FROM log_minute_counts WHERE app_id = ?", appID)
 	return s.deleteBatched("app_id = ?", appID)
 }
 

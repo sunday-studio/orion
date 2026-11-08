@@ -84,8 +84,10 @@ func (s *Server) receiveNodeReport(c *gin.Context) {
 	}
 
 	// App measurements are a bonus on the report: failing to store them never fails it.
-	if err := s.nodeService.StoreAppResources(nodeID.(string), payloadData.AppResources); err != nil {
+	if series, err := s.nodeService.StoreAppResources(nodeID.(string), payloadData.AppResources); err != nil {
 		s.logger.Warn("Could not store app resources", "error", err, "node_id", nodeID)
+	} else {
+		s.recordResourceSamples(nodeID.(string), series)
 	}
 
 	// Update node last-seen timestamp

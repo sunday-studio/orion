@@ -20,12 +20,14 @@ import {
   useGetIncident,
   useGetIncidentLogs,
   useGetIncidentPublicTargets,
+  useGetService,
   useReopenIncident,
   useResolveIncident,
   useRetryAlertDelivery,
   useSetIncidentResponder,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -47,6 +49,7 @@ import { ExpectedActual } from "./detail/expected-actual";
 import { IncidentDetailHeader } from "./detail/incident-detail-header";
 import { incidentMoments, lifecycleSteps } from "./detail/incident-lifecycle";
 import { IncidentLogs } from "./detail/incident-logs";
+import { ServiceTimeline } from "@/features/services/detail/service-timeline";
 import { IncidentSidePanel } from "./detail/incident-side-panel";
 import { IncidentTimeline, NoteComposer } from "./detail/incident-timeline";
 
@@ -66,8 +69,15 @@ export const IncidentDetailPage = () => {
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const now = useNow(1000);
   const publicTargets = useGetIncidentPublicTargets(incidentId);
-  const logs = useGetIncidentLogs(incidentId, { limit: 100 });
+  const [preOnly, setPreOnly] = useQueryState("pre", parseAsBoolean.withDefault(false));
+  const logs = useGetIncidentLogs(incidentId, {
+    limit: 100,
+    pre_incident_only: preOnly || undefined,
+  });
   const logEntries = logs.data?.entries ?? [];
+  const linkedService = useGetService(logs.data?.service_id ?? "", {
+    query: { enabled: Boolean(logs.data?.service_id) },
+  });
   const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
   const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
   const retryDelivery = useRetryAlertDelivery({ mutation: { onSuccess: refreshIncident } });
@@ -169,6 +179,11 @@ export const IncidentDetailPage = () => {
       <div className="w-full">
         <IncidentDetailHeader
           incident={incident}
+          service={
+            logs.data?.service_id
+              ? { id: logs.data.service_id, name: logs.data.service_name }
+              : undefined
+          }
           now={now}
           actionPending={actionPending}
           canAcknowledge={canAcknowledge}
@@ -201,6 +216,13 @@ export const IncidentDetailPage = () => {
               report={latestReport}
               now={now}
             />
+            {linkedService.data?.service && (
+              <ServiceTimeline
+                serviceId={linkedService.data.service.id ?? ""}
+                monitors={linkedService.data.service.monitors ?? []}
+                incidentOpenedAt={incident.opened_at}
+              />
+            )}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
               <TabsList>
                 <TabsTab value="timeline">Timeline</TabsTab>
@@ -245,7 +267,15 @@ export const IncidentDetailPage = () => {
                 />
               </TabsPanel>
               <TabsPanel value="logs">
-                <IncidentLogs entries={logEntries} />
+                <IncidentLogs
+                  response={logs.data}
+                  loading={logs.isPending}
+                  failed={logs.isError}
+                  onRetry={() => void logs.refetch()}
+                  preOnly={preOnly}
+                  onPreOnlyChange={(next) => void setPreOnly(next || null)}
+                  monitorId={incident.monitor_id}
+                />
               </TabsPanel>
               <TabsPanel value="notifications">
                 <DataTable
@@ -266,6 +296,7 @@ export const IncidentDetailPage = () => {
             related={relatedIncidents}
             deliveries={alertDeliveries}
             subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
+            service={linkedService.data?.service}
             onDraftUpdate={() => setPublicUpdateOpen(true)}
             onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
           />

@@ -7,6 +7,7 @@ runs, `/data` in Docker):
 |---|---|
 | `orion.db` | Everything except product logs: servers, monitors, reports, incidents, alerts, status pages, settings, users. |
 | `logs.db` | Product logs sent by your apps (the Logs section). |
+| `metrics.db` | Resource and app metric history (charts on a service). Optional to back up: the latest values are in `orion.db`, and the history refills as Nodes and apps keep reporting. Back it up like `logs.db` if you want the history. |
 
 Back up both. Each runs in WAL mode, so each has `-wal` and `-shm` files beside it. Never copy the `.db` file
 alone; use SQLite's online backup, which is safe while Core is running.

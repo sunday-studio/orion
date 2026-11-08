@@ -1,6 +1,11 @@
 import { StatBox } from "@/design-system";
 import type { ApiMonitorDetailSummary } from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
+import { MonitorErrorsLane } from "@/features/services/components/monitor-errors-lane";
+import {
+  MonitorAppErrorsStat,
+  MonitorRecentAppLogs,
+} from "@/features/services/components/monitor-app-logs";
 import { AvailabilityTable } from "./availability-table";
 import { ResponseTimeChart } from "./response-time-chart";
 
@@ -15,7 +20,9 @@ export const MonitorOverview = ({
   monitorId,
   summary,
   now,
+  serviceId,
 }: {
+  serviceId?: string;
   monitorId: string;
   summary?: ApiMonitorDetailSummary;
   now: number;
@@ -27,7 +34,7 @@ export const MonitorOverview = ({
   const down = status === "down";
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-3">
+      <div className={serviceId ? "grid grid-cols-4 gap-3" : "grid grid-cols-3 gap-3"}>
         <StatBox
           label={
             down ? "Currently down for" : status === "up" ? "Currently up for" : "Current state"
@@ -42,8 +49,11 @@ export const MonitorOverview = ({
         />
         <StatBox label="Last checked" value={ago(summary?.last_checked_at, now)} />
         <StatBox label="Incidents, 30 days" value={summary?.incidents_30d ?? "-"} />
+        {serviceId && <MonitorAppErrorsStat serviceId={serviceId} />}
       </div>
       <ResponseTimeChart monitorId={monitorId} />
+      {serviceId && <MonitorErrorsLane serviceId={serviceId} />}
+      {serviceId && <MonitorRecentAppLogs serviceId={serviceId} />}
       <AvailabilityTable monitorId={monitorId} />
     </div>
   );

@@ -18,7 +18,7 @@ The three must be set together. With `ORION_REQUIRE_FRONTEND_AUTH=true` (the Com
 
 | Variable | Default | Used by | What it does |
 |---|---|---|---|
-| `ORION_DATA_DIR` | `data` (`/data` in Docker) | both | Where `orion.db`, `logs.db`, the report archive and `backups/` live. |
+| `ORION_DATA_DIR` | `data` (`/data` in Docker) | both | Where `orion.db`, `logs.db`, `metrics.db`, the report archive and `backups/` live. |
 | `ORION_PORT` | `8999` | API | Listen port. |
 | `ORION_LISTEN_HOST` | empty (all interfaces) | API | Bind address. Ignored, and forced to `127.0.0.1`, when Core runs without authentication. |
 | `ORION_REQUIRE_FRONTEND_AUTH` | `false` (`true` in Compose) | both | Refuse to start unless sign-in is configured and strong. |

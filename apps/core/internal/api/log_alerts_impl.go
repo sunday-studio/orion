@@ -8,6 +8,7 @@ import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -184,6 +185,21 @@ func (s *Server) deleteLogAlertRuleImpl(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Log alert rule deleted", nil)
 }
 
+// incidentLogsWindow is 15 minutes before the incident opened to 5 minutes after it resolved (or now).
+// preIncidentOnly stops at the moment it opened, because the cause usually sits before the first failed check.
+func incidentLogsWindow(incident db.Incident, preIncidentOnly bool) (from, to time.Time) {
+	from = incident.OpenedAt.Add(-15 * time.Minute)
+	switch {
+	case preIncidentOnly:
+		to = incident.OpenedAt
+	case incident.ResolvedAt != nil:
+		to = incident.ResolvedAt.Add(5 * time.Minute)
+	default:
+		to = time.Now().UTC()
+	}
+	return from, to
+}
+
 func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", c.Param("id")).First(&incident).Error; err != nil {
@@ -191,27 +207,43 @@ func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 		return
 	}
 	limit := min(utils.QueryInt(c, "limit", 100), logstore.MaxPageSize)
-	from := incident.OpenedAt.Add(-15 * time.Minute)
-	to := time.Now().UTC()
-	if incident.ResolvedAt != nil {
-		to = incident.ResolvedAt.Add(5 * time.Minute)
+	preIncidentOnly := false
+	if raw := strings.TrimSpace(c.Query("pre_incident_only")); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			utils.BadRequest(c, "pre_incident_only must be true or false")
+			return
+		}
+		preIncidentOnly = parsed
+	}
+	from, to := incidentLogsWindow(incident, preIncidentOnly)
+
+	// An explicit app_id wins; otherwise the incident's monitor decides, through its service and
+	// then through the log alert rule that owns it.
+	out := IncidentLogsResponse{Entries: []LogEntry{}, Source: service.IncidentLogsViaNone, AppIDs: []string{}, PreIncidentOnly: preIncidentOnly, From: from, To: to}
+	src, err := s.serviceCatalog().IncidentLogSource(incident.MonitorID)
+	if err != nil {
+		utils.InternalError(c, "Failed to resolve the incident's app logs", err)
+		return
+	}
+	out.ServiceID, out.ServiceName = src.ServiceID, src.ServiceName
+	if appID := strings.TrimSpace(c.Query("app_id")); appID != "" {
+		out.Source, out.AppIDs = "query", []string{appID}
+	} else {
+		out.Source = src.Via
+		if len(src.AppIDs) > 0 {
+			out.AppIDs = src.AppIDs
+		}
 	}
 
 	var entries []LogEntry
-	appID := strings.TrimSpace(c.Query("app_id"))
-	if appID == "" {
-		var rule db.LogAlertRule
-		if err := s.db.Select("app_id").Where("monitor_id = ?", incident.MonitorID).First(&rule).Error; err == nil {
-			appID = rule.AppID
-		}
-	}
-	if appID != "" && s.logs != nil {
-		rows, _, err := s.logs.store.List(logstore.Query{AppIDs: []string{appID}, From: from, To: to, Limit: limit})
+	if len(out.AppIDs) > 0 && s.logs != nil {
+		rows, _, err := s.logs.store.List(logstore.Query{AppIDs: out.AppIDs, From: from, To: to, Limit: limit})
 		if err != nil {
 			utils.InternalError(c, "Failed to load app logs", err)
 			return
 		}
-		names := s.appNames([]string{appID})
+		names := s.appNames(out.AppIDs)
 		for _, r := range rows {
 			entries = append(entries, toLogEntry(r, names))
 		}
@@ -227,8 +259,8 @@ func (s *Server) getIncidentLogsImpl(c *gin.Context) {
 	if len(entries) > limit {
 		entries = entries[:limit]
 	}
-	if entries == nil {
-		entries = []LogEntry{}
+	if entries != nil {
+		out.Entries = entries
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Incident logs retrieved successfully", LogListResponse{Entries: entries})
+	utils.SuccessResponse(c, http.StatusOK, "Incident logs retrieved successfully", out)
 }

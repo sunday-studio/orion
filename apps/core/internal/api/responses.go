@@ -99,7 +99,9 @@ type MonitorResponse struct {
 	PausedAt        *time.Time `json:"paused_at,omitempty"`
 	PausedBy        string     `json:"paused_by,omitempty"`
 	RunbookURL      string     `json:"runbook_url,omitempty"`
-	RecentChecks    []string   `json:"recent_checks,omitempty"`
+	// ServiceID is the Service this monitor is linked to; absent when unlinked.
+	ServiceID    string   `json:"service_id,omitempty"`
+	RecentChecks []string `json:"recent_checks,omitempty"`
 	// Maintenance is set while a window is active or scheduled.
 	Maintenance *MonitorMaintenanceInfo `json:"maintenance,omitempty"`
 	CreatedAt   time.Time               `json:"created_at"`

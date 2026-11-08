@@ -1,6 +1,6 @@
 # Service Correlation: Plan
 
-Status: proposed, awaiting approval. 2026-11-07.
+Status: S0 to S5 built in Core (2026-11-07); Console work (S1 UI, S6) and S7 not started.
 Related: [product-logs-plan.md](product-logs-plan.md), [incident-detail-information-architecture.md](incident-detail-information-architecture.md), [../architecture/passive-metrics-support-matrix.md](../architecture/passive-metrics-support-matrix.md), [../architecture/incident-reconciliation-flow.md](../architecture/incident-reconciliation-flow.md), [decision-log.md](decision-log.md), [database-evaluation.md](database-evaluation.md) (storage), [information-architecture-review.md](information-architecture-review.md) (navigation).
 
 Updated 2026-11-07 after the database evaluation and the navigation review: sample history now lives in its own `metrics.db` behind an interface, and Services sits under a Monitoring tab. Design boards: Services and Navigation pages of the Orion canvas.
@@ -69,6 +69,13 @@ detected-resource rows, plus **suggestions** so most users only click accept:
 - Monitor target hostname against the app's `service.name` or environment.
 
 A suggestion never links on its own.
+
+Link storage (S0 decisions, see `000058_services.up.sql`): no foreign key, because a stale link must
+never block a delete, a Node report or a monitor change; Core clears the links itself when a service
+is deleted. Unlinking only clears `service_id`: logs (keyed by app), monitor reports and incidents are
+untouched, so history is never lost. `node_app_resources` rows are replaced on every Node report, so
+Core carries `service_id` over for keys that are still reported; a key that stops being reported (a
+process that restarts under a new key, a removed container) loses its link with its row.
 
 Where it shows in the Console: Services is one of three views inside a **Monitoring** tab (Services,
 Monitors, Servers), which keeps the top bar at five items once it ships. An app's setup stays under
@@ -157,6 +164,36 @@ is covered. OTLP traces ingest and a waterfall view need span storage and new UI
 | S6 | Unified incident timeline with metric chart | console | Incident page shows checks, logs and curve together |
 | S7 | Metric threshold rules | core, console | A memory or error-rate rule opens an incident |
 
+### Status of S0 to S2 (Core API, 2026-11-07)
+
+Built in `apps/core`; the Console and navigation work are not started.
+
+- Routes: `GET/POST /v1/services`, `GET/PATCH/DELETE /v1/services/{id}`, `POST/DELETE /v1/services/{id}/links`
+  (an app or monitor by `id`, a resource by `node_id` and `key`; unlink takes the same as query parameters, with
+  `target_id` for the id), `GET /v1/services/suggestions[?service_id=]`. `service_id` is also returned on apps,
+  monitors and node app resources.
+- Linking a thing that belongs to another service moves it and reports `previous_service_id`. System monitors
+  cannot be linked. Deleting a service clears its links and keeps everything that was linked.
+- Suggestions are grouped per service (existing, or a new one started by an unlinked app). Each member carries
+  `matched_on`, `against`, `confidence` and a sentence. Rules: app slug and OTel `service.name` (last 24 hours,
+  newest 5000 log rows) against monitor names, the host a Core monitor checks, and resource names. Exact match is
+  high confidence; a hyphen prefix of 4 or more characters is medium. Apps have no address field, so "monitor
+  host against the app's address" is matched against the app slug and service.name instead. Discovery items are
+  not linkable until they become a monitor or a measured resource, so Node discovery names are matched through
+  `node_app_resources`.
+- `GET /v1/incidents/{id}/logs` resolves `explicit app_id`, else the monitor's service apps, else the log-rule app,
+  and returns `source`, `service_id`, `app_ids` and the window. `pre_incident_only=true` ends the window when the
+  incident opened.
+
+### Status of S3 to S5 (Core API, 2026-11-07)
+
+Built in `apps/core`; the Console is still not started. Details for the wire surface are in [../product-metrics.md](../product-metrics.md).
+
+- **S3, grouping.** Incidents group by service in the existing `alert_groups` tables: key `service:<id>`, whatever the monitor type. An incident's service is its monitor's `service_id`, or for a log rule's own monitor the `service_id` of the rule's app, resolved at grouping time instead of copied onto the monitor, so unlinking an app takes effect at once and the monitor never shows up in a service's monitor list. A service group takes a new incident while one of its incidents is active (overlap) or its last event is under 30 minutes old; otherwise a new group starts. A service group mixes monitor types and severities, so it has no severity in its key; instead an incident that is worse than the group so far is still notified (it is not suppressed) and raises the group's severity, while an equal or less severe one joins quietly. A group keeps naming its own service in its summary even if an incident's link changes meanwhile. Incidents without a service keep the per-node key. Per-incident notifications stay available through the route's `grouping_policy` (`none`).
+- **S4, history.** `metrics.db` and the `MetricStore` interface (`internal/metricstore`), written off the report path by one writer; one-minute rows (7 days) and hourly rollups (90 days), both set in the data lifecycle settings; hourly rollup (series by series, with late samples summarised again) and prune job in the API process; per-node cap of 200 active series; a response carries at most 100 series. `GET /v1/services/{id}/metrics` serves the chart data and resolves series from the links at read time, which is how "linking never rewrites history" is met without storing `service_id` on the series (the plan's earlier wording). A per-app minute rollup of log counts lives in `logs.db` (`GET /v1/services/{id}/log-counts`). The measured gate is recorded in [backend-hardening-load-results.md](backend-hardening-load-results.md).
+- **S5, OTLP metrics.** `POST /v1/ingest/otlp/v1/metrics` (protobuf and JSON, gzip) with the app's ingest key, the log body limits and the shared rate limiter. Gauges and sums only; histograms are reported in `partial_success`. Series per app are capped (default 100, `metric_series_cap` per app), and data points over the cap are refused synchronously and counted in `partial_success`. Open question answered: the first-class metric names are not special-cased; every metric is stored as sent.
+- **Left for later:** histograms (latency percentiles), rate conversion for cumulative sums, metric threshold rules (S7), and S6 (the Console timeline).
+
 Each phase is independently shippable. S1 to S3 deliver the core request ("see logs when a monitor
 goes wrong") without any new storage.
 
@@ -211,8 +248,13 @@ goes wrong") without any new storage.
 
 ## 10. Open questions
 
-- Can one monitor belong to more than one service (shared database, shared gateway)? If yes, S1 needs
-  the join table from day one.
+- ~~Can one monitor belong to more than one service?~~ **Decided for S0/S1: no.** A monitor, an app and
+  a resource each link to at most one service through a nullable `service_id` column (migration
+  `000058_services`). Linking to a second service moves the link. A shared database or gateway should
+  be its own service for now. If real use shows a monitor must serve several services, add a
+  `service_links` join table and backfill it from the columns; the API shape (`links` on a service)
+  does not change. Why: every consumer in S2 to S5 (incident logs, grouping, series tags) wants one
+  answer to "which service is this monitor", and the join table can be added later without losing data.
 - Should a Service carry its own status-page component mapping, replacing per-monitor mapping later?
 - Which metric names should be first-class (`http.server.request.duration`, `process.memory.usage`) and
   which stay raw?

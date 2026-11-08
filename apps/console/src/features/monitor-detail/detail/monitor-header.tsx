@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button, StatusBadge } from "@/design-system";
 import type { ApiMonitorDetailSummary, ApiMonitorResponse } from "@/orion-sdk";
+import { MonitorServiceChip } from "@/features/services/components/monitor-service-section";
 import { everyLabel } from "@/features/monitors/monitor-format";
 
 type Props = {
@@ -55,6 +56,7 @@ export const MonitorHeader = ({
             {[target, paused ? undefined : every !== "-" ? `checked every ${every}` : undefined]
               .filter(Boolean)
               .join(" · ")}
+            <MonitorServiceChip serviceId={monitor.service_id} />
           </span>
         </div>
       </div>

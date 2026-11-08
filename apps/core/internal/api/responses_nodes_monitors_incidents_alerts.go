@@ -46,7 +46,7 @@ func nodeListResponses(rows []service.NodeListRow) []NodeResponse {
 	return responses
 }
 func monitorResponse(monitor db.Monitor) MonitorResponse {
-	return MonitorResponse{ID: monitor.ID, System: monitor.System, RunbookURL: monitor.RunbookURL, IntervalSeconds: monitor.ReportingIntervalSeconds, Description: monitor.Description, Type: monitor.Type, Name: monitor.Name, NodeID: monitor.NodeID, OwnerKind: "node", OwnerID: monitor.NodeID, Source: "node", LastSuccessfulReportAt: monitor.LastSuccessfulReportAt, ReportingIntervalSeconds: monitor.ReportingIntervalSeconds, ComputedHealth: monitor.ComputedHealth, LastHealthComputation: monitor.LastHealthComputation, ActiveIncidentID: monitor.ActiveIncidentID, IncidentState: monitor.IncidentState, Lifecycle: monitor.Lifecycle, Health: monitor.Health, CreatedAt: monitor.CreatedAt, UpdatedAt: monitor.UpdatedAt, DeletedAt: monitor.DeletedAt}
+	return MonitorResponse{ID: monitor.ID, System: monitor.System, RunbookURL: monitor.RunbookURL, ServiceID: derefString(monitor.ServiceID), IntervalSeconds: monitor.ReportingIntervalSeconds, Description: monitor.Description, Type: monitor.Type, Name: monitor.Name, NodeID: monitor.NodeID, OwnerKind: "node", OwnerID: monitor.NodeID, Source: "node", LastSuccessfulReportAt: monitor.LastSuccessfulReportAt, ReportingIntervalSeconds: monitor.ReportingIntervalSeconds, ComputedHealth: monitor.ComputedHealth, LastHealthComputation: monitor.LastHealthComputation, ActiveIncidentID: monitor.ActiveIncidentID, IncidentState: monitor.IncidentState, Lifecycle: monitor.Lifecycle, Health: monitor.Health, CreatedAt: monitor.CreatedAt, UpdatedAt: monitor.UpdatedAt, DeletedAt: monitor.DeletedAt}
 }
 func monitorResponses(monitors []db.Monitor) []MonitorResponse {
 	responses := make([]MonitorResponse, 0, len(monitors))
@@ -206,4 +206,11 @@ func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRoute
 		evaluations = append(evaluations, AlertRouteEvaluationResponse{Route: alertRouteResponse(evaluation.Route), Matched: evaluation.Matched, Suppressed: evaluation.Suppressed, Reasons: evaluation.Reasons})
 	}
 	return AlertRouteDryRunResponse{Event: result.Event, LegacyFallback: result.LegacyFallback, Suppressed: result.Suppressed, SuppressionReason: result.SuppressionReason, RouteEvaluations: evaluations, DestinationDecisions: result.DestinationDecisions}
+}
+
+func derefString(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

@@ -3,10 +3,12 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
+	"orion/core/internal/metricstore"
 	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,6 +36,8 @@ type DataLifecycleSettingsPayload struct {
 	IncidentEventRetentionDays *int `json:"incident_event_retention_days,omitempty"`
 	AuditEventRetentionDays    *int `json:"audit_event_retention_days,omitempty"`
 	WorkerStatusRetentionDays  *int `json:"worker_status_retention_days,omitempty"`
+	MetricSampleRetentionDays  *int `json:"metric_sample_retention_days,omitempty"`
+	MetricRollupRetentionDays  *int `json:"metric_rollup_retention_days,omitempty"`
 }
 
 type SettingsService struct {
@@ -69,6 +73,10 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		return nil, err
 	}
 
+	if err := checkMetricRetention(settings, payload); err != nil {
+		return nil, err
+	}
+
 	updates := map[string]any{
 		"raw_report_hot_days":   payload.RawReportHotDays,
 		"archive_raw_reports":   payload.ArchiveRawReports,
@@ -83,6 +91,8 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		"incident_event_retention_days": payload.IncidentEventRetentionDays,
 		"audit_event_retention_days":    payload.AuditEventRetentionDays,
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
+		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
 	} {
 		if value != nil {
 			updates[column] = *value
@@ -118,6 +128,8 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 		IncidentEventRetentionDays: 365,
 		AuditEventRetentionDays:    365,
 		WorkerStatusRetentionDays:  7,
+		MetricSampleRetentionDays:  7,
+		MetricRollupRetentionDays:  90,
 	}
 	if err := s.db.Create(&settings).Error; err != nil {
 		return nil, err
@@ -161,6 +173,8 @@ func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSett
 		"incident_event_retention_days": payload.IncidentEventRetentionDays,
 		"audit_event_retention_days":    payload.AuditEventRetentionDays,
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
+		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
 	} {
 		if value != nil && (*value < 1 || *value > maxDataLifecycleRetentionDays) {
 			return "", errors.New(name + " must be between 1 and 3650")
@@ -294,4 +308,36 @@ func archiveDirEscapesThroughExistingSymlink(dataRoot string, candidate string) 
 		return false
 	}
 	return !pathStrictlyInside(resolvedDataRoot, resolvedExistingAncestor)
+}
+
+// MetricRetention reads how long metrics.db keeps one-minute and hourly rows. A settings read that
+// fails falls back to the defaults (7 and 90 days), so pruning never stops and never deletes early.
+func MetricRetention(s *SettingsService) metricstore.Retention {
+	days := func(v, fallback int) time.Duration {
+		if v < 1 {
+			v = fallback
+		}
+		return time.Duration(v) * 24 * time.Hour
+	}
+	settings, err := s.GetDataLifecycleSettings()
+	if err != nil {
+		return metricstore.Retention{Raw: days(0, 7), Rollup: days(0, 90)}
+	}
+	return metricstore.Retention{Raw: days(settings.MetricSampleRetentionDays, 7), Rollup: days(settings.MetricRollupRetentionDays, 90)}
+}
+
+// checkMetricRetention keeps hourly rollups at least as long as one-minute rows: a shorter rollup
+// window would prune series whose raw rows are still inside their retention.
+func checkMetricRetention(current *db.DataLifecycleSettings, payload DataLifecycleSettingsPayload) error {
+	sample, rollup := current.MetricSampleRetentionDays, current.MetricRollupRetentionDays
+	if payload.MetricSampleRetentionDays != nil {
+		sample = *payload.MetricSampleRetentionDays
+	}
+	if payload.MetricRollupRetentionDays != nil {
+		rollup = *payload.MetricRollupRetentionDays
+	}
+	if rollup < sample {
+		return errors.New("metric_rollup_retention_days must be at least metric_sample_retention_days")
+	}
+	return nil
 }

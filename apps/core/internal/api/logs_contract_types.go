@@ -90,6 +90,26 @@ type LogListResponse struct {
 	Truncated bool `json:"truncated"`
 }
 
+// IncidentLogsResponse is the logs that belong to an incident, newest first, and where they came from.
+type IncidentLogsResponse struct {
+	Entries []LogEntry `json:"entries"`
+	// Truncated is always false here: the incident view is bounded by limit, not by a scan cap. It is
+	// kept so clients written against the earlier LogListResponse shape keep working.
+	Truncated bool `json:"truncated"`
+	// Source says how the app was chosen: service (the incident's monitor is linked to a service with
+	// apps), log_rule (the monitor belongs to a log alert rule), query (app_id was passed) or none.
+	Source string `json:"source" enums:"service,log_rule,query,none"`
+	// ServiceID and ServiceName are set when the incident's monitor is linked to a service, even if it has no app.
+	ServiceID   string `json:"service_id,omitempty"`
+	ServiceName string `json:"service_name,omitempty"`
+	// AppIDs are the apps whose logs were searched.
+	AppIDs []string `json:"app_ids"`
+	// PreIncidentOnly is true when the window stops at the moment the incident opened.
+	PreIncidentOnly bool      `json:"pre_incident_only"`
+	From            time.Time `json:"from"`
+	To              time.Time `json:"to"`
+}
+
 // LogHistogramBucket is the count of entries per severity in one time bucket.
 type LogHistogramBucket struct {
 	Start    time.Time      `json:"start"`
@@ -166,12 +186,16 @@ type App struct {
 	// DebugSampleRate keeps this fraction (0-1) of trace and debug entries. Default 1.
 	DebugSampleRate float64 `json:"debug_sample_rate" example:"1"`
 	// RateLimitPerSecond is this app's ingest limit in lines per second; 0 uses the server default.
-	RateLimitPerSecond int               `json:"rate_limit_per_second"`
-	Display            DisplayProfile    `json:"display_profile"`
-	Redaction          RedactionSettings `json:"redaction"`
-	CreatedAt          time.Time         `json:"created_at"`
-	LastIngestAt       *time.Time        `json:"last_ingest_at"`
-	KeyCount           int               `json:"key_count"`
+	RateLimitPerSecond int `json:"rate_limit_per_second"`
+	// MetricSeriesCap is how many distinct metric series this app may report over OTLP; 0 uses the server default (100).
+	MetricSeriesCap int               `json:"metric_series_cap"`
+	Display         DisplayProfile    `json:"display_profile"`
+	Redaction       RedactionSettings `json:"redaction"`
+	// ServiceID is the Service this app is linked to; absent when unlinked.
+	ServiceID    string     `json:"service_id,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastIngestAt *time.Time `json:"last_ingest_at"`
+	KeyCount     int        `json:"key_count"`
 	// Status is receiving (a log in the last 5 minutes), quiet or never.
 	Status string `json:"status" enums:"receiving,quiet,never"`
 	// RatePerSecond is the average over the last minute.
@@ -191,6 +215,7 @@ type AppRequest struct {
 	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
 	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
 	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	MetricSeriesCap    *int               `json:"metric_series_cap,omitempty"`
 	Display            *DisplayProfile    `json:"display_profile,omitempty"`
 	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }
@@ -204,6 +229,7 @@ type AppUpdateRequest struct {
 	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
 	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
 	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	MetricSeriesCap    *int               `json:"metric_series_cap,omitempty"`
 	Display            *DisplayProfile    `json:"display_profile,omitempty"`
 	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }

@@ -265,7 +265,7 @@ func (s *Store) insert(entries []Entry) (int64, error) {
 			}
 			stored += res.RowsAffected
 		}
-		return nil
+		return addMinuteCounts(tx, entries, stored)
 	})
 	return stored, err
 }
@@ -289,6 +289,9 @@ func isStorageFull(err error) bool {
 func applySchema(database *gorm.DB) error {
 	if err := database.Exec(schema).Error; err != nil {
 		return fmt.Errorf("apply logs schema: %w", err)
+	}
+	if err := database.Exec(minuteCountsSchema).Error; err != nil {
+		return fmt.Errorf("apply minute counts schema: %w", err)
 	}
 	var cols []struct{ Name string }
 	if err := database.Raw("SELECT name FROM pragma_table_info('log_entries')").Scan(&cols).Error; err != nil {

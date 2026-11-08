@@ -61,6 +61,9 @@ func validateAppRequest(req AppRequest, creating bool) error {
 	if req.RateLimitPerSecond != nil && (*req.RateLimitPerSecond < 0 || *req.RateLimitPerSecond > 100000) {
 		return errors.New("rate_limit_per_second must be between 0 and 100000")
 	}
+	if req.MetricSeriesCap != nil && (*req.MetricSeriesCap < 0 || *req.MetricSeriesCap > 10000) {
+		return errors.New("metric_series_cap must be between 0 and 10000")
+	}
 	if req.Redaction != nil && len(req.Redaction.ExtraKeys) > 50 {
 		return errors.New("redaction.extra_keys is limited to 50 keys")
 	}
@@ -88,8 +91,8 @@ func (s *Server) appResponse(app db.App) App {
 func (s *Server) appResponseWith(app db.App, stats logstore.AppStats) App {
 	out := App{
 		ID: app.ID, Name: app.Name, Slug: app.Slug, Environment: app.Environment, Description: app.Description,
-		RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB, DebugSampleRate: app.DebugSampleRate, RateLimitPerSecond: app.RateLimitPerSecond,
-		CreatedAt: app.CreatedAt, LastIngestAt: app.LastIngestAt,
+		RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB, DebugSampleRate: app.DebugSampleRate, RateLimitPerSecond: app.RateLimitPerSecond, MetricSeriesCap: app.MetricSeriesCap,
+		ServiceID: derefString(app.ServiceID), CreatedAt: app.CreatedAt, LastIngestAt: app.LastIngestAt,
 		RatePerSecond: float64(stats.LastMinute) / 60, StorageBytes: stats.Bytes, StorageCapBytes: int64(app.MaxStorageMB) << 20, Lines: stats.Entries,
 	}
 	switch {
@@ -184,6 +187,9 @@ func applyAppRequest(app *db.App, req AppRequest) {
 	if req.RateLimitPerSecond != nil {
 		app.RateLimitPerSecond = *req.RateLimitPerSecond
 	}
+	if req.MetricSeriesCap != nil {
+		app.MetricSeriesCap = *req.MetricSeriesCap
+	}
 	if req.Display != nil {
 		encoded, _ := json.Marshal(req.Display)
 		app.DisplayJSON = string(encoded)
@@ -228,7 +234,8 @@ func (s *Server) updateAppImpl(c *gin.Context) {
 	}
 	applyAppRequest(&app, req)
 	app.UpdatedAt = time.Now().UTC()
-	if err := s.db.Save(&app).Error; err != nil {
+	// service_id belongs to the Services API: saving the whole row must not undo a link made meanwhile.
+	if err := s.db.Omit("service_id").Save(&app).Error; err != nil {
 		utils.InternalError(c, "Failed to update the app", err)
 		return
 	}

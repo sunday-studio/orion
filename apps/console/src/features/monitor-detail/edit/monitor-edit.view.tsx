@@ -27,6 +27,7 @@ import {
   useGetMonitor,
   useUpdateCoreMonitor,
 } from "@/orion-sdk";
+import { MonitorServiceSection } from "@/features/services/components/monitor-service-section";
 import { NodeMonitorTiming } from "./node-monitor-timing";
 import { DeleteMonitorDialog } from "../detail/delete-monitor-dialog";
 import { useMonitorActions } from "../detail/use-monitor-actions";
@@ -317,6 +318,7 @@ export const MonitorEditPage = () => {
             />
           </div>
         </FieldPanel>
+        <MonitorServiceSection monitor={{ ...monitor, id: monitorId }} />
         <FieldPanel title="Runbook" aside="Shown on incidents">
           <label className={label}>
             Link
