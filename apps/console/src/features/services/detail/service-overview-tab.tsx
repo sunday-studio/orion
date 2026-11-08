@@ -18,7 +18,13 @@ import {
   totalErrors,
 } from "../timeline-model";
 import { useRefreshServices } from "../use-service-mutations";
-import { AppsTable, MonitorsTable, SectionHead, useAvailability30d } from "./linked-tables";
+import {
+  AppsTable,
+  EmptyRow,
+  LinkedPanel,
+  MonitorsTable,
+  useAvailability30d,
+} from "./linked-tables";
 import { ServiceResourcesTab } from "./service-resources-tab";
 import { ServiceTimeline } from "./service-timeline";
 
@@ -140,28 +146,23 @@ export const ServiceOverviewTab = ({
         monitors={monitors}
         incidentOpenedAt={incident.data?.incident?.opened_at}
       />
-      <div className="grid gap-3.5 lg:grid-cols-2">
-        <section aria-label="Monitors">
-          <SectionHead title="Monitors" action="Link monitor" onAction={onEditLinks} />
-          {monitors.length > 0 ? (
-            <MonitorsTable monitors={monitors} />
-          ) : (
-            <p className="text-[13px] text-quiet">No monitors linked yet.</p>
-          )}
-        </section>
-        <section aria-label="Apps">
-          <SectionHead title="Apps" action="Link app" onAction={onEditLinks} />
-          {hasApps ? (
-            <AppsTable apps={service.apps ?? []} now={now} />
-          ) : (
-            <p className="text-[13px] text-quiet">No apps linked yet.</p>
-          )}
-        </section>
-      </div>
-      <section aria-label="Resources">
-        <SectionHead title="Resources" action="Link resource" onAction={onEditLinks} />
+      <LinkedPanel title="Monitors" action="Link monitor" onAction={onEditLinks}>
+        {monitors.length > 0 ? (
+          <MonitorsTable monitors={monitors} />
+        ) : (
+          <EmptyRow>No monitors linked yet.</EmptyRow>
+        )}
+      </LinkedPanel>
+      <LinkedPanel title="Apps" action="Link app" onAction={onEditLinks}>
+        {hasApps ? (
+          <AppsTable apps={service.apps ?? []} now={now} />
+        ) : (
+          <EmptyRow>No apps linked yet.</EmptyRow>
+        )}
+      </LinkedPanel>
+      <LinkedPanel title="Resources" action="Link resource" onAction={onEditLinks}>
         <ServiceResourcesTab resources={service.resources ?? []} />
-      </section>
+      </LinkedPanel>
     </div>
   );
 };

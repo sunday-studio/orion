@@ -4,7 +4,7 @@ import { Button, EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from
 import { useGetService } from "@/orion-sdk";
 import { EditLinksDialog } from "./components/edit-links-dialog";
 import { HealthBadge } from "./components/service-health";
-import { AppsTable, MonitorsTable } from "./detail/linked-tables";
+import { AppsTable, LinkedPanel, MonitorsTable } from "./detail/linked-tables";
 import { ServiceIncidentsTab } from "./detail/service-incidents-tab";
 import { ServiceLogsTab } from "./detail/service-logs-tab";
 import { ServiceOverviewTab } from "./detail/service-overview-tab";
@@ -116,7 +116,9 @@ export const ServiceDetailPage = () => {
         </TabsPanel>
         <TabsPanel value="monitors" className="flex flex-col gap-4">
           {monitors.length > 0 ? (
-            <MonitorsTable monitors={monitors} />
+            <LinkedPanel title="Monitors" action="Link monitor" onAction={() => setEditing(true)}>
+              <MonitorsTable monitors={monitors} />
+            </LinkedPanel>
           ) : (
             <EmptyState
               title="No monitors linked"
@@ -129,7 +131,9 @@ export const ServiceDetailPage = () => {
             />
           )}
           {(service.apps ?? []).length > 0 && (
-            <AppsTable apps={service.apps ?? []} now={Date.now()} />
+            <LinkedPanel title="Apps" action="Link app" onAction={() => setEditing(true)}>
+              <AppsTable apps={service.apps ?? []} now={Date.now()} />
+            </LinkedPanel>
           )}
         </TabsPanel>
         <TabsPanel value="logs">

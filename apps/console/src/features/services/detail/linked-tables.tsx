@@ -1,6 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Button, GridRow, GridTable, StatusBadge } from "@/design-system";
+import { Button, FieldPanel, GridRow, GridTable, RaisedCard, StatusBadge } from "@/design-system";
 import { relativeAgo } from "@/features/incidents/incident-format";
 import {
   type ServiceServiceLinkedApp,
@@ -26,7 +26,7 @@ export const useAvailability30d = (monitorIds: readonly string[]) => {
   );
 };
 
-const MONITOR_COLUMNS = "18px minmax(0,1fr) 90px 110px 90px";
+const MONITOR_COLUMNS = "18px minmax(0,1fr) 90px 170px 80px";
 
 export const MonitorsTable = ({
   monitors,
@@ -35,7 +35,7 @@ export const MonitorsTable = ({
 }) => {
   const availability = useAvailability30d(monitors.map((monitor) => monitor.id ?? ""));
   return (
-    <GridTable className="overflow-hidden rounded-xl border border-hairline">
+    <GridTable>
       <GridRow columns={MONITOR_COLUMNS} header>
         <span />
         <span>Name</span>
@@ -55,7 +55,10 @@ export const MonitorsTable = ({
               {healthLabel(serviceHealth(monitor.health))}
             </StatusBadge>
             {monitor.active_incident_id && (
-              <Link to={`/incidents/${monitor.active_incident_id}`} className="text-xs underline">
+              <Link
+                to={`/incidents/${monitor.active_incident_id}`}
+                className="shrink-0 text-xs underline"
+              >
                 Incident
               </Link>
             )}
@@ -108,7 +111,7 @@ export const AppsTable = ({
   apps: readonly ServiceServiceLinkedApp[];
   now: number;
 }) => (
-  <GridTable className="overflow-hidden rounded-xl border border-hairline">
+  <GridTable>
     <GridRow columns={APP_COLUMNS} header>
       <span>App</span>
       <span>Environment</span>
@@ -118,7 +121,7 @@ export const AppsTable = ({
     </GridRow>
     {apps.map((app) => (
       <GridRow key={app.id} columns={APP_COLUMNS}>
-        <Link to={`/settings/apps/${app.id}`} className="truncate font-medium hover:underline">
+        <Link to={`/logs/apps/${app.id}`} className="truncate font-medium hover:underline">
           {app.name ?? app.slug}
         </Link>
         <span className="text-faint">{app.environment ?? "-"}</span>
@@ -131,19 +134,35 @@ export const AppsTable = ({
   </GridTable>
 );
 
-export const SectionHead = ({
+/** A titled panel for one list of linked things, with the action to link more in its header. */
+export const LinkedPanel = ({
   title,
   action,
   onAction,
+  children,
 }: {
   title: string;
-  action: string;
-  onAction: () => void;
+  action?: string;
+  onAction?: () => void;
+  children: React.ReactNode;
 }) => (
-  <div className="mb-2 flex items-center justify-between">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <Button size="sm" variant="secondary" onClick={onAction}>
-      {action}
-    </Button>
-  </div>
+  <FieldPanel
+    compact
+    centerHeader
+    title={title}
+    aside={
+      action && onAction ? (
+        <Button size="sm" variant="secondary" onClick={onAction}>
+          {action}
+        </Button>
+      ) : undefined
+    }
+  >
+    <RaisedCard>{children}</RaisedCard>
+  </FieldPanel>
+);
+
+/** One quiet line inside a panel that has nothing in it yet. */
+export const EmptyRow = ({ children }: { children: React.ReactNode }) => (
+  <p className="px-3.5 py-3 text-[13px] text-quiet">{children}</p>
 );

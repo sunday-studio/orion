@@ -39,7 +39,7 @@ export const ServiceResourcesTab = ({
     nodes.data?.nodes?.find((node) => node.id === id)?.name ?? id ?? "-";
 
   return (
-    <GridTable className="overflow-hidden rounded-xl border border-hairline">
+    <GridTable>
       <GridRow columns={COLUMNS} header>
         <span>Resource</span>
         <span>Kind</span>
