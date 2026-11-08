@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "node --test 'src/**/*.test.ts'",
-    "lint": "oxlint . --deny-warnings",
     "test": "node --test \"src/**/*.test.ts\"",
+    "lint": "oxlint . --deny-warnings",
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",
     "preview": "vite preview",
