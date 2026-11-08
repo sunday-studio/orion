@@ -47,6 +47,7 @@ type Server struct {
 	router                       *gin.Engine
 	logs                         *productLogs
 	metrics                      metricstore.MetricStore // nil until EnableMetrics; resource history is optional
+	releases                     service.ReleaseLookup
 	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
 	auditRouteProbe bool
 }
@@ -99,6 +100,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		monitorService:               monitorService,
 		coreMonitorManagementService: coreMonitorManagementService,
 		settingsService:              settingsService,
+		releases:                     service.NewGitHubReleases("sunday-studio/orion"),
 		rollupService:                rollupService,
 		archiveService:               archiveService,
 		workerDiagnosticsService:     workerDiagnosticsService,

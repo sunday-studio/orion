@@ -14,8 +14,22 @@ type InstanceSettings struct {
 	// RegistrationToken, when set, replaces ORION_ENROLLMENT_TOKEN as the secret nodes register with.
 	RegistrationToken          string `gorm:"not null;default:''"`
 	RegistrationTokenRotatedAt *time.Time
-	UpdatedBy                  string `gorm:"not null;default:''"`
-	UpdatedAt                  time.Time
+	// UpdateCheckEnabled lets Core ask GitHub for the latest release once a day.
+	UpdateCheckEnabled bool `gorm:"not null;default:true"`
+	// UpdateChannel is stable (releases only) or prerelease (releases and pre-releases).
+	UpdateChannel string `gorm:"not null;default:stable"`
+	// UpdateLatest* hold what the last successful check found.
+	UpdateLatestVersion    string `gorm:"not null;default:''"`
+	UpdateLatestReleasedAt *time.Time
+	UpdateLatestSecurity   bool   `gorm:"not null;default:false"`
+	UpdateLatestURL        string `gorm:"not null;default:''"`
+	UpdateCheckedAt        *time.Time
+	// UpdateCheckError is why the last check failed; empty after a good one.
+	UpdateCheckError string `gorm:"not null;default:''"`
+	// UpdateSkippedVersion is a release the operator chose not to hear about again.
+	UpdateSkippedVersion string `gorm:"not null;default:''"`
+	UpdatedBy            string `gorm:"not null;default:''"`
+	UpdatedAt            time.Time
 }
 
 // APIToken is a credential for scripts and integrations; only its SHA-256 is stored.

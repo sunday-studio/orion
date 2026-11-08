@@ -4353,6 +4353,59 @@ definitions:
       notes:
         type: string
     type: object
+  internal_api.UpdateSettings:
+    properties:
+      auto_check:
+        type: boolean
+      channel:
+        enum:
+        - stable
+        - prerelease
+        type: string
+      checked_at:
+        type: string
+      current_version:
+        example: 0.9.2
+        type: string
+      error:
+        type: string
+      latest_version:
+        example: 0.9.3
+        type: string
+      release_url:
+        type: string
+      released_at:
+        type: string
+      security:
+        type: boolean
+      skipped_version:
+        type: string
+      state:
+        description: |-
+          State is the one word the Console shows: up_to_date, available, security (an update that fixes
+          a vulnerability, which cannot be skipped), skipped, error (the last check failed), off (checks
+          are off) or unchecked (nothing has been looked up yet).
+        enum:
+        - up_to_date
+        - available
+        - security
+        - skipped
+        - error
+        - "off"
+        - unchecked
+        type: string
+    type: object
+  internal_api.UpdateSettingsRequest:
+    properties:
+      auto_check:
+        type: boolean
+      channel:
+        type: string
+      skipped_version:
+        description: SkippedVersion hides one release; send an empty string to stop
+          skipping.
+        type: string
+    type: object
   internal_api.UptimeDayBucketResponse:
     properties:
       date:
@@ -14880,6 +14933,88 @@ paths:
       security:
       - BearerAuth: []
       summary: Rotate the registration token
+      tags:
+      - settings
+  /v1/settings/updates:
+    get:
+      description: The release Core runs, the newest release found, whether checks
+        are on, the channel, and one state word for the Console. Core looks for a
+        newer release once a day when checks are on.
+      operationId: getUpdateSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.UpdateSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get update settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Turn the daily check on or off, pick the stable or pre-release
+        channel, or skip the latest release. Changing the channel clears what was
+        found until the next check. A release that fixes a vulnerability cannot be
+        skipped.
+      operationId: updateUpdateSettings
+      parameters:
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.UpdateSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.UpdateSettings'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update the update settings
+      tags:
+      - settings
+  /v1/settings/updates/check:
+    post:
+      description: Asks GitHub for the newest release on the channel and stores the
+        answer. A failed check is returned as state error with the reason, not as
+        an HTTP error.
+      operationId: checkUpdatesNow
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.UpdateSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Check for updates now
       tags:
       - settings
   /v1/status-logs:

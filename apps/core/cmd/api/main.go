@@ -69,6 +69,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	go server.RunUpdateChecks(ctx)
+
 	lifecycleScheduler := service.NewDataLifecycleSchedulerService(database, logger, cfg.DataDir, time.Duration(cfg.DataLifecycleSchedulerSeconds)*time.Second)
 	go func() {
 		if err := lifecycleScheduler.Run(ctx); err != nil {

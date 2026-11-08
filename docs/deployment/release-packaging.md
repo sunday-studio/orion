@@ -75,6 +75,17 @@ host with cosign verify the release workflow identity before installation.
 The Node reports its baked version in system reports, so Core and Console can show which version
 is installed.
 
+## Marking a security release
+
+Core tells the Console when a newer release exists, and shows it differently when the release fixes
+a vulnerability. To mark one, put this line on its own line in the GitHub release notes:
+
+```text
+orion-security: true
+```
+
+A release marked this way cannot be skipped in Settings.
+
 ## Compatibility
 
 For the first deploy, Core and the Node should run the same release tag.

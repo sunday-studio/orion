@@ -67,6 +67,8 @@ var auditRoutes = map[string]auditRoute{
 	"DELETE /v1/monitors/:id/maintenance":                          {Action: "monitor_maintenance_cleared", Text: "Ended monitor maintenance", Object: "monitor", Param: "id"},
 	"POST /v1/monitors/bulk":                                       {Action: "monitors_bulk_action", Text: "Changed several monitors", Object: "monitor", Param: ""},
 	"PUT /v1/settings/general":                                     {Action: "settings_general_updated", Text: "Changed general settings", Object: "setting", Param: ""},
+	"PUT /v1/settings/updates":                                     {Action: "settings_updates_changed", Text: "Changed update settings", Object: "setting", Param: ""},
+	"POST /v1/settings/updates/check":                              {Action: "update_check_run", Text: "Checked for updates", Object: "setting", Param: ""},
 	"POST /v1/settings/system/registration-token/rotate":           {Action: "registration_token_rotated", Text: "Rotated registration token", Object: "setting", Param: ""},
 	"POST /v1/settings/api-tokens":                                 {Action: "api_token_created", Text: "Created API token", Object: "api_token", Param: ""},
 	"DELETE /v1/settings/api-tokens/:id":                           {Action: "api_token_revoked", Text: "Revoked API token", Object: "api_token", Param: "id"},

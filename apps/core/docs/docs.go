@@ -14156,6 +14156,138 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/settings/updates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The release Core runs, the newest release found, whether checks are on, the channel, and one state word for the Console. Core looks for a newer release once a day when checks are on.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get update settings",
+                "operationId": "getUpdateSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.UpdateSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Turn the daily check on or off, pick the stable or pre-release channel, or skip the latest release. Changing the channel clears what was found until the next check. A release that fixes a vulnerability cannot be skipped.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update the update settings",
+                "operationId": "updateUpdateSettings",
+                "parameters": [
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.UpdateSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.UpdateSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/updates/check": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Asks GitHub for the newest release on the channel and stores the answer. A failed check is returned as state error with the reason, not as an HTTP error.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Check for updates now",
+                "operationId": "checkUpdatesNow",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.UpdateSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-logs": {
             "get": {
                 "security": [
@@ -24105,6 +24237,75 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "notes": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.UpdateSettings": {
+            "type": "object",
+            "properties": {
+                "auto_check": {
+                    "type": "boolean"
+                },
+                "channel": {
+                    "type": "string",
+                    "enum": [
+                        "stable",
+                        "prerelease"
+                    ]
+                },
+                "checked_at": {
+                    "type": "string"
+                },
+                "current_version": {
+                    "type": "string",
+                    "example": "0.9.2"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "latest_version": {
+                    "type": "string",
+                    "example": "0.9.3"
+                },
+                "release_url": {
+                    "type": "string"
+                },
+                "released_at": {
+                    "type": "string"
+                },
+                "security": {
+                    "type": "boolean"
+                },
+                "skipped_version": {
+                    "type": "string"
+                },
+                "state": {
+                    "description": "State is the one word the Console shows: up_to_date, available, security (an update that fixes\na vulnerability, which cannot be skipped), skipped, error (the last check failed), off (checks\nare off) or unchecked (nothing has been looked up yet).",
+                    "type": "string",
+                    "enum": [
+                        "up_to_date",
+                        "available",
+                        "security",
+                        "skipped",
+                        "error",
+                        "off",
+                        "unchecked"
+                    ]
+                }
+            }
+        },
+        "internal_api.UpdateSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "auto_check": {
+                    "type": "boolean"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "skipped_version": {
+                    "description": "SkippedVersion hides one release; send an empty string to stop skipping.",
                     "type": "string"
                 }
             }
