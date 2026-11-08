@@ -63,7 +63,7 @@ export const FieldPanel = ({
 export const RaisedCard = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "overflow-hidden rounded-[10px] border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-6px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_8px_18px_-10px_rgba(0,0,0,0.7)]",
+      "overflow-hidden rounded-[10px] border border-hairline bg-card shadow-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
       className,
     )}
     {...props}
@@ -82,7 +82,12 @@ export const StatBox = ({
   of?: React.ReactNode;
   className?: string;
 }) => (
-  <div className={cn("rounded-xl border border-hairline bg-card px-3.5 py-3", className)}>
+  <div
+    className={cn(
+      "rounded-xl border border-hairline bg-card px-3.5 py-3 shadow-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+      className,
+    )}
+  >
     <span className="block text-xs leading-[18px] text-quiet">{label}</span>
     <b className="block text-xl font-semibold leading-[30px] tracking-[-0.02em]">
       {value}
