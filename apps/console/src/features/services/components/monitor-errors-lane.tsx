@@ -42,7 +42,7 @@ export const MonitorErrorsLane = ({ serviceId }: { serviceId: string }) => {
             <text x={LEFT - 6} y={H} textAnchor="end" className="fill-faint" fontSize="10">
               0
             </text>
-            <g fill="#e5484d" opacity=".85">
+            <g fill="var(--color-dot-down)" opacity=".85">
               {points.map((point) => (
                 <rect
                   key={point.t}

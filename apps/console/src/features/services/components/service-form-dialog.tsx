@@ -109,7 +109,7 @@ export const ServiceFormDialog = ({
           <LinkPicker kind="app" onChange={setApps} />
         </div>
         {error && (
-          <p role="alert" className="text-[12.5px] text-[#be123c]">
+          <p role="alert" className="text-[12.5px] text-(--tone-down-fg)">
             {error}
           </p>
         )}

@@ -212,7 +212,9 @@ export const ServicesPage = () => {
                       </span>
                       <span className="flex items-center gap-2">
                         <HealthBadge health={service.health} />
-                        {open > 0 && <span className="text-xs text-[#be123c]">{open} open</span>}
+                        {open > 0 && (
+                          <span className="text-xs text-(--tone-down-fg)">{open} open</span>
+                        )}
                       </span>
                     </GridRow>
                   );

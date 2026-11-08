@@ -58,7 +58,7 @@ export const MonitorServiceSection = ({
       <RaisedCard className="flex items-center gap-3 px-3.5 py-3">
         <i
           aria-hidden
-          className={`block size-2 rounded-full ${monitor.service_id ? "bg-[#2a9f69]" : "bg-faint"}`}
+          className={`block size-2 rounded-full ${monitor.service_id ? "bg-(--color-dot-up)" : "bg-faint"}`}
         />
         <div className="min-w-0 flex-1">
           {monitor.service_id ? (
@@ -77,7 +77,7 @@ export const MonitorServiceSection = ({
               : "Incidents here won't show app logs."}
           </p>
           {error && (
-            <p role="alert" className="text-xs text-[#be123c]">
+            <p role="alert" className="text-xs text-(--tone-down-fg)">
               {error}
             </p>
           )}

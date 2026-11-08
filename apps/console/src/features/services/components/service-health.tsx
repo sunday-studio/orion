@@ -2,10 +2,10 @@ import { Dot, StatusBadge } from "@/design-system";
 import { type ServiceHealth, healthLabel, serviceHealth } from "../services.domain";
 
 const COLOR: Record<ServiceHealth, string> = {
-  up: "#2a9f69",
-  degraded: "#f59e0b",
-  down: "#e5484d",
-  unknown: "#a1a1aa",
+  up: "var(--color-dot-up)",
+  degraded: "var(--color-dot-warn)",
+  down: "var(--color-dot-down)",
+  unknown: "var(--color-dot-idle)",
 };
 
 export const HealthDot = ({ health }: { health?: string }) => (

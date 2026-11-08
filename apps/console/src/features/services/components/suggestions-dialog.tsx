@@ -155,7 +155,7 @@ export const SuggestionsDialog = ({
         {query.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : query.isError ? (
-          <p role="alert" className="text-[13px] text-[#be123c]">
+          <p role="alert" className="text-[13px] text-(--tone-down-fg)">
             Unable to load suggestions.
           </p>
         ) : suggestions.length === 0 ? (
@@ -180,7 +180,7 @@ export const SuggestionsDialog = ({
           </ul>
         )}
         {error && (
-          <p role="alert" className="text-[12.5px] text-[#be123c]">
+          <p role="alert" className="text-[12.5px] text-(--tone-down-fg)">
             {error}
           </p>
         )}

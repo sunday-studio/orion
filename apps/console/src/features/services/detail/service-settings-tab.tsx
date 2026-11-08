@@ -58,7 +58,7 @@ export const ServiceSettingsTab = ({ service }: { service: ServiceServiceDetail 
         <Input value={environment} onChange={(event) => setEnvironment(event.target.value)} />
       </label>
       {error && (
-        <p role="alert" className="text-[12.5px] text-[#be123c]">
+        <p role="alert" className="text-[12.5px] text-(--tone-down-fg)">
           {error}
         </p>
       )}

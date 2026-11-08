@@ -28,7 +28,14 @@ const W = 900;
 const LEFT = 40;
 const LANE_H = 64;
 const GAP = 26;
-const COLORS = ["#3f3f46", "#2a9f69", "#6366f1", "#f59e0b", "#a1a1aa"];
+// Theme tokens, so the lines stay readable on the dark card. The violet has no token and works on both.
+const COLORS = [
+  "var(--color-ink)",
+  "var(--color-dot-up)",
+  "#8b8bf5",
+  "var(--color-dot-warn)",
+  "var(--color-dot-idle)",
+];
 
 type LaneProps = {
   title: string;
@@ -78,7 +85,14 @@ const Lane = ({
       </text>
       <line x1={LEFT} x2={W} y1={top + LANE_H} y2={top + LANE_H} className="stroke-hairline" />
       {marks.map((t) => (
-        <rect key={t} x={x(t) - 1.5} y={top + LANE_H - 12} width={3} height={12} fill="#e5484d">
+        <rect
+          key={t}
+          x={x(t) - 1.5}
+          y={top + LANE_H - 12}
+          width={3}
+          height={12}
+          fill="var(--color-dot-down)"
+        >
           <title>{`${formatDate(new Date(t).toISOString(), TIME_FORMAT)}: checks failed`}</title>
         </rect>
       ))}
@@ -122,7 +136,7 @@ const Lane = ({
           ))}
           {lines.map((line, index) =>
             bars ? (
-              <g key={line.id} fill="#e5484d" opacity=".85">
+              <g key={line.id} fill="var(--color-dot-down)" opacity=".85">
                 {line.points.map((p) => (
                   <rect
                     key={p.t}
@@ -240,7 +254,7 @@ export const ServiceTimeline = ({
         ) : (
           <>
             {failed && (
-              <p role="alert" className="pb-2 text-[12.5px] text-[#be123c]">
+              <p role="alert" className="pb-2 text-[12.5px] text-(--tone-down-fg)">
                 Some history could not be loaded. Lanes without data say so.
               </p>
             )}
@@ -257,7 +271,7 @@ export const ServiceTimeline = ({
                     y={10}
                     width={W - openedX}
                     height={height - 34}
-                    fill="#e5484d"
+                    fill="var(--color-dot-down)"
                     opacity=".08"
                   />
                   <line
@@ -265,7 +279,7 @@ export const ServiceTimeline = ({
                     x2={openedX}
                     y1={10}
                     y2={height - 24}
-                    stroke="#e5484d"
+                    stroke="var(--color-dot-down)"
                     strokeDasharray="4 3"
                   />
                   <text x={openedX - 5} y={8} textAnchor="end" className="fill-quiet" fontSize="10">

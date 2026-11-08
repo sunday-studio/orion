@@ -58,7 +58,7 @@ const SuggestedMember = ({
       <button type="button" className="underline" onClick={onDismiss}>
         Not this one
       </button>
-      {error && <span className="ml-2 text-[#be123c]">{error}</span>}
+      {error && <span className="ml-2 text-(--tone-down-fg)">{error}</span>}
     </Callout>
   );
 };
@@ -129,7 +129,7 @@ export const ServiceOverviewTab = ({
         />
         <StatBox
           label="Monitors down"
-          value={<span className={down > 0 ? "text-[#be123c]" : undefined}>{down}</span>}
+          value={<span className={down > 0 ? "text-(--tone-down-fg)" : undefined}>{down}</span>}
           of={monitors.length}
         />
       </div>

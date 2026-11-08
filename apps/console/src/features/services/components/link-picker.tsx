@@ -80,7 +80,9 @@ const List = ({
                     <b className="font-medium">{candidate.label}</b>{" "}
                     {candidate.hint && <span className="text-faint">{candidate.hint}</span>}
                   </span>
-                  {note && <span className="shrink-0 text-xs text-[#b45309]">{note}</span>}
+                  {note && (
+                    <span className="shrink-0 text-xs text-(--tone-degraded-fg)">{note}</span>
+                  )}
                 </label>
               </li>
             );

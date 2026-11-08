@@ -95,7 +95,9 @@ const AppRates = ({ appId }: { appId: string }) => {
       <span className="tabular-nums text-quiet">{rates.linesPerSecond}</span>
       <span
         className={
-          rates.errorsPerMinute > 0 ? "tabular-nums text-[#be123c]" : "tabular-nums text-quiet"
+          rates.errorsPerMinute > 0
+            ? "tabular-nums text-(--tone-down-fg)"
+            : "tabular-nums text-quiet"
         }
       >
         {rates.errorsPerMinute}
