@@ -39,19 +39,28 @@ export const FieldPanel = ({
   aside,
   children,
   className,
+  compact = false,
   ...props
 }: Omit<React.ComponentProps<"section">, "title"> & {
   title: React.ReactNode;
   aside?: React.ReactNode;
+  /** Tight panel for a table: 12px on top, 4px on the other sides (canvas `.field` with a `.gt`). */
+  compact?: boolean;
 }) => (
   <section
     className={cn(
-      "rounded-[14px] border border-hairline bg-field p-5 dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]",
+      "rounded-[14px] border border-hairline bg-field dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]",
+      compact ? "px-1 pb-1 pt-3" : "p-5",
       className,
     )}
     {...props}
   >
-    <div className="mx-0.5 mb-3 flex items-baseline justify-between">
+    <div
+      className={cn(
+        "flex items-baseline justify-between",
+        compact ? "mx-2.5 mb-2.5" : "mx-0.5 mb-3",
+      )}
+    >
       <h2 className="text-sm font-medium">{title}</h2>
       {aside !== undefined && <span className="text-[12.5px] text-faint">{aside}</span>}
     </div>

@@ -17,7 +17,7 @@ export const TopApps = ({ rows, total }: { rows: ServiceAppResourceSeries[]; tot
   return (
     <FieldPanel
       title="Top apps"
-      className="px-3 pb-3 pt-4"
+      compact
       aside={`${rows.length} of ${total} · CPU is a share of one core · - not measured`}
     >
       <RaisedCard>
