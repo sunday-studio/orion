@@ -125,7 +125,8 @@ notification arrive. Delete the monitor when you are done.
 - **Send logs from your own apps:** [Product logs](product-logs.md).
 - **Back up the database:** [SQLite backup and restore](sqlite-backup-restore.md).
 - **Upgrade:** pull the new image and run `docker compose up -d`; read the
-  [upgrade notes](deployment/upgrade-notes-0.2.0.md) first when moving from a version before 0.2.0.
+  [upgrade notes](deployment/upgrade-notes-0.2.0.md) first when moving from a version before 0.2.0, and
+  the [0.4.0 notes](deployment/upgrade-notes-0.4.0.md) when moving from a version before 0.4.0.
 - **Remove a server:** `orion-node` uninstall steps are in
   [Node install and upgrade](deployment/node-install-upgrade.md).
 

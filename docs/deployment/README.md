@@ -16,6 +16,7 @@ The supported self-hosted setup is:
 - [Install and manage a Node](node-install-upgrade.md)
 - [Node configuration reference](node-config-reference.md)
 - [Upgrade notes: 0.2.0](upgrade-notes-0.2.0.md)
+- [Upgrade notes: 0.4.0](upgrade-notes-0.4.0.md)
 - [Upgrade notes: the agent is now the node](upgrade-notes-node-rename.md)
 - [Upgrade notes: backend hardening release](upgrade-notes-backend-hardening.md)
 - [Release readiness gate](release-readiness.md)
