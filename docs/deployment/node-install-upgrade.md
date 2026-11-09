@@ -275,7 +275,7 @@ The server stays listed in the Console after an uninstall. Remove it there (open
 | Runs as | user `orion` | user `_orion` |
 
 **Doctor says "control socket not reachable" on macOS.** The node is running and reporting to Core, but
-`status`, `doctor` and `restart` cannot reach it. Installs made before Node 0.3.1 did not create the
+`status`, `doctor` and `restart` cannot reach it. Installs made before Node 0.4.0 did not create the
 socket folder, and `_orion` cannot create it under the root-owned `/usr/local/var/run`. The node log
 then shows `create socket directory: mkdir /usr/local/var/run: permission denied`. Run
 
