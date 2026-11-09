@@ -5,6 +5,7 @@ import (
 	"orion/core/internal/metricstore"
 	"orion/core/internal/utils"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,7 +56,7 @@ func TestServiceMetricsReturnsHistoryOfLinkedResources(t *testing.T) {
 	id := createServiceVia(t, server, gin.H{"name": "Checkout"})
 	// Nothing is linked yet: the service has no series, though samples were stored.
 	var empty serviceMetricsBody
-	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/services/"+id+"/metrics?from=-1h", nil, ""), &empty)
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, metricsHistoryPath(id), nil, ""), &empty)
 	if len(empty.Data.Series) != 0 {
 		t.Fatalf("unlinked service has series: %+v", empty.Data.Series)
 	}
@@ -65,7 +66,7 @@ func TestServiceMetricsReturnsHistoryOfLinkedResources(t *testing.T) {
 		t.Fatalf("link = %d %s", resp.Code, resp.Body.String())
 	}
 	var got serviceMetricsBody
-	resp := performJSONRequest(t, server, http.MethodGet, "/v1/services/"+id+"/metrics?from=-1h", nil, "")
+	resp := performJSONRequest(t, server, http.MethodGet, metricsHistoryPath(id), nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("metrics = %d %s", resp.Code, resp.Body.String())
 	}
@@ -81,13 +82,13 @@ func TestServiceMetricsReturnsHistoryOfLinkedResources(t *testing.T) {
 	// Unlinking hides the series but keeps the samples: linking again brings the same history back.
 	performJSONRequest(t, server, http.MethodDelete, "/v1/services/"+id+"/links?kind=resource&node_id="+nodeID+"&key=container:web", nil, "")
 	var after serviceMetricsBody
-	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/services/"+id+"/metrics?from=-1h", nil, ""), &after)
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, metricsHistoryPath(id), nil, ""), &after)
 	if len(after.Data.Series) != 0 {
 		t.Fatalf("after unlink: %+v", after.Data.Series)
 	}
 	performJSONRequest(t, server, http.MethodPost, "/v1/services/"+id+"/links", link, "")
 	var again serviceMetricsBody
-	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/services/"+id+"/metrics?from=-1h", nil, ""), &again)
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, metricsHistoryPath(id), nil, ""), &again)
 	if len(again.Data.Series) != 1 || len(again.Data.Series[0].Points) != 1 {
 		t.Fatalf("relinked history = %+v", again.Data.Series)
 	}
@@ -123,4 +124,11 @@ func TestServiceMetricsIs503WithoutAMetricStore(t *testing.T) {
 	// Reports still work and store the latest values with no store attached.
 	node := registerTestNode(t, server)
 	reportWithAppResources(t, server, node.Data.NodeID, node.Data.Token, map[string]any{"series": []map[string]any{{"kind": "container", "key": "c", "name": "c", "cpu_percent": 1.0}}})
+}
+
+// metricsHistoryPath reads the last hour with an upper bound a little ahead of now. Samples are stored
+// at the start of their minute and the range is half-open, so a bound of "now" would leave out the
+// sample of the current minute whenever the test runs in the first second of a minute.
+func metricsHistoryPath(serviceID string) string {
+	return "/v1/services/" + serviceID + "/metrics?from=-1h&to=" + time.Now().UTC().Add(2*time.Minute).Format(time.RFC3339)
 }

@@ -119,7 +119,7 @@ func TestOTLPMetricsShowUpOnTheServiceOfTheApp(t *testing.T) {
 			} `json:"series"`
 		} `json:"data"`
 	}
-	resp := performJSONRequest(t, server, http.MethodGet, "/v1/services/"+svcID+"/metrics?from=-1h", nil, "")
+	resp := performJSONRequest(t, server, http.MethodGet, metricsHistoryPath(svcID), nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("metrics status = %d %s", resp.Code, resp.Body.String())
 	}
