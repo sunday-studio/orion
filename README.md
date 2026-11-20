@@ -72,7 +72,9 @@ your login. Then:
 
 The settings are in [`deploy/.env.example`](deploy/.env.example); the compose file is
 [`deploy/docker-compose.yml`](deploy/docker-compose.yml). Building Core from source on a new server:
-[Set up Core with Docker](docs/deployment/docker-new-server.md).
+[Set up Core with Docker](docs/deployment/docker-new-server.md). SDKs that default to OTLP/gRPC (port 4317) can send to
+an opt-in receiver, started with [`deploy/docker-compose.otlp-grpc.yml`](deploy/docker-compose.otlp-grpc.yml):
+[OpenTelemetry over gRPC](docs/otlp-grpc.md).
 
 Want to see it work before installing anything? The demo starts Core, monitors a tiny Python service,
 breaks it and checks recovery:

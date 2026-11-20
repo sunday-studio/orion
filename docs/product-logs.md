@@ -1,6 +1,6 @@
 # Send logs to Orion
 
-Status: **live**: apps, ingest keys, `POST /v1/ingest/logs` (JSON, array, NDJSON, optionally gzip), OTLP/HTTP ingest (protobuf and JSON), `GET /v1/logs`, `GET /v1/logs/{id}`, the volume histogram, the field catalog, saved views and the live stream. Log-based alerts and incident linking come next; everything is specified in `apps/core/openapi.yaml`. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
+Status: **live**: apps, ingest keys, `POST /v1/ingest/logs` (JSON, array, NDJSON, optionally gzip), OTLP/HTTP ingest (protobuf and JSON) and an opt-in OTLP/gRPC receiver, `GET /v1/logs`, `GET /v1/logs/{id}`, the volume histogram, the field catalog, saved views and the live stream. Log-based alerts and incident linking come next; everything is specified in `apps/core/openapi.yaml`. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
 
 Orion collects *product logs*: what your app says about itself ("user signed up", "payment failed", "export finished", errors with context). There is no required schema. A plain message is a valid log; richer data gets richer filtering automatically.
 
@@ -71,6 +71,8 @@ export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
+
+Over gRPC (the default of many SDKs) use the opt-in receiver on port 4317: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`. It shares the parsing, limits, redaction and rate limit below; see [otlp-grpc.md](otlp-grpc.md) for setup and the gRPC status codes.
 
 OTLP log records map to Orion entries (a successful response mirrors the request encoding and reports rejected records in `partial_success`; error responses (400, 401, 413, 415, 429) are Orion JSON envelopes rather than OTLP `Status` messages, which collectors handle by status code and `Retry-After`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`.
 

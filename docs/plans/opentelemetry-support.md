@@ -9,7 +9,7 @@ Status: in progress. Decided 2026-11-20: cover metrics, traces and gRPC, and bui
 | Logs | `POST /v1/ingest/otlp/v1/logs`, protobuf and JSON, gzip. Complete. |
 | Metrics | `POST /v1/ingest/otlp/v1/metrics`, protobuf and JSON. **Gauges and sums only**; histograms, exponential histograms and summaries are rejected. |
 | Traces | Nothing. Logs keep `trace_id` and `span_id`, nothing else knows about traces. |
-| Transport | OTLP/HTTP only. No gRPC receiver. |
+| Transport | OTLP/HTTP, and an opt-in OTLP/gRPC receiver (phase 2). |
 
 Everything authenticates with an app ingest key (`Authorization: Bearer`) and lands under an app, which a service links to.
 
@@ -41,12 +41,22 @@ As built (differences from the list above; the behaviour is documented in `docs/
 
 ## Phase 2: gRPC receiver
 
+Status: done.
+
 Many SDKs default to OTLP/gRPC on port 4317.
 
 - A gRPC server in Core registers the OTLP `LogsService`, `MetricsService` and `TraceService`, and hands requests to the same parsing and storage code as HTTP.
 - Auth reads `authorization: Bearer <key>` from gRPC metadata, with the same per-app rate limits and errors mapped to gRPC status codes (`Unauthenticated`, `ResourceExhausted`, `InvalidArgument`).
 - Config: `ORION_OTLP_GRPC_ADDR` (default off, example `:4317`); the Docker image exposes 4317 and the compose file publishes it only when set. `google.golang.org/grpc` is already in `go.mod` as an indirect dependency.
 - Message size and connection limits match the HTTP body limits.
+
+As built (the behaviour is documented in `docs/otlp-grpc.md`):
+
+- One shared function per signal (`exportLogs`, `exportMetrics`, `exportTraces` in `apps/core/internal/api/otlp-ingest-shared.go`) takes the decoded request and returns the result or a typed failure; the HTTP handlers and the gRPC services only authenticate, decode and map the outcome to their wire. The store packages gained `Decode...` and `Parse...Request` functions so a decoded message can be ingested without a body.
+- Auth runs in a gRPC tap handler, before the message is read, so a caller without a key never makes Core decode a request. The key is read from `authorization` metadata only (HTTP has no other key header either).
+- Status mapping: `Unauthenticated`; `InvalidArgument` for a message that does not parse and for more than 10,000 entries; `ResourceExhausted` with a `retry-after` trailer and `RetryInfo` for the rate limit and a full write queue; `ResourceExhausted` without them for an oversized message; `Unavailable` (with them when storage is full) when a signal is off or storage is full. grpc-go answers a message that does not parse with `Internal` and has already sent that status by the time a handler runs, so the services decode requests themselves (a server codec that keeps the bytes) to answer `InvalidArgument`.
+- The max receive size is the OTLP/HTTP body cap (5 MiB) and applies after gzip decompression. Core also bounds connections (1,024), streams per connection (64), headers, handshake time, idle time, connection age and keepalive.
+- Compose cannot omit a `ports` entry by interpolation, so the port is published by an overlay file, `deploy/docker-compose.otlp-grpc.yml`, that also sets `ORION_OTLP_GRPC_ADDR`; the base file and the default install are unchanged. The overlay publishes on `127.0.0.1` unless `ORION_OTLP_GRPC_HOST` says otherwise, because the receiver has no TLS.
 
 ## Phase 3: traces backend
 

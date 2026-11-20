@@ -21,6 +21,7 @@ The three must be set together. With `ORION_REQUIRE_FRONTEND_AUTH=true` (the Com
 | `ORION_DATA_DIR` | `data` (`/data` in Docker) | both | Where `orion.db`, `logs.db`, `metrics.db`, `traces.db`, the report archive and `backups/` live. |
 | `ORION_PORT` | `8999` | API | Listen port. |
 | `ORION_LISTEN_HOST` | empty (all interfaces) | API | Bind address. Ignored, and forced to `127.0.0.1`, when Core runs without authentication. |
+| `ORION_OTLP_GRPC_ADDR` | empty (off) | API | Turns on the OTLP/gRPC receiver for logs, metrics and traces, for example `:4317`. It takes the same app ingest keys, limits and rate limits as OTLP/HTTP, and the port is not covered by `ORION_LISTEN_HOST` or the loopback rule above. The receiver is plaintext: terminate TLS in front of it and do not expose the port publicly without that. In Docker, `deploy/docker-compose.otlp-grpc.yml` sets it and publishes the port. See [OTLP over gRPC](../otlp-grpc.md). |
 | `ORION_REQUIRE_FRONTEND_AUTH` | `false` (`true` in Compose) | both | Refuse to start unless sign-in is configured and strong. |
 | `ORION_ALLOW_INSECURE_NO_AUTH` | `false` | API | Run with every admin route open. Loopback only. For local experiments. |
 | `ORION_SESSION_HOURS` | `12` | API | How long a Console sign-in lasts. |
