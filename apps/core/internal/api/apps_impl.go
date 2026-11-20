@@ -284,6 +284,13 @@ func (s *Server) deleteAppImpl(c *gin.Context) {
 			}
 		}(app.ID)
 	}
+	if s.traces != nil {
+		go func(id string) {
+			if _, err := s.traces.DeleteApp(id); err != nil {
+				s.logger.Error("Failed to delete app traces", "app_id", id, "error", err)
+			}
+		}(app.ID)
+	}
 	utils.SuccessResponse(c, http.StatusOK, "App deleted", nil)
 }
 

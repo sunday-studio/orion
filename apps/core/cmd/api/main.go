@@ -7,6 +7,7 @@ import (
 	"orion/core/internal/metricstore"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
+	"orion/core/internal/tracestore"
 	"orion/core/internal/utils"
 	"os/signal"
 	"syscall"
@@ -86,6 +87,18 @@ func main() {
 	logger.AttachSink(logstore.NewCoreLogSink(logStore, "api")) // Internal logs
 	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour, logstore.AppRetention{AppID: logstore.InternalAppID, RetentionDays: cfg.InternalLogRetentionDays, MaxStorageMB: cfg.InternalLogMaxStorageMB})
 
+	// Traces are optional too: without traces.db Core keeps running and the trace routes answer 503.
+	traceStore, err := tracestore.Open(cfg.DataDir, logger, 0)
+	if err != nil {
+		logger.Warn("Traces database unavailable; traces are disabled", "error", err)
+	} else {
+		server.EnableTraces(traceStore)
+		traceLifecycle := service.NewSettingsService(database, logger, cfg.DataDir)
+		go tracestore.RunRetention(ctx, traceStore, database, logger, time.Hour, func() int {
+			return service.TraceRetentionLimit(traceLifecycle)
+		})
+	}
+
 	// Resource history is a bonus: without metrics.db Core still stores latest values and answers 503 on history.
 	metricStore, err := metricstore.Open(cfg.DataDir, logger)
 	if err != nil {
@@ -110,6 +123,9 @@ func main() {
 	startErr := server.Start(ctx, listenAddr)
 	if metricStore != nil {
 		metricStore.Close() // drain queued samples before exit
+	}
+	if traceStore != nil {
+		traceStore.Close() // drain queued spans before exit
 	}
 	logStore.Close() // drain queued log entries before exit
 	if startErr != nil {
