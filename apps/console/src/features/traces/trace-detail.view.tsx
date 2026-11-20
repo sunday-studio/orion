@@ -85,7 +85,7 @@ export const TraceDetailPage = () => {
   if (query.isError || !trace) {
     return (
       <div className="pt-10">
-        {errorStatus(query.error) === 404 ? (
+        {[400, 404].includes(errorStatus(query.error) ?? 0) ? (
           <NotFound />
         ) : (
           <TraceLoadError

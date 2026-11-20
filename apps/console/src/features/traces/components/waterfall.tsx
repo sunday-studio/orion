@@ -7,7 +7,7 @@ import { type SpanNode, type TraceTree, type VisibleRow, barGeometry } from "../
 
 const ROW_H = 30;
 const HEAD_H = 30;
-const NAME_W = 300;
+const NAME_W = 240;
 const OVERSCAN = 8;
 const INDENT = 14;
 const MAX_INDENT_LEVELS = 16;
@@ -65,7 +65,7 @@ const Row = ({
       )}
     >
       <div
-        className="flex min-w-0 items-center gap-1 pr-2"
+        className="flex min-w-0 items-center gap-1 overflow-hidden pr-2"
         style={{ paddingLeft: 8 + Math.min(node.depth, MAX_INDENT_LEVELS) * INDENT }}
       >
         {row.hasChildren ? (
@@ -93,7 +93,7 @@ const Row = ({
         <span className={cn("truncate", node.isError ? "font-medium" : "")}>
           {node.span.name || "(unnamed)"}
         </span>
-        <span className="shrink-0 truncate text-[11.5px] text-faint">
+        <span className="min-w-0 max-w-[45%] truncate text-[11.5px] text-faint">
           {serviceLabel(node.span)}
         </span>
         {hiddenErrors > 0 && (
@@ -250,7 +250,7 @@ export const Waterfall = ({
       }
       className="max-h-[min(70vh,720px)] min-h-0 overflow-auto rounded-[10px]"
     >
-      <div className="min-w-[640px]">
+      <div className="min-w-[560px]">
         <div
           aria-hidden
           className="sticky top-0 z-10 grid items-center border-b border-hairline bg-sub text-[11.5px] text-quiet"

@@ -148,7 +148,7 @@ export const LogPager = ({
   onOlder: () => void;
   onLimit: (limit: string) => void;
 }) => (
-  <div className="flex items-center gap-3 border-t border-line-soft px-3.5 py-2.5 text-[12.5px] text-quiet">
+  <div className="flex flex-wrap items-center gap-3 border-t border-line-soft px-3.5 py-2.5 text-[12.5px] text-quiet">
     <span>
       Showing {from.toLocaleString()} to {to.toLocaleString()}
       {total !== undefined ? ` of ${total.toLocaleString()}` : ""}

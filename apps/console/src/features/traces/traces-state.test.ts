@@ -6,6 +6,7 @@ import {
   durationShare,
   filterTokens,
   hasTraceFilters,
+  matchingTotal,
   normalizeStatus,
   parseAttr,
   slowestDuration,
@@ -168,6 +169,24 @@ describe("duration bars and counts", () => {
       { ok: 9, error: 2 },
     );
     assert.deepEqual(statusCounts(undefined), { ok: 0, error: 0 });
+  });
+});
+
+describe("matching total", () => {
+  const facets = {
+    total: 14,
+    status: [
+      { value: "ok", count: 13 },
+      { value: "error", count: 1 },
+    ],
+  };
+
+  it("takes the total, or the count of the status being filtered", () => {
+    assert.equal(matchingTotal(facets, ""), 14);
+    assert.equal(matchingTotal(facets, "error"), 1);
+    assert.equal(matchingTotal(facets, "ok"), 13);
+    assert.equal(matchingTotal(facets, "junk"), 14);
+    assert.equal(matchingTotal(undefined, "error"), undefined);
   });
 });
 

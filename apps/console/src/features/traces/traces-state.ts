@@ -165,3 +165,18 @@ export const statusCounts = (
   const count = (value: string) => facets?.find((item) => item.value === value)?.count ?? 0;
   return { ok: count("ok"), error: count("error") };
 };
+
+/**
+ * How many traces match the filters, from the facets. Core's total ignores the status filter (the
+ * ok and error counts do not), so a status filter takes its own count.
+ */
+export const matchingTotal = (
+  facets: { total?: number; status?: { value?: string; count?: number }[] } | undefined,
+  status: string,
+): number | undefined => {
+  if (!facets) return undefined;
+  const wanted = normalizeStatus(status);
+  if (!wanted) return facets.total;
+  const counts = statusCounts(facets.status);
+  return wanted === "ok" ? counts.ok : counts.error;
+};

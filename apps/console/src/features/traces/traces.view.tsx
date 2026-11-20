@@ -9,6 +9,7 @@ import {
   EMPTY_TRACE_FILTERS,
   type TraceFilters,
   filterTokens,
+  matchingTotal,
   traceRangeLabel,
 } from "./traces-state";
 import { pageLimit, toFilters, useTraceQuery } from "./use-trace-query";
@@ -35,7 +36,7 @@ export const TracesPage = () => {
   });
   const range = traceRangeLabel(state.range).toLowerCase();
   const first = list.page * limit + 1;
-  const total = facets.data?.total;
+  const total = matchingTotal(facets.data, state.status);
   const announce = list.isPending
     ? "Loading traces"
     : list.isError
