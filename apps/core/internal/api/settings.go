@@ -220,6 +220,9 @@ func dataLifecycleChangedFields(previous *db.DataLifecycleSettings, updated *db.
 	if previous.MetricRollupRetentionDays != updated.MetricRollupRetentionDays {
 		fields = append(fields, "metric_rollup_retention_days")
 	}
+	if previous.TraceRetentionDays != updated.TraceRetentionDays {
+		fields = append(fields, "trace_retention_days")
+	}
 	return fields
 }
 

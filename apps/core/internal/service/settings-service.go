@@ -38,6 +38,7 @@ type DataLifecycleSettingsPayload struct {
 	WorkerStatusRetentionDays  *int `json:"worker_status_retention_days,omitempty"`
 	MetricSampleRetentionDays  *int `json:"metric_sample_retention_days,omitempty"`
 	MetricRollupRetentionDays  *int `json:"metric_rollup_retention_days,omitempty"`
+	TraceRetentionDays         *int `json:"trace_retention_days,omitempty"`
 }
 
 type SettingsService struct {
@@ -93,6 +94,7 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
 		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
 		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
+		"trace_retention_days":          payload.TraceRetentionDays,
 	} {
 		if value != nil {
 			updates[column] = *value
@@ -130,6 +132,7 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 		WorkerStatusRetentionDays:  7,
 		MetricSampleRetentionDays:  7,
 		MetricRollupRetentionDays:  90,
+		TraceRetentionDays:         7,
 	}
 	if err := s.db.Create(&settings).Error; err != nil {
 		return nil, err
@@ -175,6 +178,7 @@ func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSett
 		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
 		"metric_sample_retention_days":  payload.MetricSampleRetentionDays,
 		"metric_rollup_retention_days":  payload.MetricRollupRetentionDays,
+		"trace_retention_days":          payload.TraceRetentionDays,
 	} {
 		if value != nil && (*value < 1 || *value > maxDataLifecycleRetentionDays) {
 			return "", errors.New(name + " must be between 1 and 3650")
@@ -340,4 +344,14 @@ func checkMetricRetention(current *db.DataLifecycleSettings, payload DataLifecyc
 		return errors.New("metric_rollup_retention_days must be at least metric_sample_retention_days")
 	}
 	return nil
+}
+
+// TraceRetentionLimit reads the longest spans are kept for any app, in days. A settings read that fails
+// falls back to the default (7), so pruning never stops and never keeps data longer than intended.
+func TraceRetentionLimit(s *SettingsService) int {
+	settings, err := s.GetDataLifecycleSettings()
+	if err != nil || settings.TraceRetentionDays < 1 {
+		return 7
+	}
+	return settings.TraceRetentionDays
 }
