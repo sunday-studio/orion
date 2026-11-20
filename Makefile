@@ -75,6 +75,7 @@ repository-smoke:
 	bash -n deploy/scripts/*.sh
 	bash deploy/scripts/test-node-bootstrap-verify.sh
 	ORION_ADMIN_USERNAME=ci-admin ORION_ADMIN_PASSWORD=ci-password ORION_JWT_SECRET=ci-secret-at-least-long-enough docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
+	ORION_ADMIN_USERNAME=ci-admin ORION_ADMIN_PASSWORD=ci-password ORION_JWT_SECRET=ci-secret-at-least-long-enough docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.otlp-grpc.yml config >/tmp/orion-compose-otlp-grpc.yml
 
 generated-contracts-check: generate-sdk
 	git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk

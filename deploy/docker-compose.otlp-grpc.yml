@@ -1,0 +1,21 @@
+# Opt in to the OTLP/gRPC receiver (port 4317). Layer it over the hardened base file:
+#
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.otlp-grpc.yml --env-file .env up -d
+#
+# Without this file the receiver is off and nothing extra is published. Compose cannot leave a ports entry
+# out by interpolation, which is why this is a second file and not a setting in the base one.
+#
+# ORION_OTLP_GRPC_PORT  the host port (default 4317)
+# ORION_OTLP_GRPC_HOST  the host address it is published on (default 127.0.0.1, so only this machine and a
+#                       reverse proxy on it can reach it). Set 0.0.0.0 only behind a firewall or when
+#                       something in front terminates TLS: the receiver speaks plaintext HTTP/2 and the
+#                       ingest key travels in every request.
+#
+# Exporters then use OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:<port> with OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+# and OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>". See docs/otlp-grpc.md.
+services:
+  orion-core:
+    ports:
+      - "${ORION_OTLP_GRPC_HOST:-127.0.0.1}:${ORION_OTLP_GRPC_PORT:-4317}:4317"
+    environment:
+      ORION_OTLP_GRPC_ADDR: ":4317"

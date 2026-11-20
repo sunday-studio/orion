@@ -40,6 +40,8 @@ ENV ORION_DATA_DIR=/data
 ENV ORION_PORT=8999
 ENV GIN_MODE=release
 EXPOSE 8999
+# OTLP/gRPC receiver: off until ORION_OTLP_GRPC_ADDR is set (deploy/docker-compose.otlp-grpc.yml sets it and publishes the port).
+EXPOSE 4317
 VOLUME /data
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["./orion-core"]
