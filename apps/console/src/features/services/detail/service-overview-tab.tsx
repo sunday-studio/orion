@@ -12,6 +12,7 @@ import {
 } from "@/orion-sdk";
 import { firstActiveIncident, memberKey, memberReason, memberRef } from "../services.domain";
 import {
+  type RangeValue,
   formatAvailability,
   lowestAvailability,
   timesNormal,
@@ -26,7 +27,9 @@ import {
   useAvailability30d,
 } from "./linked-tables";
 import { ServiceResourcesTab } from "./service-resources-tab";
+import { ServiceMetricsPanel } from "./service-metrics-panel";
 import { ServiceTimeline } from "./service-timeline";
+import { ServiceTracesPanel } from "./service-traces-panel";
 
 /** A member Core thinks belongs here. Linking is the person's call; "Not this one" hides it for this visit. */
 const SuggestedMember = ({
@@ -72,6 +75,8 @@ export const ServiceOverviewTab = ({
 }) => {
   const serviceId = service.id ?? "";
   const now = useNow(30_000);
+  // One range for the timeline, the traces and the app metrics, so they describe the same time.
+  const [range, setRange] = useState<RangeValue>("4h");
   const monitors = service.monitors ?? [];
   const counts = useGetServiceLogCounts(serviceId, { from: "-1h", step_seconds: 300 });
   const day = useGetServiceLogCounts(serviceId, { from: "-24h", step_seconds: 3600 });
@@ -145,7 +150,11 @@ export const ServiceOverviewTab = ({
         serviceId={serviceId}
         monitors={monitors}
         incidentOpenedAt={incident.data?.incident?.opened_at}
+        range={range}
+        onRangeChange={setRange}
       />
+      <ServiceTracesPanel serviceId={serviceId} range={range} hasApps={hasApps} />
+      <ServiceMetricsPanel serviceId={serviceId} range={range} />
       <LinkedPanel title="Monitors" action="Link monitor" onAction={onEditLinks}>
         {monitors.length > 0 ? (
           <MonitorsTable monitors={monitors} />
