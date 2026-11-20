@@ -3,11 +3,9 @@ package api
 import (
 	"errors"
 	"net/http"
-	"orion/core/internal/logstore"
 	"orion/core/internal/tracestore"
 	"orion/core/internal/utils"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,14 +45,10 @@ func (s *Server) ingestOTLPTracesImpl(c *gin.Context) {
 	if !ok {
 		return
 	}
-	now := time.Now().UTC()
-	parsed, format, err := tracestore.ParseOTLP(c.GetHeader("Content-Type"), body, now)
+	request, format, err := tracestore.DecodeOTLP(c.GetHeader("Content-Type"), body)
 	switch {
 	case errors.Is(err, tracestore.ErrUnsupportedMedia):
 		utils.ErrorResponse(c, http.StatusUnsupportedMediaType, "OTLP/HTTP needs application/x-protobuf or application/json", nil)
-		return
-	case errors.Is(err, tracestore.ErrTooManySpans):
-		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many spans in one request (limit 10000)", nil)
 		return
 	case errors.Is(err, tracestore.ErrInvalidBody):
 		utils.BadRequest(c, "Request body is not a valid ExportTraceServiceRequest")
@@ -63,31 +57,32 @@ func (s *Server) ingestOTLPTracesImpl(c *gin.Context) {
 		utils.InternalError(c, "Failed to read the trace request", err)
 		return
 	}
-
-	if len(parsed.Spans) > 0 {
-		var limited *logstore.RateLimitedError
-		if err := s.logs.ingester.Allow(app, len(parsed.Spans)); errors.As(err, &limited) {
-			seconds := int((limited.RetryAfter + 999_999_999) / 1_000_000_000)
-			c.Header("Retry-After", strconv.Itoa(max(seconds, 1)))
-			utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
-			return
-		}
-		for i := range parsed.Spans {
-			parsed.Spans[i].AppID = app.App.ID
-		}
-		tracestore.Redact(parsed.Spans, app.Redactor)
-		switch err := s.traces.Enqueue(parsed.Spans); {
-		case errors.Is(err, tracestore.ErrStorageFull):
-			c.Header("Retry-After", "5")
-			utils.ErrorResponse(c, http.StatusServiceUnavailable, "Trace storage is full; spans were not accepted. Free disk space or lower retention.", nil)
-			return
-		case err != nil:
-			c.Header("Retry-After", "1")
-			utils.ErrorResponse(c, http.StatusTooManyRequests, "Trace write queue is full; retry shortly", nil)
-			return
-		}
+	result, failure := s.exportTraces(app, request)
+	switch {
+	case failure == nil:
+	case failure.kind == failTooMany:
+		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many spans in one request (limit 10000)", nil)
+		return
+	case failure.kind == failInvalid:
+		utils.BadRequest(c, "Request body is not a valid ExportTraceServiceRequest")
+		return
+	case failure.kind == failRateLimited:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
+		return
+	case failure.kind == failStorageFull:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusServiceUnavailable, "Trace storage is full; spans were not accepted. Free disk space or lower retention.", nil)
+		return
+	case failure.kind == failQueueFull:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Trace write queue is full; retry shortly", nil)
+		return
+	default:
+		utils.InternalError(c, failure.message, failure.err)
+		return
 	}
-	payload, contentType, err := tracestore.OTLPResponse(format, len(parsed.Errors), parsed.Errors)
+	payload, contentType, err := tracestore.OTLPResponse(format, result.Rejected, result.Errors)
 	if err != nil {
 		utils.InternalError(c, "Failed to encode the response", err)
 		return

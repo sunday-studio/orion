@@ -102,30 +102,38 @@ func (s *Server) ingestOTLPLogsImpl(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, format, err := s.logs.ingester.IngestOTLP(app, c.GetHeader("Content-Type"), body)
-	var limited *logstore.RateLimitedError
+	request, format, err := logstore.DecodeOTLP(c.GetHeader("Content-Type"), body)
 	switch {
 	case errors.Is(err, logstore.ErrUnsupportedMedia):
 		utils.ErrorResponse(c, http.StatusUnsupportedMediaType, "OTLP/HTTP needs application/x-protobuf or application/json", nil)
-	case errors.Is(err, logstore.ErrTooManyEntries):
-		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many log records in one request (limit 10000)", nil)
+		return
 	case errors.Is(err, logstore.ErrInvalidBody):
 		utils.BadRequest(c, "Request body is not a valid ExportLogsServiceRequest")
-	case errors.As(err, &limited):
-		seconds := int((limited.RetryAfter + 999_999_999) / 1_000_000_000)
-		c.Header("Retry-After", strconv.Itoa(max(seconds, 1)))
-		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
-	case errors.Is(err, logstore.ErrStorageFull):
-		c.Header("Retry-After", "5")
-		utils.ErrorResponse(c, http.StatusServiceUnavailable, "Log storage is full; records were not accepted", nil)
+		return
 	case err != nil:
 		utils.InternalError(c, "Failed to ingest logs", err)
-	default:
+		return
+	}
+	result, failure := s.exportLogs(app, request)
+	switch {
+	case failure == nil:
 		payload, contentType, encodeErr := logstore.OTLPResponse(format, result.Rejected, result.Errors)
 		if encodeErr != nil {
 			utils.InternalError(c, "Failed to encode the response", encodeErr)
 			return
 		}
 		c.Data(http.StatusOK, contentType, payload)
+	case failure.kind == failTooMany:
+		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many log records in one request (limit 10000)", nil)
+	case failure.kind == failInvalid:
+		utils.BadRequest(c, "Request body is not a valid ExportLogsServiceRequest")
+	case failure.kind == failRateLimited:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
+	case failure.kind == failStorageFull:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusServiceUnavailable, "Log storage is full; records were not accepted", nil)
+	default:
+		utils.InternalError(c, failure.message, failure.err)
 	}
 }

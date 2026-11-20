@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"net/http"
-	"orion/core/internal/logstore"
 	"orion/core/internal/metricstore"
 	"orion/core/internal/utils"
 	"sort"
@@ -34,14 +33,10 @@ func (s *Server) ingestOTLPMetricsImpl(c *gin.Context) {
 	if !ok {
 		return
 	}
-	now := time.Now().UTC()
-	parsed, format, err := metricstore.ParseOTLPMetrics(c.GetHeader("Content-Type"), body, now)
+	request, format, err := metricstore.DecodeOTLPMetrics(c.GetHeader("Content-Type"), body)
 	switch {
 	case errors.Is(err, metricstore.ErrUnsupportedMedia):
 		utils.ErrorResponse(c, http.StatusUnsupportedMediaType, "OTLP/HTTP needs application/x-protobuf or application/json", nil)
-		return
-	case errors.Is(err, metricstore.ErrTooManyPoints):
-		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many data points in one request (limit 10000)", nil)
 		return
 	case errors.Is(err, metricstore.ErrInvalidBody):
 		utils.BadRequest(c, "Request body is not a valid ExportMetricsServiceRequest")
@@ -50,45 +45,28 @@ func (s *Server) ingestOTLPMetricsImpl(c *gin.Context) {
 		utils.InternalError(c, "Failed to read the metrics request", err)
 		return
 	}
-
-	rejected, messages := parsed.Rejected, parsed.Errors
-	if len(parsed.Points) > 0 {
-		var limited *logstore.RateLimitedError
-		if err := s.logs.ingester.Allow(app, len(parsed.Points)); errors.As(err, &limited) {
-			seconds := int((limited.RetryAfter + 999_999_999) / 1_000_000_000)
-			c.Header("Retry-After", strconv.Itoa(max(seconds, 1)))
-			utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
-			return
-		}
-		seriesCap := app.App.MetricSeriesCap
-		if seriesCap <= 0 {
-			seriesCap = metricstore.DefaultSeriesCapPerApp
-		}
-		batches, over, err := s.planMetricBatches(app.App.ID, parsed.Points, seriesCap)
-		if err != nil {
-			utils.InternalError(c, "Failed to check the metric series limit", err)
-			return
-		}
-		if over > 0 {
-			rejected += over
-			messages = append(messages, "app reached its metric series limit of "+strconv.Itoa(seriesCap)+"; raise metric_series_cap on the app to accept more")
-		}
-		for _, b := range batches {
-			if err := s.enqueueMetricBatch(b); err != nil {
-				c.Header("Retry-After", "1")
-				utils.ErrorResponse(c, http.StatusTooManyRequests, "Metric write queue is full; retry shortly", nil)
-				return
-			}
-		}
+	result, failure := s.exportMetrics(app, request)
+	switch {
+	case failure == nil:
+	case failure.kind == failTooMany:
+		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many data points in one request (limit 10000)", nil)
+		return
+	case failure.kind == failInvalid:
+		utils.BadRequest(c, "Request body is not a valid ExportMetricsServiceRequest")
+		return
+	case failure.kind == failRateLimited:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
+		return
+	case failure.kind == failQueueFull:
+		c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(failure.retryAfter)))
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Metric write queue is full; retry shortly", nil)
+		return
+	default:
+		utils.InternalError(c, failure.message, failure.err)
+		return
 	}
-	message := ""
-	for i, m := range messages {
-		if i > 0 {
-			message += "; "
-		}
-		message += m
-	}
-	payload, contentType, err := metricstore.OTLPMetricsResponse(format, rejected, message)
+	payload, contentType, err := metricstore.OTLPMetricsResponse(format, result.Rejected, result.Message)
 	if err != nil {
 		utils.InternalError(c, "Failed to encode the response", err)
 		return
