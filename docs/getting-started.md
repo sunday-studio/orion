@@ -123,6 +123,7 @@ notification arrive. Delete the monitor when you are done.
 
 - **Status page:** **Status pages** → **Create** publishes a public page at `/status/<name>`.
 - **Send logs from your own apps:** [Product logs](product-logs.md).
+- **Send OpenTelemetry logs, metrics and traces:** [Connect OpenTelemetry](opentelemetry.md), with copy-paste setup for Node.js, Python, Go, Java and the Collector.
 - **Back up the database:** [SQLite backup and restore](sqlite-backup-restore.md).
 - **Upgrade:** pull the new image and run `docker compose up -d`; read the
   [upgrade notes](deployment/upgrade-notes-0.2.0.md) first when moving from a version before 0.2.0, and

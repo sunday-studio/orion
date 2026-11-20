@@ -1,10 +1,12 @@
 # Plan: full OpenTelemetry support
 
-Status: in progress. Decided 2026-11-20: cover metrics, traces and gRPC, and build the Console trace views in the first pass.
+Status: **done** (phases 1 to 5, 2026-11-20). Decided 2026-11-20: cover metrics, traces and gRPC, and build the Console trace views in the first pass. The user guide is [../opentelemetry.md](../opentelemetry.md); decision D-056 in [decision-log.md](decision-log.md).
 
-## Where we are
+## Where we were
 
-| Signal | Today |
+The table is the starting point of this plan; the "As built" notes below say what shipped.
+
+| Signal | Then |
 |---|---|
 | Logs | `POST /v1/ingest/otlp/v1/logs`, protobuf and JSON, gzip. Complete. |
 | Metrics | `POST /v1/ingest/otlp/v1/metrics`, protobuf and JSON. **Gauges and sums only**; histograms, exponential histograms and summaries are rejected. |
@@ -21,6 +23,8 @@ Everything authenticates with an app ingest key (`Authorization: Bearer`) and la
 - Every new route lands with OpenAPI annotations, `make generate-openapi` and `make generate-sdk`.
 
 ## Phase 1: metrics completeness
+
+Status: done.
 
 Apps send histograms for latency, so this is what most SDK users hit first.
 
@@ -60,6 +64,8 @@ As built (the behaviour is documented in `docs/otlp-grpc.md`):
 
 ## Phase 3: traces backend
 
+Status: done.
+
 - **Storage:** `traces.db` with a `spans` table (trace id, span id, parent id, app id, name, kind, start, duration, status code and message, attributes, resource, events and links as JSON) and a `traces` summary table kept up to date by the writer (root span name, service, start, duration, span count, error count). Indexes for app plus start time, trace id, and errors.
 - **Ingest:** `POST /v1/ingest/otlp/v1/traces` (protobuf and JSON, gzip). Same app key, same rate limiter, spans per request capped, oversized attributes truncated. Orphan spans are kept; a trace is whatever arrived.
 - **Query API:**
@@ -69,7 +75,17 @@ As built (the behaviour is documented in `docs/otlp-grpc.md`):
 - **Retention:** per app, reusing the app's `retention_days` and `max_storage_mb` model that logs use; a separate trace retention default in the data lifecycle settings. Pruning runs with the log retention job.
 - **Services:** an app linked to a service contributes its traces; the service metrics response gains request count, error rate and latency percentiles from root spans.
 
+As built (the behaviour is documented in `docs/product-traces.md`):
+
+- `traces.db` holds `spans` and a `traces` summary row per app and trace id, rebuilt from the stored spans each time a batch touches the trace, so it is the same whatever the arrival order (children before the root, separate requests). A trace without a root is named after its earliest span and `has_root` is false. A span sent twice is stored once.
+- Writing is asynchronous through a bounded queue (50,000 spans) and one writer; a full queue answers 429 with `Retry-After`. Limits: 10,000 spans per request, 256 KiB per stored span, 128 attributes, events and links, 4,096 bytes per text value, attribute nesting 8, and a trace resource capped at 8 KiB of encoded JSON on each span (service, host, `k8s.*` and `cloud.*` keys first). Cutting is recorded in `orion.dropped_*` attributes, never a rejection.
+- Retention follows the app's `retention_days`, capped by the instance-wide `trace_retention_days` (default 7), and the app's `max_storage_mb` removes the oldest whole traces first. An hourly job prunes and rebuilds summaries.
+- Query API: `GET /v1/traces` (filters `app_id`, `service_id`, `service`, `status`, `min_duration`, `name`, `from`, `to`, repeatable `attr`; cursor), `GET /v1/traces/{trace_id}` (with `log_count`), `GET /v1/traces/facets` (`total` follows every filter, the ok and error counts ignore `status`) and `GET /v1/services/{id}/traces/summary` (count, error rate and p50, p95, p99 of root spans). `name` matches the name the list shows. Searches stop after 10 seconds with a 504.
+- OTLP/JSON bodies carry trace and span ids as hex, which protojson cannot read; the small `otlpjson` package rewrites them to base64 in one pass before decoding, for logs, metrics and traces alike.
+
 ## Phase 4: Console
+
+Status: done.
 
 Built in `apps/console/` with the data-table pattern (TanStack Table and Query, `nuqs` URL state, server-side filtering).
 
@@ -78,12 +94,36 @@ Built in `apps/console/` with the data-table pattern (TanStack Table and Query, 
 - **Links:** a trace id in a log entry opens the trace; a trace's span opens the matching logs; a service page shows recent traces and its error rate and latency.
 - Histogram metric series render as percentile lines on the service page.
 
+As built (documented in `docs/product-traces.md`, section 6):
+
+- **Logs, Traces** (`/logs/traces`): a data-table list (root span, service, a duration bar, spans, errors, status, start) with search, service, app, status, minimum duration, range and several `attr` filters kept in the URL with `nuqs`; counts come from the facets and paging is by cursor.
+- The trace page (`/logs/traces/:id`) has a virtualised waterfall, a span inspector (attributes, resource, events, links, stack trace, "find traces with this value") and the logs of the trace grouped by span, with a link to Logs.
+- Links in both directions: log entries, the log detail drawer and incident logs open traces, the service page has a traces panel, and histogram series draw as p50, p95 and p99 lines on the service metrics panel.
+
 ## Phase 5: docs and contracts
+
+Status: done.
 
 - `docs/product-traces.md`, and updates to `product-logs.md`, `product-metrics.md`, `how-it-works.md` and the website install and connect pages: one section "Connect OpenTelemetry" that covers the three signals, HTTP and gRPC.
 - `docs/node-core-contract.md` only if a Node field changes (none planned).
 - Core environment reference for the new settings.
 - A tested compatibility matrix: official SDK and Collector exporters against Orion, in CI where practical.
+
+As built:
+
+- `docs/opentelemetry.md` ("Connect OpenTelemetry") is the one guide: endpoints, auth, the `OTEL_*` variables with Node.js, Python, Go and Java examples, a Collector config for `otlphttp` and `otlp`, what is and is not supported, limits (linked, not copied) and troubleshooting. The public site has the same page (`apps/website/src/content/docs/opentelemetry.mdx`, in the Guides group), and the introduction, API overview and Send logs pages point to it. `product-logs.md`, `product-metrics.md`, `product-traces.md`, `otlp-grpc.md`, `how-it-works.md`, `getting-started.md` and `docs/README.md` link to it.
+- Every new route has OpenAPI annotations; `apps/core/openapi.yaml` is generated from them, and the Console client is generated from that. `docs/node-core-contract.md` did not change (no Node field changed).
+- Core's new setting, `ORION_OTLP_GRPC_ADDR`, is documented in `docs/otlp-grpc.md` and `deploy/.env.example`; the trace retention default is in the data lifecycle settings.
+- Compatibility is covered by tests that use the JSON and protobuf shapes the OpenTelemetry specification and the Collector produce (hex ids, string nanosecond times, enums as numbers or names, attribute value oneofs) for all three signals, including an exemplar. Running the official SDK and Collector exporters against Orion in CI was **not** done.
+
+### Left out
+
+- Profiles, tail sampling and sending data out over OTLP (the original scope limits).
+- Per-span or trace-based alert rules.
+- Exemplars on metrics: accepted, not stored.
+- TLS on the gRPC receiver (put a proxy in front) and OTLP/HTTP on a separate port.
+- A CI job that runs the official SDK and Collector exporters against a Core. The setup examples in the guide were written from the specification and the SDK documentation and have not been run against live SDKs in this repository.
+- The `attr` parameter of the log routes is still described as a single string in OpenAPI although it also repeats (only the trace routes were annotated as arrays).
 
 ## Order and dependencies
 

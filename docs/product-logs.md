@@ -63,7 +63,7 @@ Well-known attribute names get special treatment in the UI when present: `error.
 
 ## 4. Use OpenTelemetry instead
 
-Apps that already use an OpenTelemetry SDK (or the OTel Collector) need no Orion code. Point the OTLP/HTTP logs exporter at Orion:
+Apps that already use an OpenTelemetry SDK (or the OTel Collector) need no Orion code. The whole setup for all three signals, with examples for Node.js, Python, Go, Java and the Collector, is in [opentelemetry.md](opentelemetry.md). For logs alone, point the OTLP/HTTP logs exporter at Orion:
 
 ```sh
 export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/logs"
@@ -74,7 +74,7 @@ export OTEL_SERVICE_NAME="checkout-api"
 
 Over gRPC (the default of many SDKs) use the opt-in receiver on port 4317: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`. It shares the parsing, limits, redaction and rate limit below; see [otlp-grpc.md](otlp-grpc.md) for setup and the gRPC status codes.
 
-OTLP log records map to Orion entries (a successful response mirrors the request encoding and reports rejected records in `partial_success`; error responses (400, 401, 413, 415, 429) are Orion JSON envelopes rather than OTLP `Status` messages, which collectors handle by status code and `Retry-After`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`.
+OTLP log records map to Orion entries (a successful response mirrors the request encoding and reports rejected records in `partial_success`; error responses (400, 401, 413, 415, 429) are Orion JSON envelopes rather than OTLP `Status` messages, which collectors handle by status code and `Retry-After`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`. In OTLP/JSON the ids are hex strings, as the OTLP specification says; Core also reads base64.
 
 Apps can also send metrics and traces over OTLP with the same key: see [product-metrics.md](product-metrics.md) and [product-traces.md](product-traces.md). Log records that carry a `traceId` link to the trace: `GET /v1/traces/{trace_id}` reports how many log entries share it, and `GET /v1/logs?trace_id=` lists them.
 

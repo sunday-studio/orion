@@ -48,7 +48,7 @@ Both answer 503 when the underlying store is not enabled.
 
 ## 4. Send metrics over OpenTelemetry
 
-Point the OTLP/HTTP metrics exporter at Orion with the app's ingest key (the same key as logs):
+The setup for all three signals, with examples for each SDK and the Collector, is in [opentelemetry.md](opentelemetry.md). For metrics alone, point the OTLP/HTTP metrics exporter at Orion with the app's ingest key (the same key as logs):
 
 ```sh
 export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/metrics"

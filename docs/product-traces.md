@@ -2,11 +2,11 @@
 
 How an app sends traces to Orion and how Core stores and serves them. Plan: [plans/opentelemetry-support.md](plans/opentelemetry-support.md), phase 3. Logs are in [product-logs.md](product-logs.md) and metrics in [product-metrics.md](product-metrics.md).
 
-Status: **backend live**: OTLP/HTTP and OTLP/gRPC ingest, storage, retention and the read API. The Console trace views come next; until then use the API.
+Status: **live**: OTLP/HTTP and OTLP/gRPC ingest, storage, retention, the read API and the Console trace views (section 6). The setup for all three signals is in [opentelemetry.md](opentelemetry.md).
 
 ## 1. Connect an app
 
-Point the OTLP/HTTP traces exporter at Orion with the app's ingest key (the same key as logs and metrics, from **Logs > Apps**):
+Point the OTLP/HTTP traces exporter at Orion with the app's ingest key (the same key as logs and metrics, from **Logs > Apps**). The guide [opentelemetry.md](opentelemetry.md) has the shorter setup that covers all three signals at once, and examples for Node.js, Python, Go, Java and the Collector. For traces alone:
 
 ```sh
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/traces"
@@ -29,6 +29,7 @@ Core also keeps one **trace summary** per app and trace id, maintained by the wr
 - The summary is rebuilt from the stored spans every time a batch touches the trace, so it is the same whatever the arrival order. While no root span has arrived, the summary is named after the earliest span, its duration is the extent of the spans, and `has_root` is false; the root, when it arrives, takes over.
 - The root is the earliest span with no parent. The trace duration is the root span's duration.
 - Sending the same span twice (an exporter retry) stores it once and counts it once.
+- In OTLP/JSON the trace, span and parent ids are hex strings, as the OTLP specification says (`"traceId":"5b8efff798038103d269b633813fc60c"`); Core also reads the base64 form of the protobuf JSON mapping. Spans and span links are stored with hex ids either way.
 - A trace id seen by two apps (both sides of a call are instrumented, each with its own key) is two summaries, one per app, each with that app's spans. `GET /v1/traces/{trace_id}` returns the spans of all apps.
 
 ## 3. Limits, errors and retries
@@ -92,13 +93,23 @@ All read routes need the admin login, like the log routes. Times are RFC 3339 or
 
 | Route | What it returns |
 |---|---|
-| `GET /v1/traces` | One row per trace and app, newest first, with a cursor. Filters: `app_id`, `service_id` (the apps linked to a service), `service` (`service.name` of the root span), `status` (`ok`, `error`), `min_duration` (`250ms`, `2s`, or milliseconds), `name` (substring of the root span name), `from`, `to`, `attr=key:value` (repeatable; matches when a span or the resource carries the value), `limit` (up to 200), `cursor`. `app_id` and `attr` take at most 50 values each (more is a 400). Without `to` the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show; a span more than five minutes ahead (up to the one hour ingest allows) needs an explicit `to`. |
+| `GET /v1/traces` | One row per trace and app, newest first, with a cursor. Filters: `app_id`, `service_id` (the apps linked to a service), `service` (`service.name` of the root span), `status` (`ok`, `error`), `min_duration` (`250ms`, `2s`, or milliseconds), `name` (substring, any case, of the name the list shows: the root span name, or the earliest span's name while the root has not arrived), `from`, `to`, `attr=key:value` (repeat it for several pairs, for example `attr=http.status_code:500&attr=db.system:postgres`; a trace must match every pair, and a pair matches when a span or the resource carries the value), `limit` (up to 200), `cursor`. `app_id` and `attr` take at most 50 values each (more is a 400). Without `to` the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show; a span more than five minutes ahead (up to the one hour ingest allows) needs an explicit `to`. |
 | `GET /v1/traces/{trace_id}` | Every span of the trace ordered by start (up to 5,000, then `truncated`), each with its offset from the trace start, and `log_count`: the product log entries that carry the trace id (`GET /v1/logs?trace_id=`). |
-| `GET /v1/traces/facets` | For a filter bar: ok and error counts and the 50 most common services and root span names, for the same filters. Without `from`, the last 24 hours; the same 50-value limit and `to` default as the search. |
+| `GET /v1/traces/facets` | For a filter bar, with the same filters as the search. `total` is the number of traces that match every filter, `status` is the ok and error counts of the traces that match every filter except `status` (so a filter bar can show both choices), and `services` and `names` are the 50 most common values among the traces that match every filter. Without `from`, the last 24 hours; the same 50-value limit and `to` default as the search. |
 | `GET /v1/services/{id}/traces/summary?from=&to=` | Trace count, error count and rate, and the p50, p95 and p99 root-span duration of the traces the service's linked apps received (default the last hour, at most 7 days). Counts are exact; percentiles use the newest 50,000 traces that have a root (`sampled`). |
 
 `status=error` means at least one span of the trace has status error. Searches stop after 10 seconds with a 504 `search_timeout`: narrow the time range or add a filter. The exact shapes are in `apps/core/openapi.yaml`.
 
-## 6. Back up
+## 6. In the Console
+
+Open **Logs, Traces** (or press `G` then `T`).
+
+- **Traces list.** One row per trace and app: root span, service, a duration bar scaled to the slowest trace on the page, span count, errors and start time. A trace whose root span has not arrived is marked *partial* and named after its earliest span. Filters are in the URL, so a view can be shared: search by name, service, app, status, minimum duration, time range and attributes. Attributes are `key:value` pairs: type one and press Enter, repeat to add more (a trace must match all of them), and remove one with its chip. Status counts and the match count come from the facets, and paging is by cursor.
+- **Trace page.** A waterfall with the span tree, the time axis and the failed spans marked, a panel for the selected span (attributes, resource, events, links, stack trace, and a link that finds other traces with the same attribute value), and the log lines that carry the trace id, grouped by span. **View logs** opens them in the Logs screen.
+- **Links.** A trace id in a log entry or an incident opens its trace. A service page shows its traces, error rate and latency (p50, p95, p99) from the root spans of its linked apps, and **Open in Traces** opens the list for that service. Histogram metrics appear on the service page as p50, p95 and p99 lines.
+
+The pages read the API above and need an admin login. Without traces enabled on Core they say so instead of showing an empty list.
+
+## 7. Back up
 
 `traces.db` is optional to back up. It holds only spans, which refill as apps keep sending; see [sqlite-backup-restore.md](sqlite-backup-restore.md).

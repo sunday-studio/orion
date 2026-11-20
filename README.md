@@ -39,7 +39,7 @@ server. There is no hosted version and no account to create.
 - **Incidents** opened automatically when a monitor fails, with a timeline of what failed, who was told
   and who acknowledged.
 - **Alerts** routed by rule to webhook or email, with every delivery recorded and failed ones retried.
-- **Logs** from your own apps over JSON or OpenTelemetry, searchable next to the incident.
+- **Logs, metrics and traces** from your own apps over JSON or OpenTelemetry ([guide](docs/opentelemetry.md)), searchable next to the incident.
 - **Status pages** you can publish for the people who depend on you.
 - **One small footprint:** one API process, a monitor worker, SQLite, and the bundled Console. Back it up
   as ordinary files.
