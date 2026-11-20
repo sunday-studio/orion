@@ -29,6 +29,8 @@ const (
 	writerBatchSpans       = 1000
 	writerBatchWait        = 50 * time.Millisecond
 	insertChunk            = 400
+	deletedAppMemory       = time.Hour // how long a deleted app's late spans are refused
+	insertChunkBytes       = 8 << 20   // stored bytes one INSERT statement may carry
 	tracesDatabaseFileName = "traces.db"
 )
 
@@ -98,6 +100,13 @@ type Store struct {
 	dupes   atomic.Int64
 	// fullAt is the unix-nano time of the last disk-full write failure (0 = healthy).
 	fullAt atomic.Int64
+
+	// writeMu is held while a batch is written, so DeleteApp can wait for the batch in flight.
+	writeMu sync.Mutex
+	// deleted remembers apps removed recently (app id -> unix-nano delete time): spans still queued
+	// for them are dropped instead of being written after the delete.
+	deleted    sync.Map
+	anyDeleted atomic.Bool
 
 	// sendMu orders Enqueue's send against Close: senders hold the read lock, Close the write lock.
 	sendMu sync.RWMutex
@@ -213,8 +222,14 @@ func (s *Store) writer() {
 	}
 }
 
-func (s *Store) flushBatch(spans []Span) {
-	defer s.queued.Add(-int64(len(spans)))
+func (s *Store) flushBatch(queuedSpans []Span) {
+	defer s.queued.Add(-int64(len(queuedSpans)))
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	spans := s.withoutDeletedApps(queuedSpans)
+	if len(spans) == 0 {
+		return
+	}
 	stored, err := s.insert(spans)
 	if err != nil {
 		// One retry covers a transient lock; after that the batch is counted as dropped and logged.
@@ -231,6 +246,25 @@ func (s *Store) flushBatch(spans []Span) {
 	s.fullAt.Store(0)
 	s.written.Add(stored)
 	s.dupes.Add(int64(len(spans)) - stored)
+}
+
+// withoutDeletedApps drops spans of apps deleted within deletedAppMemory, counting them as dropped.
+func (s *Store) withoutDeletedApps(spans []Span) []Span {
+	if !s.anyDeleted.Load() {
+		return spans
+	}
+	kept := make([]Span, 0, len(spans))
+	for _, sp := range spans {
+		if v, ok := s.deleted.Load(sp.AppID); ok {
+			if time.Since(time.Unix(0, v.(int64))) < deletedAppMemory {
+				s.dropped.Add(1)
+				continue
+			}
+			s.deleted.Delete(sp.AppID)
+		}
+		kept = append(kept, sp)
+	}
+	return kept
 }
 
 func isStorageFull(err error) bool {

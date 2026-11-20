@@ -79,7 +79,14 @@ func (s *Store) Prune(policies []AppRetention, now time.Time) (PruneResult, erro
 }
 
 // DeleteApp removes every span and summary of an app.
+//
+// Spans of the app still waiting in the write queue are refused from now on (for deletedAppMemory), and
+// the batch being written is waited for, so nothing lands after the delete below.
 func (s *Store) DeleteApp(appID string) (int64, error) {
+	s.deleted.Store(appID, time.Now().UnixNano())
+	s.anyDeleted.Store(true)
+	s.writeMu.Lock()
+	s.writeMu.Unlock() //nolint:staticcheck // only waits for the batch in flight
 	n, err := s.deleteSpans(false, "app_id = ?", appID)
 	if err != nil {
 		return n, err
