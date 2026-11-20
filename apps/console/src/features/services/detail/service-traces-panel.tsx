@@ -118,9 +118,13 @@ export const ServiceTracesPanel = ({
               value={
                 <span className={view.errors !== "0" ? "text-(--tone-down-fg)" : undefined}>
                   {view.errorRate}
+                  {view.errors !== "0" && (
+                    <small className="ml-1.5 text-[13px] font-normal tracking-normal text-faint">
+                      {view.errors} failed
+                    </small>
+                  )}
                 </span>
               }
-              of={view.errors !== "0" ? `${view.errors} failed` : undefined}
             />
             <StatBox label="p50" value={view.p50} />
             <StatBox label="p95" value={view.p95} />

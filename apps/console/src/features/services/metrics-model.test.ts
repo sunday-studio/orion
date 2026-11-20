@@ -5,6 +5,7 @@ import {
   appMetricCharts,
   formatMetricValue,
   isAppSeries,
+  labelText,
   latestValues,
   quantileLabel,
   stepLabel,
@@ -224,5 +225,25 @@ describe("latest values", () => {
   it("is empty for a chart without data", () => {
     const [chart] = appMetricCharts([series({ kind: "gauge", points: [] })]);
     assert.equal(latestValues(chart), "");
+  });
+});
+
+describe("series labels", () => {
+  it("reads the JSON Core sends and drops the service name", () => {
+    assert.equal(
+      labelText(
+        '{"http.route":"/checkout","resource.service.instance.id":"pod-1","resource.service.name":"checkout-api"}',
+      ),
+      "http.route=/checkout instance=pod-1",
+    );
+    assert.equal(labelText('{"resource.service.name":"checkout-api"}'), "");
+    assert.equal(labelText('{"code":500,"ok":true}'), "code=500 ok=true");
+  });
+
+  it("keeps text that is not a JSON object as it is", () => {
+    assert.equal(labelText("route=/pay"), "route=/pay");
+    assert.equal(labelText("[1,2]"), "[1,2]");
+    assert.equal(labelText(undefined), "");
+    assert.equal(labelText(""), "");
   });
 });

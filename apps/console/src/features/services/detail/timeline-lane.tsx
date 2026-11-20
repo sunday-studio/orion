@@ -32,6 +32,8 @@ export type LaneProps = {
   secondaryFormat?: (value: number) => string;
   /** Colour of bars. Red by default, which suits errors; counters pass a neutral one. */
   barColor?: string;
+  /** Leave the line names out of the heading when a legend beside the chart names them. */
+  hideLabels?: boolean;
 };
 
 export const Lane = ({
@@ -48,6 +50,7 @@ export const Lane = ({
   secondary = [],
   secondaryFormat = String,
   barColor = "var(--color-dot-down)",
+  hideLabels = false,
 }: LaneProps) => {
   const x = (t: number) => LEFT + ((t - from) / Math.max(to - from, 1)) * (W - LEFT);
   const peak = niceMax(max ?? Math.max(0, ...lines.flatMap((l) => l.points.map((p) => p.v))));
@@ -55,14 +58,18 @@ export const Lane = ({
   const peak2 = niceMax(Math.max(0, ...secondary.flatMap((l) => l.points.map((p) => p.v))));
   const y2 = (v: number) => top + LANE_H - (Math.min(v, peak2) / peak2) * LANE_H;
   const drawn = [...lines, ...secondary];
+  const labels =
+    !bars && !hideLabels && drawn.length > 0
+      ? [...new Set(drawn.map((l) => l.label))].join(", ")
+      : "";
+  const heading = [title, labels].filter(Boolean).join(" · ");
   return (
     <g>
-      <text x={LEFT} y={top - 8} className="fill-quiet" fontSize="11">
-        {title}
-        {!bars && drawn.length > 0
-          ? `${title ? " · " : ""}${[...new Set(drawn.map((l) => l.label))].join(", ")}`
-          : ""}
-      </text>
+      {heading && (
+        <text x={LEFT} y={top - 8} className="fill-quiet" fontSize="11">
+          {heading}
+        </text>
+      )}
       <line x1={LEFT} x2={W} y1={top + LANE_H} y2={top + LANE_H} className="stroke-hairline" />
       {marks.map((t) => (
         <rect

@@ -60,6 +60,7 @@ const ChartCard = ({
           lines={chart.lines}
           bars={chart.bars}
           barColor="var(--color-brand-chart)"
+          hideLabels
           format={chart.format}
           from={from}
           to={to}

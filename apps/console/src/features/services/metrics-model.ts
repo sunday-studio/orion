@@ -124,6 +124,35 @@ const percentileLines = (id: string, points: readonly ApiServiceMetricPoint[]): 
   return compactLines([lineOf(`${id}:avg`, "avg", points, (p) => p.avg)]);
 };
 
+const RESOURCE_KEYS: Record<string, string | null> = {
+  "resource.service.name": null,
+  "resource.service.instance.id": "instance",
+  "resource.host.name": "host",
+};
+
+/**
+ * The series labels Core sends as a JSON object, as "http.route=/pay instance=pod-1". The service
+ * name is left out: the page is already about it. Text that is not JSON is shown as it came.
+ */
+export const labelText = (labels?: string): string => {
+  if (!labels) return "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(labels);
+  } catch {
+    return labels;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return labels;
+  return Object.entries(parsed as Record<string, unknown>)
+    .flatMap(([key, value]) => {
+      const name = key in RESOURCE_KEYS ? RESOURCE_KEYS[key] : key;
+      return name === null
+        ? []
+        : [`${name}=${typeof value === "string" ? value : JSON.stringify(value)}`];
+    })
+    .join(" ");
+};
+
 const kindOf = (series: ApiServiceMetricSeries): MetricChart["kind"] => {
   if (series.kind === "histogram" || series.kind === "summary" || series.kind === "sum") {
     return series.kind;
@@ -149,7 +178,7 @@ export const appMetricCharts = (
     const kind = kindOf(item);
     const format = (value: number) => formatMetricValue(value, item.unit);
     const title = item.name || item.metric || item.key || "metric";
-    const attributes = item.labels ?? "";
+    const attributes = labelText(item.labels);
     if (kind === "sum") {
       const raw = compactLines([lineOf(id, "increase", points, (p) => p.value)]);
       const decreased = raw.some((line) => line.points.some((p) => p.v < 0));
