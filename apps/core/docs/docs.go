@@ -18192,7 +18192,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
+                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). app_id and attr take at most 50 values each (more is a 400). Without to the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show. service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18207,7 +18207,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by app (comma-separated ids)",
+                        "description": "Filter by app (comma-separated ids, at most 50)",
                         "name": "app_id",
                         "in": "query"
                     },
@@ -18253,13 +18253,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "End (RFC 3339); default now",
+                        "description": "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead",
                         "name": "to",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "description": "Attribute filter key:value, repeatable, at most 50 (attr=http.status_code:500)",
                         "name": "attr",
                         "in": "query"
                     },
@@ -18336,7 +18336,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted.",
+                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted; without to the window ends five minutes past now. app_id and attr take at most 50 values each.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18351,7 +18351,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by app (comma-separated ids)",
+                        "description": "Filter by app (comma-separated ids, at most 50)",
                         "name": "app_id",
                         "in": "query"
                     },
@@ -18397,13 +18397,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "End (RFC 3339); default now",
+                        "description": "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead",
                         "name": "to",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Attribute filter key:value, repeatable",
+                        "description": "Attribute filter key:value, repeatable, at most 50",
                         "name": "attr",
                         "in": "query"
                     }

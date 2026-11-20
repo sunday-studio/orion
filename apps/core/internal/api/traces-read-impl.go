@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/logstore"
@@ -20,6 +21,11 @@ const (
 	traceQueryTimeout = 10 * time.Second
 	// defaultFacetWindow bounds the facets of a request that names no start.
 	defaultFacetWindow = 24 * time.Hour
+	// maxTraceFilterList caps the app_id and attr lists of a search, so a request cannot grow the query
+	// past what SQLite binds.
+	maxTraceFilterList = 50
+	// traceClockSkew is how far past now an unset "to" reaches: spans may be stamped by a clock a little ahead.
+	traceClockSkew = 5 * time.Minute
 	// maxTraceSummaryWindow bounds the range of a service summary.
 	maxTraceSummaryWindow = 7 * 24 * time.Hour
 )
@@ -82,7 +88,15 @@ func (s *Server) traceQuery(c *gin.Context, now time.Time) (q tracestore.Query, 
 		utils.BadRequest(c, "min_duration must be a duration such as 250ms or 2s, or a number of milliseconds")
 		return q, false, false
 	}
+	if to.IsZero() {
+		to = now.Add(traceClockSkew)
+	}
 	appIDs := splitList(c.Query("app_id"))
+	attrs := c.QueryArray("attr")
+	if len(appIDs) > maxTraceFilterList || len(attrs) > maxTraceFilterList {
+		utils.BadRequest(c, fmt.Sprintf("app_id and attr accept at most %d values each", maxTraceFilterList))
+		return q, false, false
+	}
 	if serviceID := strings.TrimSpace(c.Query("service_id")); serviceID != "" {
 		linked, found, err := s.serviceAppIDs(serviceID)
 		if err != nil {
@@ -100,7 +114,7 @@ func (s *Server) traceQuery(c *gin.Context, now time.Time) (q tracestore.Query, 
 	}
 	q = tracestore.Query{
 		AppIDs: appIDs, Service: strings.TrimSpace(c.Query("service")), Status: strings.TrimSpace(c.Query("status")),
-		MinDuration: minDuration, Name: strings.TrimSpace(c.Query("name")), From: from, To: to, Attrs: c.QueryArray("attr"),
+		MinDuration: minDuration, Name: strings.TrimSpace(c.Query("name")), From: from, To: to, Attrs: attrs,
 	}
 	return q, empty, true
 }

@@ -30,21 +30,21 @@ func (s *Server) ingestOTLPTraces(c *gin.Context) { s.ingestOTLPTracesImpl(c) }
 
 // listTraces Search traces.
 // @Summary      Search traces
-// @Description  Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.
+// @Description  Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). app_id and attr take at most 50 values each (more is a 400). Without to the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show. service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.
 // @Tags         traces
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           listTraces
-// @Param        app_id query string false "Filter by app (comma-separated ids)"
+// @Param        app_id query string false "Filter by app (comma-separated ids, at most 50)"
 // @Param        service_id query string false "Filter by the apps linked to this service"
 // @Param        service query string false "Filter by resource service.name of the root span"
 // @Param        status query string false "ok (no span failed) or error (at least one span failed)" Enums(ok, error)
 // @Param        min_duration query string false "Minimum duration: 250ms, 2s, or a number of milliseconds"
 // @Param        name query string false "Substring of the root span name"
 // @Param        from query string false "Start (RFC 3339, or relative like -1h)"
-// @Param        to query string false "End (RFC 3339); default now"
-// @Param        attr query string false "Attribute filter key:value, repeatable (attr=http.status_code:500)"
+// @Param        to query string false "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead"
+// @Param        attr query string false "Attribute filter key:value, repeatable, at most 50 (attr=http.status_code:500)"
 // @Param        limit query int false "Page size, max 200" default(50)
 // @Param        cursor query string false "Cursor from a previous page"
 // @Success      200  {object}  utils.APIResponse{data=TraceListResponse}
@@ -58,21 +58,21 @@ func (s *Server) listTraces(c *gin.Context) { s.listTracesImpl(c) }
 
 // getTraceFacets Trace filter facets.
 // @Summary      Trace facets
-// @Description  The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted.
+// @Description  The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted; without to the window ends five minutes past now. app_id and attr take at most 50 values each.
 // @Tags         traces
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           getTraceFacets
-// @Param        app_id query string false "Filter by app (comma-separated ids)"
+// @Param        app_id query string false "Filter by app (comma-separated ids, at most 50)"
 // @Param        service_id query string false "Filter by the apps linked to this service"
 // @Param        service query string false "Filter by resource service.name of the root span"
 // @Param        status query string false "ok or error" Enums(ok, error)
 // @Param        min_duration query string false "Minimum duration: 250ms, 2s, or a number of milliseconds"
 // @Param        name query string false "Substring of the root span name"
 // @Param        from query string false "Start (RFC 3339, or relative like -1h); default -24h"
-// @Param        to query string false "End (RFC 3339); default now"
-// @Param        attr query string false "Attribute filter key:value, repeatable"
+// @Param        to query string false "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead"
+// @Param        attr query string false "Attribute filter key:value, repeatable, at most 50"
 // @Success      200  {object}  utils.APIResponse{data=TraceFacetsResponse}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      401  {object}  utils.APIResponse
