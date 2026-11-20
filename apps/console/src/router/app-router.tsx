@@ -85,6 +85,14 @@ const AlertsPage = lazy(() =>
 const LogsPage = lazy(() =>
   import("@/features/logs/logs.view").then((module) => ({ default: module.LogsPage })),
 );
+const TracesPage = lazy(() =>
+  import("@/features/traces/traces.view").then((module) => ({ default: module.TracesPage })),
+);
+const TraceDetailPage = lazy(() =>
+  import("@/features/traces/trace-detail.view").then((module) => ({
+    default: module.TraceDetailPage,
+  })),
+);
 const NodesPage = lazy(() =>
   import("@/features/nodes/nodes.view").then((module) => ({ default: module.NodesPage })),
 );
@@ -153,6 +161,8 @@ function AppRouter() {
           <Route path="alerts/channels/:channelId" element={<ChannelDetailPage />} />
           <Route path="alerts/deliveries/:deliveryId" element={<DeliveryDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
+          <Route path="logs/traces" element={<TracesPage />} />
+          <Route path="logs/traces/:traceId" element={<TraceDetailPage />} />
           <Route path="logs/apps" element={<AppsPage />} />
           <Route path="logs/apps/new" element={<ConnectAppPage />} />
           <Route path="logs/apps/:appId" element={<AppDetailPage />} />

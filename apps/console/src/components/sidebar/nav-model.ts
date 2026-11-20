@@ -44,6 +44,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: "logs",
     pages: [
       { id: "app-logs", label: "App logs", to: "/logs" },
+      { id: "traces", label: "Traces", to: "/logs/traces" },
       { id: "events", label: "Events", to: "/logs?tab=status" },
       { id: "core-logs", label: "Core logs", to: "/logs?tab=internal" },
       { id: "apps", label: "Apps", to: "/logs/apps" },
@@ -107,6 +108,7 @@ export const resolveActiveNav = (rawPathname: string, search = ""): ActiveNav =>
   if (within(pathname, "/servers")) return inGroup("monitoring", "servers");
 
   if (within(pathname, "/logs/apps")) return inGroup("logs", "apps");
+  if (within(pathname, "/logs/traces")) return inGroup("logs", "traces");
   if (within(pathname, "/logs")) return inGroup("logs", logsPage(search));
 
   if (within(pathname, "/alerts/channels")) return inGroup("notify", "channels");

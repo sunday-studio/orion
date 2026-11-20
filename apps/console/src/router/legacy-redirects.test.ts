@@ -11,6 +11,8 @@ test("current URLs are left alone", () => {
     ["/servers/abc", "?tab=reports"],
     ["/logs", "?tab=status"],
     ["/logs/apps", ""],
+    ["/logs/traces", "?status=error"],
+    ["/logs/traces/4bf92f35", "?span=s1"],
     ["/logs/apps/new", ""],
     ["/logs/apps/app_1", "?tab=ingest"],
     ["/alerts", ""],
@@ -68,4 +70,11 @@ test("the server tab apps is now usage", () => {
 
 test("/overview goes to the root", () => {
   assert.equal(resolveLegacyRedirect("/overview", ""), "/");
+});
+
+test("a bare /traces link goes to Logs > Traces and keeps its query", () => {
+  assert.equal(resolveLegacyRedirect("/traces", ""), "/logs/traces");
+  assert.equal(resolveLegacyRedirect("/traces/", "?status=error"), "/logs/traces?status=error");
+  assert.equal(resolveLegacyRedirect("/traces/abc123", "?span=s1"), "/logs/traces/abc123?span=s1");
+  assert.equal(resolveLegacyRedirect("/tracesx", ""), null);
 });

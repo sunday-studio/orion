@@ -51,6 +51,7 @@ const actions: PaletteItem[] = [
   { id: "g-monitors", group: "Actions", label: "Go to Monitors", to: "/monitors", hint: "G M" },
   { id: "g-servers", group: "Actions", label: "Go to Servers", to: "/servers", hint: "G S" },
   { id: "g-logs", group: "Actions", label: "Go to Logs", to: "/logs", hint: "G L" },
+  { id: "g-traces", group: "Actions", label: "Go to Traces", to: "/logs/traces", hint: "G T" },
   { id: "g-events", group: "Actions", label: "Go to Events", to: "/logs?tab=status" },
   { id: "g-apps", group: "Actions", label: "Go to Apps", to: "/logs/apps" },
   { id: "g-notify", group: "Actions", label: "Go to Notify", to: "/alerts", hint: "G N" },

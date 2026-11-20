@@ -30,6 +30,7 @@ const GO_TARGETS: Record<string, string> = {
   s: "/servers",
   v: "/services",
   l: "/logs",
+  t: "/logs/traces",
   n: "/alerts",
   a: "/alerts",
 };
