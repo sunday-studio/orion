@@ -17767,8 +17767,9 @@ paths:
         app_id and attr take at most 50 values each (more is a 400). Without to the
         search runs up to five minutes past now, so spans stamped by a clock a little
         ahead still show. service matches the service.name of the root span; name
-        matches a substring of the root span name; attr matches a trace when any of
-        its spans or its resource carries the value.'
+        matches a substring of the name the list shows (the root span name, or the
+        earliest span name while the root has not arrived); attr matches a trace when
+        any of its spans or its resource carries the value.'
       operationId: listTraces
       parameters:
       - description: Filter by app (comma-separated ids, at most 50)
@@ -17794,7 +17795,8 @@ paths:
         in: query
         name: min_duration
         type: string
-      - description: Substring of the root span name
+      - description: 'Substring of the trace name the list shows: the root span name,
+          or the earliest span name while the root has not arrived'
         in: query
         name: name
         type: string
@@ -17807,10 +17809,14 @@ paths:
         in: query
         name: to
         type: string
-      - description: Attribute filter key:value, repeatable, at most 50 (attr=http.status_code:500)
+      - collectionFormat: multi
+        description: Attribute filter key:value, repeat the parameter for several
+          (all must match), at most 50 (attr=http.status_code:500&attr=db.system:postgres)
         in: query
+        items:
+          type: string
         name: attr
-        type: string
+        type: array
       - default: 50
         description: Page size, max 200
         in: query
@@ -17915,10 +17921,13 @@ paths:
       consumes:
       - application/json
       description: 'The choices for a trace filter bar over the traces matching the
-        same filters as the search: ok and error counts, and at most 50 services and
-        50 root span names, most traces first. Without from the last 24 hours are
-        counted; without to the window ends five minutes past now. app_id and attr
-        take at most 50 values each.'
+        same filters as the search: total, the number of traces matching every filter
+        (status included, so it equals what the search returns), the ok and error
+        counts of the traces matching all filters except status (so both choices stay
+        visible), and at most 50 services and 50 root span names of the traces matching
+        every filter, most traces first. Without from the last 24 hours are counted;
+        without to the window ends five minutes past now. app_id and attr take at
+        most 50 values each.'
       operationId: getTraceFacets
       parameters:
       - description: Filter by app (comma-separated ids, at most 50)
@@ -17944,7 +17953,8 @@ paths:
         in: query
         name: min_duration
         type: string
-      - description: Substring of the root span name
+      - description: 'Substring of the trace name the list shows: the root span name,
+          or the earliest span name while the root has not arrived'
         in: query
         name: name
         type: string
@@ -17957,10 +17967,14 @@ paths:
         in: query
         name: to
         type: string
-      - description: Attribute filter key:value, repeatable, at most 50
+      - collectionFormat: multi
+        description: Attribute filter key:value, repeat the parameter for several
+          (all must match), at most 50
         in: query
+        items:
+          type: string
         name: attr
-        type: string
+        type: array
       produces:
       - application/json
       responses:

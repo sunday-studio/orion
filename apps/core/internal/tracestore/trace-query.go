@@ -27,7 +27,7 @@ type Query struct {
 	// Status is "ok" (no span failed), "error" (at least one span failed) or "".
 	Status      string
 	MinDuration time.Duration
-	// Name matches a substring of the root span's name.
+	// Name matches a substring (any case) of the trace name the list shows: the root span name, or the earliest span name while the root has not arrived.
 	Name     string
 	From, To time.Time
 	// Attrs are key:value pairs; a trace matches when one of its spans (or its resource) carries the value.

@@ -18186,7 +18186,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). app_id and attr take at most 50 values each (more is a 400). Without to the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show. service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
+                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). app_id and attr take at most 50 values each (more is a 400). Without to the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show. service matches the service.name of the root span; name matches a substring of the name the list shows (the root span name, or the earliest span name while the root has not arrived); attr matches a trace when any of its spans or its resource carries the value.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18235,7 +18235,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Substring of the root span name",
+                        "description": "Substring of the trace name the list shows: the root span name, or the earliest span name while the root has not arrived",
                         "name": "name",
                         "in": "query"
                     },
@@ -18252,8 +18252,12 @@
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Attribute filter key:value, repeatable, at most 50 (attr=http.status_code:500)",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Attribute filter key:value, repeat the parameter for several (all must match), at most 50 (attr=http.status_code:500\u0026attr=db.system:postgres)",
                         "name": "attr",
                         "in": "query"
                     },
@@ -18330,7 +18334,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted; without to the window ends five minutes past now. app_id and attr take at most 50 values each.",
+                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: total, the number of traces matching every filter (status included, so it equals what the search returns), the ok and error counts of the traces matching all filters except status (so both choices stay visible), and at most 50 services and 50 root span names of the traces matching every filter, most traces first. Without from the last 24 hours are counted; without to the window ends five minutes past now. app_id and attr take at most 50 values each.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18379,7 +18383,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Substring of the root span name",
+                        "description": "Substring of the trace name the list shows: the root span name, or the earliest span name while the root has not arrived",
                         "name": "name",
                         "in": "query"
                     },
@@ -18396,8 +18400,12 @@
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Attribute filter key:value, repeatable, at most 50",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Attribute filter key:value, repeat the parameter for several (all must match), at most 50",
                         "name": "attr",
                         "in": "query"
                     }
