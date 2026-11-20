@@ -8,6 +8,7 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/metricstore"
 	"orion/core/internal/service"
+	"orion/core/internal/tracestore"
 	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
@@ -48,6 +49,7 @@ type Server struct {
 	logs                         *productLogs
 	metrics                      metricstore.MetricStore // nil until EnableMetrics; resource history is optional
 	releases                     service.ReleaseLookup
+	traces                       *tracestore.Store // nil until EnableTraces; the trace routes answer 503 without it
 	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
 	auditRouteProbe bool
 }
@@ -175,6 +177,7 @@ func (s *Server) setupRoutes() {
 			public.POST("/ingest/logs", s.ingestLogs)
 			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)
 			public.POST("/ingest/otlp/v1/metrics", s.ingestOTLPMetrics)
+			public.POST("/ingest/otlp/v1/traces", s.ingestOTLPTraces)
 			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)
@@ -299,6 +302,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/events", s.listOrionEvents)
 			frontend.GET("/logs/service", s.listServiceLogs)
 			s.registerProductLogRoutes(frontend)
+			s.registerTraceRoutes(frontend)
 			s.registerServiceRoutes(frontend)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)

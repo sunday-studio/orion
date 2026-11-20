@@ -6751,6 +6751,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/ingest/otlp/v1/traces": {
+            "post": {
+                "security": [
+                    {
+                        "IngestKey": []
+                    }
+                ],
+                "description": "OpenTelemetry Traces endpoint (ExportTraceServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed, so any OpenTelemetry SDK or Collector can send spans with no Orion-specific code (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT). Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each span counts as one entry). Limits: 10,000 spans per request, 256 KiB per span, 128 attributes, events and links per span, text values cut at 4,096 bytes. A span with an invalid trace or span id, a missing or reversed time, a start more than an hour ahead, or attributes nested deeper than 8 levels is refused and counted in partial_success; the rest of the request is stored. Spans of a trace may arrive in any order and in separate requests.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest traces over OTLP/HTTP",
+                "operationId": "ingestOTLPTraces",
+                "parameters": [
+                    {
+                        "description": "ExportTraceServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/internal-logs": {
             "get": {
                 "security": [
@@ -13566,6 +13642,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/services/{id}/traces/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Trace count, error count and rate, and root-span latency percentiles (p50, p95, p99; nearest rank) of the traces the apps linked to a service received between from and to (default the last hour, at most 7 days). Counts are exact; percentiles use the newest 50,000 traces with a root span (sampled says when that cut applies).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Service trace summary",
+                "operationId": "getServiceTraceSummary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h); default -1h",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ServiceTraceSummaryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/settings/api-tokens": {
             "get": {
                 "security": [
@@ -18010,6 +18178,361 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/traces": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "traces"
+                ],
+                "summary": "Search traces",
+                "operationId": "listTraces",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by app (comma-separated ids)",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by the apps linked to this service",
+                        "name": "service_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by resource service.name of the root span",
+                        "name": "service",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ok",
+                            "error"
+                        ],
+                        "type": "string",
+                        "description": "ok (no span failed) or error (at least one span failed)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Minimum duration: 250ms, 2s, or a number of milliseconds",
+                        "name": "min_duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Substring of the root span name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size, max 200",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor from a previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.TraceListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/traces/facets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "traces"
+                ],
+                "summary": "Trace facets",
+                "operationId": "getTraceFacets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by app (comma-separated ids)",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by the apps linked to this service",
+                        "name": "service_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by resource service.name of the root span",
+                        "name": "service",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ok",
+                            "error"
+                        ],
+                        "type": "string",
+                        "description": "ok or error",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Minimum duration: 250ms, 2s, or a number of milliseconds",
+                        "name": "min_duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Substring of the root span name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h); default -24h",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.TraceFacetsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/traces/{trace_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Every stored span of a trace id ordered by start time (at most 5,000; truncated says when more exist), with each span's offset from the trace start for drawing a waterfall. Apps that instrument both sides of a call share the trace id, so spans of all apps are returned. log_count is how many product log entries carry the trace id.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "traces"
+                ],
+                "summary": "Get a trace",
+                "operationId": "getTrace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Trace id (32 hexadecimal characters)",
+                        "name": "trace_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.TraceDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -22749,6 +23272,54 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.ServiceTraceSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "app_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "error_rate": {
+                    "description": "ErrorRate is error_count / trace_count, 0 to 1 (0 when there are no traces).",
+                    "type": "number"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "p50_ns": {
+                    "description": "P50Ns, P95Ns and P99Ns are root-span durations (nearest rank); null when no trace has its root.",
+                    "type": "integer"
+                },
+                "p95_ns": {
+                    "type": "integer"
+                },
+                "p99_ns": {
+                    "type": "integer"
+                },
+                "rooted_count": {
+                    "description": "RootedCount is the traces whose root span arrived; only they have a latency.",
+                    "type": "integer"
+                },
+                "sampled": {
+                    "description": "Sampled is true when more than 50,000 traces matched and the percentiles use the newest 50,000.",
+                    "type": "boolean"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "trace_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_api.StatusLogEntry": {
             "type": "object",
             "properties": {
@@ -24279,6 +24850,288 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.TraceDetailResponse": {
+            "type": "object",
+            "properties": {
+                "duration_ns": {
+                    "description": "DurationNs is the root span's duration, or the extent of the spans while no root arrived.",
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "has_root": {
+                    "type": "boolean"
+                },
+                "log_count": {
+                    "description": "LogCount is how many product log entries carry this trace id; search them with GET /v1/logs?trace_id=.",
+                    "type": "integer"
+                },
+                "root_name": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "span_count": {
+                    "description": "SpanCount is every stored span; Spans holds at most 5000 of them (truncated is then true).",
+                    "type": "integer"
+                },
+                "spans": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceSpan"
+                    }
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "enum": [
+                        "ok",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.TraceStatus"
+                        }
+                    ]
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.TraceFacetCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.TraceFacetsResponse": {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceFacetCount"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceFacetCount"
+                    }
+                },
+                "status": {
+                    "description": "Status has the counts of ok and error traces, whatever status filter is set.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceFacetCount"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.TraceListItem": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "app_name": {
+                    "type": "string"
+                },
+                "duration_ns": {
+                    "description": "DurationNs is the root span's duration, or the extent of all spans while has_root is false.",
+                    "type": "integer",
+                    "example": 182000000
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "has_root": {
+                    "type": "boolean"
+                },
+                "root_name": {
+                    "description": "RootName is the name of the root span, or of the earliest span while the root has not arrived (has_root false).",
+                    "type": "string",
+                    "example": "POST /checkout"
+                },
+                "service_name": {
+                    "type": "string",
+                    "example": "checkout-api"
+                },
+                "span_count": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "enum": [
+                        "ok",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.TraceStatus"
+                        }
+                    ]
+                },
+                "trace_id": {
+                    "type": "string",
+                    "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+            }
+        },
+        "internal_api.TraceListResponse": {
+            "type": "object",
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "traces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceListItem"
+                    }
+                }
+            }
+        },
+        "internal_api.TraceSpan": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "app_name": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "duration_ns": {
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceSpanEvent"
+                    }
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "unspecified",
+                        "internal",
+                        "server",
+                        "client",
+                        "producer",
+                        "consumer"
+                    ]
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.TraceSpanLink"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "SELECT orders"
+                },
+                "parent_span_id": {
+                    "type": "string",
+                    "example": "b9c7c989f97918e1"
+                },
+                "resource": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "span_id": {
+                    "type": "string",
+                    "example": "00f067aa0ba902b7"
+                },
+                "start_offset_ns": {
+                    "description": "StartOffsetNs is the time since the trace's first span started: draw the waterfall from it.",
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "unset",
+                        "ok",
+                        "error"
+                    ]
+                },
+                "status_message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.TraceSpanEvent": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offset_ns": {
+                    "description": "OffsetNs is the time since the trace's first span started.",
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.TraceSpanLink": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "span_id": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.TraceStatus": {
+            "type": "string",
+            "enum": [
+                "ok",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "TraceStatusOK",
+                "TraceStatusError"
+            ]
+        },
         "internal_api.UpdateNodeMonitorDefinitionRequest": {
             "type": "object",
             "properties": {
@@ -24935,6 +25788,10 @@ const docTemplate = `{
                     "description": "Retention windows in days for tables that otherwise grow without bound.",
                     "type": "integer"
                 },
+                "trace_retention_days": {
+                    "description": "Spans live in traces.db. This is the longest they are kept for any app; an app's own retention_days\napplies when it is shorter.",
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -25440,6 +26297,9 @@ const docTemplate = `{
                 },
                 "service_log_retention_days": {
                     "description": "Optional retention windows (days, 1-3650). Omitted fields keep their current value.",
+                    "type": "integer"
+                },
+                "trace_retention_days": {
                     "type": "integer"
                 },
                 "worker_status_retention_days": {

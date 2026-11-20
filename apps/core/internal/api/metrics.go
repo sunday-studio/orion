@@ -46,6 +46,13 @@ func (s *Server) getMetrics(c *gin.Context) {
 			"# HELP orion_logs_dropped_total Product log entries lost to write failures since process start.\n# TYPE orion_logs_dropped_total counter\norion_logs_dropped_total %d\n"+
 			"# HELP orion_logs_storage_full 1 while the last log write failed because the disk or database is full.\n# TYPE orion_logs_storage_full gauge\norion_logs_storage_full %d\n", st.Queued, st.Written, st.Dropped, boolGauge(st.StorageFull))
 	}
+	if s.traces != nil {
+		st := s.traces.Stats()
+		body += fmt.Sprintf("# HELP orion_traces_queue_spans Spans accepted but not yet written.\n# TYPE orion_traces_queue_spans gauge\norion_traces_queue_spans %d\n"+
+			"# HELP orion_traces_written_total Spans written since process start.\n# TYPE orion_traces_written_total counter\norion_traces_written_total %d\n"+
+			"# HELP orion_traces_dropped_total Spans lost to write failures since process start.\n# TYPE orion_traces_dropped_total counter\norion_traces_dropped_total %d\n"+
+			"# HELP orion_traces_storage_full 1 while the last span write failed because the disk or database is full.\n# TYPE orion_traces_storage_full gauge\norion_traces_storage_full %d\n", st.Queued, st.Written, st.Dropped, boolGauge(st.StorageFull))
+	}
 	c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte(body))
 }
 

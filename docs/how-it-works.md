@@ -6,7 +6,9 @@
 </picture>
 
 - **Server** runs on Linux and macOS hosts and reports system metrics and monitor results.
-- **Your apps** send logs to Core with a write-only ingest key, as JSON or OpenTelemetry.
+- **Your apps** send logs to Core with a write-only ingest key, as JSON or OpenTelemetry. Metrics and traces
+  arrive over OpenTelemetry (OTLP/HTTP) with the same key: see [logs](product-logs.md), [metrics](product-metrics.md)
+  and [traces](product-traces.md).
 - **Core** receives reports, stores data, derives health, opens incidents, sends alerts and serves the API.
 - **Core monitor worker** runs Core-managed checks in its own process, so API health stays separate from
   monitor execution health.

@@ -462,10 +462,13 @@ type DataLifecycleSettings struct {
 	AuditEventRetentionDays    int `json:"audit_event_retention_days" gorm:"not null;default:365"`
 	WorkerStatusRetentionDays  int `json:"worker_status_retention_days" gorm:"not null;default:7"`
 	// Metric samples live in metrics.db: one-minute rows and hourly rollups are kept for different times.
-	MetricSampleRetentionDays int       `json:"metric_sample_retention_days" gorm:"not null;default:7"`
-	MetricRollupRetentionDays int       `json:"metric_rollup_retention_days" gorm:"not null;default:90"`
-	CreatedAt                 time.Time `json:"created_at"`
-	UpdatedAt                 time.Time `json:"updated_at"`
+	MetricSampleRetentionDays int `json:"metric_sample_retention_days" gorm:"not null;default:7"`
+	MetricRollupRetentionDays int `json:"metric_rollup_retention_days" gorm:"not null;default:90"`
+	// Spans live in traces.db. This is the longest they are kept for any app; an app's own retention_days
+	// applies when it is shorter.
+	TraceRetentionDays int       `json:"trace_retention_days" gorm:"not null;default:7"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // IncidentCandidateDismissal hides an incident candidate (a failing monitor with no
