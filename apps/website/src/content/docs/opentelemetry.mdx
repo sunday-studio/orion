@@ -1,0 +1,202 @@
+---
+title: Connect OpenTelemetry
+description: "Send logs, metrics and traces from any OpenTelemetry SDK or Collector, over HTTP or gRPC, with a few environment variables."
+group: Guides
+order: 7
+readTime: 8 min read
+note: Needs an ingest key
+---
+import Callout from "../../components/docs/callout.astro";
+import CodeTabs from "../../components/docs/code-tabs.astro";
+import Badge from "../../components/docs/badge.astro";
+
+Orion receives logs, metrics and traces from any OpenTelemetry SDK or Collector. There is no Orion-specific code to add: set a few `OTEL_*` environment variables, or add one exporter to your Collector. Everything one app sends lands under that app, and a [service](/docs/concepts/) the app is linked to shows its metrics, traces, error rate and latency.
+
+## What you need
+
+1. A running Core. Its address below is `$ORION_URL`, for example `https://orion.example.com`.
+2. An **app** and an **ingest key**. In the Console open **Logs, Apps**, create an app, then create a key. It looks like `orion_ik_...`, is shown once, and can only write for that app. One key covers all three signals.
+
+<Callout title="Rotating.">Create a second key, deploy it, then revoke the old one.</Callout>
+
+## Endpoints
+
+| Signal | OTLP/HTTP path on `$ORION_URL` | OTLP/gRPC service |
+|---|---|---|
+| Logs | `POST /v1/ingest/otlp/v1/logs` | `opentelemetry.proto.collector.logs.v1.LogsService` |
+| Metrics | `POST /v1/ingest/otlp/v1/metrics` | `opentelemetry.proto.collector.metrics.v1.MetricsService` |
+| Traces | `POST /v1/ingest/otlp/v1/traces` | `opentelemetry.proto.collector.trace.v1.TraceService` |
+
+- **HTTP** uses Core's normal port. Send protobuf (the SDK default) or JSON, optionally gzip-compressed. There is no separate port 4318.
+- **gRPC** is off by default. Set `ORION_OTLP_GRPC_ADDR=:4317` on Core, or with Docker Compose add `-f deploy/docker-compose.otlp-grpc.yml`, which publishes the port on `127.0.0.1` only. The receiver has no TLS of its own: put a TLS-terminating proxy in front before exposing it.
+- **Authentication** is the ingest key as `Authorization: Bearer <key>` (the `authorization` metadata key over gRPC).
+
+The simplest setup uses the base endpoint `$ORION_URL/v1/ingest/otlp`. OpenTelemetry HTTP exporters append `/v1/traces`, `/v1/metrics` and `/v1/logs` to it, which are exactly Orion's paths, so one endpoint and one header cover all three signals.
+
+## Configure an SDK
+
+These variables work with any SDK that follows the OpenTelemetry specification:
+
+```sh
+export OTEL_SERVICE_NAME="checkout-api"
+export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"      # or http/json
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_COMPRESSION="gzip"
+export OTEL_TRACES_EXPORTER="otlp"
+export OTEL_METRICS_EXPORTER="otlp"
+export OTEL_LOGS_EXPORTER="otlp"
+```
+
+Over gRPC the endpoint is the receiver, with no path:
+
+```sh
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://orion.example.com:4317"   # https:// when TLS is in front
+export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer $ORION_INGEST_KEY"
+```
+
+<Callout title="The space in the header.">The specification percent-encodes header values. Java, Python and Go decode `%20`, and Python warns about a raw space, so write `Bearer%20` followed by the key there. The Node.js SDK takes the header as written, so use a plain space. If a key you know is good gets a 401, try the other form.</Callout>
+
+To send one signal elsewhere, use the per-signal variables, such as `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Those take the full URL, path included. Set `OTEL_METRICS_EXPORTER=none` or `OTEL_LOGS_EXPORTER=none` to switch a signal off.
+
+<CodeTabs labels={["Node.js", "Python", "Go", "Java"]}>
+
+```sh
+npm install @opentelemetry/api @opentelemetry/auto-instrumentations-node
+export OTEL_SERVICE_NAME="checkout-api"
+export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_TRACES_EXPORTER="otlp" OTEL_METRICS_EXPORTER="otlp" OTEL_LOGS_EXPORTER="otlp"
+node --require @opentelemetry/auto-instrumentations-node/register app.js
+```
+
+```sh
+pip install opentelemetry-distro opentelemetry-exporter-otlp
+opentelemetry-bootstrap -a install
+export OTEL_SERVICE_NAME="checkout-api"
+export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
+export OTEL_TRACES_EXPORTER="otlp" OTEL_METRICS_EXPORTER="otlp" OTEL_LOGS_EXPORTER="otlp"
+export OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED="true"
+opentelemetry-instrument python app.py
+```
+
+```go
+// The Go exporters read the environment variables above, so no Orion settings are in code.
+exporter, err := otlptracehttp.New(ctx) // go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+if err != nil {
+	log.Fatal(err)
+}
+provider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+defer provider.Shutdown(ctx)
+otel.SetTracerProvider(provider)
+
+// In the shell that starts the program:
+//   export OTEL_SERVICE_NAME="checkout-api"
+//   export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
+//   export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
+```
+
+```sh
+curl -L -O https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+export OTEL_SERVICE_NAME="checkout-api"
+export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
+export OTEL_TRACES_EXPORTER="otlp" OTEL_METRICS_EXPORTER="otlp" OTEL_LOGS_EXPORTER="otlp"
+java -javaagent:./opentelemetry-javaagent.jar -jar app.jar
+```
+
+</CodeTabs>
+
+Make sure each process has its own `service.instance.id` (many SDKs set one for you), so metric series from two processes do not collide.
+
+## Use an OpenTelemetry Collector
+
+The `otlphttp` exporter appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to its endpoint and retries on 429 and 5xx using the `Retry-After` header. The `otlp` exporter sends the same data over gRPC.
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+
+exporters:
+  otlphttp/orion:
+    endpoint: ${env:ORION_URL}/v1/ingest/otlp
+    headers:
+      Authorization: "Bearer ${env:ORION_INGEST_KEY}"
+    compression: gzip
+
+  # The same data over gRPC instead; needs ORION_OTLP_GRPC_ADDR on Core.
+  otlp/orion:
+    endpoint: orion.example.com:4317
+    tls:
+      insecure: true          # drop this when a TLS proxy is in front
+    headers:
+      authorization: "Bearer ${env:ORION_INGEST_KEY}"
+    compression: gzip
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/orion]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/orion]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/orion]
+```
+
+An ingest key belongs to one app, so one exporter sends one app's data. A Collector that gathers several apps needs one exporter per app, each with its own key, or everything lands under the key's app.
+
+## What is supported
+
+| | |
+|---|---|
+| Signals | Logs, metrics and traces. |
+| Transports | OTLP/HTTP with protobuf or JSON bodies, optionally gzip, and OTLP/gRPC (opt-in). |
+| Metric types | Gauges, sums, histograms, exponential histograms and summaries. Cumulative sums and histograms are stored as the change per interval. |
+| JSON ids | `traceId`, `spanId` and `parentSpanId` as hex strings, as the OTLP/JSON specification says. Base64 is also read. |
+| Console | **Logs, Traces**: a list with filters, a waterfall with span details and the logs of the trace. Service pages show traces, error rate, latency and histogram percentiles. |
+
+Not supported:
+
+- **Profiles**, the fourth OTLP signal.
+- **Sending data out** of Orion over OTLP. Orion only receives.
+- **Sampling.** Orion stores what it is sent. Sample in the SDK, or in a Collector with the `tail_sampling` processor, before you export.
+- **Exemplars** on metrics are accepted and ignored.
+- **TLS on the gRPC receiver**, and OTLP/HTTP on a port other than Core's. Use a proxy for TLS.
+- **Per-span alert rules.**
+
+## Limits
+
+All three signals share one rate limit per app: each log record, data point and span counts as one unit. A request holds at most 10,000 of them, and its body at most 5 MiB after decompression. Spans, attributes, series and retention have their own limits, listed with each signal in the repository docs: [logs](https://github.com/sunday-studio/orion/blob/main/docs/product-logs.md), [metrics](https://github.com/sunday-studio/orion/blob/main/docs/product-metrics.md), [traces](https://github.com/sunday-studio/orion/blob/main/docs/product-traces.md) and [gRPC](https://github.com/sunday-studio/orion/blob/main/docs/otlp-grpc.md). Logs are covered in [Send logs](/docs/send-logs/).
+
+## Troubleshooting
+
+| You see | Cause and fix |
+|---|---|
+| <Badge tone="a">401</Badge> or `Unauthenticated` | The key is missing, unknown, revoked or not an ingest key. If it comes from `OTEL_EXPORTER_OTLP_HEADERS`, try the other spelling of the space. |
+| <Badge tone="a">404</Badge> | The URL is wrong. With `OTEL_EXPORTER_OTLP_ENDPOINT` use `$ORION_URL/v1/ingest/otlp` and let the SDK add `/v1/traces`. Per-signal variables take the full URL. |
+| <Badge tone="a">415</Badge> | The body is not protobuf or JSON. Set `OTEL_EXPORTER_OTLP_PROTOCOL` to `http/protobuf` or `http/json`. An exporter set to `grpc` must point at the gRPC receiver, not the HTTP port. |
+| <Badge tone="a">400</Badge> | The body does not parse, or a trace or span id is neither hex nor base64 of the right size, or the gzip is bad. |
+| <Badge tone="a">413</Badge> | Over 10,000 entries or 5 MiB. Lower the exporter's batch size. |
+| <Badge tone="r">429</Badge> | The app's rate limit or a full write queue. The response has `Retry-After`; exporters wait and retry. |
+| <Badge tone="r">503</Badge> | That signal is off on this Core, or its database is out of space. |
+| <Badge tone="g">200</Badge> but data is missing | Read `partial_success` in the response: it counts refused records and gives up to five reasons. The rest of the request was stored. |
+| A counter shows nothing | Cumulative counters store the change since the last reading, so the first export of a series is only a baseline. It appears after the second export. |
+| The gRPC exporter cannot connect | The receiver is off by default, and the Compose overlay publishes it on `127.0.0.1` only. Use `http://` unless TLS is in front. |
+| The service page is empty | Link the app to the service. The Traces list under Logs shows every app. |
