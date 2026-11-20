@@ -74,7 +74,7 @@ export OTEL_SERVICE_NAME="checkout-api"
 
 OTLP log records map to Orion entries (a successful response mirrors the request encoding and reports rejected records in `partial_success`; error responses (400, 401, 413, 415, 429) are Orion JSON envelopes rather than OTLP `Status` messages, which collectors handle by status code and `Retry-After`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`.
 
-Apps can also send metrics over OTLP with the same key: see [product-metrics.md](product-metrics.md).
+Apps can also send metrics and traces over OTLP with the same key: see [product-metrics.md](product-metrics.md) and [product-traces.md](product-traces.md). Log records that carry a `traceId` link to the trace: `GET /v1/traces/{trace_id}` reports how many log entries share it, and `GET /v1/logs?trace_id=` lists them.
 
 ## 5. Limits, errors and retries
 
