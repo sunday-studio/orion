@@ -9,11 +9,19 @@ export const traceHref = (traceId: string, span?: string) => {
   return span ? `${base}?span=${encodeURIComponent(span)}` : base;
 };
 
+/**
+ * The attr list as the Traces page reads it from the URL: nuqs joins the pairs with commas and writes a
+ * comma inside a pair as %2C (which the URL then escapes once more), so a value with a comma stays one pair.
+ */
+export const attrParam = (pairs: readonly string[]) =>
+  pairs.map((pair) => pair.replaceAll(",", "%2C")).join(",");
+
 /** The Traces list with some filters set. Empty ones stay out of the URL. */
 export const tracesHref = (filters: Partial<TraceFilters>) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
-    if (value) params.set(key, value);
+    const text = Array.isArray(value) ? attrParam(value) : value;
+    if (text) params.set(key, text);
   }
   const query = params.toString();
   return query ? `${TRACES_PATH}?${query}` : TRACES_PATH;
@@ -21,7 +29,7 @@ export const tracesHref = (filters: Partial<TraceFilters>) => {
 
 /** Traces whose spans or resource carry `key` = `value`. */
 export const attributeFilterHref = (key: string, value: string, range?: string) =>
-  tracesHref({ attr: `${key}:${value}`, range });
+  tracesHref({ attr: [`${key}:${value}`], range });
 
 const HOUR_MS = 3_600_000;
 

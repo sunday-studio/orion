@@ -9,7 +9,7 @@ import {
   EMPTY_TRACE_FILTERS,
   type TraceFilters,
   filterTokens,
-  matchingTotal,
+  removeToken,
   traceRangeLabel,
 } from "./traces-state";
 import { pageLimit, toFilters, useTraceQuery } from "./use-trace-query";
@@ -36,7 +36,7 @@ export const TracesPage = () => {
   });
   const range = traceRangeLabel(state.range).toLowerCase();
   const first = list.page * limit + 1;
-  const total = matchingTotal(facets.data, state.status);
+  const total = facets.data?.total;
   const announce = list.isPending
     ? "Loading traces"
     : list.isError
@@ -104,11 +104,11 @@ export const TracesPage = () => {
           <FilterTokenRow onClearAll={clear}>
             {tokens.map((token) => (
               <FilterToken
-                key={token.key}
+                key={token.id}
                 field={token.field}
                 operator="is"
                 value={token.value}
-                onRemove={() => patch({ [token.key]: "" })}
+                onRemove={() => patch(removeToken(filters, token))}
               />
             ))}
           </FilterTokenRow>
