@@ -119,8 +119,19 @@ func main() {
 		logger.Warn("INSECURE: binding to loopback only because admin authentication is disabled", "address", listenAddr)
 	}
 
+	// The OTLP/gRPC receiver is off unless ORION_OTLP_GRPC_ADDR is set. It stops on the same signal as
+	// the HTTP server and is waited for before the stores close, so exports in flight still land.
+	_, otlpGRPCDone, err := server.StartOTLPGRPC(ctx, cfg.OTLPGRPCAddr)
+	if err != nil {
+		logger.Fatal("Failed to listen for OTLP/gRPC", "address", cfg.OTLPGRPCAddr, "error", err)
+	}
+
 	logger.Info("Orion Core Server started successfully")
 	startErr := server.Start(ctx, listenAddr)
+	stop() // the HTTP server returned (a signal or a failure): bring the gRPC receiver down too
+	if otlpGRPCDone != nil {
+		<-otlpGRPCDone
+	}
 	if metricStore != nil {
 		metricStore.Close() // drain queued samples before exit
 	}
