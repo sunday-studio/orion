@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input, Select } from "@/design-system";
 import { RangePicker, SearchBox } from "@/features/logs/components/log-toolbar";
 import type { ApiTraceFacetsResponse } from "@/orion-sdk";
 import { normalizeMinDuration } from "../trace-format";
 import {
+  MAX_TRACE_ATTRS,
   TRACE_RANGES,
   type TraceFilters,
-  parseAttr,
+  addAttr,
+  attrDraft,
   statusCounts,
   traceRangeLabel,
 } from "../traces-state";
@@ -30,38 +32,47 @@ const MIN_DURATIONS: Option[] = [
   { value: "5s", label: "At least 5s" },
 ];
 
-/** key:value box. It commits on Enter or blur, and says so when the text is not a pair. */
+const ATTR_HINTS = {
+  invalid: "Use key:value, for example http.status_code:500",
+  full: `At most ${MAX_TRACE_ATTRS} attributes; remove one to add another`,
+} as const;
+
+/**
+ * key:value box that adds one more attribute to the filter. It commits on Enter or blur, clears
+ * itself, and says so when the text is not a pair. The pairs added so far are the tokens under the toolbar.
+ */
 const AttributeBox = ({
   value,
-  onCommit,
+  onChange,
 }: {
-  value: string;
-  onCommit: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
 }) => {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const invalid = draft.trim() !== "" && parseAttr(draft) === null;
+  const [draft, setDraft] = useState("");
+  const state = attrDraft(value, draft);
+  const hint = state === "invalid" || state === "full" ? ATTR_HINTS[state] : undefined;
   const commit = () => {
-    const text = draft.trim();
-    if (text === value) return;
-    if (text === "" || parseAttr(text)) onCommit(text);
+    if (state === "valid") {
+      onChange(addAttr(value, draft));
+      setDraft("");
+    }
   };
   return (
     <div className="grid gap-1">
       <Input
-        aria-label="Attribute, as key:value"
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? "trace-attr-hint" : undefined}
-        placeholder="attribute  key:value"
+        aria-label="Add attribute filter, as key:value"
+        aria-invalid={hint ? true : undefined}
+        aria-describedby={hint ? "trace-attr-hint" : undefined}
+        placeholder={value.length > 0 ? "add another  key:value" : "attribute  key:value"}
         className="w-52"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => event.key === "Enter" && commit()}
       />
-      {invalid && (
+      {hint && (
         <span id="trace-attr-hint" role="status" className="text-xs text-(--tone-down-fg)">
-          Use key:value, for example http.status_code:500
+          {hint}
         </span>
       )}
     </div>
@@ -131,7 +142,7 @@ export const TraceToolbar = ({
         value={minDuration}
         onValueChange={(next) => onChange({ minDuration: next })}
       />
-      <AttributeBox value={filters.attr} onCommit={(attr) => onChange({ attr })} />
+      <AttributeBox value={filters.attr} onChange={(attr) => onChange({ attr })} />
       <RangePicker
         range={filters.range}
         from={filters.from}

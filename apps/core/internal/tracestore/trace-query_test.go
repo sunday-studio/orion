@@ -156,9 +156,9 @@ func TestFacetsListServicesNamesAndStatus(t *testing.T) {
 	if f.Services[0].Count != 5 || f.Status[0] != (Count{"ok", 6}) || f.Status[1] != (Count{"error", 4}) {
 		t.Fatalf("services/status = %+v / %+v", f.Services, f.Status)
 	}
-	// Picking a status narrows the lists but the status counts keep showing both choices.
+	// Picking a status narrows the total and the lists but the status counts keep showing both choices.
 	f, err = s.Facets(Query{Status: "error", AppIDs: []string{"web"}})
-	if err != nil || f.Total != 5 || f.Status[1].Count != 2 || len(f.Services) != 1 || f.Services[0].Value != "shop" || f.Services[0].Count != 2 {
+	if err != nil || f.Total != 2 || f.Status[1].Count != 2 || len(f.Services) != 1 || f.Services[0].Value != "shop" || f.Services[0].Count != 2 {
 		t.Fatalf("narrowed facets = %+v, %v", f, err)
 	}
 }

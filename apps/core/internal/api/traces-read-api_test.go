@@ -268,8 +268,13 @@ func TestTraceFacets(t *testing.T) {
 	if f := get("from=-2d"); f.Data.Total != 3 {
 		t.Fatalf("facets over two days total = %d, want 3", f.Data.Total)
 	}
-	if f := get("status=error&from=-2d"); f.Data.Total != 3 || len(f.Data.Names) != 1 || f.Data.Names[0].Value != "POST /checkout" {
-		t.Fatalf("narrowed facets = %+v (status counts keep both choices, lists follow the filter)", f.Data)
+	// The total and the lists follow the status filter (the total is what the search returns); the ok and error counts keep both choices.
+	if f := get("status=error&from=-2d"); f.Data.Total != 1 || len(f.Data.Names) != 1 || f.Data.Names[0].Value != "POST /checkout" ||
+		len(f.Data.Status) != 2 || f.Data.Status[0].Count != 2 || f.Data.Status[1].Count != 1 {
+		t.Fatalf("narrowed facets = %+v (total and lists follow the filter, status counts keep both choices)", f.Data)
+	}
+	if f := get("status=ok&from=-2d"); f.Data.Total != 2 || f.Data.Status[0].Count != 2 || f.Data.Status[1].Count != 1 {
+		t.Fatalf("ok facets = %+v", f.Data)
 	}
 	if resp := performJSONRequest(t, server, http.MethodGet, "/v1/traces/facets?status=great", nil, ""); resp.Code != http.StatusBadRequest {
 		t.Fatalf("bad status = %d, want 400", resp.Code)

@@ -2,7 +2,7 @@
 title: Backups and restore
 description: "Back up the SQLite database, restore it and keep disk use in check."
 group: Guides
-order: 7
+order: 8
 ---
 Core stores its data in SQLite at `ORION_DATA_DIR/orion.db`, and product logs in `logs.db` beside it. Both run in WAL mode.
 

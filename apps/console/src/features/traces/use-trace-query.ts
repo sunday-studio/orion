@@ -1,4 +1,4 @@
-import { parseAsString, useQueryStates } from "nuqs";
+import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import { DEFAULT_TRACE_RANGE, type TraceFilters } from "./traces-state";
 
 /** Traces page filters, kept in the URL so a view can be shared as a link. */
@@ -13,7 +13,7 @@ export const useTraceQuery = () => {
     range: parseAsString.withDefault(DEFAULT_TRACE_RANGE),
     from: parseAsString.withDefault(""),
     to: parseAsString.withDefault(""),
-    attr: parseAsString.withDefault(""),
+    attr: parseAsArrayOf(parseAsString).withDefault([]),
     limit: parseAsString.withDefault("25"),
   });
   return { state, set };

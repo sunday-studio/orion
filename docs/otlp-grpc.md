@@ -1,6 +1,6 @@
 # Send OpenTelemetry to Orion over gRPC
 
-Many OpenTelemetry SDKs and the Collector default to OTLP/gRPC on port 4317. Core can receive logs, metrics and traces that way, with the same app ingest keys, limits, redaction and rate limits as OTLP/HTTP. Plan: [plans/opentelemetry-support.md](plans/opentelemetry-support.md), phase 2. The signals themselves are described in [product-logs.md](product-logs.md), [product-metrics.md](product-metrics.md) and [product-traces.md](product-traces.md).
+Many OpenTelemetry SDKs and the Collector default to OTLP/gRPC on port 4317. Core can receive logs, metrics and traces that way, with the same app ingest keys, limits, redaction and rate limits as OTLP/HTTP. Plan: [plans/opentelemetry-support.md](plans/opentelemetry-support.md), phase 2. The setup for all three signals over HTTP and gRPC, with examples for Node.js, Python, Go, Java and the Collector, is in [opentelemetry.md](opentelemetry.md). The signals themselves are described in [product-logs.md](product-logs.md), [product-metrics.md](product-metrics.md) and [product-traces.md](product-traces.md).
 
 The receiver is **off by default**. gRPC is not part of the OpenAPI contract (`apps/core/openapi.yaml` describes the HTTP API); the three services are the standard `opentelemetry.proto.collector.{logs,metrics,trace}.v1` ones.
 

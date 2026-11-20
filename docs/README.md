@@ -18,7 +18,8 @@ This is the map of the documentation in this repository. The public documentatio
 - [Install and manage a Node](deployment/node-install-upgrade.md)
 - [Server CLI cheat sheet](deployment/server-cli-cheatsheet.md)
 - [SQLite backup and restore](sqlite-backup-restore.md)
-- [Send logs from your apps](product-logs.md), [metrics](product-metrics.md) and [traces](product-traces.md)
+- [Connect OpenTelemetry](opentelemetry.md): send logs, metrics and traces from any SDK or Collector, over HTTP or gRPC
+- [Send logs from your apps](product-logs.md), [metrics](product-metrics.md) and [traces](product-traces.md), and [OTLP over gRPC](otlp-grpc.md)
 - [Kubernetes position](deployment/kubernetes-position.md)
 
 ## Understand it

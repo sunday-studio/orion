@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"orion/core/internal/otlpjson"
 	"strings"
 	"time"
 
@@ -47,7 +48,7 @@ func DecodeOTLP(contentType string, body []byte) (*collogs.ExportLogsServiceRequ
 		}
 	case "application/json":
 		format = OTLPJSON
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, request); err != nil {
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(otlpjson.NormalizeIDs(body), request); err != nil {
 			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	default:

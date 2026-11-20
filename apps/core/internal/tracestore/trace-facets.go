@@ -17,17 +17,21 @@ type Count struct {
 
 // Facets are the choices a filter bar offers for the traces matching a query.
 type Facets struct {
+	// Total is how many traces match every filter, the status one included: what the search returns.
 	Total int64
 	// Services are the services of the matching traces' root spans, most traces first.
 	Services []Count
 	// Names are the root span names, most traces first.
 	Names []Count
-	// Status counts traces without (ok) and with (error) a failed span.
+	// Status counts traces without (ok) and with (error) a failed span, whatever status filter is set,
+	// so a filter bar can show both choices.
 	Status []Count
 }
 
-// Facets counts the traces matching q (its cursor, limit and status filter are ignored, so the status
-// counts show both choices) and lists the most common services and root span names, at most FacetLimit each.
+// Facets describes the traces matching q (its cursor and limit are ignored). Total, Services and Names
+// follow every filter, status included, so they agree with the search. Status counts the traces that match
+// all filters except status, so both choices stay visible: Total is the ok or the error count when a status
+// is picked, and their sum when not. Services and Names list at most FacetLimit values each.
 func (s *Store) Facets(q Query) (Facets, error) {
 	q.Cursor, q.Limit = "", 0
 	status := q.Status
@@ -44,11 +48,12 @@ func (s *Store) Facets(q Query) (Facets, error) {
 	}
 	out.Status = []Count{{Value: "ok", Count: totals.N - totals.Errors}, {Value: "error", Count: totals.Errors}}
 	out.Total = totals.N
-	if status != "" { // the lists below follow the status the caller picked
+	if status != "" { // Total and the lists follow the status the caller picked
 		q.Status = status
 		if where, args, err = q.where(); err != nil {
 			return Facets{}, err
 		}
+		out.Total = out.Status[map[string]int{"ok": 0, "error": 1}[status]].Count
 	}
 	for _, list := range []struct {
 		column string

@@ -97,6 +97,7 @@ type TraceFacetCount struct {
 }
 
 // TraceFacetsResponse lists the filter choices for the traces matching the query: at most 50 services and 50 root span names.
+// Total counts the traces matching every filter, the status one included.
 type TraceFacetsResponse struct {
 	Total    int64             `json:"total"`
 	Services []TraceFacetCount `json:"services"`

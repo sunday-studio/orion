@@ -27,8 +27,8 @@ export type TraceFilters = {
   range: string;
   from: string;
   to: string;
-  /** key:value, matched against spans and resources. */
-  attr: string;
+  /** key:value pairs, each matched against spans and resources; a trace must match every one. */
+  attr: string[];
 };
 
 export const EMPTY_TRACE_FILTERS: TraceFilters = {
@@ -41,7 +41,7 @@ export const EMPTY_TRACE_FILTERS: TraceFilters = {
   range: DEFAULT_TRACE_RANGE,
   from: "",
   to: "",
-  attr: "",
+  attr: [],
 };
 
 export const traceRangeLabel = (range: string) =>
@@ -60,6 +60,44 @@ export const parseAttr = (input: string): { key: string; value: string } | null 
   const value = text.slice(at + 1).trim();
   return key && value ? { key, value } : null;
 };
+
+/** Core takes at most this many attr values in one search. */
+export const MAX_TRACE_ATTRS = 50;
+
+/** The valid pairs of a list as `key:value`, trimmed, without repeats, at most MAX_TRACE_ATTRS. */
+export const cleanAttrs = (list: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  for (const item of list) {
+    const pair = parseAttr(item);
+    if (pair) seen.add(`${pair.key}:${pair.value}`);
+    if (seen.size >= MAX_TRACE_ATTRS) break;
+  }
+  return [...seen];
+};
+
+export type AttrDraft = "empty" | "valid" | "invalid" | "full";
+
+/** What a typed attribute would do: add a pair, be refused as malformed, or be refused because the list is full. */
+export const attrDraft = (list: readonly string[], draft: string): AttrDraft => {
+  if (draft.trim() === "") return "empty";
+  const pair = parseAttr(draft);
+  if (!pair) return "invalid";
+  const current = cleanAttrs(list);
+  return current.length >= MAX_TRACE_ATTRS && !current.includes(`${pair.key}:${pair.value}`)
+    ? "full"
+    : "valid";
+};
+
+/** The list with the typed pair appended. An invalid pair, a repeat or a full list leave it as it was. */
+export const addAttr = (list: readonly string[], draft: string): string[] => {
+  const current = cleanAttrs(list);
+  const pair = parseAttr(draft);
+  return pair ? cleanAttrs([...current, `${pair.key}:${pair.value}`]) : current;
+};
+
+/** The valid pairs without `pair` (a `key:value` as cleanAttrs writes it). */
+export const removeAttr = (list: readonly string[], pair: string): string[] =>
+  cleanAttrs(list).filter((item) => item !== pair);
 
 export const normalizeStatus = (status: string): "ok" | "error" | undefined =>
   status === "ok" || status === "error" ? status : undefined;
@@ -82,12 +120,13 @@ export type TraceQueryParams = {
   name?: string;
   from: string;
   to?: string;
-  attr?: string;
+  /** Sent as repeated attr parameters. */
+  attr?: string[];
 };
 
 /** Filters for GET /v1/traces and GET /v1/traces/facets. Empty or invalid values are left out. */
 export const traceQueryParams = (filters: TraceFilters): TraceQueryParams => {
-  const attr = parseAttr(filters.attr);
+  const attr = cleanAttrs(filters.attr);
   return {
     ...traceWindow(filters),
     app_id: filters.app || undefined,
@@ -96,11 +135,19 @@ export const traceQueryParams = (filters: TraceFilters): TraceQueryParams => {
     status: normalizeStatus(filters.status),
     min_duration: normalizeMinDuration(filters.minDuration) || undefined,
     name: filters.q.trim() || undefined,
-    attr: attr ? `${attr.key}:${attr.value}` : undefined,
+    attr: attr.length > 0 ? attr : undefined,
   };
 };
 
-export type FilterToken = { key: keyof TraceFilters | "range"; field: string; value: string };
+export type FilterToken = {
+  /** Unique among the tokens: the filter key, plus the pair for an attribute. */
+  id: string;
+  key: keyof TraceFilters | "range";
+  field: string;
+  value: string;
+  /** The `key:value` pair of an attribute token. */
+  attr?: string;
+};
 
 /** One token per applied filter, in the order they sit in the toolbar. The time range is not a token. */
 export const filterTokens = (
@@ -109,7 +156,7 @@ export const filterTokens = (
 ): FilterToken[] => {
   const tokens: FilterToken[] = [];
   const add = (key: keyof TraceFilters, field: string, value: string | undefined) => {
-    if (value) tokens.push({ key, field, value });
+    if (value) tokens.push({ id: key, key, field, value });
   };
   add(
     "serviceId",
@@ -137,10 +184,24 @@ export const filterTokens = (
       : "",
   );
   add("q", "Name", filters.q.trim());
-  const attr = parseAttr(filters.attr);
-  add("attr", "Attribute", attr ? `${attr.key} = ${attr.value}` : "");
+  for (const pair of cleanAttrs(filters.attr)) {
+    const { key, value } = parseAttr(pair) ?? { key: pair, value: "" };
+    tokens.push({
+      id: `attr:${pair}`,
+      key: "attr",
+      field: "Attribute",
+      value: `${key} = ${value}`,
+      attr: pair,
+    });
+  }
   return tokens;
 };
+
+/** The change that removes one token: its attribute pair alone, or the whole filter. */
+export const removeToken = (filters: TraceFilters, token: FilterToken): Partial<TraceFilters> =>
+  token.key === "attr" && token.attr !== undefined
+    ? { attr: removeAttr(filters.attr, token.attr) }
+    : { [token.key]: "" };
 
 export const hasTraceFilters = (filters: TraceFilters) =>
   filterTokens(filters).length > 0 || filters.range !== DEFAULT_TRACE_RANGE;
@@ -164,19 +225,4 @@ export const statusCounts = (
 ): { ok: number; error: number } => {
   const count = (value: string) => facets?.find((item) => item.value === value)?.count ?? 0;
   return { ok: count("ok"), error: count("error") };
-};
-
-/**
- * How many traces match the filters, from the facets. Core's total ignores the status filter (the
- * ok and error counts do not), so a status filter takes its own count.
- */
-export const matchingTotal = (
-  facets: { total?: number; status?: { value?: string; count?: number }[] } | undefined,
-  status: string,
-): number | undefined => {
-  if (!facets) return undefined;
-  const wanted = normalizeStatus(status);
-  if (!wanted) return facets.total;
-  const counts = statusCounts(facets.status);
-  return wanted === "ok" ? counts.ok : counts.error;
 };

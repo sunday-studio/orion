@@ -3,6 +3,7 @@ package metricstore
 import (
 	"errors"
 	"fmt"
+	"orion/core/internal/otlpjson"
 	"strings"
 	"time"
 
@@ -100,7 +101,7 @@ func DecodeOTLPMetrics(contentType string, body []byte) (*collmetrics.ExportMetr
 		}
 	case "application/json":
 		format = OTLPJSON
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, request); err != nil {
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(otlpjson.NormalizeIDs(body), request); err != nil {
 			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	default:

@@ -6,7 +6,6 @@ import {
   durationShare,
   filterTokens,
   hasTraceFilters,
-  matchingTotal,
   normalizeStatus,
   parseAttr,
   slowestDuration,
@@ -53,7 +52,7 @@ describe("trace query parameters", () => {
         minDuration: " 250 ms",
         q: "  POST /pay ",
         range: "24h",
-        attr: "http.status_code:500",
+        attr: ["http.status_code:500", " db.system : postgres "],
       }),
     );
     assert.equal(params.app_id, "a1,a2");
@@ -63,12 +62,17 @@ describe("trace query parameters", () => {
     assert.equal(params.min_duration, "250ms");
     assert.equal(params.name, "POST /pay");
     assert.equal(params.from, "-24h");
-    assert.equal(params.attr, "http.status_code:500");
+    assert.deepEqual(params.attr, ["http.status_code:500", "db.system:postgres"]);
   });
 
   it("drops values Core would reject", () => {
     const params = traceQueryParams(
-      filters({ status: "weird", minDuration: "soon", attr: "nocolon", range: "forever" }),
+      filters({
+        status: "weird",
+        minDuration: "soon",
+        attr: ["nocolon", ":x", "y:"],
+        range: "forever",
+      }),
     );
     assert.equal(params.status, undefined);
     assert.equal(params.min_duration, undefined);
@@ -121,7 +125,7 @@ describe("filter tokens", () => {
         app: "a1,a2",
         status: "error",
         minDuration: "1s",
-        attr: "db.system:postgres",
+        attr: ["db.system:postgres", "http.status_code:500"],
         q: "pay",
       }),
       { app: (id) => (id === "a1" ? "Checkout" : id) },
@@ -134,6 +138,7 @@ describe("filter tokens", () => {
         ["Duration", "≥ 1s"],
         ["Name", "pay"],
         ["Attribute", "db.system = postgres"],
+        ["Attribute", "http.status_code = 500"],
       ],
     );
   });
@@ -169,24 +174,6 @@ describe("duration bars and counts", () => {
       { ok: 9, error: 2 },
     );
     assert.deepEqual(statusCounts(undefined), { ok: 0, error: 0 });
-  });
-});
-
-describe("matching total", () => {
-  const facets = {
-    total: 14,
-    status: [
-      { value: "ok", count: 13 },
-      { value: "error", count: 1 },
-    ],
-  };
-
-  it("takes the total, or the count of the status being filtered", () => {
-    assert.equal(matchingTotal(facets, ""), 14);
-    assert.equal(matchingTotal(facets, "error"), 1);
-    assert.equal(matchingTotal(facets, "ok"), 13);
-    assert.equal(matchingTotal(facets, "junk"), 14);
-    assert.equal(matchingTotal(undefined, "error"), undefined);
   });
 });
 
