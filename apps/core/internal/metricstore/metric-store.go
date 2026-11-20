@@ -64,6 +64,41 @@ CREATE TABLE IF NOT EXISTS samples_hourly (
   value_avg REAL, value_max REAL,
   PRIMARY KEY (series_id, hour)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS histogram_samples (
+  series_id INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  count INTEGER NOT NULL,
+  sum REAL,
+  min REAL,
+  max REAL,
+  bounds TEXT NOT NULL DEFAULT '',
+  counts TEXT NOT NULL DEFAULT '',
+  quantiles TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (series_id, ts)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS histogram_hourly (
+  series_id INTEGER NOT NULL,
+  hour INTEGER NOT NULL,
+  n INTEGER NOT NULL,
+  count INTEGER NOT NULL,
+  sum REAL,
+  min REAL,
+  max REAL,
+  bounds TEXT NOT NULL DEFAULT '',
+  counts TEXT NOT NULL DEFAULT '',
+  quantiles TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (series_id, hour)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS series_state (
+  series_id INTEGER PRIMARY KEY,
+  last_at INTEGER NOT NULL,
+  start_at INTEGER NOT NULL DEFAULT 0,
+  last_value REAL,
+  last_count INTEGER,
+  last_sum REAL,
+  last_bounds TEXT NOT NULL DEFAULT '',
+  last_counts TEXT NOT NULL DEFAULT ''
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS dirty_hours (
   series_id INTEGER NOT NULL,
@@ -90,6 +125,7 @@ type Store struct {
 	written       atomic.Int64
 	droppedFull   atomic.Int64
 	droppedCap    atomic.Int64
+	droppedStale  atomic.Int64
 	batchesFailed atomic.Int64
 
 	cache map[seriesKey]cachedSeries // touched only by the writer goroutine
@@ -115,6 +151,9 @@ func OpenWith(database *gorm.DB, logger *utils.Logger) (*Store, error) {
 		return nil, fmt.Errorf("apply metrics schema: %w", err)
 	}
 	s := &Store{db: database, logger: logger, jobs: make(chan job, queueDepth), done: make(chan struct{}), cache: map[seriesKey]cachedSeries{}}
+	if err := s.migrate(); err != nil {
+		return nil, fmt.Errorf("migrate metrics data: %w", err)
+	}
 	if through, ok, err := s.readRolledThrough(); err == nil && ok {
 		s.rolledThrough.Store(through)
 	}
@@ -185,7 +224,7 @@ func (s *Store) writer() {
 // Stats implements MetricStore.
 func (s *Store) Stats() Stats {
 	st := Stats{Written: s.written.Load(), DroppedFull: s.droppedFull.Load(), DroppedCap: s.droppedCap.Load(),
-		BatchesFailed: s.batchesFailed.Load(), QueueDepth: len(s.jobs)}
+		DroppedStale: s.droppedStale.Load(), BatchesFailed: s.batchesFailed.Load(), QueueDepth: len(s.jobs)}
 	var pages, size int64
 	s.db.Raw("PRAGMA page_count").Scan(&pages)
 	s.db.Raw("PRAGMA page_size").Scan(&size)

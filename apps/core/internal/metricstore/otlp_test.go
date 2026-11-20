@@ -38,7 +38,7 @@ func TestParseOTLPMetricsGaugesAndSumsInBothEncodings(t *testing.T) {
 	now := time.Now().UTC()
 	req := request([]*commonpb.KeyValue{strAttr("service.name", "checkout-api"), strAttr("telemetry.sdk.language", "go")},
 		gauge("process.memory.usage", "By", dpDouble(now, 1048576), dpDouble(now.Add(-time.Minute), 2097152)),
-		&metricspb.Metric{Name: "http.server.requests", Data: &metricspb.Metric_Sum{Sum: &metricspb.Sum{DataPoints: []*metricspb.NumberDataPoint{
+		&metricspb.Metric{Name: "http.server.requests", Data: &metricspb.Metric_Sum{Sum: &metricspb.Sum{IsMonotonic: true, AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE, DataPoints: []*metricspb.NumberDataPoint{
 			{TimeUnixNano: uint64(now.UnixNano()), Value: &metricspb.NumberDataPoint_AsInt{AsInt: 42}, Attributes: []*commonpb.KeyValue{strAttr("route", "/pay"), strAttr("method", "GET")}},
 		}}}},
 	)
@@ -81,15 +81,14 @@ func TestParseOTLPMetricsRejectsWhatItCannotStoreWithoutFailingTheRequest(t *tes
 		gauge("future", "", dpDouble(now.Add(time.Hour), 1)),
 		gauge("novalue", "", bad, noValue),
 		gauge("", "", dpDouble(now, 1)),
-		&metricspb.Metric{Name: "latency", Data: &metricspb.Metric_Histogram{Histogram: &metricspb.Histogram{DataPoints: []*metricspb.HistogramDataPoint{{}, {}}}}},
 	)
 	body, _ := proto.Marshal(req)
 	got, _, err := ParseOTLPMetrics("application/x-protobuf", body, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Points) != 1 || got.Points[0].Sample.Metric != "ok" || got.Rejected != 9 {
-		t.Fatalf("points %d rejected %d errors %v, want 1 stored and 9 rejected", len(got.Points), got.Rejected, got.Errors)
+	if len(got.Points) != 1 || got.Points[0].Sample.Metric != "ok" || got.Rejected != 7 {
+		t.Fatalf("points %d rejected %d errors %v, want 1 stored and 7 rejected", len(got.Points), got.Rejected, got.Errors)
 	}
 	if len(got.Errors) == 0 || len(got.Errors) > maxRejectMessages {
 		t.Fatalf("errors = %v, want a few distinct reasons", got.Errors)

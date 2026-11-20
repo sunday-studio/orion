@@ -36,19 +36,39 @@ type Values struct {
 	NetTxBps     *float64
 	Pids         *int64
 	StorageBytes *int64
-	// Value is the single number of an app-reported (OTLP) gauge or sum.
+	// Value is the single number of an app-reported (OTLP) gauge or sum. For a sum it is the increase
+	// in the interval: the writer turns a cumulative reading into the difference to the last one.
 	Value *float64
+	// Histogram is the distribution of an app-reported histogram or summary. Value is nil then.
+	Histogram *Histogram
+}
+
+// Temporality tells the writer how to read the number or distribution of a sum, histogram or summary
+// sample, and carries the timestamps the writer needs to convert and de-duplicate it. Gauges and OS
+// samples have none.
+type Temporality struct {
+	// Cumulative values grow since Start; the writer stores their difference to the previous reading.
+	// Delta values already are the change in one interval.
+	Cumulative bool
+	// Start is when the cumulative value began counting (zero when the exporter did not say). A new
+	// Start means the exporter restarted.
+	Start time.Time
+	// At is the full-resolution time of the reading, newer readings of a series win over older ones.
+	At time.Time
 }
 
 // Sample is one series' measurements in a Batch.
 type Sample struct {
 	Key    string // stable identity inside its owner: a Node resource key, or metric name plus labels
-	Kind   string // process, unit, container, ... for OS series; gauge or sum for OTLP
+	Kind   string // process, unit, container, ... for OS series; gauge, sum, histogram or summary for OTLP
 	Name   string // display name
 	Metric string // OTLP metric name ("" for OS series)
 	Unit   string
 	Labels string // canonical JSON of the OTLP attributes ("" for OS series)
 	Values Values
+	// Temporality is set for sums, histograms and summaries; the writer then converts cumulative
+	// readings to per-interval changes and drops readings that are not newer than the last one.
+	Temporality *Temporality
 }
 
 // Batch is what one Node report or one OTLP request contributes. Samples are stored at minute
@@ -98,8 +118,22 @@ type Point struct {
 	NetTxBps       *float64
 	PidsMax        *int64
 	StorageMax     *int64
-	Value          *float64
-	ValueMax       *float64
+	// Value is the average of a gauge in the bucket, and the total increase of a sum (divide by the step
+	// for a rate). ValueMax is the peak of a gauge, and the largest one-minute increase of a sum.
+	Value    *float64
+	ValueMax *float64
+	// The fields below are set for histogram and summary series only. Count and Sum cover the whole
+	// bucket; Avg is Sum/Count. A percentile is absent when it cannot be computed (a summary that did not
+	// report that quantile, a histogram without buckets, no observations).
+	Count     *int64
+	Sum       *float64
+	Avg       *float64
+	Min       *float64
+	Max       *float64
+	P50       *float64
+	P95       *float64
+	P99       *float64
+	Quantiles []Quantile // a summary's own quantiles, as sent
 }
 
 // SeriesResult is one series with its points, oldest first.
@@ -130,8 +164,8 @@ type Retention struct {
 
 // PruneResult counts what a prune removed.
 type PruneResult struct {
-	RawRows    int64
-	HourlyRows int64
+	RawRows    int64 // one-minute rows (samples and histogram samples)
+	HourlyRows int64 // hourly rows (samples and histogram rollups)
 	Series     int64
 }
 
@@ -140,6 +174,7 @@ type Stats struct {
 	Written       int64 // sample rows written
 	DroppedFull   int64 // samples refused because the write queue was full
 	DroppedCap    int64 // samples dropped by a series cap
+	DroppedStale  int64 // readings dropped because they were not newer than the series' last one (duplicates and out of order)
 	BatchesFailed int64
 	QueueDepth    int
 	DatabaseBytes int64

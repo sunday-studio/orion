@@ -21,11 +21,37 @@ const (
 	maxCachedSeries = 200_000
 )
 
+// upsertSum adds the change of a sum to what its minute already holds.
+const upsertSum = `INSERT INTO samples (series_id, ts, value) VALUES (?, ?, ?)
+ON CONFLICT(series_id, ts) DO UPDATE SET value = COALESCE(samples.value, 0) + excluded.value`
+
 const upsertSample = `INSERT INTO samples (series_id, ts, cpu_percent, memory_bytes, io_read_bps, io_write_bps, net_rx_bps, net_tx_bps, pids, storage_bytes, value)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(series_id, ts) DO UPDATE SET cpu_percent = excluded.cpu_percent, memory_bytes = excluded.memory_bytes,
  io_read_bps = excluded.io_read_bps, io_write_bps = excluded.io_write_bps, net_rx_bps = excluded.net_rx_bps,
  net_tx_bps = excluded.net_tx_bps, pids = excluded.pids, storage_bytes = excluded.storage_bytes, value = excluded.value`
+
+// valuesToStore applies the temporality of a sample: sums, histograms and summaries are converted and
+// de-duplicated by applyTemporality; every other sample is stored as it is.
+func (s *Store) valuesToStore(tx *gorm.DB, id int64, smp Sample) (Values, bool, error) {
+	if smp.Temporality == nil {
+		return smp.Values, true, nil
+	}
+	return s.applyTemporality(tx, id, smp)
+}
+
+// writeValues stores the values of one series at one minute. Gauges and OS samples replace what the minute
+// held. A sum and a histogram or summary are changes, several of which can fall in one minute (an
+// exporter that reports every 10 seconds), so they add to what the minute holds.
+func writeValues(tx *gorm.DB, id, ts int64, kind string, v Values) error {
+	switch {
+	case v.Histogram != nil:
+		return writeHistogram(tx, id, ts, *v.Histogram)
+	case kind == KindSum && v.Value != nil:
+		return tx.Exec(upsertSum, id, ts, v.Value).Error
+	}
+	return tx.Exec(upsertSample, id, ts, v.CPUPercent, v.MemoryBytes, v.IOReadBps, v.IOWriteBps, v.NetRxBps, v.NetTxBps, v.Pids, v.StorageBytes, v.Value).Error
+}
 
 // writeBatch stores one batch in a single transaction. Samples over a series cap are dropped and
 // counted; they never fail the batch.
@@ -47,11 +73,17 @@ func (s *Store) writeBatch(b Batch) error {
 				dropped++
 				continue
 			}
-			v := smp.Values
+			values, store, err := s.valuesToStore(tx, id, smp)
+			if err != nil {
+				return err
+			}
+			if !store {
+				continue // a baseline reading, or one that is not newer than the last
+			}
 			if err := s.markIfLate(tx, id, ts); err != nil {
 				return err
 			}
-			if err := tx.Exec(upsertSample, id, ts, v.CPUPercent, v.MemoryBytes, v.IOReadBps, v.IOWriteBps, v.NetRxBps, v.NetTxBps, v.Pids, v.StorageBytes, v.Value).Error; err != nil {
+			if err := writeValues(tx, id, ts, smp.Kind, values); err != nil {
 				return err
 			}
 			written++
