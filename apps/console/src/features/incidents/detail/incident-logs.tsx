@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 import { Checkbox, DataTable, StatusBadge } from "@/design-system";
 import { levelLabel, levelTone } from "@/features/logs/log-model";
+import { traceHref } from "@/features/traces/trace-links";
 import type { ApiIncidentLogsResponse, ApiLogEntry } from "@/orion-sdk";
 import { TIME_FORMAT, formatDate } from "@/utils/date";
 
@@ -43,7 +44,14 @@ const columns: ColumnDef<ApiLogEntry>[] = [
     header: "Trace",
     cell: ({ row }) =>
       row.original.trace_id ? (
-        <span className="font-mono text-xs text-quiet">{row.original.trace_id.slice(0, 6)}</span>
+        <Link
+          to={traceHref(row.original.trace_id, row.original.span_id)}
+          onClick={(event) => event.stopPropagation()}
+          title="Open this trace"
+          className="rounded font-mono text-xs text-quiet underline hover:text-ink"
+        >
+          {row.original.trace_id.slice(0, 6)}
+        </Link>
       ) : (
         <span className="text-faint">-</span>
       ),

@@ -33,6 +33,14 @@ test("Logs pages follow the tab query, defaulting to App logs", () => {
   assert.deepEqual(active("/logs", "?tab=unknown"), { groupId: "logs", pageId: "app-logs" });
 });
 
+test("Traces and a single trace highlight Logs > Traces, whatever the query", () => {
+  for (const path of ["/logs/traces", "/logs/traces/4bf92f3577b34da6a3ce929d0e0e4736"]) {
+    assert.deepEqual(active(path), { groupId: "logs", pageId: "traces" }, path);
+  }
+  assert.deepEqual(active("/logs/traces/", "?tab=status"), { groupId: "logs", pageId: "traces" });
+  assert.deepEqual(active("/logs/tracesx"), { groupId: "logs", pageId: "app-logs" });
+});
+
 test("Apps and the connect wizard highlight Logs > Apps", () => {
   for (const path of ["/logs/apps", "/logs/apps/new", "/logs/apps/app_1"]) {
     assert.deepEqual(active(path), { groupId: "logs", pageId: "apps" }, path);

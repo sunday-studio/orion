@@ -17,167 +17,11 @@ import {
   formatBytes,
   formatMs,
   hasData,
-  linePath,
   metricLines,
-  niceMax,
   rangeFromParam,
   responseLine,
 } from "../timeline-model";
-
-const W = 900;
-const LEFT = 40;
-const LANE_H = 64;
-const GAP = 26;
-// Theme tokens, so the lines stay readable on the dark card. The violet has no token and works on both.
-const COLORS = [
-  "var(--color-ink)",
-  "var(--color-dot-up)",
-  "#8b8bf5",
-  "var(--color-dot-warn)",
-  "var(--color-dot-idle)",
-];
-
-type LaneProps = {
-  title: string;
-  top: number;
-  lines: Line[];
-  bars?: boolean;
-  format: (value: number) => string;
-  from: number;
-  to: number;
-  /** What to say when this lane has nothing to draw. */
-  empty: string;
-  max?: number;
-  /** Times to mark in red, for example checks that failed. */
-  marks?: number[];
-  /** Drawn dashed against its own scale on the right, for a second unit in the same lane. */
-  secondary?: Line[];
-  secondaryFormat?: (value: number) => string;
-};
-
-const Lane = ({
-  title,
-  top,
-  lines,
-  bars,
-  format,
-  from,
-  to,
-  empty,
-  max,
-  marks = [],
-  secondary = [],
-  secondaryFormat = String,
-}: LaneProps) => {
-  const x = (t: number) => LEFT + ((t - from) / Math.max(to - from, 1)) * (W - LEFT);
-  const peak = niceMax(max ?? Math.max(0, ...lines.flatMap((l) => l.points.map((p) => p.v))));
-  const y = (v: number) => top + LANE_H - (Math.min(v, peak) / peak) * LANE_H;
-  const peak2 = niceMax(Math.max(0, ...secondary.flatMap((l) => l.points.map((p) => p.v))));
-  const y2 = (v: number) => top + LANE_H - (Math.min(v, peak2) / peak2) * LANE_H;
-  const drawn = [...lines, ...secondary];
-  return (
-    <g>
-      <text x={LEFT} y={top - 8} className="fill-quiet" fontSize="11">
-        {title}
-        {!bars && drawn.length > 0
-          ? ` · ${[...new Set(drawn.map((l) => l.label))].join(", ")}`
-          : ""}
-      </text>
-      <line x1={LEFT} x2={W} y1={top + LANE_H} y2={top + LANE_H} className="stroke-hairline" />
-      {marks.map((t) => (
-        <rect
-          key={t}
-          x={x(t) - 1.5}
-          y={top + LANE_H - 12}
-          width={3}
-          height={12}
-          fill="var(--color-dot-down)"
-        >
-          <title>{`${formatDate(new Date(t).toISOString(), TIME_FORMAT)}: checks failed`}</title>
-        </rect>
-      ))}
-      {hasData(drawn) ? (
-        <>
-          <line
-            x1={LEFT}
-            x2={W}
-            y1={top}
-            y2={top}
-            className="stroke-hairline"
-            strokeDasharray="3 4"
-          />
-          <text x={LEFT - 6} y={top + 4} textAnchor="end" className="fill-faint" fontSize="10">
-            {format(peak)}
-          </text>
-          <text
-            x={LEFT - 6}
-            y={top + LANE_H + 3}
-            textAnchor="end"
-            className="fill-faint"
-            fontSize="10"
-          >
-            0
-          </text>
-          {secondary.length > 0 && (
-            <text x={W - 4} y={top + 4} textAnchor="end" className="fill-faint" fontSize="10">
-              {secondaryFormat(peak2)}
-            </text>
-          )}
-          {secondary.map((line, index) => (
-            <path
-              key={line.id}
-              d={linePath(line.points, x, y2)}
-              fill="none"
-              stroke={COLORS[(index + lines.length) % COLORS.length]}
-              strokeWidth="2"
-              strokeLinejoin="round"
-              strokeDasharray="5 3"
-            />
-          ))}
-          {lines.map((line, index) =>
-            bars ? (
-              <g key={line.id} fill="var(--color-dot-down)" opacity=".85">
-                {line.points.map((p) => (
-                  <rect
-                    key={p.t}
-                    x={x(p.t) - 2}
-                    y={y(p.v)}
-                    width={4}
-                    height={Math.max(top + LANE_H - y(p.v), p.v > 0 ? 1 : 0)}
-                  >
-                    <title>{`${formatDate(new Date(p.t).toISOString(), TIME_FORMAT)}: ${format(p.v)}`}</title>
-                  </rect>
-                ))}
-              </g>
-            ) : (
-              <g key={line.id}>
-                {line.points.length === 1 && (
-                  <circle
-                    cx={x(line.points[0]?.t ?? from)}
-                    cy={y(line.points[0]?.v ?? 0)}
-                    r={3}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                )}
-                <path
-                  d={linePath(line.points, x, y)}
-                  fill="none"
-                  stroke={COLORS[index % COLORS.length]}
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-              </g>
-            ),
-          )}
-        </>
-      ) : (
-        <text x={LEFT + 8} y={top + LANE_H / 2 + 4} className="fill-faint" fontSize="12">
-          {empty}
-        </text>
-      )}
-    </g>
-  );
-};
+import { GAP, LANE_H, LEFT, Lane, W } from "./timeline-lane";
 
 const worstMonitor = (monitors: readonly ServiceServiceLinkedMonitor[]) =>
   monitors.find((m) => m.health === "down") ??
@@ -189,12 +33,19 @@ export const ServiceTimeline = ({
   serviceId,
   monitors,
   incidentOpenedAt,
+  range: controlledRange,
+  onRangeChange,
 }: {
   serviceId: string;
   monitors: readonly ServiceServiceLinkedMonitor[];
   incidentOpenedAt?: string;
+  /** The range of the whole page, when the page shares one with other panels. Without it the timeline keeps its own. */
+  range?: RangeValue;
+  onRangeChange?: (range: RangeValue) => void;
 }) => {
-  const [rangeValue, setRangeValue] = useState<RangeValue>("4h");
+  const [ownRange, setOwnRange] = useState<RangeValue>("4h");
+  const rangeValue = controlledRange ?? ownRange;
+  const setRangeValue = onRangeChange ?? setOwnRange;
   const range = rangeFromParam(rangeValue);
   const now = useNow(30_000);
   const from = now - range.ms;

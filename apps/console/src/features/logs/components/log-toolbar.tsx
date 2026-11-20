@@ -17,10 +17,13 @@ export const SearchBox = ({
   value,
   placeholder,
   onChange,
+  label = "Search logs",
 }: {
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
+  /** Accessible name; the Traces page reuses this box. */
+  label?: string;
 }) => {
   const ref = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value);
@@ -48,7 +51,7 @@ export const SearchBox = ({
       />
       <Input
         ref={ref}
-        aria-label="Search logs"
+        aria-label={label}
         placeholder={placeholder}
         className="pl-9 pr-8"
         value={draft}
@@ -69,12 +72,17 @@ export const RangePicker = ({
   to,
   live,
   onChange,
+  ranges = RANGES,
+  labelOf = rangeLabel,
 }: {
   range: string;
   from: string;
   to: string;
   live?: boolean;
   onChange: (patch: { range: string; from?: string; to?: string }) => void;
+  /** Presets to offer; the Traces page has its own list. */
+  ranges?: readonly { value: string; label: string }[];
+  labelOf?: (range: string) => string;
 }) => {
   const [custom, setCustom] = useState({ from: toLocalInput(from), to: toLocalInput(to) });
   if (live) {
@@ -83,12 +91,12 @@ export const RangePicker = ({
   return (
     <Popover>
       <PopoverTrigger className={cn(selectTriggerClass, "min-w-[150px]")}>
-        <span className="min-w-0 flex-1 truncate text-left">{rangeLabel(range)}</span>
+        <span className="min-w-0 flex-1 truncate text-left">{labelOf(range)}</span>
         <SelectChevron />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[230px] p-1.5">
         <p className="px-2.5 py-1.5 text-xs text-quiet">Time range</p>
-        {RANGES.map((item) => (
+        {ranges.map((item) => (
           <button
             key={item.value}
             type="button"

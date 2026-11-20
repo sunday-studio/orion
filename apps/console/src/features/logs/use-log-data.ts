@@ -27,7 +27,7 @@ export const isSearchTimeout = (error: unknown) =>
   (error as { status?: number } | null)?.status === 504;
 
 /** A stack of cursors: the last one is the current page, popping it goes to newer lines. */
-const useCursorStack = (resetKey: string) => {
+export const useCursorStack = (resetKey: string) => {
   const [stack, setStack] = useState<{ key: string; cursors: string[] }>({
     key: resetKey,
     cursors: [],

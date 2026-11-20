@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, FilterToken, PageHeader, Skeleton, useToast } from "@/design-system";
+import { traceHref } from "@/features/traces/trace-links";
 import { useListApps } from "@/orion-sdk";
 import { ExportDialog } from "./components/export-dialog";
 import { FacetSidebar } from "./components/facet-sidebar";
@@ -410,6 +411,14 @@ export const LogsPage = () => {
                   onRemove={() => patch(token.clear)}
                 />
               ))}
+              {state.trace && (
+                <Link
+                  to={traceHref(state.trace)}
+                  className="rounded text-[13px] underline focus-visible:ring-2 focus-visible:ring-focus"
+                >
+                  Open trace
+                </Link>
+              )}
               {filtersActive && (
                 <button
                   type="button"

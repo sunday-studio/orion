@@ -7,6 +7,7 @@ export const shortcuts = [
   { label: "Go to Servers", keys: "G then S" },
   { label: "Go to Services", keys: "G then V" },
   { label: "Go to Logs", keys: "G then L" },
+  { label: "Go to Traces", keys: "G then T" },
   { label: "Go to Notify", keys: "G then N" },
   { label: "Hide or show the sidebar", keys: "Cmd B" },
   { label: "Move down or up a row", keys: "J, K" },

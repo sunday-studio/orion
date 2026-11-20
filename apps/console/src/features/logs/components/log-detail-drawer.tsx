@@ -9,9 +9,12 @@ import {
   JsonBlock,
   RaisedCard,
   Skeleton,
+  buttonStyles,
   useToast,
 } from "@/design-system";
+import { traceHref } from "@/features/traces/trace-links";
 import { useGetLogEntry, useGetLogRelated } from "@/orion-sdk";
+import { cn } from "@/utils/cn";
 import { formatDate } from "@/utils/date";
 import { type LogRow, sourceColor } from "../log-model";
 import type { LogKind, LogQueryState } from "../logs-state";
@@ -134,17 +137,30 @@ const ServiceDetail = ({
           <Meta
             label="Trace"
             action={
-              <Button
-                size="sm"
-                variant="secondary"
-                className={small}
-                onClick={() => onFilter(traceFilter(data.trace_id, data.timestamp))}
-              >
-                Open trace
-              </Button>
+              <span className="flex gap-1.5">
+                <Link
+                  to={traceHref(data.trace_id, data.span_id)}
+                  className={cn(buttonStyles({ size: "sm", variant: "secondary" }), small)}
+                >
+                  Open trace
+                </Link>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={small}
+                  onClick={() => onFilter(traceFilter(data.trace_id, data.timestamp))}
+                >
+                  Filter
+                </Button>
+              </span>
             }
           >
-            <code className="font-mono text-[12.5px]">{data.trace_id}</code>
+            <Link
+              to={traceHref(data.trace_id, data.span_id)}
+              className="rounded font-mono text-[12.5px] underline"
+            >
+              {data.trace_id}
+            </Link>
           </Meta>
         )}
       </RaisedCard>

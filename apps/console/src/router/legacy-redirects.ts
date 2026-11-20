@@ -32,6 +32,10 @@ export const resolveLegacyRedirect = (rawPathname: string, search = ""): string 
   if (pathname === "/settings/apps") return `/logs/apps${search}`;
   if (pathname.startsWith("/settings/apps/")) return `/logs/apps/${pathname.slice(15)}${search}`;
 
+  // Traces live under Logs; a bare /traces link (from docs or a chat) finds them.
+  if (pathname === "/traces") return `/logs/traces${search}`;
+  if (pathname.startsWith("/traces/")) return `/logs${pathname}${search}`;
+
   // The connect wizard now belongs to Logs.
   if (pathname === "/apps/new") return `/logs/apps/new${search}`;
 
