@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	"gorm.io/gorm"
 )
 
@@ -151,13 +152,22 @@ func (i *Ingester) Ingest(app *AppContext, contentType string, body []byte) (Res
 // IngestOTLP runs the same pipeline for an OTLP/HTTP request and reports the wire
 // format so the response can mirror it.
 func (i *Ingester) IngestOTLP(app *AppContext, contentType string, body []byte) (Result, OTLPFormat, error) {
-	now := i.now().UTC()
-	parsed, format, err := ParseOTLP(contentType, body, now)
+	request, format, err := DecodeOTLP(contentType, body)
 	if err != nil {
 		return Result{}, format, err
 	}
-	result, err := i.ingestParsed(app, parsed, now)
+	result, err := i.IngestOTLPRequest(app, request)
 	return result, format, err
+}
+
+// IngestOTLPRequest runs the pipeline for an already decoded OTLP request; OTLP/gRPC calls it directly.
+func (i *Ingester) IngestOTLPRequest(app *AppContext, request *collogs.ExportLogsServiceRequest) (Result, error) {
+	now := i.now().UTC()
+	parsed, err := ParseOTLPRequest(request, now)
+	if err != nil {
+		return Result{}, err
+	}
+	return i.ingestParsed(app, parsed, now)
 }
 
 func (i *Ingester) ingestParsed(app *AppContext, parsed Parsed, now time.Time) (Result, error) {

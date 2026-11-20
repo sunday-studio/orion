@@ -20,7 +20,10 @@ type Config struct {
 	Port       string
 	// ListenHost is the address the API binds to (ORION_LISTEN_HOST). Empty means every interface,
 	// except that Core without authentication always binds to loopback.
-	ListenHost                     string
+	ListenHost string
+	// OTLPGRPCAddr is where the OTLP/gRPC receiver listens (ORION_OTLP_GRPC_ADDR, for example ":4317").
+	// Empty, the default, leaves the receiver off.
+	OTLPGRPCAddr                   string
 	CORSOrigins                    []string
 	CoreWorkerID                   string
 	CoreWorkerHeartbeatSeconds     int
@@ -93,6 +96,7 @@ func Load() *Config {
 		DBLogLevel:                     getEnv("ORION_DB_LOG_LEVEL", "warn"),
 		Port:                           getEnv("ORION_PORT", "8999"),
 		ListenHost:                     getEnv("ORION_LISTEN_HOST", ""),
+		OTLPGRPCAddr:                   strings.TrimSpace(os.Getenv("ORION_OTLP_GRPC_ADDR")),
 		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
 		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
 		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),

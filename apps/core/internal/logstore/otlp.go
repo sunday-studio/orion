@@ -26,6 +26,16 @@ const (
 // every log record onto the native entry shape, so OTLP and native ingest share the
 // same normalisation, limits and redaction.
 func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPFormat, error) {
+	request, format, err := DecodeOTLP(contentType, body)
+	if err != nil {
+		return Parsed{}, format, err
+	}
+	parsed, err := ParseOTLPRequest(request, now)
+	return parsed, format, err
+}
+
+// DecodeOTLP reads an OTLP/HTTP body (protobuf or JSON) into the request message.
+func DecodeOTLP(contentType string, body []byte) (*collogs.ExportLogsServiceRequest, OTLPFormat, error) {
 	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	request := &collogs.ExportLogsServiceRequest{}
 	var format OTLPFormat
@@ -33,17 +43,21 @@ func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPForm
 	case "application/x-protobuf", "application/protobuf":
 		format = OTLPProtobuf
 		if err := proto.Unmarshal(body, request); err != nil {
-			return Parsed{}, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
+			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	case "application/json":
 		format = OTLPJSON
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, request); err != nil {
-			return Parsed{}, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
+			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	default:
-		return Parsed{}, OTLPJSON, ErrUnsupportedMedia
+		return nil, OTLPJSON, ErrUnsupportedMedia
 	}
+	return request, format, nil
+}
 
+// ParseOTLPRequest maps an already decoded request onto native entries. OTLP/HTTP and OTLP/gRPC share it.
+func ParseOTLPRequest(request *collogs.ExportLogsServiceRequest, now time.Time) (Parsed, error) {
 	total := 0
 	for _, rl := range request.GetResourceLogs() {
 		for _, sl := range rl.GetScopeLogs() {
@@ -51,7 +65,7 @@ func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPForm
 		}
 	}
 	if total > MaxEntriesPerRequest {
-		return Parsed{}, format, ErrTooManyEntries
+		return Parsed{}, ErrTooManyEntries
 	}
 
 	var result Parsed
@@ -73,7 +87,7 @@ func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPForm
 			}
 		}
 	}
-	return result, format, nil
+	return result, nil
 }
 
 // recordObject builds the native envelope for one OTLP record.
@@ -177,6 +191,17 @@ func anyValue(v *commonpb.AnyValue) any {
 // partial_success block when some records were rejected (per the OTLP spec a fully
 // accepted request has an empty response).
 func OTLPResponse(format OTLPFormat, rejected int, errs []EntryError) ([]byte, string, error) {
+	response := OTLPResponseMessage(rejected, errs)
+	if format == OTLPProtobuf {
+		b, err := proto.Marshal(response)
+		return b, "application/x-protobuf", err
+	}
+	b, err := protojson.Marshal(response)
+	return b, "application/json", err
+}
+
+// OTLPResponseMessage builds the ExportLogsServiceResponse, the same for OTLP/HTTP and OTLP/gRPC.
+func OTLPResponseMessage(rejected int, errs []EntryError) *collogs.ExportLogsServiceResponse {
 	response := &collogs.ExportLogsServiceResponse{}
 	if rejected > 0 {
 		messages := make([]string, 0, len(errs))
@@ -188,10 +213,5 @@ func OTLPResponse(format OTLPFormat, rejected int, errs []EntryError) ([]byte, s
 		}
 		response.PartialSuccess = &collogs.ExportLogsPartialSuccess{RejectedLogRecords: int64(rejected), ErrorMessage: strings.Join(messages, "; ")}
 	}
-	if format == OTLPProtobuf {
-		b, err := proto.Marshal(response)
-		return b, "application/x-protobuf", err
-	}
-	b, err := protojson.Marshal(response)
-	return b, "application/json", err
+	return response
 }

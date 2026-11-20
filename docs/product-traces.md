@@ -2,7 +2,7 @@
 
 How an app sends traces to Orion and how Core stores and serves them. Plan: [plans/opentelemetry-support.md](plans/opentelemetry-support.md), phase 3. Logs are in [product-logs.md](product-logs.md) and metrics in [product-metrics.md](product-metrics.md).
 
-Status: **backend live**: OTLP/HTTP ingest, storage, retention and the read API. The Console trace views come next; until then use the API.
+Status: **backend live**: OTLP/HTTP and OTLP/gRPC ingest, storage, retention and the read API. The Console trace views come next; until then use the API.
 
 ## 1. Connect an app
 
@@ -14,6 +14,8 @@ export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer $ORION_INGEST_KEY
 export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
+
+Many SDKs default to OTLP/gRPC instead. Core has an opt-in gRPC receiver on port 4317 (`ORION_OTLP_GRPC_ADDR`), with the same key, limits and rate limit: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`. Setup, status codes and limits: [otlp-grpc.md](otlp-grpc.md).
 
 Link the app to a [service](plans/service-correlation-plan.md) and the service's traces, error rate and latency come with it. An OpenTelemetry Collector works the same way: an `otlphttp` exporter with `traces_endpoint` and an `Authorization` header.
 

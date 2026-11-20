@@ -79,6 +79,16 @@ func (p *parser) add(at time.Time, s Sample) {
 // Rejected with its reason and never fails the request. It is pure: cumulative readings are turned into
 // per-interval changes later, by the writer, which owns the per-series state.
 func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParsed, OTLPFormat, error) {
+	request, format, err := DecodeOTLPMetrics(contentType, body)
+	if err != nil {
+		return OTLPParsed{}, format, err
+	}
+	parsed, err := ParseOTLPMetricsRequest(request, now)
+	return parsed, format, err
+}
+
+// DecodeOTLPMetrics reads an OTLP/HTTP body (protobuf or JSON) into the request message.
+func DecodeOTLPMetrics(contentType string, body []byte) (*collmetrics.ExportMetricsServiceRequest, OTLPFormat, error) {
 	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	request := &collmetrics.ExportMetricsServiceRequest{}
 	var format OTLPFormat
@@ -86,17 +96,21 @@ func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParse
 	case "application/x-protobuf", "application/protobuf":
 		format = OTLPProtobuf
 		if err := proto.Unmarshal(body, request); err != nil {
-			return OTLPParsed{}, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
+			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	case "application/json":
 		format = OTLPJSON
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, request); err != nil {
-			return OTLPParsed{}, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
+			return nil, format, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
 	default:
-		return OTLPParsed{}, OTLPJSON, ErrUnsupportedMedia
+		return nil, OTLPJSON, ErrUnsupportedMedia
 	}
+	return request, format, nil
+}
 
+// ParseOTLPMetricsRequest maps an already decoded request onto samples. OTLP/HTTP and OTLP/gRPC share it.
+func ParseOTLPMetricsRequest(request *collmetrics.ExportMetricsServiceRequest, now time.Time) (OTLPParsed, error) {
 	total := 0
 	for _, rm := range request.GetResourceMetrics() {
 		for _, sm := range rm.GetScopeMetrics() {
@@ -106,7 +120,7 @@ func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParse
 		}
 	}
 	if total > MaxPointsPerRequest {
-		return OTLPParsed{}, format, ErrTooManyPoints
+		return OTLPParsed{}, ErrTooManyPoints
 	}
 
 	p := &parser{now: now}
@@ -118,7 +132,7 @@ func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParse
 			}
 		}
 	}
-	return p.out, format, nil
+	return p.out, nil
 }
 
 func (p *parser) metric(resource map[string]string, m *metricspb.Metric) {
@@ -179,14 +193,20 @@ func pointCount(m *metricspb.Metric) int {
 // OTLPMetricsResponse encodes an ExportMetricsServiceResponse in the request's format, with a
 // partial_success block when some data points were refused.
 func OTLPMetricsResponse(format OTLPFormat, rejected int64, message string) ([]byte, string, error) {
-	response := &collmetrics.ExportMetricsServiceResponse{}
-	if rejected > 0 {
-		response.PartialSuccess = &collmetrics.ExportMetricsPartialSuccess{RejectedDataPoints: rejected, ErrorMessage: message}
-	}
+	response := OTLPMetricsResponseMessage(rejected, message)
 	if format == OTLPProtobuf {
 		b, err := proto.Marshal(response)
 		return b, "application/x-protobuf", err
 	}
 	b, err := protojson.Marshal(response)
 	return b, "application/json", err
+}
+
+// OTLPMetricsResponseMessage builds the ExportMetricsServiceResponse, the same for OTLP/HTTP and OTLP/gRPC.
+func OTLPMetricsResponseMessage(rejected int64, message string) *collmetrics.ExportMetricsServiceResponse {
+	response := &collmetrics.ExportMetricsServiceResponse{}
+	if rejected > 0 {
+		response.PartialSuccess = &collmetrics.ExportMetricsPartialSuccess{RejectedDataPoints: rejected, ErrorMessage: message}
+	}
+	return response
 }
