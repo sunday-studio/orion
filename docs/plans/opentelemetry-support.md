@@ -31,6 +31,14 @@ Apps send histograms for latency, so this is what most SDK users hit first.
 - **Reading:** `GET /v1/services/{id}/metrics` returns for a histogram series `count`, `sum`, `avg`, and `p50`, `p95`, `p99` derived from the merged buckets (linear interpolation inside the bucket). Hourly rollups merge bucket counts, so percentiles stay correct over 7 and 30 days.
 - **Retention:** the existing sample and rollup retention settings apply.
 
+As built (differences from the list above; the behaviour is documented in `docs/product-metrics.md`):
+
+- Temporality state is one row per series in `series_state` in `metrics.db`, written in the batch's transaction by the writer, so it survives restarts and a retry never counts twice; a reading that is not newer than the last accepted one is dropped (counted in the store stats, not in `partial_success`). The first cumulative reading of a series is a baseline and produces no point.
+- Summary `count` and `sum` are treated as cumulative and stored as changes like a cumulative histogram; the quantiles are stored as sent.
+- A non-monotonic cumulative sum is stored as a `gauge`, a non-monotonic delta sum as a `sum` that may be negative. Sum series now return the total increase per bucket in `value`.
+- Existing OTLP `sum` series lose their stored history once on upgrade, because it holds cumulative values that cannot be told apart from the new per-minute changes.
+- Histogram points also return `min` and `max`; a summary point returns its `quantiles` as well as `p50`, `p95` and `p99` when reported.
+
 ## Phase 2: gRPC receiver
 
 Many SDKs default to OTLP/gRPC on port 4317.
