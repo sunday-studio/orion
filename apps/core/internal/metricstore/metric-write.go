@@ -33,11 +33,11 @@ ON CONFLICT(series_id, ts) DO UPDATE SET cpu_percent = excluded.cpu_percent, mem
 
 // valuesToStore applies the temporality of a sample: sums, histograms and summaries are converted and
 // de-duplicated by applyTemporality; every other sample is stored as it is.
-func (s *Store) valuesToStore(tx *gorm.DB, id int64, smp Sample) (Values, bool, error) {
+func (s *Store) valuesToStore(tx *gorm.DB, id int64, smp Sample, stale *int64) (Values, bool, error) {
 	if smp.Temporality == nil {
 		return smp.Values, true, nil
 	}
-	return s.applyTemporality(tx, id, smp)
+	return s.applyTemporality(tx, id, smp, stale)
 }
 
 // writeValues stores the values of one series at one minute. Gauges and OS samples replace what the minute
@@ -62,7 +62,7 @@ func (s *Store) writeBatch(b Batch) error {
 	}
 	ts := at.UTC().Truncate(time.Minute).Unix()
 	now := time.Now().UTC().Unix()
-	var written, dropped int64
+	var written, dropped, stale int64 // added to the counters after the commit, so a rolled back batch moves nothing
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		for _, smp := range b.Samples {
 			id, ok, err := s.seriesID(tx, b, smp, now)
@@ -73,7 +73,7 @@ func (s *Store) writeBatch(b Batch) error {
 				dropped++
 				continue
 			}
-			values, store, err := s.valuesToStore(tx, id, smp)
+			values, store, err := s.valuesToStore(tx, id, smp, &stale)
 			if err != nil {
 				return err
 			}
@@ -96,6 +96,7 @@ func (s *Store) writeBatch(b Batch) error {
 	}
 	s.written.Add(written)
 	s.droppedCap.Add(dropped)
+	s.droppedStale.Add(stale)
 	return nil
 }
 
