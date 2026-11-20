@@ -53,6 +53,7 @@ func (s *Server) getMetrics(c *gin.Context) {
 			"# HELP orion_traces_dropped_total Spans lost to write failures since process start.\n# TYPE orion_traces_dropped_total counter\norion_traces_dropped_total %d\n"+
 			"# HELP orion_traces_storage_full 1 while the last span write failed because the disk or database is full.\n# TYPE orion_traces_storage_full gauge\norion_traces_storage_full %d\n", st.Queued, st.Written, st.Dropped, boolGauge(st.StorageFull))
 	}
+	body += s.metricStorePrometheus()
 	c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte(body))
 }
 

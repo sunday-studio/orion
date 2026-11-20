@@ -185,6 +185,11 @@ func (s *Store) Prune(r Retention, now time.Time) (PruneResult, error) {
 		}
 		res.Series++
 	}
+	// A reading older than the active window can never be the previous one of a cumulative series (a gap
+	// that long starts a new baseline), so its state is dead weight; the series cap does not bound it.
+	if err := s.db.Exec("DELETE FROM series_state WHERE last_at < ?", now.UTC().Add(-ActiveSeriesWindow).UnixNano()).Error; err != nil {
+		return res, err
+	}
 	s.db.Exec("PRAGMA incremental_vacuum(2000)")
 	s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	return res, nil

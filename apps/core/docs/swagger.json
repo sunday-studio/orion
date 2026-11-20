@@ -6676,7 +6676,7 @@
                         "IngestKey": []
                     }
                 ],
-                "description": "OpenTelemetry Metrics endpoint (ExportMetricsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed. Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each data point counts as one). Gauges and sums are stored as the app's metric series; histograms and summaries are not supported yet and are reported as rejected. An app may report up to its `metric_series_cap` distinct series (default 100): data points of further series are refused and counted in partial_success. Data points older than 24 hours or more than 5 minutes ahead are refused.",
+                "description": "OpenTelemetry Metrics endpoint (ExportMetricsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), optionally gzip-compressed. Authenticate with an app ingest key; the same body limits and rate limit as logs apply (each data point counts as one). Gauges, sums, histograms, exponential histograms and summaries are stored as the app's metric series. A cumulative sum, histogram or summary is converted to the increase per minute: the first cumulative reading of a series is only a baseline and stores nothing, a cumulative reading that is not newer than the last one stored for its series is dropped (it would count twice), and a reset (a new start time or a smaller count) counts from zero again. A delta reading is stored as sent; only an exact repeat of the last one is dropped, so give each exporter process its own service.instance.id. Readings dropped this way are not reported in partial_success; they are counted in the Prometheus metric orion_metrics_dropped_total{reason=\"stale\"}. An app may report up to its `metric_series_cap` distinct series (default 100): data points of further series are refused and counted in partial_success. Data points older than 24 hours or more than 5 minutes ahead are refused.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18186,7 +18186,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
+                "description": "Newest-first, cursor-paginated list with one row per trace and app: root span name, service, duration, span and error counts. A trace whose root span has not arrived is listed from its earliest span (has_root false). app_id and attr take at most 50 values each (more is a 400). Without to the search runs up to five minutes past now, so spans stamped by a clock a little ahead still show. service matches the service.name of the root span; name matches a substring of the root span name; attr matches a trace when any of its spans or its resource carries the value.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18201,7 +18201,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by app (comma-separated ids)",
+                        "description": "Filter by app (comma-separated ids, at most 50)",
                         "name": "app_id",
                         "in": "query"
                     },
@@ -18247,13 +18247,13 @@
                     },
                     {
                         "type": "string",
-                        "description": "End (RFC 3339); default now",
+                        "description": "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead",
                         "name": "to",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "description": "Attribute filter key:value, repeatable, at most 50 (attr=http.status_code:500)",
                         "name": "attr",
                         "in": "query"
                     },
@@ -18330,7 +18330,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted.",
+                "description": "The choices for a trace filter bar over the traces matching the same filters as the search: ok and error counts, and at most 50 services and 50 root span names, most traces first. Without from the last 24 hours are counted; without to the window ends five minutes past now. app_id and attr take at most 50 values each.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18345,7 +18345,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by app (comma-separated ids)",
+                        "description": "Filter by app (comma-separated ids, at most 50)",
                         "name": "app_id",
                         "in": "query"
                     },
@@ -18391,13 +18391,13 @@
                     },
                     {
                         "type": "string",
-                        "description": "End (RFC 3339); default now",
+                        "description": "End (RFC 3339, or relative like -1h); default now plus 5 minutes, which allows for clocks a little ahead",
                         "name": "to",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Attribute filter key:value, repeatable",
+                        "description": "Attribute filter key:value, repeatable, at most 50",
                         "name": "attr",
                         "in": "query"
                     }

@@ -1,6 +1,7 @@
 package tracestore
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -74,7 +75,8 @@ func TestPruneTrimsTheOldestWholeTracesOverTheStorageCap(t *testing.T) {
 	for n := 0; n < 30; n++ {
 		root := mkSpan("app", traceID(500+n), spanID(n*2+1), "", "t", time.Duration(n)*time.Minute, time.Second, StatusUnset)
 		child := mkSpan("app", traceID(500+n), spanID(n*2+2), spanID(n*2+1), "c", time.Duration(n)*time.Minute, time.Millisecond, StatusUnset)
-		root.Size, child.Size = traceBytes/2, traceBytes/2
+		// Size is measured from the stored columns, so the weight has to be real content.
+		root.StatusMessage, child.StatusMessage = strings.Repeat("x", traceBytes/2), strings.Repeat("x", traceBytes/2)
 		spans = append(spans, root, child)
 	}
 	s.mustWrite(t, spans...) // 3000 KiB, cap is 1 MiB: at most 10 whole traces survive

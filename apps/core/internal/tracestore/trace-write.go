@@ -17,17 +17,25 @@ func (s *Store) insert(spans []Span) (int64, error) {
 	var stored int64
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		stored = 0
-		for start := 0; start < len(spans); start += insertChunk {
-			end := min(start+insertChunk, len(spans))
+		for start := 0; start < len(spans); {
+			// A statement holds at most insertChunk rows and about insertChunkBytes of arguments, so a
+			// few very large spans never become one huge statement.
 			sql := "INSERT OR IGNORE INTO spans (app_id, trace_id, span_id, parent_span_id, name, kind, start_ns, duration_ns, status_code, status_message, service_name, attributes, resource, events, links, ingested_at, size) VALUES "
-			args := make([]any, 0, (end-start)*17)
-			for i, sp := range spans[start:end] {
-				if i > 0 {
+			args := make([]any, 0, insertChunk*17)
+			rows, bytes := 0, 0
+			for start < len(spans) {
+				row, size := encodeRow(spans[start])
+				if !fitsChunk(rows, bytes, size) {
+					break
+				}
+				if rows > 0 {
 					sql += ","
 				}
 				sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-				args = append(args, sp.AppID, sp.TraceID, sp.SpanID, sp.ParentSpanID, sp.Name, sp.Kind, sp.StartNano, sp.DurationNano, sp.StatusCode, sp.StatusMessage,
-					sp.ServiceName, encodeJSON(sp.Attributes), encodeJSON(sp.Resource), encodeList(sp.Events), encodeList(sp.Links), sp.IngestedAt.UnixNano(), sp.Size)
+				args = append(args, row...)
+				rows++
+				bytes += size
+				start++
 			}
 			res := tx.Exec(sql, args...)
 			if res.Error != nil {
@@ -52,6 +60,21 @@ func (s *Store) insert(spans []Span) (int64, error) {
 		return nil
 	})
 	return stored, err
+}
+
+// fitsChunk says whether one more row of next bytes belongs in a statement already holding rows rows
+// and bytes bytes. A statement always takes its first row, however large.
+func fitsChunk(rows, bytes, next int) bool {
+	return rows == 0 || (rows < insertChunk && bytes+next <= insertChunkBytes)
+}
+
+// encodeRow turns a span into the insert arguments and the bytes it stores. The size is measured from
+// the encoded columns, after redaction, so the stored size column and the storage cap are real.
+func encodeRow(sp Span) ([]any, int) {
+	attributes, resource, events, links := encodeJSON(sp.Attributes), encodeJSON(sp.Resource), encodeList(sp.Events), encodeList(sp.Links)
+	size := storedSize(sp, len(attributes), len(resource), len(events), len(links))
+	return []any{sp.AppID, sp.TraceID, sp.SpanID, sp.ParentSpanID, sp.Name, sp.Kind, sp.StartNano, sp.DurationNano, sp.StatusCode, sp.StatusMessage,
+		sp.ServiceName, attributes, resource, events, links, sp.IngestedAt.UnixNano(), size}, size
 }
 
 type traceKey struct{ appID, traceID string }

@@ -58,11 +58,12 @@ func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPForm
 	index := 0
 	for _, rs := range request.GetResourceSpans() {
 		var lim limits
-		resource, _ := lim.attributes(rs.GetResource().GetAttributes(), MaxAttributesPerSpan)
-		service, _ := resource["service.name"].(string)
+		// Every resource attribute is decoded so capResource, not arrival order, picks what is kept.
+		rawResource, _ := lim.attributes(rs.GetResource().GetAttributes(), len(rs.GetResource().GetAttributes()))
+		resource := newResourceInfo(rawResource, len(rs.GetResource().GetAttributes()))
 		for _, ss := range rs.GetScopeSpans() {
 			for _, raw := range ss.GetSpans() {
-				span, spanErr := convertSpan(raw, ss.GetScope(), resource, service, now)
+				span, spanErr := convertSpan(raw, ss.GetScope(), resource, now)
 				if spanErr != nil {
 					spanErr.Index = index
 					result.Errors = append(result.Errors, *spanErr)
@@ -77,9 +78,8 @@ func ParseOTLP(contentType string, body []byte, now time.Time) (Parsed, OTLPForm
 }
 
 // convertSpan validates one OTLP span and builds the stored shape.
-func convertSpan(raw *tracepb.Span, scope *commonpb.InstrumentationScope, resource map[string]any, service string, now time.Time) (Span, *SpanError) {
-	size := proto.Size(raw)
-	if size > MaxSpanBytes {
+func convertSpan(raw *tracepb.Span, scope *commonpb.InstrumentationScope, resource resourceInfo, now time.Time) (Span, *SpanError) {
+	if size := proto.Size(raw); size > MaxSpanBytes {
 		return Span{}, &SpanError{Code: "span_too_large", Message: fmt.Sprintf("span is %d bytes, the limit is %d", size, MaxSpanBytes)}
 	}
 	if id := raw.GetTraceId(); len(id) != 16 || allZero(id) {
@@ -129,7 +129,7 @@ func convertSpan(raw *tracepb.Span, scope *commonpb.InstrumentationScope, resour
 	if scope.GetVersion() != "" {
 		attributes["otel.scope.version"] = lim.text(scope.GetVersion())
 	}
-	for key, n := range map[string]int{"orion.dropped_attributes": droppedAttrs, "orion.dropped_events": droppedEvents, "orion.dropped_links": droppedLinks, "orion.truncated_values": lim.truncated} {
+	for key, n := range map[string]int{"orion.dropped_attributes": droppedAttrs, "orion.dropped_events": droppedEvents, "orion.dropped_links": droppedLinks, "orion.truncated_values": lim.truncated, "orion.dropped_resource_attributes": resource.dropped} {
 		if n > 0 {
 			attributes[key] = int64(n)
 		}
@@ -148,12 +148,19 @@ func convertSpan(raw *tracepb.Span, scope *commonpb.InstrumentationScope, resour
 	if kind < 0 || kind > 5 {
 		kind = 0
 	}
-	return Span{
+	span := Span{
 		TraceID: hex.EncodeToString(raw.GetTraceId()), SpanID: hex.EncodeToString(raw.GetSpanId()), ParentSpanID: parent,
 		Name: lim.text(name), Kind: kind, StartNano: int64(start), DurationNano: int64(end - start),
-		StatusCode: code, StatusMessage: lim.text(status.GetMessage()), ServiceName: lim.text(service),
-		Attributes: attributes, Resource: resource, Events: events, Links: links, IngestedAt: now, Size: size,
-	}, nil
+		StatusCode: code, StatusMessage: lim.text(status.GetMessage()), ServiceName: lim.text(resource.service),
+		Attributes: attributes, Resource: resource.attrs, Events: events, Links: links, IngestedAt: now,
+	}
+	// Size is what the row will really hold, resource and every other stored field included, so a
+	// span that is small on the wire but large once stored is rejected like any other oversized span.
+	span.Size = storedSize(span, len(encodeJSON(attributes)), resource.jsonLen, len(encodeList(events)), len(encodeList(links)))
+	if span.Size > MaxSpanBytes {
+		return Span{}, &SpanError{Code: "span_too_large", Message: fmt.Sprintf("span is %d bytes once stored, the limit is %d", span.Size, MaxSpanBytes)}
+	}
+	return span, nil
 }
 
 func allZero(b []byte) bool {
