@@ -40,7 +40,7 @@ Core also keeps one **trace summary** per app and trace id, maintained by the wr
 | Request body | 5 MiB, also after gzip decompression (413 beyond) |
 | One span | 256 KiB, measured as stored (every column, the resource included) and not only as sent; larger spans are refused |
 | Attributes per span | 128, the first ones in the order sent; the rest are dropped |
-| Resource attributes | 128 and 8 KiB of encoded JSON on each span; service, host, `k8s.*` and `cloud.*` keys are kept first, then the rest in key order |
+| Resource attributes | 128 and 8 KiB of encoded JSON on each span; service, host, `k8s.*` and `cloud.*` keys are kept first, then the rest in key order. The resource is stored with every span, so a request of 10,000 spans can store up to 80 MB of it; the per-app storage cap counts those bytes |
 | Events and links per span | 128 each, 32 attributes per event or link |
 | Text values | 4,096 bytes, cut on a character boundary |
 | Attribute nesting | 8 levels (arrays and maps) |

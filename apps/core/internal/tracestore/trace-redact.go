@@ -1,5 +1,7 @@
 package tracestore
 
+import "reflect"
+
 // Redact applies the app's redaction rules to the free-form parts of every span in place: attributes,
 // resource, the attributes of events and links, and the status message. Names, ids and timings are
 // kept as sent, so apps should keep secrets out of span names.
@@ -7,10 +9,13 @@ func Redact(spans []Span, r Redactor) {
 	if r == nil {
 		return
 	}
+	// Every span of one ResourceSpans shares one resource map. Redacting it per span would copy it once
+	// per span (up to 8 KiB each), so each distinct map is redacted once and the result shared.
+	resources := map[uintptr]map[string]any{}
 	for i := range spans {
 		sp := &spans[i]
 		sp.Attributes = redactMap(r, sp.Attributes)
-		sp.Resource = redactMap(r, sp.Resource)
+		sp.Resource = redactResource(r, sp.Resource, resources)
 		if sp.StatusMessage != "" {
 			if text, ok := r.Redact(sp.StatusMessage).(string); ok {
 				sp.StatusMessage = text
@@ -43,4 +48,17 @@ func redactMap(r Redactor, m map[string]any) map[string]any {
 		return out
 	}
 	return m
+}
+
+func redactResource(r Redactor, m map[string]any, done map[uintptr]map[string]any) map[string]any {
+	if len(m) == 0 {
+		return m
+	}
+	key := reflect.ValueOf(m).Pointer()
+	if out, ok := done[key]; ok {
+		return out
+	}
+	out := redactMap(r, m)
+	done[key] = out
+	return out
 }

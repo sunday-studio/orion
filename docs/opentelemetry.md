@@ -116,7 +116,7 @@ Make sure each process has its own `service.instance.id` (many SDKs set one for 
 
 ## 4. OpenTelemetry Collector
 
-A Collector in front of your apps can send to Orion over HTTP or gRPC. The `otlphttp` exporter appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to its `endpoint`, and retries on 429 and 5xx using the `Retry-After` header.
+A Collector in front of your apps can send to Orion over HTTP or gRPC. The `otlphttp` exporter appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to its `endpoint`, and retries on 429, 502, 503 and 504 using the `Retry-After` header.
 
 ```yaml
 receivers:

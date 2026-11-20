@@ -78,7 +78,13 @@ func registerOTLPService(srv *grpc.Server, original *grpc.ServiceDesc, implement
 		desc.Methods[i] = grpc.MethodDesc{
 			MethodName: method.MethodName,
 			Handler: func(service any, ctx context.Context, decode func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-				return handler(service, ctx, func(message any) error {
+				return handler(service, ctx, func(message any) (err error) {
+					// This decode runs before the server's panic-recovery interceptor, so it recovers on its own.
+					defer func() {
+						if recover() != nil {
+							err = status.Error(codes.InvalidArgument, "Request is not a valid OTLP export request")
+						}
+					}()
 					var raw otlpRawRequest
 					if err := decode(&raw); err != nil {
 						return err // too large, bad compression and the like keep grpc-go's own status
