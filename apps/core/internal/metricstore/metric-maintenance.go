@@ -55,7 +55,7 @@ func (s *Store) Rollup(now time.Time) (int, error) {
 		start = end
 		for _, id := range ids { // the oldest row of each series is one index seek
 			var first []int64
-			if err := s.db.Raw("SELECT COALESCE(MIN(ts), 0) FROM samples WHERE series_id = ?", id).Scan(&first).Error; err != nil {
+			if err := s.db.Raw("SELECT COALESCE(MIN(ts), 0) FROM (SELECT MIN(ts) AS ts FROM samples WHERE series_id = ? UNION ALL SELECT MIN(ts) FROM histogram_samples WHERE series_id = ?)", id, id).Scan(&first).Error; err != nil {
 				return 0, err
 			}
 			if len(first) > 0 && first[0] > 0 && first[0]/3600*3600 < start {
@@ -72,7 +72,7 @@ func (s *Store) Rollup(now time.Time) (int, error) {
 		// and summarised again, never missed. If the pass fails, the old watermark is put back.
 		previous := s.rolledThrough.Swap(end)
 		for _, id := range ids {
-			if err := s.db.Exec(rollupSQL, id, start, end).Error; err != nil {
+			if err := s.rollupSeries(s.db, id, start, end); err != nil {
 				s.rolledThrough.Store(previous)
 				return hours, err
 			}
@@ -84,6 +84,15 @@ func (s *Store) Rollup(now time.Time) (int, error) {
 		}
 	}
 	return hours, s.rollupDirtyHours()
+}
+
+// rollupSeries summarises one series over [from, to): its numbers in SQL, and its histograms, whose bucket
+// counts must be merged, in code. Only one of the two finds rows.
+func (s *Store) rollupSeries(db *gorm.DB, id, from, to int64) error {
+	if err := db.Exec(rollupSQL, id, from, to).Error; err != nil {
+		return err
+	}
+	return rollupHistograms(db, id, from, to)
 }
 
 // rollupDirtyHours summarises again the (series, hour) pairs that received samples after their hour
@@ -101,7 +110,7 @@ func (s *Store) rollupDirtyHours() error {
 				if err := tx.Exec("DELETE FROM dirty_hours WHERE series_id = ? AND hour = ?", d.SeriesID, d.Hour).Error; err != nil {
 					return err
 				}
-				return tx.Exec(rollupSQL, d.SeriesID, d.Hour, d.Hour+3600).Error
+				return s.rollupSeries(tx, d.SeriesID, d.Hour, d.Hour+3600)
 			})
 			if err != nil {
 				return err
@@ -150,15 +159,23 @@ func (s *Store) Prune(r Retention, now time.Time) (PruneResult, error) {
 		if hourly.Error != nil {
 			return res, hourly.Error
 		}
-		res.RawRows += raw.RowsAffected
-		res.HourlyRows += hourly.RowsAffected
+		histRaw := s.db.Exec("DELETE FROM histogram_samples WHERE series_id = ? AND ts < ?", id, rawCutoff)
+		if histRaw.Error != nil {
+			return res, histRaw.Error
+		}
+		histHourly := s.db.Exec("DELETE FROM histogram_hourly WHERE series_id = ? AND hour < ?", id, hourlyCutoff)
+		if histHourly.Error != nil {
+			return res, histHourly.Error
+		}
+		res.RawRows += raw.RowsAffected + histRaw.RowsAffected
+		res.HourlyRows += hourly.RowsAffected + histHourly.RowsAffected
 	}
 	var stale []int64
 	if err := s.db.Raw("SELECT id FROM series WHERE last_seen < ?", hourlyCutoff).Scan(&stale).Error; err != nil {
 		return res, err
 	}
 	for _, id := range stale {
-		for _, table := range []string{"samples", "samples_hourly", "dirty_hours"} {
+		for _, table := range []string{"samples", "samples_hourly", "histogram_samples", "histogram_hourly", "dirty_hours", "series_state"} {
 			if err := s.db.Exec("DELETE FROM "+table+" WHERE series_id = ?", id).Error; err != nil {
 				return res, err
 			}

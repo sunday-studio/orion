@@ -1,17 +1,12 @@
 package metricstore
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	collmetrics "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
-	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -24,7 +19,8 @@ var (
 )
 
 const (
-	// MaxPointsPerRequest bounds one OTLP request, the same ceiling as log records.
+	// MaxPointsPerRequest bounds one OTLP request, the same ceiling as log records. Every data point
+	// counts as one, whatever its type.
 	MaxPointsPerRequest = 10_000
 	maxMetricNameLen    = 200
 	maxAttributes       = 20
@@ -34,10 +30,6 @@ const (
 	maxPointAge  = 24 * time.Hour
 	maxPointSkew = 5 * time.Minute
 )
-
-// resourceLabelKeys are the resource attributes that tell instances of one app apart. The others are
-// per app and would only add noise to the series identity.
-var resourceLabelKeys = []string{"service.name", "service.instance.id", "host.name"}
 
 // OTLPFormat is the wire encoding of an OTLP/HTTP request, which the response mirrors.
 type OTLPFormat int
@@ -61,8 +53,31 @@ type OTLPParsed struct {
 	Errors   []string
 }
 
-// ParseOTLPMetrics decodes an OTLP/HTTP ExportMetricsServiceRequest (protobuf or JSON). Gauges and
-// sums become samples; histograms and summaries are counted as rejected until they are supported.
+// parser collects the data points of one request.
+type parser struct {
+	now time.Time
+	out OTLPParsed
+}
+
+func (p *parser) reject(n int64, reason string) {
+	if n <= 0 {
+		return
+	}
+	p.out.Rejected += n
+	if len(p.out.Errors) < maxRejectMessages && !containsString(p.out.Errors, reason) {
+		p.out.Errors = append(p.out.Errors, reason)
+	}
+}
+
+func (p *parser) add(at time.Time, s Sample) {
+	p.out.Points = append(p.out.Points, TimedSample{At: at, Sample: s})
+}
+
+// ParseOTLPMetrics decodes an OTLP/HTTP ExportMetricsServiceRequest (protobuf or JSON). Gauges, sums,
+// histograms (explicit and exponential) and summaries become samples; a data point that cannot be stored
+// (bad bounds, counts that do not add up, NaN or infinity, a timestamp out of range) is counted in
+// Rejected with its reason and never fails the request. It is pure: cumulative readings are turned into
+// per-interval changes later, by the writer, which owns the per-series state.
 func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParsed, OTLPFormat, error) {
 	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	request := &collmetrics.ExportMetricsServiceRequest{}
@@ -94,45 +109,55 @@ func ParseOTLPMetrics(contentType string, body []byte, now time.Time) (OTLPParse
 		return OTLPParsed{}, format, ErrTooManyPoints
 	}
 
-	var out OTLPParsed
-	reject := func(n int64, reason string) {
-		out.Rejected += n
-		if len(out.Errors) < maxRejectMessages && !containsString(out.Errors, reason) {
-			out.Errors = append(out.Errors, reason)
-		}
-	}
+	p := &parser{now: now}
 	for _, rm := range request.GetResourceMetrics() {
 		resource := resourceLabels(rm.GetResource().GetAttributes())
 		for _, sm := range rm.GetScopeMetrics() {
 			for _, m := range sm.GetMetrics() {
-				name := strings.TrimSpace(m.GetName())
-				var kind string
-				var points []*metricspb.NumberDataPoint
-				switch data := m.GetData().(type) {
-				case *metricspb.Metric_Gauge:
-					kind, points = "gauge", data.Gauge.GetDataPoints()
-				case *metricspb.Metric_Sum:
-					kind, points = "sum", data.Sum.GetDataPoints()
-				default:
-					reject(int64(pointCount(m)), fmt.Sprintf("metric %q: only gauges and sums are supported", name))
-					continue
-				}
-				if name == "" || len(name) > maxMetricNameLen {
-					reject(int64(len(points)), "metric name must be 1 to 200 characters")
-					continue
-				}
-				for _, dp := range points {
-					sample, at, reason := numberSample(name, kind, m.GetUnit(), resource, dp, now)
-					if reason != "" {
-						reject(1, fmt.Sprintf("metric %q: %s", name, reason))
-						continue
-					}
-					out.Points = append(out.Points, TimedSample{At: at, Sample: sample})
-				}
+				p.metric(resource, m)
 			}
 		}
 	}
-	return out, format, nil
+	return p.out, format, nil
+}
+
+func (p *parser) metric(resource map[string]string, m *metricspb.Metric) {
+	name := strings.TrimSpace(m.GetName())
+	if name == "" || len(name) > maxMetricNameLen {
+		p.reject(int64(pointCount(m)), "metric name must be 1 to 200 characters")
+		return
+	}
+	switch data := m.GetData().(type) {
+	case *metricspb.Metric_Gauge:
+		for _, dp := range data.Gauge.GetDataPoints() {
+			p.number(numberSpec{name: name, kind: KindGauge, unit: m.GetUnit()}, resource, dp)
+		}
+	case *metricspb.Metric_Sum:
+		sum := data.Sum
+		cumulative := sum.GetAggregationTemporality() != metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_DELTA
+		spec := numberSpec{name: name, kind: KindSum, unit: m.GetUnit(), monotonic: sum.GetIsMonotonic(), cumulative: cumulative, temporal: true}
+		if !spec.monotonic && cumulative {
+			// An up-down counter reads as a level (queue depth, open connections): keep it as a gauge.
+			spec.kind, spec.temporal = KindGauge, false
+		}
+		for _, dp := range sum.GetDataPoints() {
+			p.number(spec, resource, dp)
+		}
+	case *metricspb.Metric_Histogram:
+		cumulative := data.Histogram.GetAggregationTemporality() != metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_DELTA
+		for _, dp := range data.Histogram.GetDataPoints() {
+			p.explicitHistogram(name, m.GetUnit(), resource, cumulative, dp)
+		}
+	case *metricspb.Metric_ExponentialHistogram:
+		cumulative := data.ExponentialHistogram.GetAggregationTemporality() != metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_DELTA
+		for _, dp := range data.ExponentialHistogram.GetDataPoints() {
+			p.exponentialHistogram(name, m.GetUnit(), resource, cumulative, dp)
+		}
+	case *metricspb.Metric_Summary:
+		for _, dp := range data.Summary.GetDataPoints() {
+			p.summary(name, m.GetUnit(), resource, dp)
+		}
+	}
 }
 
 func pointCount(m *metricspb.Metric) int {
@@ -149,108 +174,6 @@ func pointCount(m *metricspb.Metric) int {
 		return len(data.Summary.GetDataPoints())
 	}
 	return 0
-}
-
-func numberSample(name, kind, unit string, resource map[string]string, dp *metricspb.NumberDataPoint, now time.Time) (Sample, time.Time, string) {
-	if dp.GetFlags()&uint32(metricspb.DataPointFlags_DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK) != 0 {
-		return Sample{}, time.Time{}, "data point has no recorded value"
-	}
-	var v float64
-	switch x := dp.GetValue().(type) {
-	case *metricspb.NumberDataPoint_AsDouble:
-		v = x.AsDouble
-	case *metricspb.NumberDataPoint_AsInt:
-		v = float64(x.AsInt)
-	default:
-		return Sample{}, time.Time{}, "data point has no value"
-	}
-	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return Sample{}, time.Time{}, "value is not a finite number"
-	}
-	at := now
-	if ns := dp.GetTimeUnixNano(); ns != 0 {
-		at = time.Unix(0, int64(ns)).UTC()
-	}
-	if at.Before(now.Add(-maxPointAge)) || at.After(now.Add(maxPointSkew)) {
-		return Sample{}, time.Time{}, "timestamp is more than 24 hours old or in the future"
-	}
-	labels := map[string]string{}
-	for k, val := range resource {
-		labels["resource."+k] = val
-	}
-	// Take the first maxAttributes by key, not by send order, so a data point with more attributes than
-	// the limit maps to one series however its exporter orders them.
-	attrs := make([]*commonpb.KeyValue, 0, len(dp.GetAttributes()))
-	for _, kv := range dp.GetAttributes() {
-		if kv.GetKey() != "" {
-			attrs = append(attrs, kv)
-		}
-	}
-	sort.SliceStable(attrs, func(i, j int) bool { return attrs[i].GetKey() < attrs[j].GetKey() })
-	count := 0
-	for _, kv := range attrs {
-		if count == maxAttributes {
-			break
-		}
-		if k := clip(kv.GetKey(), maxAttributeText); k != "" {
-			labels[k] = clip(anyText(kv.GetValue()), maxAttributeText)
-			count++
-		}
-	}
-	encoded := ""
-	if len(labels) > 0 {
-		b, _ := json.Marshal(labels) // map keys marshal sorted, so the identity is stable
-		encoded = string(b)
-	}
-	value := v
-	return Sample{Key: name + "|" + encoded, Kind: kind, Name: name, Metric: name, Unit: clip(unit, maxAttributeText), Labels: encoded,
-		Values: Values{Value: &value}}, at, ""
-}
-
-func resourceLabels(attrs []*commonpb.KeyValue) map[string]string {
-	out := map[string]string{}
-	for _, kv := range attrs {
-		for _, want := range resourceLabelKeys {
-			if kv.GetKey() == want {
-				out[want] = clip(anyText(kv.GetValue()), maxAttributeText)
-			}
-		}
-	}
-	return out
-}
-
-func anyText(v *commonpb.AnyValue) string {
-	switch x := v.GetValue().(type) {
-	case *commonpb.AnyValue_StringValue:
-		return x.StringValue
-	case *commonpb.AnyValue_IntValue:
-		return strconv.FormatInt(x.IntValue, 10)
-	case *commonpb.AnyValue_DoubleValue:
-		return strconv.FormatFloat(x.DoubleValue, 'g', -1, 64)
-	case *commonpb.AnyValue_BoolValue:
-		return strconv.FormatBool(x.BoolValue)
-	case nil:
-		return ""
-	}
-	b, _ := protojson.Marshal(v)
-	return string(b)
-}
-
-func clip(s string, n int) string {
-	r := []rune(s)
-	if len(r) > n {
-		return string(r[:n])
-	}
-	return s
-}
-
-func containsString(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
 
 // OTLPMetricsResponse encodes an ExportMetricsServiceResponse in the request's format, with a

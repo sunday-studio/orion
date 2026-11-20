@@ -2,6 +2,7 @@ package metricstore
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,13 @@ var hourlyQuery = `SELECT (hour / ?) * ? AS t, ` + wavg("cpu_avg") + `, MAX(cpu_
 	wavg("io_read_avg") + `, ` + wavg("io_write_avg") + `, ` + wavg("net_rx_avg") + `, ` + wavg("net_tx_avg") + `, MAX(pids_max), MAX(storage_max), ` +
 	wavg("value_avg") + `, MAX(value_max)
 FROM samples_hourly WHERE series_id = ? AND hour >= ? AND hour < ? GROUP BY t ORDER BY t`
+
+// A sum is stored as the increase per minute, so a bucket's value is the total of its minutes, not their
+// average. The rollup keeps the average and the number of rows, whose product is that total.
+var (
+	rawSumQuery    = strings.Replace(rawQuery, "AVG(value)", "SUM(value)", 1)
+	hourlySumQuery = strings.Replace(hourlyQuery, wavg("value_avg"), "SUM(value_avg * n)", 1)
+)
 
 // Query implements MetricStore. It reads one-minute rows for ranges up to 48 hours and hourly
 // rollups beyond, and widens the step so a series never returns more than MaxPoints points.
@@ -61,7 +69,20 @@ func (s *Store) Query(q Query) (QueryResult, error) {
 	}
 	res.Truncated = truncated
 	for _, m := range metas {
-		points, err := s.readPoints(sqlText, step, m.ID, q.From.Unix(), q.To.Unix())
+		var points []Point
+		var err error
+		switch m.Kind {
+		case KindHistogram, KindSummary:
+			points, err = s.readHistogramPoints(m.Kind, hourly, step, m.ID, q.From.Unix(), q.To.Unix())
+		case KindSum:
+			text := rawSumQuery
+			if hourly {
+				text = hourlySumQuery
+			}
+			points, err = s.readPoints(text, step, m.ID, q.From.Unix(), q.To.Unix())
+		default:
+			points, err = s.readPoints(sqlText, step, m.ID, q.From.Unix(), q.To.Unix())
+		}
 		if err != nil {
 			return res, err
 		}

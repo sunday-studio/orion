@@ -198,7 +198,8 @@ func TestOTLPMetricsRequestErrors(t *testing.T) {
 	}
 
 	hist := &collmetrics.ExportMetricsServiceRequest{ResourceMetrics: []*metricspb.ResourceMetrics{{ScopeMetrics: []*metricspb.ScopeMetrics{{Metrics: []*metricspb.Metric{
-		{Name: "latency", Data: &metricspb.Metric_Histogram{Histogram: &metricspb.Histogram{DataPoints: []*metricspb.HistogramDataPoint{{}, {}}}}},
+		{Name: "latency", Data: &metricspb.Metric_Histogram{Histogram: &metricspb.Histogram{DataPoints: []*metricspb.HistogramDataPoint{
+			{Count: 2, ExplicitBounds: []float64{2, 1}, BucketCounts: []uint64{1, 1, 0}}, {Count: 2, ExplicitBounds: []float64{1}, BucketCounts: []uint64{1}}}}}},
 	}}}}}}
 	body, _ := proto.Marshal(hist)
 	resp := postOTLPMetrics(server, key, "application/x-protobuf", body, false)

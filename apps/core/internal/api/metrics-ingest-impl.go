@@ -6,6 +6,7 @@ import (
 	"orion/core/internal/logstore"
 	"orion/core/internal/metricstore"
 	"orion/core/internal/utils"
+	"sort"
 	"strconv"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 )
 
 // ingestOTLPMetricsImpl takes OTLP/HTTP metrics with the same ingest key, body limits and rate limiter
-// as logs. Gauges and sums become samples of the app; data points over the app's series cap are
+// as logs. Gauges, sums, histograms and summaries become samples of the app; data points over the app's series cap are
 // refused and reported in partial_success, as log records are.
 func (s *Server) ingestOTLPMetricsImpl(c *gin.Context) {
 	if !s.requireLogs(c) {
@@ -98,6 +99,10 @@ func (s *Server) ingestOTLPMetricsImpl(c *gin.Context) {
 // planMetricBatches drops the data points of series the app may not add, and groups the rest by minute
 // (a batch has one timestamp). over counts the dropped data points.
 func (s *Server) planMetricBatches(appID string, points []metricstore.TimedSample, seriesCap int) ([]metricstore.Batch, int64, error) {
+	// Oldest first: the writer takes a series' readings in order and drops one that is not newer than the
+	// last, so a request that lists its minutes newest first must not lose its older readings.
+	points = append([]metricstore.TimedSample(nil), points...)
+	sort.SliceStable(points, func(i, j int) bool { return points[i].At.Before(points[j].At) })
 	seen := map[string]bool{}
 	var keys []string
 	for _, p := range points {

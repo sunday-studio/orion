@@ -70,9 +70,21 @@ func (s *Server) getServiceMetricsImpl(c *gin.Context) {
 		for _, p := range sr.Points {
 			series.Points = append(series.Points, ServiceMetricPoint{T: p.T, CPUPercent: p.CPUPercent, CPUPercentMax: p.CPUPercentMax, MemoryBytes: p.MemoryBytes,
 				MemoryBytesMax: p.MemoryBytesMax, IOReadBps: p.IOReadBps, IOWriteBps: p.IOWriteBps, NetRxBps: p.NetRxBps, NetTxBps: p.NetTxBps,
-				PidsMax: p.PidsMax, StorageMax: p.StorageMax, Value: p.Value, ValueMax: p.ValueMax})
+				PidsMax: p.PidsMax, StorageMax: p.StorageMax, Value: p.Value, ValueMax: p.ValueMax,
+				Count: p.Count, Sum: p.Sum, Avg: p.Avg, Min: p.Min, Max: p.Max, P50: p.P50, P95: p.P95, P99: p.P99, Quantiles: serviceQuantiles(p.Quantiles)})
 		}
 		out.Series = append(out.Series, series)
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Service metrics retrieved successfully", out)
+}
+
+func serviceQuantiles(in []metricstore.Quantile) []ServiceMetricQuantile {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]ServiceMetricQuantile, len(in))
+	for i, q := range in {
+		out[i] = ServiceMetricQuantile{Quantile: q.Q, Value: q.V}
+	}
+	return out
 }

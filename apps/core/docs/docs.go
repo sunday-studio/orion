@@ -23154,6 +23154,14 @@ const docTemplate = `{
         "internal_api.ServiceMetricPoint": {
             "type": "object",
             "properties": {
+                "avg": {
+                    "description": "Histogram and summary series: sum divided by count (absent without observations or a sum).",
+                    "type": "number"
+                },
+                "count": {
+                    "description": "Histogram and summary series: observations in the bucket.",
+                    "type": "integer"
+                },
                 "cpu_percent": {
                     "type": "number"
                 },
@@ -23166,10 +23174,18 @@ const docTemplate = `{
                 "io_write_bytes_per_sec": {
                     "type": "number"
                 },
+                "max": {
+                    "description": "Histogram series: largest observed value, when the exporter sent it (delta temporality).",
+                    "type": "number"
+                },
                 "memory_bytes": {
                     "type": "number"
                 },
                 "memory_bytes_max": {
+                    "type": "number"
+                },
+                "min": {
+                    "description": "Histogram series: smallest observed value, when the exporter sent it (delta temporality).",
                     "type": "number"
                 },
                 "net_rx_bytes_per_sec": {
@@ -23178,19 +23194,55 @@ const docTemplate = `{
                 "net_tx_bytes_per_sec": {
                     "type": "number"
                 },
+                "p50": {
+                    "description": "Histogram series: median from the merged bucket counts of the bucket (linear interpolation inside a bucket). Summary series: the reported 0.5 quantile. Absent when it cannot be computed.",
+                    "type": "number"
+                },
+                "p95": {
+                    "description": "As p50, for the 95th percentile.",
+                    "type": "number"
+                },
+                "p99": {
+                    "description": "As p50, for the 99th percentile.",
+                    "type": "number"
+                },
                 "pids_max": {
                     "type": "integer"
                 },
+                "quantiles": {
+                    "description": "Summary series: the quantiles the exporter reported, averaged over the bucket weighted by observations.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ServiceMetricQuantile"
+                    }
+                },
                 "storage_bytes_max": {
                     "type": "integer"
+                },
+                "sum": {
+                    "description": "Histogram and summary series: total of the observed values in the bucket (absent when the exporter sent no sum).",
+                    "type": "number"
                 },
                 "t": {
                     "type": "string"
                 },
                 "value": {
+                    "description": "Gauge series: the average in the bucket. Sum series: the total increase in the bucket (divide by step_seconds for a rate).",
                     "type": "number"
                 },
                 "value_max": {
+                    "description": "Gauge series: the peak in the bucket. Sum series: the largest one-minute increase.",
+                    "type": "number"
+                }
+            }
+        },
+        "internal_api.ServiceMetricQuantile": {
+            "type": "object",
+            "properties": {
+                "quantile": {
+                    "type": "number"
+                },
+                "value": {
                     "type": "number"
                 }
             }
@@ -23205,6 +23257,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kind": {
+                    "description": "Kind is process, unit, container and so on for measured resources, and gauge, sum, histogram or\nsummary for app-reported metrics. A sum holds increases per interval (Orion turns cumulative sums\ninto them), a gauge a level.",
                     "type": "string"
                 },
                 "labels": {
