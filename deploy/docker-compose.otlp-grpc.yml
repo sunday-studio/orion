@@ -12,7 +12,7 @@
 #                       ingest key travels in every request.
 #
 # Exporters then use OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:<port> with OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-# and OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>". See docs/otlp-grpc.md.
+# and OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20<ingest key>". See docs/otlp-grpc.md.
 services:
   orion-core:
     ports:

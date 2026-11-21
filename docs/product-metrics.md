@@ -52,12 +52,12 @@ The setup for all three signals, with examples for each SDK and the Collector, i
 
 ```sh
 export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/metrics"
-export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_METRICS_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
 
-To send over OTLP/gRPC instead (the default of many SDKs), turn on the opt-in receiver and use `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`: [otlp-grpc.md](otlp-grpc.md). It runs the same code, so everything below applies to it too, except that the HTTP status codes become gRPC status codes.
+To send over OTLP/gRPC instead (the default of many SDKs), turn on the opt-in receiver and use `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20<ingest key>"`: [otlp-grpc.md](otlp-grpc.md). It runs the same code, so everything below applies to it too, except that the HTTP status codes become gRPC status codes.
 
 - **Supported types:** gauges, sums, histograms with explicit buckets, exponential histograms and summaries.
 - A series is a metric name plus its data point attributes (the first 20 by key, so the order an exporter sends them in does not matter) plus the resource attributes `service.name`, `service.instance.id` and `host.name`. Other resource attributes are ignored. A histogram or summary and a gauge or sum of the same name are different series.

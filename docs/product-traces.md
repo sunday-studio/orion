@@ -10,12 +10,12 @@ Point the OTLP/HTTP traces exporter at Orion with the app's ingest key (the same
 
 ```sh
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/traces"
-export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
 
-Many SDKs default to OTLP/gRPC instead. Core has an opt-in gRPC receiver on port 4317 (`ORION_OTLP_GRPC_ADDR`), with the same key, limits and rate limit: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`. Setup, status codes and limits: [otlp-grpc.md](otlp-grpc.md).
+Many SDKs default to OTLP/gRPC instead. Core has an opt-in gRPC receiver on port 4317 (`ORION_OTLP_GRPC_ADDR`), with the same key, limits and rate limit: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20<ingest key>"`. Setup, status codes and limits: [otlp-grpc.md](otlp-grpc.md).
 
 Link the app to a [service](plans/service-correlation-plan.md) and the service's traces, error rate and latency come with it. An OpenTelemetry Collector works the same way: an `otlphttp` exporter with `traces_endpoint` and an `Authorization` header.
 

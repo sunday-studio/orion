@@ -45,7 +45,7 @@ curl -X POST "$ORION_URL/v1/ingest/logs" \
 
 ```sh
 export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/logs"
-export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"
 export OTEL_SERVICE_NAME="checkout-api"
 ```

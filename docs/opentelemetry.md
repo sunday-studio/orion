@@ -27,7 +27,7 @@ The simplest setup uses the **base endpoint** `$ORION_URL/v1/ingest/otlp`: every
 
 Set these for the process that runs your app. They work with any SDK that follows the OpenTelemetry specification.
 
-Each snippet on this page was run against a real Core with the real SDK: Node.js (`@opentelemetry/auto-instrumentations-node` 0.83), Python (`opentelemetry-distro` 0.62, SDK 1.41), Go (SDK 1.47, `autoexport`), the Java agent 2.34 and the Collector contrib 0.165. All of them were run over HTTP; Node.js, Python and the Collector also over gRPC. Traces, metrics and logs arrived in every case, except that the Java check sent traces and metrics only (it had no logging library to send logs from).
+The setups on this page were run against a real Core with the real SDK: Node.js (`@opentelemetry/auto-instrumentations-node` 0.83), Python (`opentelemetry-distro` 0.62, SDK 1.41), Go (SDK 1.47; the run used `autoexport` for all three signals), the Java agent 2.34 and the Collector contrib 0.165. All of them were run over HTTP; Node.js, Python and the Collector also over gRPC. Traces, metrics and logs arrived in every case, except that the Java check sent traces and metrics only (it had no logging library to send logs from).
 
 ```sh
 export OTEL_SERVICE_NAME="checkout-api"

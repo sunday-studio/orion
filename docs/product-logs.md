@@ -67,12 +67,12 @@ Apps that already use an OpenTelemetry SDK (or the OTel Collector) need no Orion
 
 ```sh
 export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT="$ORION_URL/v1/ingest/otlp/v1/logs"
-export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_LOGS_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
 
-Over gRPC (the default of many SDKs) use the opt-in receiver on port 4317: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <ingest key>"`. It shares the parsing, limits, redaction and rate limit below; see [otlp-grpc.md](otlp-grpc.md) for setup and the gRPC status codes.
+Over gRPC (the default of many SDKs) use the opt-in receiver on port 4317: `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4317`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20<ingest key>"`. It shares the parsing, limits, redaction and rate limit below; see [otlp-grpc.md](otlp-grpc.md) for setup and the gRPC status codes.
 
 OTLP log records map to Orion entries (a successful response mirrors the request encoding and reports rejected records in `partial_success`; error responses (400, 401, 413, 415, 429) are Orion JSON envelopes rather than OTLP `Status` messages, which collectors handle by status code and `Retry-After`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`. In OTLP/JSON the ids are hex strings, as the OTLP specification says; Core also reads base64.
 
