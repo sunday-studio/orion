@@ -41,7 +41,7 @@ These variables work with any SDK that follows the OpenTelemetry specification:
 export OTEL_SERVICE_NAME="checkout-api"
 export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"      # or http/json
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_COMPRESSION="gzip"
 export OTEL_TRACES_EXPORTER="otlp"
 export OTEL_METRICS_EXPORTER="otlp"
@@ -53,10 +53,10 @@ Over gRPC the endpoint is the receiver, with no path:
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://orion.example.com:4317"   # https:// when TLS is in front
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
-export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20$ORION_INGEST_KEY"
 ```
 
-<Callout title="The space in the header.">The specification percent-encodes header values. Java, Python and Go decode `%20`, and Python warns about a raw space, so write `Bearer%20` followed by the key there. The Node.js SDK takes the header as written, so use a plain space. If a key you know is good gets a 401, try the other form.</Callout>
+<Callout title="The space in the header.">The specification percent-encodes header values, so write the space as `%20`: `Bearer%20` followed by the key. Every SDK below decodes it, and also accepted a plain space, in the versions we ran these snippets against (Node.js SDK 0.301, Python 1.41, Go 1.47, Java agent 2.34). Older SDKs may decode only one of the two, so if a key you know is good gets a 401, try the other form. Where the header is not read from `OTEL_EXPORTER_OTLP_HEADERS` (a Collector config, `curl`), send a real space: Core answers 401 to a literal `%20`.</Callout>
 
 To send one signal elsewhere, use the per-signal variables, such as `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Those take the full URL, path included. Set `OTEL_METRICS_EXPORTER=none` or `OTEL_LOGS_EXPORTER=none` to switch a signal off.
 
@@ -67,7 +67,7 @@ npm install @opentelemetry/api @opentelemetry/auto-instrumentations-node
 export OTEL_SERVICE_NAME="checkout-api"
 export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_TRACES_EXPORTER="otlp" OTEL_METRICS_EXPORTER="otlp" OTEL_LOGS_EXPORTER="otlp"
 node --require @opentelemetry/auto-instrumentations-node/register app.js
 ```
@@ -197,6 +197,6 @@ All three signals share one rate limit per app: each log record, data point and 
 | <Badge tone="r">429</Badge> | The app's rate limit or a full write queue. The response has `Retry-After`; exporters wait and retry. |
 | <Badge tone="r">503</Badge> | That signal is off on this Core, or its database is out of space. |
 | <Badge tone="g">200</Badge> but data is missing | Read `partial_success` in the response: it counts refused records and gives up to five reasons. The rest of the request was stored. |
-| A counter shows nothing | Cumulative counters store the change since the last reading, so the first export of a series is only a baseline. It appears after the second export. |
+| A counter shows nothing | Cumulative counters store the change since the last reading, so the first export of a series is only a baseline. It appears after the second export, and SDKs export metrics every 60 seconds by default, so that takes about two minutes. |
 | The gRPC exporter cannot connect | The receiver is off by default, and the Compose overlay publishes it on `127.0.0.1` only. Use `http://` unless TLS is in front. |
 | The service page is empty | Link the app to the service. The Traces list under Logs shows every app. |

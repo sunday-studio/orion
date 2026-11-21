@@ -114,7 +114,7 @@ As built:
 - `docs/opentelemetry.md` ("Connect OpenTelemetry") is the one guide: endpoints, auth, the `OTEL_*` variables with Node.js, Python, Go and Java examples, a Collector config for `otlphttp` and `otlp`, what is and is not supported, limits (linked, not copied) and troubleshooting. The public site has the same page (`apps/website/src/content/docs/opentelemetry.mdx`, in the Guides group), and the introduction, API overview and Send logs pages point to it. `product-logs.md`, `product-metrics.md`, `product-traces.md`, `otlp-grpc.md`, `how-it-works.md`, `getting-started.md` and `docs/README.md` link to it.
 - Every new route has OpenAPI annotations; `apps/core/openapi.yaml` is generated from them, and the Console client is generated from that. `docs/node-core-contract.md` did not change (no Node field changed).
 - Core's new setting, `ORION_OTLP_GRPC_ADDR`, is documented in `docs/otlp-grpc.md` and `deploy/.env.example`; the trace retention default is in the data lifecycle settings.
-- Compatibility is covered by tests that use the JSON and protobuf shapes the OpenTelemetry specification and the Collector produce (hex ids, string nanosecond times, enums as numbers or names, attribute value oneofs) for all three signals, including an exemplar. Running the official SDK and Collector exporters against Orion in CI was **not** done.
+- Compatibility is covered by tests that use the JSON and protobuf shapes the OpenTelemetry specification and the Collector produce (hex ids, string nanosecond times, enums as numbers or names, attribute value oneofs) for all three signals, including an exemplar. Running the official SDK and Collector exporters against Orion in CI was **not** done (they were run by hand later, see below).
 
 ### Left out
 
@@ -122,8 +122,22 @@ As built:
 - Per-span or trace-based alert rules.
 - Exemplars on metrics: accepted, not stored.
 - TLS on the gRPC receiver (put a proxy in front) and OTLP/HTTP on a separate port.
-- A CI job that runs the official SDK and Collector exporters against a Core. The setup examples in the guide were written from the specification and the SDK documentation and have not been run against live SDKs in this repository.
+- A CI job that runs the official SDK and Collector exporters against a Core. The setup examples in the guide were run by hand against live SDKs once (see "Checked against real SDKs"), not in CI.
 - The `attr` parameter of the log routes is still described as a single string in OpenAPI although it also repeats (only the trace routes were annotated as arrays).
+
+### Checked against real SDKs
+
+Run by hand against a Core built from `main`, with the guide's variables and configs:
+
+| Client | Over HTTP | Over gRPC |
+|---|---|---|
+| Node.js, `auto-instrumentations-node` 0.83 (SDK 0.301) | traces, metrics, logs | traces, metrics, logs |
+| Python, `opentelemetry-distro` 0.62 (SDK 1.41) | traces, metrics, logs | traces, metrics, logs |
+| Go SDK 1.47, `autoexport` | traces, metrics, logs | not run |
+| Java agent 2.34 | traces, metrics (no logging library in the test app) | not run |
+| Collector contrib 0.165 with the guide's `otlphttp` and `otlp` exporters | traces, metrics, logs | traces, metrics, logs |
+
+Findings: no Core bug turned up. The guide was wrong about the `Authorization` header: it said Python warns about a raw space and Node.js needs one, but every SDK above decoded `Bearer%20<key>` and also accepted a plain space, and Core rejects a literal `%20`. The guide now recommends `%20` in the environment variables and a real space in Collector configs. It also now says metrics are exported every 60 seconds by default, so a first counter reading takes about two minutes. The Node.js logs API is part of `@opentelemetry/api` 1.10, not a separate `api-logs` package.
 
 ## Order and dependencies
 

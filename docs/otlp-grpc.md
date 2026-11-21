@@ -25,11 +25,11 @@ Use the app's ingest key (the one for logs and metrics, from **Logs > Apps**), s
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://orion.example.com:4317"   # https:// when TLS is in front
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
-export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_SERVICE_NAME="checkout-api"
 ```
 
-That one set covers all three signals. If an SDK rejects the space in the header value, write it as `Bearer%20<key>`. Per-signal variables (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `..._METRICS_...`, `..._LOGS_...`) work as usual; with gRPC the endpoint has no path.
+That one set covers all three signals. The space is written as `%20` because the SDKs percent-decode the variable (an older SDK that does not decode it needs a plain space instead). In a Collector config the header is sent as written, so there it is a real space. Per-signal variables (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `..._METRICS_...`, `..._LOGS_...`) work as usual; with gRPC the endpoint has no path.
 
 An OpenTelemetry Collector exports with the `otlp` exporter:
 

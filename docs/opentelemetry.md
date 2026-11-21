@@ -27,11 +27,13 @@ The simplest setup uses the **base endpoint** `$ORION_URL/v1/ingest/otlp`: every
 
 Set these for the process that runs your app. They work with any SDK that follows the OpenTelemetry specification.
 
+Each snippet on this page was run against a real Core with the real SDK: Node.js (`@opentelemetry/auto-instrumentations-node` 0.83), Python (`opentelemetry-distro` 0.62, SDK 1.41), Go (SDK 1.47, `autoexport`), the Java agent 2.34 and the Collector contrib 0.165. All of them were run over HTTP; Node.js, Python and the Collector also over gRPC. Traces, metrics and logs arrived in every case, except that the Java check sent traces and metrics only (it had no logging library to send logs from).
+
 ```sh
 export OTEL_SERVICE_NAME="checkout-api"
 export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"      # or http/json
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_EXPORTER_OTLP_COMPRESSION="gzip"
 export OTEL_TRACES_EXPORTER="otlp"
 export OTEL_METRICS_EXPORTER="otlp"
@@ -43,10 +45,10 @@ Over gRPC the endpoint is the receiver, with no path:
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://orion.example.com:4317"   # https:// when TLS is in front
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
-export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20$ORION_INGEST_KEY"
 ```
 
-**The space in the header.** The specification percent-encodes header values. Java, Python and Go decode `%20`, and Python warns about a raw space, so write `Bearer%20<key>` there. The Node.js SDK takes the header as written, so a plain space is right. If you see a 401 with a key you know is good, switch to the other form.
+**The space in the header.** The specification percent-encodes header values, so write the space as `%20`: `Bearer%20<key>`. Every SDK below decodes it (and also accepted a plain space) in the versions we ran these snippets against: the Node.js SDK 0.301, Python 1.41, Go 1.47 and the Java agent 2.34. Older SDKs may decode only one of the two, so if you get a 401 with a key you know is good, switch to the other form. Where the header is not parsed from `OTEL_EXPORTER_OTLP_HEADERS` (a Collector config, `curl`, a hand-built request) send a real space: Core answers 401 to a literal `%20`.
 
 To send one signal elsewhere, or only some signals, use the per-signal variables (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `..._METRICS_...`, `..._LOGS_...`). Those take the **full** URL including the path, for example `$ORION_URL/v1/ingest/otlp/v1/traces`. Set `OTEL_METRICS_EXPORTER=none` or `OTEL_LOGS_EXPORTER=none` to switch a signal off.
 
@@ -57,10 +59,12 @@ npm install @opentelemetry/api @opentelemetry/auto-instrumentations-node
 export OTEL_SERVICE_NAME="checkout-api"
 export OTEL_EXPORTER_OTLP_ENDPOINT="$ORION_URL/v1/ingest/otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $ORION_INGEST_KEY"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20$ORION_INGEST_KEY"
 export OTEL_TRACES_EXPORTER="otlp" OTEL_METRICS_EXPORTER="otlp" OTEL_LOGS_EXPORTER="otlp"
 node --require @opentelemetry/auto-instrumentations-node/register app.js
 ```
+
+Traces and metrics need no code. Logs reach Orion from an instrumented logging library, or from code that calls the Logs API in `@opentelemetry/api` (1.10 or later; older releases had it in a separate `@opentelemetry/api-logs` package, which must match the SDK's version).
 
 ### Python
 
@@ -201,7 +205,7 @@ Limits are the same over HTTP and gRPC and are listed with each signal, so they 
 | `503` | That signal is off on this Core, or its database is out of space. The `Retry-After` header says when to try again. Free disk space or lower retention. |
 | `200`, but data is missing | Read `partial_success` in the response: it counts the refused records and gives up to five reasons, for example `invalid_trace_id` or a metric series cap. The rest of the request was stored. |
 | Trace or span ids rejected | OTLP/JSON writes ids as **hex** (`"traceId":"5b8efff798038103d269b633813fc60c"`), the protobuf JSON mapping would write base64. Core reads both. An id must be 16 bytes (trace) or 8 bytes (span) and not all zero; a 32 or 16 character string that is not hex, or any other length, is refused. |
-| A counter shows nothing | Cumulative sums and histograms store the change since the last reading, so the first export of a series is only a baseline. The counter appears after its second export. A counter that is flat in an interval shows zero change. |
+| A counter shows nothing | Cumulative sums and histograms store the change since the last reading, so the first export of a series is only a baseline. The counter appears after its second export. SDKs export metrics every 60 seconds by default (`OTEL_METRIC_EXPORT_INTERVAL`, in milliseconds), so that takes about two minutes. A counter that is flat in an interval shows zero change. |
 | gRPC exporter cannot connect | The receiver is off by default (`ORION_OTLP_GRPC_ADDR`), and the Compose overlay publishes it on `127.0.0.1` only. Use `http://` for the endpoint unless TLS is in front. |
 | Data arrives but the service page is empty | Link the app to the service from the service page. The Traces list under Logs shows every app without a link. |
 
