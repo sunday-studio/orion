@@ -2,6 +2,7 @@ package logstore
 
 import (
 	"fmt"
+	"sort"
 )
 
 // Count is one facet value and how many entries carry it.
@@ -28,26 +29,33 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 		return Facets{}, err
 	}
 	out := Facets{Severity: map[string]int64{}, Apps: []Count{}, Events: []Count{}}
-	var sev []struct {
+	table := facetTable(q)
+	// One pass gives the severity totals and the per-app counts.
+	var pairs []struct {
 		Severity string
+		AppID    string
 		N        int64
 	}
-	if err := s.dbq(q).Raw("SELECT severity, COUNT(*) AS n FROM log_entries"+where+" GROUP BY severity", args...).Scan(&sev).Error; err != nil {
+	if err := s.dbq(q).Raw("SELECT severity, app_id, COUNT(*) AS n FROM "+table+where+" GROUP BY severity, app_id", args...).Scan(&pairs).Error; err != nil {
 		return out, err
 	}
-	for _, r := range sev {
-		out.Severity[r.Severity] = r.N
+	perApp := map[string]int64{}
+	for _, r := range pairs {
+		out.Severity[r.Severity] += r.N
 		out.Total += r.N
+		perApp[r.AppID] += r.N
 	}
-	var apps []struct {
-		AppID string
-		N     int64
+	for id, n := range perApp {
+		out.Apps = append(out.Apps, Count{Value: id, Count: n})
 	}
-	if err := s.dbq(q).Raw("SELECT app_id, COUNT(*) AS n FROM log_entries"+where+" GROUP BY app_id ORDER BY n DESC LIMIT 50", args...).Scan(&apps).Error; err != nil {
-		return out, err
-	}
-	for _, r := range apps {
-		out.Apps = append(out.Apps, Count{Value: r.AppID, Count: r.N})
+	sort.Slice(out.Apps, func(i, j int) bool {
+		if out.Apps[i].Count != out.Apps[j].Count {
+			return out.Apps[i].Count > out.Apps[j].Count
+		}
+		return out.Apps[i].Value < out.Apps[j].Value
+	})
+	if len(out.Apps) > 50 {
+		out.Apps = out.Apps[:50]
 	}
 	eventWhere := where
 	if eventWhere == "" {
@@ -59,7 +67,7 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 		Event string
 		N     int64
 	}
-	if err := s.dbq(q).Raw("SELECT event, COUNT(*) AS n FROM log_entries"+eventWhere+" GROUP BY event ORDER BY n DESC, event ASC", args...).Scan(&events).Error; err != nil {
+	if err := s.dbq(q).Raw("SELECT event, COUNT(*) AS n FROM "+table+eventWhere+" GROUP BY event ORDER BY n DESC, event ASC", args...).Scan(&events).Error; err != nil {
 		return out, err
 	}
 	out.EventsDistinct = len(events)
@@ -70,6 +78,16 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 		out.Events = append(out.Events, Count{Value: r.Event, Count: r.N})
 	}
 	return out, nil
+}
+
+// facetTable is the table expression the facet counts read. With a time range and no app filter it
+// pins the time index. Without that, grouping by app makes SQLite walk a whole app index in order to
+// avoid sorting, which reads every entry ever stored however short the range is.
+func facetTable(q Query) string {
+	if q.From.IsZero() || len(q.AppIDs) > 0 {
+		return "log_entries"
+	}
+	return "log_entries INDEXED BY idx_log_entries_ts"
 }
 
 // FieldValues returns the most common values of one attribute among the matching entries.

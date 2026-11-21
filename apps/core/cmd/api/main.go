@@ -85,6 +85,7 @@ func main() {
 	}
 	server.EnableProductLogs(logStore)
 	logger.AttachSink(logstore.NewCoreLogSink(logStore, "api")) // Internal logs
+	logStore.WarmVolumes()
 	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour, logstore.AppRetention{AppID: logstore.InternalAppID, RetentionDays: cfg.InternalLogRetentionDays, MaxStorageMB: cfg.InternalLogMaxStorageMB})
 
 	// Traces are optional too: without traces.db Core keeps running and the trace routes answer 503.

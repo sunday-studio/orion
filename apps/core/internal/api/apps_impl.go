@@ -81,8 +81,8 @@ func validateAppRequest(req AppRequest, creating bool) error {
 func (s *Server) appResponse(app db.App) App {
 	var stats logstore.AppStats
 	if s.logs != nil {
-		if all, err := s.logs.store.StatsByApp(time.Now().UTC()); err == nil {
-			stats = all[app.ID]
+		if one, err := s.logs.store.StatsForApp(app.ID, time.Now().UTC()); err == nil {
+			stats = one
 		}
 	}
 	return s.appResponseWith(app, stats)

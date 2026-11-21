@@ -25,6 +25,12 @@ type PruneResult struct {
 // never blocked for long. Unknown apps' entries are left to DeleteApp.
 func (s *Store) Prune(policies []AppRetention, now time.Time) (PruneResult, error) {
 	var result PruneResult
+	// Also when it stops on an error: rows may already be gone.
+	defer func() {
+		if result.Expired+result.OverLimit > 0 {
+			s.volumeShrunk("")
+		}
+	}()
 	for _, p := range policies {
 		if p.RetentionDays > 0 {
 			cutoff := now.AddDate(0, 0, -p.RetentionDays).UnixNano()
@@ -64,7 +70,9 @@ func (s *Store) Prune(policies []AppRetention, now time.Time) (PruneResult, erro
 // DeleteApp removes every entry of an app.
 func (s *Store) DeleteApp(appID string) (int64, error) {
 	s.db.Exec("DELETE FROM log_minute_counts WHERE app_id = ?", appID)
-	return s.deleteBatched("app_id = ?", appID)
+	deleted, err := s.deleteBatched("app_id = ?", appID)
+	s.volumeShrunk(appID)
+	return deleted, err
 }
 
 func (s *Store) deleteBatched(where string, args ...any) (int64, error) {

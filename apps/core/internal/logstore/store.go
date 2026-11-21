@@ -96,6 +96,9 @@ type Store struct {
 	usageAt    time.Time
 	usageCache Usage
 
+	// vol is the stored volume per app, kept off the request path (volume.go).
+	vol volumeCache
+
 	closeOnce sync.Once
 	closed    atomic.Bool
 	done      chan struct{}
@@ -267,6 +270,9 @@ func (s *Store) insert(entries []Entry) (int64, error) {
 		}
 		return addMinuteCounts(tx, entries, stored)
 	})
+	if err == nil {
+		s.volumeAdded(entries, stored)
+	}
 	return stored, err
 }
 
