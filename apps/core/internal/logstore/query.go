@@ -127,12 +127,14 @@ func (q Query) where() (string, []any, error) {
 		clauses = append(clauses, "ts <= ?")
 		args = append(args, q.To.UnixNano())
 	}
+	// The `<> ''` terms are what let SQLite use the partial indexes on these columns (their WHERE is
+	// `<> ''`, and it cannot prove that of a bound value). Without them a lookup by id is a full scan.
 	if q.TraceID != "" {
-		clauses = append(clauses, "trace_id = ?")
+		clauses = append(clauses, "trace_id <> '' AND trace_id = ?")
 		args = append(args, q.TraceID)
 	}
 	if q.RequestID != "" {
-		clauses = append(clauses, "request_id = ?")
+		clauses = append(clauses, "request_id <> '' AND request_id = ?")
 		args = append(args, q.RequestID)
 	}
 	for _, attr := range q.Attrs {

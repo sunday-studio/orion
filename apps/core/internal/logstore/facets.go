@@ -57,17 +57,12 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 	if len(out.Apps) > 50 {
 		out.Apps = out.Apps[:50]
 	}
-	eventWhere := where
-	if eventWhere == "" {
-		eventWhere = " WHERE event <> ''"
-	} else {
-		eventWhere += " AND event <> ''"
-	}
+	eventSQL, eventArgs := eventCountsSQL(q, where, args)
 	var events []struct {
 		Event string
 		N     int64
 	}
-	if err := s.dbq(q).Raw("SELECT event, COUNT(*) AS n FROM "+table+eventWhere+" GROUP BY event ORDER BY n DESC, event ASC", args...).Scan(&events).Error; err != nil {
+	if err := s.dbq(q).Raw(eventSQL, eventArgs...).Scan(&events).Error; err != nil {
 		return out, err
 	}
 	out.EventsDistinct = len(events)
@@ -78,6 +73,21 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 		out.Events = append(out.Events, Count{Value: r.Event, Count: r.N})
 	}
 	return out, nil
+}
+
+// eventCountsSQL counts the entries per event name. SQLite likes to answer this from the partial index
+// on (app_id, event, ts), which holds every entry of the app and cannot narrow by time, so with an app
+// filter the app and time index is pinned (it narrows by both).
+func eventCountsSQL(q Query, where string, args []any) (string, []any) {
+	table := facetTable(q)
+	if !q.From.IsZero() && len(q.AppIDs) > 0 {
+		table = "log_entries INDEXED BY idx_log_entries_app_ts"
+	}
+	clause := " WHERE event <> ''"
+	if where != "" {
+		clause = where + " AND event <> ''"
+	}
+	return "SELECT event, COUNT(*) AS n FROM " + table + clause + " GROUP BY event ORDER BY n DESC, event ASC", args
 }
 
 // facetTable is the table expression the facet counts read. With a time range and no app filter it

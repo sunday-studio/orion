@@ -14,11 +14,11 @@ func (s *Store) Related(e Entry, limit int) (by string, total int64, entries []E
 		by, column, value = "trace_id", "trace_id", e.TraceID
 	}
 	if column != "" {
-		if err = s.db.Raw("SELECT COUNT(*) FROM log_entries WHERE "+column+" = ?", value).Scan(&total).Error; err != nil {
+		if err = s.db.Raw("SELECT COUNT(*) FROM log_entries WHERE "+column+" <> '' AND "+column+" = ?", value).Scan(&total).Error; err != nil {
 			return
 		}
 		var rows []logRow
-		if err = s.db.Raw("SELECT * FROM log_entries WHERE "+column+" = ? ORDER BY ts ASC, id ASC LIMIT ?", value, limit).Scan(&rows).Error; err != nil {
+		if err = s.db.Raw("SELECT * FROM log_entries WHERE "+column+" <> '' AND "+column+" = ? ORDER BY ts ASC, id ASC LIMIT ?", value, limit).Scan(&rows).Error; err != nil {
 			return
 		}
 		for _, r := range rows {

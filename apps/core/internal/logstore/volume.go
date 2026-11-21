@@ -3,6 +3,8 @@ package logstore
 import (
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Usage is the stored volume, cached briefly.
@@ -65,8 +67,13 @@ func (c *volumeCache) due() bool {
 	return (c.stale && age >= staleGap) || age > min(max(10*c.took, volumeMinAge), volumeMaxAge)
 }
 
-// volumes returns a copy of the per-app snapshot. The first call after start waits for the first scan;
-// later calls never wait for one.
+// volumeFirstWait is how long a reader waits for the very first scan (no saved snapshot yet, as on the
+// first start after an upgrade) before it gets an estimate. A scan of a large table takes minutes, and a
+// request that long is cut off by the server's write timeout.
+const volumeFirstWait = 1500 * time.Millisecond
+
+// volumes returns a copy of the per-app snapshot. Without any snapshot, a reader waits briefly for the
+// first scan and then gets an estimate (see estimateVolumes); later calls never wait for a scan.
 func (s *Store) volumes() (map[string]volume, error) {
 	c := &s.vol
 	c.mu.Lock()
@@ -76,7 +83,13 @@ func (s *Store) volumes() (map[string]volume, error) {
 		}
 		done := c.loading
 		c.mu.Unlock()
-		<-done
+		timer := time.NewTimer(volumeFirstWait)
+		select {
+		case <-done:
+			timer.Stop()
+		case <-timer.C:
+			return s.estimateVolumes()
+		}
 		c.mu.Lock()
 		if !c.ready {
 			err := c.err
@@ -109,29 +122,109 @@ func (s *Store) startVolumeScanLocked() {
 		}
 		err := s.db.Raw("SELECT app_id, COUNT(*) AS entries, COALESCE(SUM(size),0) AS bytes FROM log_entries GROUP BY app_id").Scan(&rows).Error
 		c.mu.Lock()
-		defer close(done)
-		defer c.mu.Unlock()
 		c.loading = nil
 		c.at = time.Now() // also after a failure, so a broken scan is retried at the normal pace
+		var saved map[string]volume
 		if err != nil {
 			c.err = err
-			return
+		} else {
+			c.err = nil
+			c.took = time.Since(started)
+			c.stale = c.gen != startGen
+			c.ready = true
+			c.perApp = make(map[string]volume, len(rows))
+			saved = make(map[string]volume, len(rows))
+			for _, r := range rows {
+				c.perApp[r.AppID] = volume{Entries: r.Entries, Bytes: r.Bytes}
+				saved[r.AppID] = volume{Entries: r.Entries, Bytes: r.Bytes}
+			}
 		}
-		c.err = nil
-		c.took = time.Since(started)
-		c.stale = c.gen != startGen
-		c.ready = true
-		c.perApp = make(map[string]volume, len(rows))
-		for _, r := range rows {
-			c.perApp[r.AppID] = volume{Entries: r.Entries, Bytes: r.Bytes}
+		c.mu.Unlock()
+		close(done)
+		if saved != nil {
+			s.saveVolumes(saved)
 		}
 	}()
 }
 
+// saveVolumes keeps the snapshot in logs.db so the next start can answer at once instead of waiting
+// for a scan that takes seconds to minutes on a large table. It is best effort, and only the API
+// process (the one with a writer) saves it.
+func (s *Store) saveVolumes(snapshot map[string]volume) {
+	if s.closed.Load() {
+		return
+	}
+	_ = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM log_app_volume").Error; err != nil {
+			return err
+		}
+		for id, v := range snapshot {
+			if err := tx.Exec("INSERT INTO log_app_volume (app_id, entries, bytes) VALUES (?, ?, ?)", id, v.Entries, v.Bytes).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// loadVolumes restores the saved snapshot, if there is one, as a stale one: readers get it at once and
+// the first read starts a refresh.
+func (s *Store) loadVolumes() {
+	var rows []struct {
+		AppID   string
+		Entries int64
+		Bytes   int64
+	}
+	if err := s.db.Raw("SELECT app_id, entries, bytes FROM log_app_volume").Scan(&rows).Error; err != nil || len(rows) == 0 {
+		return
+	}
+	c := &s.vol
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.perApp = make(map[string]volume, len(rows))
+	for _, r := range rows {
+		c.perApp[r.AppID] = volume{Entries: r.Entries, Bytes: r.Bytes}
+	}
+	c.ready, c.stale = true, true
+}
+
+// volumeSchema is the saved snapshot of the per-app stored volume.
+const volumeSchema = `
+CREATE TABLE IF NOT EXISTS log_app_volume (
+  app_id TEXT PRIMARY KEY,
+  entries INTEGER NOT NULL,
+  bytes INTEGER NOT NULL
+) WITHOUT ROWID;
+`
+
+// estimateVolumes answers while the first scan is still running. Entries come from the per-minute
+// rollup (a small table; it misses lines stored before the rollup existed and counts lines a storage
+// cap has since trimmed) and bytes from the entries times the average size of an app's latest lines.
+// The figures are replaced by exact ones when the scan ends, which is why they are never cached.
+func (s *Store) estimateVolumes() (map[string]volume, error) {
+	var counts []struct {
+		AppID string
+		N     int64
+	}
+	if err := s.db.Raw("SELECT app_id, SUM(n) AS n FROM log_minute_counts GROUP BY app_id").Scan(&counts).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[string]volume, len(counts))
+	for _, r := range counts {
+		var avg float64
+		if err := s.db.Raw("SELECT COALESCE(AVG(size), 0) FROM (SELECT size FROM log_entries WHERE app_id = ? ORDER BY ts DESC LIMIT 500)", r.AppID).Scan(&avg).Error; err != nil {
+			return nil, err
+		}
+		out[r.AppID] = volume{Entries: r.N, Bytes: int64(float64(r.N) * avg)}
+	}
+	return out, nil
+}
+
 // volumeAdded counts a committed batch. Rows committed while a scan runs are added to the map the scan
 // then replaces, and a scan can also see a batch just before this runs, so the snapshot can be off by
-// about the ingest rate times the scan time until the next scan. That is the tolerance of these figures. A batch with rows the insert ignored (a repeated client id)
-// cannot be counted without a lookup, so it only marks the snapshot stale.
+// about the ingest rate times the scan time until the next scan. That is the tolerance of these figures.
+// A batch with rows the insert ignored (a repeated client id) cannot be counted without a lookup, so it
+// only marks the snapshot stale.
 func (s *Store) volumeAdded(entries []Entry, stored int64) {
 	c := &s.vol
 	c.mu.Lock()
@@ -165,9 +258,17 @@ func (s *Store) volumeShrunk(appID string) {
 	c.gen++
 }
 
-// WarmVolumes starts the first scan now, so the first Apps page after a start does not wait for it.
+// WarmVolumes starts a scan now. With a saved snapshot, readers are answered from it meanwhile; without
+// one (the first start after an upgrade) the first reader waits for this scan.
 func (s *Store) WarmVolumes() {
-	go func() { _, _ = s.volumes() }()
+	go func() {
+		c := &s.vol
+		c.mu.Lock()
+		if c.loading == nil && !s.closed.Load() {
+			s.startVolumeScanLocked()
+		}
+		c.mu.Unlock()
+	}()
 }
 
 // Usage returns total entries, bytes and the lines stored since the start of the UTC day.

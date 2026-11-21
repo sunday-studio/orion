@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"orion/core/internal/testkit"
+	"orion/core/internal/utils"
 )
 
 func sized(app string, i int, at time.Time, size int) Entry {
@@ -226,5 +229,82 @@ func TestAScanThatStartedBeforeADeleteLeavesTheSnapshotStale(t *testing.T) {
 	c.mu.Unlock()
 	if scan(false) {
 		t.Fatal("a scan with no delete during it left the snapshot stale")
+	}
+}
+
+func TestASavedSnapshotAnswersAtOnceAfterARestart(t *testing.T) {
+	database := testkit.NewDB(t)
+	first, err := OpenWith(database, utils.NewLogger(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(first.Close)
+	first.Enqueue([]Entry{sized("a", 0, epoch, 10), sized("a", 1, epoch, 20), sized("a", 2, epoch, 30)})
+	first.Flush(5 * time.Second)
+	statsOf(t, first, "a") // the first scan, which also saves the snapshot
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var n int64
+		database.Raw("SELECT COUNT(*) FROM log_app_volume").Scan(&n)
+		if n == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the snapshot was not saved")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// The rows go behind the first store's back, then a second store starts on the same file, as after a
+	// restart. It must answer from what was saved without scanning first, and then correct itself.
+	database.Exec("DELETE FROM log_entries")
+	second, err := OpenWith(database, utils.NewLogger(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(second.Close)
+	fastRefresh(second)
+	if st := statsOf(t, second, "a"); st.Entries != 3 || st.Bytes != 60 {
+		t.Fatalf("after a restart app a = %+v, want the saved 3 entries and 60 bytes at once", st)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for statsOf(t, second, "a").Entries != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the saved snapshot was never refreshed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestWithoutASnapshotASlowFirstScanGetsAnEstimateNotAHang(t *testing.T) {
+	store := newTestStore(t, 0)
+	store.Enqueue([]Entry{sized("a", 0, epoch, 100), sized("a", 1, epoch, 100), sized("a", 2, epoch, 100), sized("b", 0, epoch, 50)})
+	store.Flush(5 * time.Second)
+
+	// Pretend the first scan is still running and will not end during the test.
+	store.vol.mu.Lock()
+	store.vol.loading = make(chan struct{})
+	store.vol.mu.Unlock()
+
+	started := time.Now()
+	all, err := store.StatsByApp(epoch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if took := time.Since(started); took < volumeFirstWait || took > volumeFirstWait+3*time.Second {
+		t.Fatalf("the reader waited %v, want about %v and then an answer", took, volumeFirstWait)
+	}
+	if a := all["a"]; a.Entries != 3 || a.Bytes != 300 {
+		t.Fatalf("estimate for a = %+v, want 3 entries and 300 bytes", a)
+	}
+	if b := all["b"]; b.Entries != 1 || b.Bytes != 50 {
+		t.Fatalf("estimate for b = %+v, want 1 entry and 50 bytes", b)
+	}
+	store.vol.mu.Lock()
+	ready := store.vol.ready
+	store.vol.mu.Unlock()
+	if ready {
+		t.Fatal("an estimate must not be kept as the snapshot")
 	}
 }

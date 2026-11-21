@@ -138,6 +138,7 @@ func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, er
 		queueMax = DefaultQueueMax
 	}
 	s := &Store{db: database, logger: logger, queueMax: int64(queueMax), batches: make(chan []Entry, 4096), done: make(chan struct{}), hub: newHub()}
+	s.loadVolumes()
 	go s.writer()
 	return s, nil
 }
@@ -298,6 +299,9 @@ func applySchema(database *gorm.DB) error {
 	}
 	if err := database.Exec(minuteCountsSchema).Error; err != nil {
 		return fmt.Errorf("apply minute counts schema: %w", err)
+	}
+	if err := database.Exec(volumeSchema).Error; err != nil {
+		return fmt.Errorf("apply volume schema: %w", err)
 	}
 	var cols []struct{ Name string }
 	if err := database.Raw("SELECT name FROM pragma_table_info('log_entries')").Scan(&cols).Error; err != nil {
