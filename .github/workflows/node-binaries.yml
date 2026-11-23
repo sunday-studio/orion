@@ -98,7 +98,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Generate release SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.3
         with:
           path: ./dist
           format: spdx-json
